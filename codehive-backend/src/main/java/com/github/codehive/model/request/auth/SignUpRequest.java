@@ -1,19 +1,10 @@
-package com.github.codehive.model.dto;
+package com.github.codehive.model.request.auth;
 
-public class UserDTO {
-    private Long id;
+public class SignUpRequest {
     private String email;
+    private String password;
     private String name;
     private String enrollmentNumber;
-    private String profilePictureUrl;
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
 
     public String getEmail() {
         return email;
@@ -21,6 +12,14 @@ public class UserDTO {
 
     public void setEmail(String email) {
         this.email = email;
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
     }
 
     public String getName() {
@@ -37,13 +36,5 @@ public class UserDTO {
 
     public void setEnrollmentNumber(String enrollmentNumber) {
         this.enrollmentNumber = enrollmentNumber;
-    }
-
-    public String getProfilePictureUrl() {
-        return profilePictureUrl;
-    }
-
-    public void setProfilePictureUrl(String profilePictureUrl) {
-        this.profilePictureUrl = profilePictureUrl;
     }
 }

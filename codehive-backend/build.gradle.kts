@@ -31,6 +31,8 @@ dependencies {
 
 	implementation("org.springframework.boot:spring-boot-starter-mail")
 
+	implementation("springdoc-openapi-starter-webmvc-ui:2.8.13")
+
 	runtimeOnly("org.postgresql:postgresql")
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
 	testImplementation("org.springframework.security:spring-security-test")
