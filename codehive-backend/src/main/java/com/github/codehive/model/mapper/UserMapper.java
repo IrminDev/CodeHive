@@ -13,9 +13,13 @@ public class UserMapper {
         UserDTO dto = new UserDTO();
         dto.setId(user.getId());
         dto.setEmail(user.getEmail());
-        dto.setEnrollmentNumber(user.getEnrollmentNumber());
         dto.setName(user.getName());
-        dto.setProfilePictureUrl(user.getProfilePictureUrl());;
+        dto.setLastName(user.getLastName());
+        dto.setEnrollmentNumber(user.getEnrollmentNumber());
+        dto.setProfilePictureUrl(user.getProfilePictureUrl());
+        dto.setRole(user.getRole());
+        dto.setCreatedAt(user.getCreatedAt());
+        dto.setIsActive(user.getIsActive());
         return dto;
     }
 
@@ -26,9 +30,13 @@ public class UserMapper {
         User user = new User();
         user.setId(dto.getId());
         user.setEmail(dto.getEmail());
-        user.setEnrollmentNumber(dto.getEnrollmentNumber());
         user.setName(dto.getName());
+        user.setLastName(dto.getLastName());
+        user.setEnrollmentNumber(dto.getEnrollmentNumber());
         user.setProfilePictureUrl(dto.getProfilePictureUrl());
+        user.setRole(dto.getRole());
+        user.setCreatedAt(dto.getCreatedAt());
+        user.setIsActive(dto.getIsActive());
         return user;
     }
 

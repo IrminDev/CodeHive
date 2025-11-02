@@ -2,7 +2,10 @@ package com.github.codehive.security;
 
 import java.io.IOException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -19,6 +22,8 @@ import jakarta.servlet.http.HttpServletResponse;
 
 @Component
 public class JWTAuthenticationFilter extends OncePerRequestFilter {
+    private static final Logger logger = LoggerFactory.getLogger(JWTAuthenticationFilter.class);
+    
     private final JwtUtil jwtUtil;
     private final UserDetailsServiceImplementation userDetailsService;
 
@@ -29,7 +34,7 @@ public class JWTAuthenticationFilter extends OncePerRequestFilter {
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
+    protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull FilterChain filterChain) throws ServletException, IOException {
         String token = request.getHeader("Authorization");
 
         if (token == null || !token.startsWith("Bearer ")) {
@@ -49,22 +54,25 @@ public class JWTAuthenticationFilter extends OncePerRequestFilter {
         UserDetails userDetails = userDetailsService.loadUserByUsername(email);
 
         if (userDetails == null) {
+            logger.debug("User details not found for email: {}", email);
             filterChain.doFilter(request, response);
             return;
         }
 
-        // Log the authorities for debugging
-        System.out.println("User authorities: " + userDetails.getAuthorities());
+        // Validate token
+        if (!jwtUtil.isTokenValid(token, email)) {
+            logger.debug("Invalid or expired token for email: {}", email);
+            filterChain.doFilter(request, response);
+            return;
+        }
 
-        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-        authentication.setDetails(
-            new WebAuthenticationDetailsSource().buildDetails(request)
-        );
+        logger.debug("Authenticating user: {} with authorities: {}", email, userDetails.getAuthorities());
+
+        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                userDetails, null, userDetails.getAuthorities());
+        authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
         SecurityContextHolder.getContext().setAuthentication(authentication);
-
-        // Log the authentication object
-        System.out.println("Authentication object: " + SecurityContextHolder.getContext().getAuthentication());
 
         filterChain.doFilter(request, response);
     }

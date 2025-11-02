@@ -47,10 +47,13 @@ public class SecurityConfig {
                 }
             ))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers(HttpMethod.POST, "/api/user/signup", "/api/user/login").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/news/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/graph/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/user/image/*").permitAll()
+                // Authentication endpoints
+                .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/signup").permitAll()
+                // Password recovery endpoints
+                .requestMatchers(HttpMethod.POST, "/api/recovery-password/**").permitAll()
+                // Swagger/OpenAPI documentation
+                .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+                // All other requests require authentication
                 .anyRequest().authenticated()
             )
             .sessionManagement(manager -> manager.sessionCreationPolicy(org.springframework.security.config.http.SessionCreationPolicy.STATELESS))
