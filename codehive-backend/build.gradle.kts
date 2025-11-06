@@ -2,6 +2,7 @@ plugins {
 	java
 	id("org.springframework.boot") version "3.5.6"
 	id("io.spring.dependency-management") version "1.1.7"
+	jacoco
 }
 
 group = "com.github"
@@ -40,11 +41,42 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-aop")
 
 	runtimeOnly("org.postgresql:postgresql")
+	
+	// Testing dependencies
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
 	testImplementation("org.springframework.security:spring-security-test")
+	testImplementation("org.mockito:mockito-core")
+	testImplementation("org.mockito:mockito-junit-jupiter")
+	testImplementation("org.assertj:assertj-core")
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+	testRuntimeOnly("com.h2database:h2")
 }
 
 tasks.withType<Test> {
 	useJUnitPlatform()
+	finalizedBy(tasks.jacocoTestReport) // Generate coverage report after tests
+}
+
+tasks.jacocoTestReport {
+	dependsOn(tasks.test) // Tests are required to run before generating the report
+	reports {
+		xml.required.set(true)
+		html.required.set(true)
+		csv.required.set(false)
+	}
+}
+
+tasks.jacocoTestCoverageVerification {
+	violationRules {
+		rule {
+			limit {
+				minimum = "0.70".toBigDecimal() // 70% minimum coverage
+			}
+		}
+	}
+}
+
+// Optional: Make build task depend on coverage verification
+tasks.check {
+	dependsOn(tasks.jacocoTestCoverageVerification)
 }
