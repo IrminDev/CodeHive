@@ -11,7 +11,7 @@ description = "CodeHive is a platform for educational puposes. It allows the tea
 
 java {
 	toolchain {
-		languageVersion = JavaLanguageVersion.of(25)
+		languageVersion = JavaLanguageVersion.of(21)
 	}
 }
 

@@ -1,8 +1,13 @@
 # CodeHive 🐝
 
-[![Backend Tests](https://github.com/IrminDev/CodeHive/actions/workflows/backend-tests.yml/badge.svg)](https://github.com/IrminDev/CodeHive/actions/workflows/backend-tests.yml)
+### 📌 Status Badge
+
+Already included at the top of README:
+```markdown
+[![Backend CI](https://github.com/IrminDev/CodeHive/actions/workflows/backend-ci.yml/badge.svg)](https://github.com/IrminDev/CodeHive/actions/workflows/backend-ci.yml)
+```
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Java](https://img.shields.io/badge/Java-25-orange.svg)](https://www.oracle.com/java/)
+[![Java](https://img.shields.io/badge/Java-21-orange.svg)](https://www.oracle.com/java/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.6-brightgreen.svg)](https://spring.io/projects/spring-boot)
 
 > A collaborative platform for educational purposes that allows teachers to create groups with their students, and students can deliver code by editing it from the same platform.
@@ -30,7 +35,7 @@
 
 ### Prerequisites
 
-- **Java 25** or later
+- **Java 21** or later
 - **PostgreSQL 15+** (for production)
 - **Node.js 18+** (for frontend)
 - **Gradle** (included via wrapper)
@@ -73,7 +78,7 @@ Access at: http://localhost:3000
 ### Backend Stack
 
 - **Framework**: Spring Boot 3.5.6
-- **Language**: Java 25
+- **Language**: Java 21 (LTS)
 - **Database**: PostgreSQL (production), H2 (testing)
 - **Security**: Spring Security + JWT
 - **Rate Limiting**: Bucket4j
