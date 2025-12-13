@@ -1,15 +1,147 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif,
     "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  
+  /* CodeHive Color Palette */
+  --color-imperial: #00296B;
+  --color-french: #003F88;
+  --color-azure: #00509D;
+  --color-yellow: #FDC500;
+  --color-gold: #FFD500;
+  
+  /* Extended palette for UI */
+  --color-imperial-light: #0a3d8f;
+  --color-french-light: #0055b3;
+  --color-azure-light: #0066c4;
+  --color-yellow-light: #ffe066;
+  --color-gold-light: #ffe866;
+  
+  /* Dark mode backgrounds */
+  --color-dark-bg: #0a0f1a;
+  --color-dark-surface: #111827;
+  --color-dark-card: #1a2234;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 html,
 body {
-  @apply bg-white dark:bg-gray-950;
+  @apply bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
 
-  @media (prefers-color-scheme: dark) {
-    color-scheme: dark;
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-gray-100 dark:bg-dark-surface;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-azure dark:bg-french rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-french dark:bg-azure;
+}
+
+/* Smooth transitions for theme switching */
+* {
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+/* Animation keyframes */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
   }
+  50% {
+    transform: translateY(-20px);
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(253, 197, 0, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(253, 197, 0, 0.6);
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+.animate-slide-up {
+  animation: slide-up 0.6s ease-out forwards;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.8s ease-out forwards;
+}
+
+/* Gradient text utility */
+.gradient-text {
+  @apply bg-gradient-to-r from-azure via-french to-imperial bg-clip-text text-transparent;
+}
+
+.gradient-text-gold {
+  @apply bg-gradient-to-r from-yellow to-gold bg-clip-text text-transparent;
+}
+
+/* Glass effect */
+.glass {
+  @apply bg-white/70 dark:bg-dark-card/70 backdrop-blur-md border border-gray-200/50 dark:border-gray-700/50;
+}
+
+/* Button base styles */
+.btn-primary {
+  @apply bg-gradient-to-r from-azure to-french text-white font-semibold px-6 py-3 rounded-xl 
+         hover:from-french hover:to-imperial transition-all duration-300 
+         shadow-lg hover:shadow-azure/30 hover:scale-105 active:scale-95;
+}
+
+.btn-secondary {
+  @apply bg-gradient-to-r from-yellow to-gold text-imperial font-semibold px-6 py-3 rounded-xl 
+         hover:from-gold hover:to-yellow transition-all duration-300 
+         shadow-lg hover:shadow-yellow/30 hover:scale-105 active:scale-95;
+}
+
+.btn-outline {
+  @apply border-2 border-azure dark:border-yellow text-azure dark:text-yellow font-semibold px-6 py-3 rounded-xl 
+         hover:bg-azure hover:text-white dark:hover:bg-yellow dark:hover:text-imperial
+         transition-all duration-300 hover:scale-105 active:scale-95;
 }
