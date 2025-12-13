@@ -3,8 +3,8 @@ import { Header } from "../components/Header";
 import { Hero } from "../components/Hero";
 import { Features } from "../components/Features";
 import { HowItWorks } from "../components/HowItWorks";
-import { Testimonials } from "../components/Testimonials";
-import { Pricing } from "../components/Pricing";
+import { Creators } from "../components/Testimonials";
+import { Contact } from "../components/Contact";
 import { Footer } from "../components/Footer";
 
 export function LandingPage() {
@@ -16,8 +16,8 @@ export function LandingPage() {
           <Hero />
           <Features />
           <HowItWorks />
-          <Testimonials />
-          <Pricing />
+          <Creators />
+          <Contact />
         </main>
         <Footer />
       </div>

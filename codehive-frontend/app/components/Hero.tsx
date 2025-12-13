@@ -8,7 +8,7 @@ export function Hero() {
   }, []);
 
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20">
+    <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-10">
       {/* Background decorations */}
       <div className="absolute inset-0 overflow-hidden">
         {/* Gradient orbs */}
@@ -63,24 +63,6 @@ export function Hero() {
                 </svg>
                 See How It Works
               </a>
-            </div>
-
-            {/* Stats */}
-            <div className="grid grid-cols-3 gap-8 pt-8 border-t border-gray-200 dark:border-gray-700/50">
-              {[
-                { value: "10K+", label: "Students" },
-                { value: "500+", label: "Teachers" },
-                { value: "50K+", label: "Challenges" },
-              ].map((stat) => (
-                <div key={stat.label} className="text-center lg:text-left">
-                  <div className="text-2xl lg:text-3xl font-bold text-azure dark:text-yellow">
-                    {stat.value}
-                  </div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400">
-                    {stat.label}
-                  </div>
-                </div>
-              ))}
             </div>
           </div>
 
@@ -169,7 +151,7 @@ export function Hero() {
                 </div>
               </div>
 
-              <div className="absolute -bottom-6 -left-6 glass rounded-2xl p-4 shadow-xl animate-float" style={{ animationDelay: "0.5s" }}>
+              <div className="absolute -bottom-12 -left-12 glass rounded-2xl p-4 shadow-xl animate-float" style={{ animationDelay: "0.5s" }}>
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-azure to-french flex items-center justify-center">
                     <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -188,7 +170,7 @@ export function Hero() {
       </div>
 
       {/* Scroll indicator */}
-      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce">
+      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 animate-bounce">
         <a href="#features" className="flex flex-col items-center gap-2 text-gray-400 hover:text-azure dark:hover:text-yellow transition-colors">
           <span className="text-sm">Explore</span>
           <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
