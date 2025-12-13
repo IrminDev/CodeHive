@@ -55,6 +55,30 @@ dependencies {
 tasks.withType<Test> {
 	useJUnitPlatform()
 	finalizedBy(tasks.jacocoTestReport) // Generate coverage report after tests
+	
+	// Show test results in console
+	testLogging {
+		events("passed", "skipped", "failed", "standardOut", "standardError")
+		exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+		showExceptions = true
+		showCauses = true
+		showStackTraces = true
+		
+		// Show test name and result
+		showStandardStreams = false
+	}
+	
+	// Summary after all tests
+	afterSuite(KotlinClosure2<TestDescriptor, TestResult, Unit>({ desc, result ->
+		if (desc.parent == null) { // Only print summary for root suite
+			println("\n--- Test Results ---")
+			println("Tests run: ${result.testCount}")
+			println("Passed: ${result.successfulTestCount}")
+			println("Failed: ${result.failedTestCount}")
+			println("Skipped: ${result.skippedTestCount}")
+			println("--------------------")
+		}
+	}))
 }
 
 tasks.jacocoTestReport {

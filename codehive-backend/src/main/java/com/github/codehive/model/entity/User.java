@@ -45,7 +45,7 @@ public class User implements UserDetails {
     @Enumerated(EnumType.ORDINAL)
     private Role role;
 
-    @Column(nullable = false, length = 40)
+    @Column(nullable = true, length = 255)
     private String profilePictureUrl;
 
     @Column(nullable = false)
@@ -57,6 +57,7 @@ public class User implements UserDetails {
     public User() {
         this.createdAt = LocalDateTime.now();
         this.isActive = true;
+        this.profilePictureUrl = "/static/images/default-avatar.png";
     }
 
     public User(String name, String lastName, String enrollmentNumber, String email, String password, Role role, String profilePictureUrl) {

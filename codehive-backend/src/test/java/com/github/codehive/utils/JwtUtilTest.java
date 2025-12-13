@@ -19,7 +19,7 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.MalformedJwtException;
 
-@DisplayName("JwtUtil Unit Tests")
+@DisplayName("JwtUtil Unit")
 class JwtUtilTest {
 
     private JwtUtil jwtUtil;
@@ -45,7 +45,7 @@ class JwtUtilTest {
     class TokenGenerationTests {
 
         @Test
-        @DisplayName("Should generate valid token with claims and email")
+        @DisplayName("Generates valid token with claims and email")
         void generateToken_WithClaimsAndEmail_ReturnsValidToken() {
             // Given
             String email = "test@example.com";
@@ -63,7 +63,7 @@ class JwtUtilTest {
         }
 
         @Test
-        @DisplayName("Should generate token with empty claims map")
+        @DisplayName("Generates token with empty claims map")
         void generateToken_WithEmptyClaims_ReturnsValidToken() {
             // Given
             String email = "user@example.com";
@@ -78,7 +78,7 @@ class JwtUtilTest {
         }
 
         @Test
-        @DisplayName("Should generate token with correct subject (email)")
+        @DisplayName("Generates token with correct subject (email)")
         void generateToken_WithEmail_HasCorrectSubject() {
             // Given
             String email = "subject@example.com";
@@ -93,7 +93,7 @@ class JwtUtilTest {
         }
 
         @Test
-        @DisplayName("Should generate token with custom claims")
+        @DisplayName("Generates token with custom claims")
         void generateToken_WithCustomClaims_ContainsAllClaims() {
             // Given
             String email = "test@example.com";
@@ -113,7 +113,7 @@ class JwtUtilTest {
         }
 
         @Test
-        @DisplayName("Should generate different tokens for different emails")
+        @DisplayName("Generates different tokens for different emails")
         void generateToken_WithDifferentEmails_GeneratesDifferentTokens() {
             // Given
             Map<String, Object> claims = new HashMap<>();
@@ -134,7 +134,7 @@ class JwtUtilTest {
     class ClaimExtractionTests {
 
         @Test
-        @DisplayName("Should extract email from token")
+        @DisplayName("Extracts email from token")
         void extractClaim_WithSubject_ReturnsEmail() {
             // Given
             String email = "extract@example.com";
@@ -148,7 +148,7 @@ class JwtUtilTest {
         }
 
         @Test
-        @DisplayName("Should extract expiration date from token")
+        @DisplayName("Extracts expiration date from token")
         void extractClaim_WithExpiration_ReturnsExpirationDate() {
             // Given
             String token = jwtUtil.generateToken(new HashMap<>(), "test@example.com");
@@ -162,7 +162,7 @@ class JwtUtilTest {
         }
 
         @Test
-        @DisplayName("Should extract issued at date from token")
+        @DisplayName("Extracts issued at date from token")
         void extractClaim_WithIssuedAt_ReturnsIssuedAtDate() {
             // Given
             String token = jwtUtil.generateToken(new HashMap<>(), "test@example.com");
@@ -176,7 +176,7 @@ class JwtUtilTest {
         }
 
         @Test
-        @DisplayName("Should extract custom claims from token")
+        @DisplayName("Extracts custom claims from token")
         void extractClaim_WithCustomClaims_ReturnsCorrectValues() {
             // Given
             Map<String, Object> claims = new HashMap<>();
@@ -191,7 +191,7 @@ class JwtUtilTest {
         }
 
         @Test
-        @DisplayName("Should throw exception for malformed token")
+        @DisplayName("Throws exception for malformed token")
         void extractClaim_WithMalformedToken_ThrowsException() {
             // Given
             String malformedToken = "not.a.valid.jwt.token";
@@ -202,7 +202,7 @@ class JwtUtilTest {
         }
 
         @Test
-        @DisplayName("Should throw exception for tampered token")
+        @DisplayName("Throws exception for tampered token")
         void extractClaim_WithTamperedToken_ThrowsException() {
             // Given
             String token = jwtUtil.generateToken(new HashMap<>(), "test@example.com");
@@ -219,7 +219,7 @@ class JwtUtilTest {
     class TokenValidationTests {
 
         @Test
-        @DisplayName("Should validate token with correct email and not expired")
+        @DisplayName("Validates token with correct email and not expired")
         void isTokenValid_WithValidTokenAndEmail_ReturnsTrue() {
             // Given
             String email = "valid@example.com";
@@ -233,7 +233,7 @@ class JwtUtilTest {
         }
 
         @Test
-        @DisplayName("Should invalidate token with different email")
+        @DisplayName("Invalidates token with different email")
         void isTokenValid_WithDifferentEmail_ReturnsFalse() {
             // Given
             String email = "original@example.com";
@@ -248,7 +248,7 @@ class JwtUtilTest {
         }
 
         @Test
-        @DisplayName("Should invalidate expired token")
+        @DisplayName("Invalidates expired token")
         void isTokenValid_WithExpiredToken_ReturnsFalse() {
             // Given
             String email = "test@example.com";
@@ -266,7 +266,7 @@ class JwtUtilTest {
         }
 
         @Test
-        @DisplayName("Should validate token immediately after generation")
+        @DisplayName("Validates token immediately after generation")
         void isTokenValid_ImmediatelyAfterGeneration_ReturnsTrue() {
             // Given
             String email = "immediate@example.com";
@@ -287,7 +287,7 @@ class JwtUtilTest {
     class TokenExpirationTests {
 
         @Test
-        @DisplayName("Should detect non-expired token")
+        @DisplayName("Detects non-expired token")
         void isTokenExpired_WithValidToken_ReturnsFalse() {
             // Given
             String token = jwtUtil.generateToken(new HashMap<>(), "test@example.com");
@@ -300,7 +300,7 @@ class JwtUtilTest {
         }
 
         @Test
-        @DisplayName("Should detect expired token")
+        @DisplayName("Detects expired token")
         void isTokenExpired_WithExpiredToken_ReturnsTrue() {
             // Given
             ReflectionTestUtils.setField(jwtUtil, "expiration", -5000L); // Expired 5 seconds ago
@@ -317,7 +317,7 @@ class JwtUtilTest {
         }
 
         @Test
-        @DisplayName("Should throw exception when extracting claims from expired token")
+        @DisplayName("Throws exception when extracting claims from expired token")
         void extractClaim_WithExpiredToken_ThrowsExpiredJwtException() {
             // Given
             ReflectionTestUtils.setField(jwtUtil, "expiration", -10000L); // Expired 10 seconds ago
@@ -332,7 +332,7 @@ class JwtUtilTest {
         }
 
         @Test
-        @DisplayName("Should generate token with correct expiration time")
+        @DisplayName("Generates token with correct expiration time")
         void generateToken_WithExpiration_HasCorrectExpirationTime() {
             // Given
             String email = "test@example.com";
@@ -356,7 +356,7 @@ class JwtUtilTest {
     class EdgeCaseTests {
 
         @Test
-        @DisplayName("Should handle token with very long email")
+        @DisplayName("Handles token with very long email")
         void generateToken_WithVeryLongEmail_GeneratesValidToken() {
             // Given
             String longEmail = "a".repeat(100) + "@example.com";
@@ -372,7 +372,7 @@ class JwtUtilTest {
         }
 
         @Test
-        @DisplayName("Should handle token with special characters in email")
+        @DisplayName("Handles token with special characters in email")
         void generateToken_WithSpecialCharactersInEmail_GeneratesValidToken() {
             // Given
             String specialEmail = "test+special.email_123@example.com";
@@ -388,7 +388,7 @@ class JwtUtilTest {
         }
 
         @Test
-        @DisplayName("Should handle token with many custom claims")
+        @DisplayName("Handles token with many custom claims")
         void generateToken_WithManyClaims_GeneratesValidToken() {
             // Given
             Map<String, Object> claims = new HashMap<>();
@@ -407,7 +407,7 @@ class JwtUtilTest {
         }
 
         @Test
-        @DisplayName("Should generate consistent tokens within same millisecond")
+        @DisplayName("Generates consistent tokens within same millisecond")
         void generateToken_SameEmailAndClaims_MayGenerateDifferentTokens() {
             // Given
             String email = "test@example.com";

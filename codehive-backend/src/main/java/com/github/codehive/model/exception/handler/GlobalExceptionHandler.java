@@ -5,7 +5,9 @@ import java.util.stream.Collectors;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -51,20 +53,20 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(IncorrectCredentialsException.class)
     public ResponseEntity<ErrorResponse> handleIncorrectCredentials(IncorrectCredentialsException ex) {
-        ErrorResponse errorResponse = new ErrorResponse(ex.getMessage(), "Authentication failed");
+        ErrorResponse errorResponse = new ErrorResponse("Authentication failed", "Invalid email or password");
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
     }
 
     @ExceptionHandler(AlreadyRegisteredEmailException.class)
     public ResponseEntity<ErrorResponse> handleAlreadyRegisteredEmail(AlreadyRegisteredEmailException ex) {
-        ErrorResponse errorResponse = new ErrorResponse(ex.getMessage(), "Duplicate email");
+        ErrorResponse errorResponse = new ErrorResponse("Registration failed", "Email already exists");
         return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse);
     }
 
     @ExceptionHandler(AlreadyRegisteredEnrollmentNumberException.class)
     public ResponseEntity<ErrorResponse> handleAlreadyRegisteredEnrollmentNumber(
             AlreadyRegisteredEnrollmentNumberException ex) {
-        ErrorResponse errorResponse = new ErrorResponse(ex.getMessage(), "Duplicate enrollment number");
+        ErrorResponse errorResponse = new ErrorResponse("Registration failed", "Enrollment number already exists");
         return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse);
     }
 
@@ -76,25 +78,25 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(TokenNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleTokenNotFound(TokenNotFoundException ex) {
-        ErrorResponse errorResponse = new ErrorResponse(ex.getMessage(), "Token not found");
+        ErrorResponse errorResponse = new ErrorResponse(ex.getMessage(), "Invalid or expired token");
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
     }
 
     @ExceptionHandler(ExpiredRecoveryTokenException.class)
     public ResponseEntity<ErrorResponse> handleExpiredRecoveryToken(ExpiredRecoveryTokenException ex) {
-        ErrorResponse errorResponse = new ErrorResponse(ex.getMessage(), "Token expired");
+        ErrorResponse errorResponse = new ErrorResponse(ex.getMessage(), "Token has expired");
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
     }
 
     @ExceptionHandler(InvalidRecoveryTokenException.class)
     public ResponseEntity<ErrorResponse> handleInvalidRecoveryToken(InvalidRecoveryTokenException ex) {
-        ErrorResponse errorResponse = new ErrorResponse(ex.getMessage(), "Invalid token");
+        ErrorResponse errorResponse = new ErrorResponse(ex.getMessage(), "Invalid or expired token");
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
     }
 
     @ExceptionHandler(TokenAlreadyUsedException.class)
     public ResponseEntity<ErrorResponse> handleTokenAlreadyUsed(TokenAlreadyUsedException ex) {
-        ErrorResponse errorResponse = new ErrorResponse(ex.getMessage(), "Token already used");
+        ErrorResponse errorResponse = new ErrorResponse(ex.getMessage(), "Token has already been used");
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
     }
 
@@ -114,6 +116,26 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleRateLimitExceeded(com.github.codehive.ratelimit.RateLimitExceededException ex) {
         ErrorResponse errorResponse = new ErrorResponse(ex.getMessage(), "Rate limit exceeded");
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(errorResponse);
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleHttpMessageNotReadable(HttpMessageNotReadableException ex) {
+        String message = "Malformed JSON request";
+        if (ex.getCause() != null && ex.getCause().getMessage() != null) {
+            message = ex.getCause().getMessage();
+        }
+        ErrorResponse errorResponse = new ErrorResponse("Invalid request format", message);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+    }
+
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleHttpMediaTypeNotSupported(HttpMediaTypeNotSupportedException ex) {
+        String message = "Content-Type not supported";
+        if (ex.getContentType() != null) {
+            message = "Content-Type '" + ex.getContentType() + "' is not supported";
+        }
+        ErrorResponse errorResponse = new ErrorResponse("Unsupported Media Type", message);
+        return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE).body(errorResponse);
     }
 
     @ExceptionHandler(Exception.class)

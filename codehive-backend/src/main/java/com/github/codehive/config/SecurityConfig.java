@@ -1,7 +1,6 @@
 package com.github.codehive.config;
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -26,7 +25,6 @@ public class SecurityConfig {
     private final UserDetailsServiceImplementation userDetailsService;
     private final JWTAuthenticationFilter jwtAuthenticationFilter;
 
-    @Autowired
     public SecurityConfig(UserDetailsServiceImplementation userDetailsService, JWTAuthenticationFilter jwtAuthenticationFilter) {
         this.userDetailsService = userDetailsService;
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
@@ -37,7 +35,7 @@ public class SecurityConfig {
         return http
             .csrf(AbstractHttpConfigurer::disable)
             .cors(cors -> cors.configurationSource(
-                _ -> {
+                request -> {
                     var corsConfig = new org.springframework.web.cors.CorsConfiguration();
                     corsConfig.addAllowedOriginPattern("*");
                     corsConfig.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE"));

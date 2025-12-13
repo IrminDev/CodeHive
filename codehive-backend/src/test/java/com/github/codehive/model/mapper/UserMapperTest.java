@@ -15,7 +15,7 @@ import com.github.codehive.model.dto.UserDTO;
 import com.github.codehive.model.entity.User;
 import com.github.codehive.model.enums.Role;
 
-@DisplayName("UserMapper Unit Tests")
+@DisplayName("UserMapper Unit")
 class UserMapperTest {
 
     private User testUser;
@@ -57,7 +57,7 @@ class UserMapperTest {
     class EntityToDTOTests {
 
         @Test
-        @DisplayName("Should map all fields from User to UserDTO")
+        @DisplayName("Maps all fields from User to UserDTO")
         void toDTO_WithCompleteUser_MapsAllFields() {
             // When
             UserDTO result = UserMapper.toDTO(testUser);
@@ -76,7 +76,7 @@ class UserMapperTest {
         }
 
         @Test
-        @DisplayName("Should return null when User is null")
+        @DisplayName("Returns null when User is null")
         void toDTO_WithNullUser_ReturnsNull() {
             // When
             UserDTO result = UserMapper.toDTO(null);
@@ -86,7 +86,7 @@ class UserMapperTest {
         }
 
         @Test
-        @DisplayName("Should handle user with minimal fields")
+        @DisplayName("Handles user with minimal fields")
         void toDTO_WithMinimalUser_MapsAvailableFields() {
             // Given
             User minimalUser = new User();
@@ -105,7 +105,7 @@ class UserMapperTest {
         }
 
         @Test
-        @DisplayName("Should map different role types correctly")
+        @DisplayName("Maps different role types correctly")
         void toDTO_WithDifferentRoles_MapsRoleCorrectly() {
             // Test STUDENT role
             testUser.setRole(Role.STUDENT);
@@ -124,7 +124,7 @@ class UserMapperTest {
         }
 
         @Test
-        @DisplayName("Should handle active and inactive users")
+        @DisplayName("Handles active and inactive users")
         void toDTO_WithDifferentActiveStates_MapsCorrectly() {
             // Test active user
             testUser.setIsActive(true);
@@ -143,7 +143,7 @@ class UserMapperTest {
     class DTOToEntityTests {
 
         @Test
-        @DisplayName("Should map all fields from UserDTO to User")
+        @DisplayName("Maps all fields from UserDTO to User")
         void toEntity_WithCompleteDTO_MapsAllFields() {
             // When
             User result = UserMapper.toEntity(testUserDTO);
@@ -162,7 +162,7 @@ class UserMapperTest {
         }
 
         @Test
-        @DisplayName("Should return null when UserDTO is null")
+        @DisplayName("Returns null when UserDTO is null")
         void toEntity_WithNullDTO_ReturnsNull() {
             // When
             User result = UserMapper.toEntity(null);
@@ -172,7 +172,7 @@ class UserMapperTest {
         }
 
         @Test
-        @DisplayName("Should handle DTO with minimal fields")
+        @DisplayName("Handles DTO with minimal fields")
         void toEntity_WithMinimalDTO_MapsAvailableFields() {
             // Given
             UserDTO minimalDTO = new UserDTO();
@@ -196,7 +196,7 @@ class UserMapperTest {
     class ListMappingTests {
 
         @Test
-        @DisplayName("Should map list of Users to list of UserDTOs")
+        @DisplayName("Maps list of Users to list of UserDTOs")
         void toDTOList_WithMultipleUsers_MapsAllCorrectly() {
             // Given
             User user1 = new User();
@@ -225,7 +225,7 @@ class UserMapperTest {
         }
 
         @Test
-        @DisplayName("Should return empty list when input list is empty")
+        @DisplayName("Returns empty list when input is empty")
         void toDTOList_WithEmptyList_ReturnsEmptyList() {
             // When
             List<UserDTO> result = UserMapper.toDTOList(List.of());
@@ -235,7 +235,7 @@ class UserMapperTest {
         }
 
         @Test
-        @DisplayName("Should map list of UserDTOs to list of Users")
+        @DisplayName("Maps list of UserDTOs to list of Users")
         void toEntityList_WithMultipleDTOs_MapsAllCorrectly() {
             // Given
             UserDTO dto1 = new UserDTO();
@@ -260,7 +260,7 @@ class UserMapperTest {
         }
 
         @Test
-        @DisplayName("Should handle list containing null values")
+        @DisplayName("Handles list containing null values")
         void toDTOList_WithNullValuesInList_SkipsNulls() {
             // Given
             User user1 = new User();
@@ -284,7 +284,7 @@ class UserMapperTest {
     class RoundTripTests {
 
         @Test
-        @DisplayName("Should preserve data through Entity -> DTO -> Entity conversion")
+        @DisplayName("Preserves data through Entity -> DTO -> Entity conversion")
         void roundTrip_EntityToDTOToEntity_PreservesData() {
             // When
             UserDTO dto = UserMapper.toDTO(testUser);
@@ -301,7 +301,7 @@ class UserMapperTest {
         }
 
         @Test
-        @DisplayName("Should preserve data through DTO -> Entity -> DTO conversion")
+        @DisplayName("Preserves data through DTO -> Entity -> DTO conversion")
         void roundTrip_DTOToEntityToDTO_PreservesData() {
             // When
             User entity = UserMapper.toEntity(testUserDTO);

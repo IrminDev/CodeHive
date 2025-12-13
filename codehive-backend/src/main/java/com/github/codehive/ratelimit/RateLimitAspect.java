@@ -6,6 +6,7 @@ import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
@@ -14,6 +15,7 @@ import jakarta.servlet.http.HttpServletRequest;
 
 @Aspect
 @Component
+@Profile("!test")
 public class RateLimitAspect {
     private static final Logger logger = LoggerFactory.getLogger(RateLimitAspect.class);
     
@@ -40,7 +42,6 @@ public class RateLimitAspect {
             throw new RateLimitExceededException(rateLimit.message());
         }
 
-        logger.debug("Rate limit check passed for key: {} on endpoint: {}", key, request.getRequestURI());
         return joinPoint.proceed();
     }
 

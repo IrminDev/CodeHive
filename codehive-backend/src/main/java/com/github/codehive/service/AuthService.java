@@ -63,7 +63,9 @@ public class AuthService {
         newUser.setName(signUpRequest.getName());
         newUser.setLastName(signUpRequest.getLastName());
         newUser.setEnrollmentNumber(signUpRequest.getEnrollmentNumber());
-        newUser.setProfilePictureUrl(signUpRequest.getProfilePictureUrl());
+        if (signUpRequest.getProfilePictureUrl() != null && !signUpRequest.getProfilePictureUrl().isBlank()) {
+            newUser.setProfilePictureUrl(signUpRequest.getProfilePictureUrl());
+        }
         newUser.setRole(Role.STUDENT); // Default role
         newUser.setIsActive(true);
 

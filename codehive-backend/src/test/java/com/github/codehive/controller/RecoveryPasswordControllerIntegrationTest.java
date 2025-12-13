@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
@@ -29,12 +30,13 @@ import com.github.codehive.model.request.recovery.ForgotPasswordRequest;
 import com.github.codehive.model.request.recovery.RecoveryPasswordRequest;
 import com.github.codehive.repository.PasswordResetTokenRepository;
 import com.github.codehive.repository.UserRepository;
+import com.github.codehive.service.MailSenderService;
 
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
 @ActiveProfiles("test")
-@DisplayName("RecoveryPasswordController Integration Tests")
+@DisplayName("RecoveryPasswordController Integration")
 class RecoveryPasswordControllerIntegrationTest {
 
     @Autowired
@@ -51,15 +53,14 @@ class RecoveryPasswordControllerIntegrationTest {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+    
+    @MockBean
+    private MailSenderService mailSenderService;
 
     private User testUser;
 
     @BeforeEach
     void setUp() {
-        // Clean database before each test
-        passwordResetTokenRepository.deleteAll();
-        userRepository.deleteAll();
-
         // Create a test user
         testUser = new User();
         testUser.setEmail("testuser@example.com");
@@ -68,6 +69,7 @@ class RecoveryPasswordControllerIntegrationTest {
         testUser.setPassword(passwordEncoder.encode("oldpassword123"));
         testUser.setEnrollmentNumber("ENR001");
         testUser.setRole(Role.STUDENT);
+        testUser.setProfilePictureUrl("/static/images/default-avatar.png");
         testUser.setIsActive(true);
         userRepository.save(testUser);
     }
@@ -77,7 +79,7 @@ class RecoveryPasswordControllerIntegrationTest {
     class ForgotPasswordEndpointTests {
 
         @Test
-        @DisplayName("Should return success message for existing user")
+        @DisplayName("Returns success message for existing email")
         void forgotPassword_WithExistingEmail_ReturnsSuccessMessage() throws Exception {
             // Given
             ForgotPasswordRequest request = new ForgotPasswordRequest();
@@ -94,7 +96,7 @@ class RecoveryPasswordControllerIntegrationTest {
         }
 
         @Test
-        @DisplayName("Should return same success message for non-existent email (security)")
+        @DisplayName("Returns same success message for non-existent email (security)")
         void forgotPassword_WithNonExistentEmail_ReturnsSameSuccessMessage() throws Exception {
             // Given
             ForgotPasswordRequest request = new ForgotPasswordRequest();
@@ -110,7 +112,7 @@ class RecoveryPasswordControllerIntegrationTest {
         }
 
         @Test
-        @DisplayName("Should create password reset token for existing user")
+        @DisplayName("Creates password reset token for existing email")
         void forgotPassword_WithExistingEmail_CreatesToken() throws Exception {
             // Given
             ForgotPasswordRequest request = new ForgotPasswordRequest();
@@ -131,7 +133,7 @@ class RecoveryPasswordControllerIntegrationTest {
         }
 
         @Test
-        @DisplayName("Should invalidate old tokens when creating new one")
+        @DisplayName("Invalidates old unused tokens when creating new one")
         void forgotPassword_WithExistingTokens_InvalidatesOldTokens() throws Exception {
             // Given - Create an existing token
             PasswordResetToken oldToken = new PasswordResetToken();
@@ -156,7 +158,7 @@ class RecoveryPasswordControllerIntegrationTest {
         }
 
         @Test
-        @DisplayName("Should return 400 with invalid email format")
+        @DisplayName("Returns 400 when email format is invalid")
         void forgotPassword_WithInvalidEmailFormat_ReturnsBadRequest() throws Exception {
             // Given
             ForgotPasswordRequest request = new ForgotPasswordRequest();
@@ -170,7 +172,7 @@ class RecoveryPasswordControllerIntegrationTest {
         }
 
         @Test
-        @DisplayName("Should return 400 with empty email")
+        @DisplayName("Returns 400 when email is empty")
         void forgotPassword_WithEmptyEmail_ReturnsBadRequest() throws Exception {
             // Given
             ForgotPasswordRequest request = new ForgotPasswordRequest();
@@ -184,7 +186,7 @@ class RecoveryPasswordControllerIntegrationTest {
         }
 
         @Test
-        @DisplayName("Should return 400 with null email")
+        @DisplayName("Returns 400 when email is null")
         void forgotPassword_WithNullEmail_ReturnsBadRequest() throws Exception {
             // Given
             ForgotPasswordRequest request = new ForgotPasswordRequest();
@@ -198,7 +200,7 @@ class RecoveryPasswordControllerIntegrationTest {
         }
 
         @Test
-        @DisplayName("Should return 400 with malformed JSON")
+        @DisplayName("Returns 400 when JSON is malformed")
         void forgotPassword_WithMalformedJSON_ReturnsBadRequest() throws Exception {
             // Given
             String malformedJson = "{\"email\": }";
@@ -216,7 +218,7 @@ class RecoveryPasswordControllerIntegrationTest {
     class ResetPasswordEndpointTests {
 
         @Test
-        @DisplayName("Should reset password successfully with valid token")
+        @DisplayName("Returns 200 and resets password for valid token")
         void resetPassword_WithValidToken_ResetsPasswordAndReturnsSuccess() throws Exception {
             // Given - Create a valid password reset token
             String tokenValue = UUID.randomUUID().toString();
@@ -245,7 +247,7 @@ class RecoveryPasswordControllerIntegrationTest {
         }
 
         @Test
-        @DisplayName("Should mark token as used after successful reset")
+        @DisplayName("Marks token as used after successful reset")
         void resetPassword_WithValidToken_MarksTokenAsUsed() throws Exception {
             // Given
             String tokenValue = UUID.randomUUID().toString();
@@ -272,7 +274,7 @@ class RecoveryPasswordControllerIntegrationTest {
         }
 
         @Test
-        @DisplayName("Should return 404 with non-existent token")
+        @DisplayName("Returns 404 when token does not exist")
         void resetPassword_WithNonExistentToken_ReturnsNotFound() throws Exception {
             // Given
             RecoveryPasswordRequest request = new RecoveryPasswordRequest();
@@ -288,7 +290,7 @@ class RecoveryPasswordControllerIntegrationTest {
         }
 
         @Test
-        @DisplayName("Should return 400 with expired token")
+        @DisplayName("Returns 400 when token is expired")
         void resetPassword_WithExpiredToken_ReturnsBadRequest() throws Exception {
             // Given - Create an expired token
             String tokenValue = UUID.randomUUID().toString();
@@ -312,7 +314,7 @@ class RecoveryPasswordControllerIntegrationTest {
         }
 
         @Test
-        @DisplayName("Should return 400 with already used token")
+        @DisplayName("Returns 400 when token already used")
         void resetPassword_WithUsedToken_ReturnsBadRequest() throws Exception {
             // Given - Create a used token
             String tokenValue = UUID.randomUUID().toString();
@@ -336,7 +338,7 @@ class RecoveryPasswordControllerIntegrationTest {
         }
 
         @Test
-        @DisplayName("Should return 400 with short password")
+        @DisplayName("Returns 400 when password is too short")
         void resetPassword_WithShortPassword_ReturnsBadRequest() throws Exception {
             // Given
             String tokenValue = UUID.randomUUID().toString();
@@ -359,7 +361,7 @@ class RecoveryPasswordControllerIntegrationTest {
         }
 
         @Test
-        @DisplayName("Should return 400 with empty password")
+        @DisplayName("Returns 400 when password is empty")
         void resetPassword_WithEmptyPassword_ReturnsBadRequest() throws Exception {
             // Given
             String tokenValue = UUID.randomUUID().toString();
@@ -382,7 +384,7 @@ class RecoveryPasswordControllerIntegrationTest {
         }
 
         @Test
-        @DisplayName("Should return 400 with null token")
+        @DisplayName("Returns 400 when token is null")
         void resetPassword_WithNullToken_ReturnsBadRequest() throws Exception {
             // Given
             RecoveryPasswordRequest request = new RecoveryPasswordRequest();
@@ -397,7 +399,7 @@ class RecoveryPasswordControllerIntegrationTest {
         }
 
         @Test
-        @DisplayName("Should return 400 with null password")
+        @DisplayName("Returns 400 when password is null")
         void resetPassword_WithNullPassword_ReturnsBadRequest() throws Exception {
             // Given
             String tokenValue = UUID.randomUUID().toString();
@@ -413,7 +415,7 @@ class RecoveryPasswordControllerIntegrationTest {
         }
 
         @Test
-        @DisplayName("Should not allow reusing same token twice")
+        @DisplayName("Prevents reusing same token twice")
         void resetPassword_UsingSameTokenTwice_SecondAttemptFails() throws Exception {
             // Given
             String tokenValue = UUID.randomUUID().toString();
@@ -447,7 +449,7 @@ class RecoveryPasswordControllerIntegrationTest {
         }
 
         @Test
-        @DisplayName("Should encode new password in database")
+        @DisplayName("Stores new password encoded in database")
         void resetPassword_WithValidToken_StoresEncodedPassword() throws Exception {
             // Given
             String tokenValue = UUID.randomUUID().toString();
@@ -480,7 +482,7 @@ class RecoveryPasswordControllerIntegrationTest {
     class ContentTypeTests {
 
         @Test
-        @DisplayName("Should reject forgot password request without content type")
+        @DisplayName("Returns 415 when content-type header is missing")
         void forgotPassword_WithoutContentType_ReturnsUnsupportedMediaType() throws Exception {
             // Given
             ForgotPasswordRequest request = new ForgotPasswordRequest();
@@ -493,7 +495,7 @@ class RecoveryPasswordControllerIntegrationTest {
         }
 
         @Test
-        @DisplayName("Should reject reset password request with wrong content type")
+        @DisplayName("Returns 415 when content-type is not JSON")
         void resetPassword_WithWrongContentType_ReturnsUnsupportedMediaType() throws Exception {
             // Given
             RecoveryPasswordRequest request = new RecoveryPasswordRequest();
@@ -513,7 +515,7 @@ class RecoveryPasswordControllerIntegrationTest {
     class SecurityTests {
 
         @Test
-        @DisplayName("Should allow unauthenticated access to forgot password endpoint")
+        @DisplayName("Allows unauthenticated access")
         void forgotPassword_WithoutAuthentication_IsAccessible() throws Exception {
             // Given
             ForgotPasswordRequest request = new ForgotPasswordRequest();
@@ -527,7 +529,7 @@ class RecoveryPasswordControllerIntegrationTest {
         }
 
         @Test
-        @DisplayName("Should allow unauthenticated access to reset password endpoint")
+        @DisplayName("Allows unauthenticated access")
         void resetPassword_WithoutAuthentication_IsAccessible() throws Exception {
             // Given
             String tokenValue = UUID.randomUUID().toString();
@@ -550,7 +552,7 @@ class RecoveryPasswordControllerIntegrationTest {
         }
 
         @Test
-        @DisplayName("Should not expose sensitive information in error messages")
+        @DisplayName("Does not expose sensitive information in error messages")
         void resetPassword_WithInvalidToken_DoesNotExposeSensitiveInfo() throws Exception {
             // Given
             RecoveryPasswordRequest request = new RecoveryPasswordRequest();

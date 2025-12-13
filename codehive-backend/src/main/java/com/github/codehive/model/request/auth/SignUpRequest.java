@@ -24,7 +24,6 @@ public class SignUpRequest {
     @NotBlank(message = "Enrollment number is required")
     private String enrollmentNumber;
 
-    @NotBlank(message = "Profile picture URL is required")
     private String profilePictureUrl;
 
     public String getEmail() {

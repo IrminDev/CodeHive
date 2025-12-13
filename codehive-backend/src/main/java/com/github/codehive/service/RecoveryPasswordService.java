@@ -9,7 +9,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.github.codehive.model.entity.PasswordResetToken;
 import com.github.codehive.model.entity.User;
-import com.github.codehive.model.exception.EntityNotFoundException;
 import com.github.codehive.repository.PasswordResetTokenRepository;
 import com.github.codehive.repository.UserRepository;
 
@@ -32,28 +31,25 @@ public class RecoveryPasswordService {
 
     @Transactional
     public void sendPasswordResetEmail(String email) {
-        // Find the user by email or throw if not found
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new EntityNotFoundException("User not found with email: " + email));
+        // Find the user by email - DO NOT throw exception if not found
+        User user = userRepository.findByEmail(email).orElse(null);
 
-        // Check if user is active
-        if (!user.getIsActive()) {
-            throw new EntityNotFoundException("User account is inactive");
+        // If user exists and is active, send the email
+        if (user != null && user.getIsActive()) {
+            // Invalidate all previous unused tokens for this user
+            passwordResetTokenRepository.findByUserAndUsedFalse(user).forEach(oldToken -> {
+                oldToken.setUsed(true);
+                passwordResetTokenRepository.save(oldToken);
+            });
+
+            // Generate a random token and persist it
+            String token = UUID.randomUUID().toString();
+            PasswordResetToken passwordResetToken = new PasswordResetToken(token, LocalDateTime.now().plusMinutes(15), user);
+            passwordResetTokenRepository.save(passwordResetToken);
+
+            // Send the password reset email containing the token
+            mailSenderService.sendPasswordResetEmail(email, token);
         }
-
-        // Invalidate all previous unused tokens for this user
-        passwordResetTokenRepository.findByUserAndUsedFalse(user).forEach(oldToken -> {
-            oldToken.setUsed(true);
-            passwordResetTokenRepository.save(oldToken);
-        });
-
-        // Generate a random token and persist it
-        String token = UUID.randomUUID().toString();
-        PasswordResetToken passwordResetToken = new PasswordResetToken(token, LocalDateTime.now().plusMinutes(15), user);
-        passwordResetTokenRepository.save(passwordResetToken);
-
-        // Send the password reset email containing the token
-        mailSenderService.sendPasswordResetEmail(email, token);
     }
 
     @Transactional

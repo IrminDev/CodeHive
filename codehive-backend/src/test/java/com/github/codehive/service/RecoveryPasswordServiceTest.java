@@ -29,7 +29,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import com.github.codehive.model.entity.PasswordResetToken;
 import com.github.codehive.model.entity.User;
 import com.github.codehive.model.enums.Role;
-import com.github.codehive.model.exception.EntityNotFoundException;
 import com.github.codehive.model.exception.recovery.ExpiredRecoveryTokenException;
 import com.github.codehive.model.exception.recovery.TokenAlreadyUsedException;
 import com.github.codehive.model.exception.recovery.TokenNotFoundException;
@@ -37,7 +36,7 @@ import com.github.codehive.repository.PasswordResetTokenRepository;
 import com.github.codehive.repository.UserRepository;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("RecoveryPasswordService Unit Tests")
+@DisplayName("RecoveryPasswordService Unit")
 class RecoveryPasswordServiceTest {
 
     @Mock
@@ -85,7 +84,7 @@ class RecoveryPasswordServiceTest {
     class SendPasswordResetEmailTests {
 
         @Test
-        @DisplayName("Should send reset email for valid active user")
+        @DisplayName("Sends reset email for valid active user")
         void sendPasswordResetEmail_WithValidActiveUser_SendsEmailAndCreatesToken() {
             // Given
             String email = "test@example.com";
@@ -110,16 +109,14 @@ class RecoveryPasswordServiceTest {
         }
 
         @Test
-        @DisplayName("Should throw exception when user not found")
-        void sendPasswordResetEmail_WithNonExistentUser_ThrowsEntityNotFoundException() {
+        @DisplayName("Does not throw exception when user not found")
+        void sendPasswordResetEmail_WithNonExistentUser_DoesNotThrowException() {
             // Given
             String email = "nonexistent@example.com";
             when(userRepository.findByEmail(email)).thenReturn(Optional.empty());
 
             // When & Then
-            assertThatThrownBy(() -> recoveryPasswordService.sendPasswordResetEmail(email))
-                    .isInstanceOf(EntityNotFoundException.class)
-                    .hasMessageContaining("User not found with email");
+            recoveryPasswordService.sendPasswordResetEmail(email);
 
             verify(userRepository).findByEmail(email);
             verify(passwordResetTokenRepository, never()).save(any());
@@ -127,17 +124,15 @@ class RecoveryPasswordServiceTest {
         }
 
         @Test
-        @DisplayName("Should throw exception when user is inactive")
-        void sendPasswordResetEmail_WithInactiveUser_ThrowsEntityNotFoundException() {
+        @DisplayName("Does not throw exception when user is inactive")
+        void sendPasswordResetEmail_WithInactiveUser_DoesNotThrowException() {
             // Given
             String email = "inactive@example.com";
             testUser.setIsActive(false);
             when(userRepository.findByEmail(email)).thenReturn(Optional.of(testUser));
 
             // When & Then
-            assertThatThrownBy(() -> recoveryPasswordService.sendPasswordResetEmail(email))
-                    .isInstanceOf(EntityNotFoundException.class)
-                    .hasMessageContaining("User account is inactive");
+            recoveryPasswordService.sendPasswordResetEmail(email);
 
             verify(userRepository).findByEmail(email);
             verify(passwordResetTokenRepository, never()).save(any());
@@ -145,7 +140,7 @@ class RecoveryPasswordServiceTest {
         }
 
         @Test
-        @DisplayName("Should invalidate old unused tokens before creating new one")
+        @DisplayName("Invalidates old unused tokens before creating new one")
         void sendPasswordResetEmail_InvalidatesOldUnusedTokens() {
             // Given
             String email = "test@example.com";
@@ -168,14 +163,14 @@ class RecoveryPasswordServiceTest {
             recoveryPasswordService.sendPasswordResetEmail(email);
 
             // Then
-            verify(passwordResetTokenRepository, times(2)).save(any(PasswordResetToken.class)); // 2 old + 1 new
+            verify(passwordResetTokenRepository, times(3)).save(any(PasswordResetToken.class)); // 2 old marked as used + 1 new
             assertThat(oldToken1.getUsed()).isTrue();
             assertThat(oldToken2.getUsed()).isTrue();
             verify(mailSenderService).sendPasswordResetEmail(eq(email), anyString());
         }
 
         @Test
-        @DisplayName("Should generate unique token")
+        @DisplayName("Generates unique token")
         void sendPasswordResetEmail_GeneratesUniqueToken() {
             // Given
             String email = "test@example.com";
@@ -196,7 +191,7 @@ class RecoveryPasswordServiceTest {
         }
 
         @Test
-        @DisplayName("Should set expiry date to 15 minutes from now")
+        @DisplayName("Sets expiry date to 15 minutes from now")
         void sendPasswordResetEmail_SetsExpiryDateTo15Minutes() {
             // Given
             String email = "test@example.com";
@@ -224,7 +219,7 @@ class RecoveryPasswordServiceTest {
     class ResetPasswordTests {
 
         @Test
-        @DisplayName("Should successfully reset password with valid token")
+        @DisplayName("Resets password for valid token")
         void resetPassword_WithValidToken_ResetsPasswordAndMarksTokenAsUsed() {
             // Given
             String token = "valid-token-123";
@@ -248,7 +243,7 @@ class RecoveryPasswordServiceTest {
         }
 
         @Test
-        @DisplayName("Should throw exception when token not found")
+        @DisplayName("Throws exception when token not found")
         void resetPassword_WithNonExistentToken_ThrowsTokenNotFoundException() {
             // Given
             String token = "non-existent-token";
@@ -267,7 +262,7 @@ class RecoveryPasswordServiceTest {
         }
 
         @Test
-        @DisplayName("Should throw exception when token is expired")
+        @DisplayName("Throws exception when token is expired")
         void resetPassword_WithExpiredToken_ThrowsExpiredRecoveryTokenException() {
             // Given
             String token = "expired-token";
@@ -287,7 +282,7 @@ class RecoveryPasswordServiceTest {
         }
 
         @Test
-        @DisplayName("Should throw exception when token already used")
+        @DisplayName("Throws exception when token already used")
         void resetPassword_WithUsedToken_ThrowsTokenAlreadyUsedException() {
             // Given
             String token = "used-token";
@@ -307,7 +302,7 @@ class RecoveryPasswordServiceTest {
         }
 
         @Test
-        @DisplayName("Should encode new password before saving")
+        @DisplayName("Encodes new password before saving")
         void resetPassword_EncodesPasswordBeforeSaving() {
             // Given
             String token = "valid-token-123";
@@ -329,7 +324,7 @@ class RecoveryPasswordServiceTest {
         }
 
         @Test
-        @DisplayName("Should validate token expiry date precisely")
+        @DisplayName("Validates token expiry date precisely")
         void resetPassword_ValidatesExpiryDatePrecisely() {
             // Given - Token expires in exactly 1 second
             String token = "about-to-expire-token";
@@ -348,7 +343,7 @@ class RecoveryPasswordServiceTest {
         }
 
         @Test
-        @DisplayName("Should not modify user if token validation fails")
+        @DisplayName("Does not modify user if token validation fails")
         void resetPassword_DoesNotModifyUserWhenValidationFails() {
             // Given
             String token = "expired-token";

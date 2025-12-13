@@ -21,7 +21,7 @@ public class RateLimitService {
      * @return Bucket for rate limiting
      */
     public Bucket resolveBucket(String key, int limit, long duration) {
-        return cache.computeIfAbsent(key, _ -> createNewBucket(limit, duration));
+        return cache.computeIfAbsent(key, k -> createNewBucket(limit, duration));
     }
 
     /**

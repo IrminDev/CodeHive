@@ -1,6 +1,7 @@
 package com.github.codehive.utils;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
 
 import java.nio.charset.StandardCharsets;
@@ -55,14 +56,22 @@ public class JwtUtil {
     }
 
     public boolean isTokenValid(String token, String email){
-        final String emailToken = extractClaim(token, Claims::getSubject);
-        return (emailToken.equals(email) && !isTokenExpired(token));
+        try {
+            final String emailToken = extractClaim(token, Claims::getSubject);
+            return (emailToken.equals(email) && !isTokenExpired(token));
+        } catch (ExpiredJwtException e) {
+            return false;
+        }
     }
 
     public boolean isTokenExpired(String token){
-        return extractExpiration(token).before(new Date(
-            System.currentTimeMillis()
-        ));
+        try {
+            return extractExpiration(token).before(new Date(
+                System.currentTimeMillis()
+            ));
+        } catch (ExpiredJwtException e) {
+            return true;
+        }
     }
 
     private Date extractExpiration(String token){

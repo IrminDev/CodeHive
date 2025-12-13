@@ -29,7 +29,7 @@ import com.github.codehive.repository.UserRepository;
 @AutoConfigureMockMvc
 @Transactional
 @ActiveProfiles("test")
-@DisplayName("AuthController Integration Tests")
+@DisplayName("AuthController Integration")
 class AuthControllerIntegrationTest {
 
     @Autowired
@@ -48,9 +48,6 @@ class AuthControllerIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        // Clean database before each test
-        userRepository.deleteAll();
-
         // Create a test user
         testUser = new User();
         testUser.setEmail("existing@example.com");
@@ -59,6 +56,7 @@ class AuthControllerIntegrationTest {
         testUser.setPassword(passwordEncoder.encode("password123"));
         testUser.setEnrollmentNumber("ENR001");
         testUser.setRole(Role.STUDENT);
+        testUser.setProfilePictureUrl("/static/images/default-avatar.png");
         testUser.setIsActive(true);
         userRepository.save(testUser);
     }
@@ -68,7 +66,7 @@ class AuthControllerIntegrationTest {
     class LoginEndpointTests {
 
         @Test
-        @DisplayName("Should login successfully with valid credentials")
+        @DisplayName("Returns token and user data for valid credentials")
         void login_WithValidCredentials_ReturnsTokenAndUserData() throws Exception {
             // Given
             LoginRequest loginRequest = new LoginRequest();
@@ -91,7 +89,7 @@ class AuthControllerIntegrationTest {
         }
 
         @Test
-        @DisplayName("Should return 401 with invalid password")
+        @DisplayName("Returns 401 when password is invalid")
         void login_WithInvalidPassword_ReturnsUnauthorized() throws Exception {
             // Given
             LoginRequest loginRequest = new LoginRequest();
@@ -107,7 +105,7 @@ class AuthControllerIntegrationTest {
         }
 
         @Test
-        @DisplayName("Should return 401 with non-existent email")
+        @DisplayName("Returns 401 when email does not exist")
         void login_WithNonExistentEmail_ReturnsUnauthorized() throws Exception {
             // Given
             LoginRequest loginRequest = new LoginRequest();
@@ -123,7 +121,7 @@ class AuthControllerIntegrationTest {
         }
 
         @Test
-        @DisplayName("Should return 400 with invalid email format")
+        @DisplayName("Returns 400 when email format is invalid")
         void login_WithInvalidEmailFormat_ReturnsBadRequest() throws Exception {
             // Given
             LoginRequest loginRequest = new LoginRequest();
@@ -135,11 +133,11 @@ class AuthControllerIntegrationTest {
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(loginRequest)))
                     .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.error").exists());
+                    .andExpect(jsonPath("$.errors").exists());
         }
 
         @Test
-        @DisplayName("Should return 400 with empty email")
+        @DisplayName("Returns 400 when email is empty")
         void login_WithEmptyEmail_ReturnsBadRequest() throws Exception {
             // Given
             LoginRequest loginRequest = new LoginRequest();
@@ -154,7 +152,7 @@ class AuthControllerIntegrationTest {
         }
 
         @Test
-        @DisplayName("Should return 400 with empty password")
+        @DisplayName("Returns 400 when password is empty")
         void login_WithEmptyPassword_ReturnsBadRequest() throws Exception {
             // Given
             LoginRequest loginRequest = new LoginRequest();
@@ -169,7 +167,7 @@ class AuthControllerIntegrationTest {
         }
 
         @Test
-        @DisplayName("Should return 400 with null fields")
+        @DisplayName("Returns 400 when fields are null")
         void login_WithNullFields_ReturnsBadRequest() throws Exception {
             // Given
             LoginRequest loginRequest = new LoginRequest();
@@ -183,7 +181,7 @@ class AuthControllerIntegrationTest {
         }
 
         @Test
-        @DisplayName("Should return 400 with malformed JSON")
+        @DisplayName("Returns 400 when JSON is malformed")
         void login_WithMalformedJSON_ReturnsBadRequest() throws Exception {
             // Given
             String malformedJson = "{\"email\": \"test@example.com\", \"password\": }";
@@ -201,7 +199,7 @@ class AuthControllerIntegrationTest {
     class SignUpEndpointTests {
 
         @Test
-        @DisplayName("Should register new user successfully")
+        @DisplayName("Returns 201 with token for valid registration data")
         void signup_WithValidData_ReturnsCreatedAndToken() throws Exception {
             // Given
             SignUpRequest signUpRequest = new SignUpRequest();
@@ -228,7 +226,7 @@ class AuthControllerIntegrationTest {
         }
 
         @Test
-        @DisplayName("Should return 409 when email already exists")
+        @DisplayName("Returns 409 when email already exists")
         void signup_WithExistingEmail_ReturnsConflict() throws Exception {
             // Given
             SignUpRequest signUpRequest = new SignUpRequest();
@@ -247,7 +245,7 @@ class AuthControllerIntegrationTest {
         }
 
         @Test
-        @DisplayName("Should return 409 when enrollment number already exists")
+        @DisplayName("Returns 409 when enrollment number already exists")
         void signup_WithExistingEnrollmentNumber_ReturnsConflict() throws Exception {
             // Given
             SignUpRequest signUpRequest = new SignUpRequest();
@@ -266,7 +264,7 @@ class AuthControllerIntegrationTest {
         }
 
         @Test
-        @DisplayName("Should return 400 with invalid email format")
+        @DisplayName("Returns 400 when email format is invalid")
         void signup_WithInvalidEmailFormat_ReturnsBadRequest() throws Exception {
             // Given
             SignUpRequest signUpRequest = new SignUpRequest();
@@ -284,7 +282,7 @@ class AuthControllerIntegrationTest {
         }
 
         @Test
-        @DisplayName("Should return 400 with short password")
+        @DisplayName("Returns 400 when password is too short")
         void signup_WithShortPassword_ReturnsBadRequest() throws Exception {
             // Given
             SignUpRequest signUpRequest = new SignUpRequest();
@@ -302,7 +300,7 @@ class AuthControllerIntegrationTest {
         }
 
         @Test
-        @DisplayName("Should return 400 with empty required fields")
+        @DisplayName("Returns 400 when required fields are empty")
         void signup_WithEmptyRequiredFields_ReturnsBadRequest() throws Exception {
             // Given
             SignUpRequest signUpRequest = new SignUpRequest();
@@ -320,7 +318,7 @@ class AuthControllerIntegrationTest {
         }
 
         @Test
-        @DisplayName("Should return 400 with null required fields")
+        @DisplayName("Returns 400 when required fields are null")
         void signup_WithNullRequiredFields_ReturnsBadRequest() throws Exception {
             // Given
             SignUpRequest signUpRequest = new SignUpRequest();
@@ -334,7 +332,7 @@ class AuthControllerIntegrationTest {
         }
 
         @Test
-        @DisplayName("Should store password encoded in database")
+        @DisplayName("Stores password encoded in database")
         void signup_WithValidData_StoresEncodedPassword() throws Exception {
             // Given
             SignUpRequest signUpRequest = new SignUpRequest();
@@ -364,7 +362,7 @@ class AuthControllerIntegrationTest {
     class ContentTypeTests {
 
         @Test
-        @DisplayName("Should reject login request without content type")
+        @DisplayName("Returns 415 when content-type header is missing")
         void login_WithoutContentType_ReturnsUnsupportedMediaType() throws Exception {
             // Given
             LoginRequest loginRequest = new LoginRequest();
@@ -378,7 +376,7 @@ class AuthControllerIntegrationTest {
         }
 
         @Test
-        @DisplayName("Should reject signup request with wrong content type")
+        @DisplayName("Returns 415 when content-type is not JSON")
         void signup_WithWrongContentType_ReturnsUnsupportedMediaType() throws Exception {
             // Given
             SignUpRequest signUpRequest = new SignUpRequest();
@@ -401,7 +399,7 @@ class AuthControllerIntegrationTest {
     class SecurityTests {
 
         @Test
-        @DisplayName("Should allow unauthenticated access to login endpoint")
+        @DisplayName("Allows unauthenticated access")
         void login_WithoutAuthentication_IsAccessible() throws Exception {
             // Given
             LoginRequest loginRequest = new LoginRequest();
@@ -416,7 +414,7 @@ class AuthControllerIntegrationTest {
         }
 
         @Test
-        @DisplayName("Should allow unauthenticated access to signup endpoint")
+        @DisplayName("Allows unauthenticated access")
         void signup_WithoutAuthentication_IsAccessible() throws Exception {
             // Given
             SignUpRequest signUpRequest = new SignUpRequest();
@@ -434,7 +432,7 @@ class AuthControllerIntegrationTest {
         }
 
         @Test
-        @DisplayName("Should not expose password in login response")
+        @DisplayName("Does not expose password in response")
         void login_SuccessfulLogin_DoesNotExposePassword() throws Exception {
             // Given
             LoginRequest loginRequest = new LoginRequest();
@@ -450,7 +448,7 @@ class AuthControllerIntegrationTest {
         }
 
         @Test
-        @DisplayName("Should not expose password in signup response")
+        @DisplayName("Does not expose password in response")
         void signup_SuccessfulSignup_DoesNotExposePassword() throws Exception {
             // Given
             SignUpRequest signUpRequest = new SignUpRequest();

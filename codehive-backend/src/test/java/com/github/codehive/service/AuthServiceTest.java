@@ -35,7 +35,7 @@ import com.github.codehive.repository.UserRepository;
 import com.github.codehive.utils.JwtUtil;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("AuthService Unit Tests")
+@DisplayName("AuthService Unit")
 class AuthServiceTest {
 
     @Mock
@@ -88,7 +88,7 @@ class AuthServiceTest {
     class LoginTests {
 
         @Test
-        @DisplayName("Should successfully login with valid credentials")
+        @DisplayName("Returns token and user data for valid credentials")
         void login_WithValidCredentials_ReturnsAuthResponse() {
             // Given
             when(userRepository.findByEmail(loginRequest.getEmail())).thenReturn(Optional.of(testUser));
@@ -112,7 +112,7 @@ class AuthServiceTest {
         }
 
         @Test
-        @DisplayName("Should throw exception when user not found")
+        @DisplayName("Throws exception when user not found")
         void login_WithNonExistentEmail_ThrowsIncorrectCredentialsException() {
             // Given
             when(userRepository.findByEmail(loginRequest.getEmail())).thenReturn(Optional.empty());
@@ -128,7 +128,7 @@ class AuthServiceTest {
         }
 
         @Test
-        @DisplayName("Should throw exception when password is incorrect")
+        @DisplayName("Throws exception when password is incorrect")
         void login_WithIncorrectPassword_ThrowsIncorrectCredentialsException() {
             // Given
             when(userRepository.findByEmail(loginRequest.getEmail())).thenReturn(Optional.of(testUser));
@@ -145,7 +145,7 @@ class AuthServiceTest {
         }
 
         @Test
-        @DisplayName("Should generate JWT token with correct claims")
+        @DisplayName("Generates JWT token with correct claims")
         void login_GeneratesTokenWithCorrectClaims() {
             // Given
             when(userRepository.findByEmail(loginRequest.getEmail())).thenReturn(Optional.of(testUser));
@@ -170,7 +170,7 @@ class AuthServiceTest {
     class RegistrationTests {
 
         @Test
-        @DisplayName("Should successfully register new user with valid data")
+        @DisplayName("Returns token and user data for valid registration")
         void register_WithValidData_ReturnsAuthResponse() {
             // Given
             when(userRepository.findByEmail(signUpRequest.getEmail())).thenReturn(Optional.empty());
@@ -211,7 +211,7 @@ class AuthServiceTest {
         }
 
         @Test
-        @DisplayName("Should throw exception when email already exists")
+        @DisplayName("Throws exception when email already exists")
         void register_WithDuplicateEmail_ThrowsAlreadyRegisteredEmailException() {
             // Given
             when(userRepository.findByEmail(signUpRequest.getEmail())).thenReturn(Optional.of(testUser));
@@ -227,7 +227,7 @@ class AuthServiceTest {
         }
 
         @Test
-        @DisplayName("Should throw exception when enrollment number already exists")
+        @DisplayName("Throws exception when enrollment number already exists")
         void register_WithDuplicateEnrollmentNumber_ThrowsAlreadyRegisteredEnrollmentNumberException() {
             // Given
             when(userRepository.findByEmail(signUpRequest.getEmail())).thenReturn(Optional.empty());
@@ -245,19 +245,24 @@ class AuthServiceTest {
         }
 
         @Test
-        @DisplayName("Should encode password before saving")
+        @DisplayName("Encodes password before saving")
         void register_EncodesPasswordBeforeSaving() {
             // Given
             when(userRepository.findByEmail(signUpRequest.getEmail())).thenReturn(Optional.empty());
             when(userRepository.findByEnrollmentNumber(signUpRequest.getEnrollmentNumber())).thenReturn(Optional.empty());
             when(passwordEncoder.encode(signUpRequest.getPassword())).thenReturn("super-secure-encoded-password");
-            when(jwtUtil.generateToken(any(Map.class), anyString())).thenReturn("jwt-token");
             
             User savedUser = new User();
             savedUser.setId(2L);
             savedUser.setEmail(signUpRequest.getEmail());
+            savedUser.setName(signUpRequest.getName());
+            savedUser.setLastName(signUpRequest.getLastName());
+            savedUser.setEnrollmentNumber(signUpRequest.getEnrollmentNumber());
             savedUser.setPassword("super-secure-encoded-password");
+            savedUser.setRole(Role.STUDENT);
+            savedUser.setProfilePictureUrl(signUpRequest.getProfilePictureUrl());
             when(userRepository.save(any(User.class))).thenReturn(savedUser);
+            when(jwtUtil.generateToken(any(), anyString())).thenReturn("jwt-token");
 
             // When
             authService.register(signUpRequest);
@@ -268,22 +273,28 @@ class AuthServiceTest {
         }
 
         @Test
-        @DisplayName("Should set default role to STUDENT")
+        @DisplayName("Sets default role to STUDENT")
         void register_SetsDefaultRoleToStudent() {
             // Given
             when(userRepository.findByEmail(signUpRequest.getEmail())).thenReturn(Optional.empty());
             when(userRepository.findByEnrollmentNumber(signUpRequest.getEnrollmentNumber())).thenReturn(Optional.empty());
             when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
-            when(jwtUtil.generateToken(any(Map.class), anyString())).thenReturn("jwt-token");
             
             User savedUser = new User();
             savedUser.setId(2L);
+            savedUser.setEmail(signUpRequest.getEmail());
+            savedUser.setName(signUpRequest.getName());
+            savedUser.setLastName(signUpRequest.getLastName());
+            savedUser.setEnrollmentNumber(signUpRequest.getEnrollmentNumber());
+            savedUser.setPassword("encodedPassword");
             savedUser.setRole(Role.STUDENT);
+            savedUser.setProfilePictureUrl(signUpRequest.getProfilePictureUrl());
             when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
                 User user = invocation.getArgument(0);
                 assertThat(user.getRole()).isEqualTo(Role.STUDENT);
                 return savedUser;
             });
+            when(jwtUtil.generateToken(any(), anyString())).thenReturn("jwt-token");
 
             // When
             authService.register(signUpRequest);
@@ -293,22 +304,29 @@ class AuthServiceTest {
         }
 
         @Test
-        @DisplayName("Should set user as active by default")
+        @DisplayName("Sets user as active by default")
         void register_SetsUserAsActiveByDefault() {
             // Given
             when(userRepository.findByEmail(signUpRequest.getEmail())).thenReturn(Optional.empty());
             when(userRepository.findByEnrollmentNumber(signUpRequest.getEnrollmentNumber())).thenReturn(Optional.empty());
             when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
-            when(jwtUtil.generateToken(any(Map.class), anyString())).thenReturn("jwt-token");
             
             User savedUser = new User();
             savedUser.setId(2L);
+            savedUser.setEmail(signUpRequest.getEmail());
+            savedUser.setName(signUpRequest.getName());
+            savedUser.setLastName(signUpRequest.getLastName());
+            savedUser.setEnrollmentNumber(signUpRequest.getEnrollmentNumber());
+            savedUser.setPassword("encodedPassword");
+            savedUser.setRole(Role.STUDENT);
+            savedUser.setProfilePictureUrl(signUpRequest.getProfilePictureUrl());
             savedUser.setIsActive(true);
             when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
                 User user = invocation.getArgument(0);
                 assertThat(user.getIsActive()).isTrue();
                 return savedUser;
             });
+            when(jwtUtil.generateToken(any(), anyString())).thenReturn("jwt-token");
 
             // When
             authService.register(signUpRequest);
