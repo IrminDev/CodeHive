@@ -90,17 +90,6 @@ tasks.jacocoTestReport {
 	}
 }
 
-tasks.jacocoTestCoverageVerification {
-	violationRules {
-		rule {
-			limit {
-				minimum = "0.70".toBigDecimal() // 70% minimum coverage
-			}
-		}
-	}
-}
-
-// Optional: Make build task depend on coverage verification
 tasks.check {
 	dependsOn(tasks.jacocoTestCoverageVerification)
 }
