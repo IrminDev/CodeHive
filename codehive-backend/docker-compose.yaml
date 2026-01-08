@@ -1,6 +1,7 @@
 services:
   postgres:
-    image: 'postgres:latest'
+    image: 'postgres:18.1-alpine'
+    container_name: 'db'
     environment:
       - 'POSTGRES_DB=${DATABASE_NAME}'
       - 'POSTGRES_PASSWORD=${DATABASE_PASSWORD}'
