@@ -1,10 +1,13 @@
 import { useState, useEffect } from "react";
 import { useTheme } from "../context/ThemeContext";
 import logo from "../../assets/logo.png";
+import { AuthService } from "~/services";
+import type { SignUpRequest } from "~/types";
 
 export function SignUpPage() {
   const { theme, toggleTheme } = useTheme();
-  const [fullName, setFullName] = useState("");
+  const [name, setName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [tuition, setTuition] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -30,11 +33,26 @@ export function SignUpPage() {
       return;
     }
     setIsLoading(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    await AuthService.signUp({
+      email,
+      password,
+      name,
+      lastName,
+      enrollmentNumber: tuition,
+    } as SignUpRequest).then(() => {
+      alert("Account created successfully! Please log in.");
+      console.log({
+        email,
+        password,
+        name,
+        lastName,
+        enrollmentNumber: tuition,
+      })
+      window.location.href = "/login";
+    }).catch((error) => {
+      alert(`Registration failed: ${error.message}`);
+    });
     setIsLoading(false);
-    // Handle registration logic here
-    console.log({ fullName, tuition, email, password, agreeToTerms });
   };
 
   return (
@@ -200,7 +218,7 @@ export function SignUpPage() {
               {/* Full Name field */}
               <div>
                 <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Full name
+                  Name(s)
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -211,9 +229,35 @@ export function SignUpPage() {
                   <input
                     id="fullName"
                     type="text"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    placeholder="John Doe"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="John"
+                    required
+                    className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 
+                             bg-white dark:bg-dark-card text-gray-900 dark:text-white
+                             placeholder:text-gray-400 dark:placeholder:text-gray-500
+                             focus:outline-none focus:ring-2 focus:ring-azure dark:focus:ring-yellow 
+                             focus:border-transparent transition-all duration-200"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Name(s)
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                  </div>
+                  <input
+                    id="lastName"
+                    type="text"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    placeholder="Doe"
                     required
                     className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 
                              bg-white dark:bg-dark-card text-gray-900 dark:text-white

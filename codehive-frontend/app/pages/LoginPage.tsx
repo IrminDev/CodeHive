@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { useTheme } from "../context/ThemeContext";
 import logo from "../../assets/logo.png";
+import { AuthService } from "~/services";
+import type { LoginRequest } from "~/types";
 
 export function LoginPage() {
   const { theme, toggleTheme } = useTheme();
@@ -18,11 +20,17 @@ export function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    console.log({ email, password, rememberMe });
+    await AuthService.login({
+      email,
+      password
+    } as LoginRequest).then((response) => {
+      console.log(response);
+    }).catch((error) => {
+      console.error(error);
+    });
     setIsLoading(false);
     // Handle login logic here
-    console.log({ email, password, rememberMe });
   };
 
   return (

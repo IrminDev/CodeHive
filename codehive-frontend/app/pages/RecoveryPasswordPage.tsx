@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { useTheme } from "../context/ThemeContext";
 import logo from "../../assets/logo.png";
+import { RecoveryPasswordService } from "~/services";
+import type { ForgotPasswordRequest } from "~/types";
 
 export function RecoveryPasswordPage() {
   const { theme, toggleTheme } = useTheme();
@@ -16,10 +18,12 @@ export function RecoveryPasswordPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    await RecoveryPasswordService.forgotPassword({ email } as ForgotPasswordRequest).then(() => {    
+      setIsSubmitted(true);
+    }).catch((error) => {
+      alert(error.message || "An error occurred while sending the reset email.");
+    });
     setIsLoading(false);
-    setIsSubmitted(true);
   };
 
   return (
