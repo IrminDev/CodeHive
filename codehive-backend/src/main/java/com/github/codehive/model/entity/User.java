@@ -9,6 +9,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import com.github.codehive.model.enums.Role;
+import com.github.codehive.model.enums.Scope;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -54,8 +55,11 @@ public class User implements UserDetails {
     @Column(nullable = false)
     private Boolean isActive;
 
+    private List<Scope> scopes;
+
     public User() {
         this.createdAt = LocalDateTime.now();
+        this.scopes = List.of();
         this.isActive = true;
         this.profilePictureUrl = "/static/images/default-avatar.png";
     }
@@ -70,6 +74,7 @@ public class User implements UserDetails {
         this.profilePictureUrl = profilePictureUrl;
         this.createdAt = LocalDateTime.now();
         this.isActive = true;
+        this.scopes = List.of();
     }
 
 
@@ -151,6 +156,20 @@ public class User implements UserDetails {
 
     public void setIsActive(Boolean isActive) {
         this.isActive = isActive;
+    }
+
+    public List<Scope> getScopes() {
+        return scopes;
+    }
+
+    public void setScopes(List<Scope> scopes) {
+        this.scopes = scopes;
+    }
+
+    public void addScope(Scope scope) {
+        if (!this.scopes.contains(scope)) {
+            this.scopes.add(scope);
+        }
     }
 
     @Override
