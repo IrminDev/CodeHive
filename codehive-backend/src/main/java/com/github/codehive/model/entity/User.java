@@ -1,6 +1,7 @@
 package com.github.codehive.model.entity;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
@@ -9,14 +10,18 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import com.github.codehive.model.enums.Role;
+import com.github.codehive.model.enums.Scope;
 
+import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Table;
 
 @Entity
@@ -42,7 +47,7 @@ public class User implements UserDetails {
     private String password;
 
     @Column(nullable = false, length = 15)
-    @Enumerated(EnumType.ORDINAL)
+    @Enumerated(EnumType.STRING)
     private Role role;
 
     @Column(nullable = true, length = 255)
@@ -54,8 +59,15 @@ public class User implements UserDetails {
     @Column(nullable = false)
     private Boolean isActive;
 
+    @ElementCollection(targetClass = Scope.class)
+    @Enumerated(EnumType.STRING)
+    @CollectionTable(name = "user_scopes", joinColumns = @JoinColumn(name = "user_id"))
+    @Column(name = "scope", nullable = false, length = 50)
+    private List<Scope> scopes = new ArrayList<>();
+
     public User() {
         this.createdAt = LocalDateTime.now();
+        this.scopes = List.of();
         this.isActive = true;
         this.profilePictureUrl = "/static/images/default-avatar.png";
     }
@@ -70,6 +82,7 @@ public class User implements UserDetails {
         this.profilePictureUrl = profilePictureUrl;
         this.createdAt = LocalDateTime.now();
         this.isActive = true;
+        this.scopes = new ArrayList<>();
     }
 
 
@@ -151,6 +164,22 @@ public class User implements UserDetails {
 
     public void setIsActive(Boolean isActive) {
         this.isActive = isActive;
+    }
+
+    public List<Scope> getScopes() {
+        return scopes;
+    }
+
+    public void setScopes(List<Scope> scopes) {
+        this.scopes = scopes;
+    }
+
+    public void addScope(Scope scope) {
+        if (scope == null) return;
+        if (this.scopes == null) this.scopes = new ArrayList<>();
+        if (!this.scopes.contains(scope)) {
+            this.scopes.add(scope);
+        }
     }
 
     @Override

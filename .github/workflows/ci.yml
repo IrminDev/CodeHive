@@ -11,6 +11,8 @@ on:
     branches:
       - main
       - develop
+      - feature/**
+      - hotfix/**
     paths:
       - 'codehive-backend/**'
       - '.github/workflows/**'

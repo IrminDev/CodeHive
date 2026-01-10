@@ -1,9 +1,11 @@
 package com.github.codehive.model.dto;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.github.codehive.model.enums.Role;
+import com.github.codehive.model.enums.Scope;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class UserDTO {
@@ -15,6 +17,7 @@ public class UserDTO {
     private String profilePictureUrl;
     private Role role;
     private LocalDateTime createdAt;
+    private List<Scope> scopes;
     private Boolean isActive;
 
     public Long getId() {
@@ -87,5 +90,13 @@ public class UserDTO {
 
     public void setIsActive(Boolean isActive) {
         this.isActive = isActive;
+    }
+
+    public List<Scope> getScopes() {
+        return scopes;
+    }
+
+    public void setScopes(List<Scope> scopes) {
+        this.scopes = scopes;
     }
 }

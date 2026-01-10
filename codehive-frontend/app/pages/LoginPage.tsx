@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTheme } from "../context/ThemeContext";
 import logo from "../../assets/logo.png";
+import { AuthService } from "~/services";
+import type { LoginRequest } from "~/types";
 
 export function LoginPage() {
   const { theme, toggleTheme } = useTheme();
@@ -9,21 +11,32 @@ export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    console.log({ email, password, rememberMe });
+    await AuthService.login({
+      email,
+      password
+    } as LoginRequest).then((response) => {
+      console.log(response);
+    }).catch((error) => {
+      console.error(error);
+    });
     setIsLoading(false);
     // Handle login logic here
-    console.log({ email, password, rememberMe });
   };
 
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex overflow-hidden">
       {/* Left side - Branding/Illustration */}
-      <div className="hidden lg:flex lg:w-1/2 xl:w-3/5 relative overflow-hidden bg-gradient-to-br from-imperial via-french to-azure">
+      <div className={`hidden lg:flex lg:w-1/2 xl:w-3/5 relative overflow-hidden bg-gradient-to-br from-imperial via-french to-azure ${mounted ? 'animate-slide-in-left' : 'opacity-0'}`}>
         {/* Background decorations */}
         <div className="absolute inset-0 overflow-hidden">
           <div className="absolute top-1/4 -left-32 w-96 h-96 bg-yellow/20 rounded-full blur-3xl animate-float" />
@@ -98,7 +111,7 @@ export function LoginPage() {
       </div>
 
       {/* Right side - Login Form */}
-      <div className="w-full lg:w-1/2 xl:w-2/5 flex flex-col bg-white dark:bg-dark-bg transition-colors duration-300">
+      <div className={`w-full lg:w-1/2 xl:w-2/5 flex flex-col bg-white dark:bg-dark-bg transition-colors duration-300 ${mounted ? 'animate-slide-in-right' : 'opacity-0'}`}>
         {/* Header with theme toggle */}
         <div className="flex justify-between items-center p-6 lg:p-8">
           {/* Mobile logo */}

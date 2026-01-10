@@ -20,6 +20,7 @@ public class UserMapper {
         dto.setRole(user.getRole());
         dto.setCreatedAt(user.getCreatedAt());
         dto.setIsActive(user.getIsActive());
+        dto.setScopes(user.getScopes());
         return dto;
     }
 
@@ -37,6 +38,7 @@ public class UserMapper {
         user.setRole(dto.getRole());
         user.setCreatedAt(dto.getCreatedAt());
         user.setIsActive(dto.getIsActive());
+        user.setScopes(dto.getScopes());
         return user;
     }
 
