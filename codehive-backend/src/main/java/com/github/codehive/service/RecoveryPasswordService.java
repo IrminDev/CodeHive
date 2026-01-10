@@ -29,10 +29,22 @@ public class RecoveryPasswordService {
         this.passwordEncoder = passwordEncoder;
     }
 
+    /**
+     * Send password reset email using identifier (email or enrollment number)
+     * @param identifier the email or enrollment number
+     * @return true if the identifier was an enrollment number, false if it was an email
+     */
     @Transactional
-    public void sendPasswordResetEmail(String email) {
-        // Find the user by email - DO NOT throw exception if not found
-        User user = userRepository.findByEmail(email).orElse(null);
+    public boolean sendPasswordResetEmail(String identifier) {
+        boolean isEnrollmentNumber = !AuthService.isEmail(identifier);
+        
+        // Find the user by email or enrollment number - DO NOT throw exception if not found
+        User user;
+        if (isEnrollmentNumber) {
+            user = userRepository.findByEnrollmentNumber(identifier.trim()).orElse(null);
+        } else {
+            user = userRepository.findByEmail(identifier.trim()).orElse(null);
+        }
 
         // If user exists and is active, send the email
         if (user != null && user.getIsActive()) {
@@ -47,9 +59,11 @@ public class RecoveryPasswordService {
             PasswordResetToken passwordResetToken = new PasswordResetToken(token, LocalDateTime.now().plusMinutes(15), user);
             passwordResetTokenRepository.save(passwordResetToken);
 
-            // Send the password reset email containing the token
-            mailSenderService.sendPasswordResetEmail(email, token);
+            // Send the password reset email containing the token to the user's email
+            mailSenderService.sendPasswordResetEmail(user.getEmail(), token);
         }
+
+        return isEnrollmentNumber;
     }
 
     @Transactional

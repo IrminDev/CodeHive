@@ -6,19 +6,27 @@ import type { ForgotPasswordRequest } from "~/types";
 
 export function RecoveryPasswordPage() {
   const { theme, toggleTheme } = useTheme();
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isEnrollmentNumber, setIsEnrollmentNumber] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
+  // Check if identifier is an email
+  const isEmail = (value: string) => {
+    return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(value.trim());
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    await RecoveryPasswordService.forgotPassword({ email } as ForgotPasswordRequest).then(() => {    
+    const usedEnrollmentNumber = !isEmail(identifier);
+    setIsEnrollmentNumber(usedEnrollmentNumber);
+    await RecoveryPasswordService.forgotPassword({ identifier } as ForgotPasswordRequest).then(() => {    
       setIsSubmitted(true);
     }).catch((error) => {
       alert(error.message || "An error occurred while sending the reset email.");
@@ -54,7 +62,7 @@ export function RecoveryPasswordPage() {
           </h1>
           
           <p className="text-lg text-white/80 max-w-md mb-12">
-            No worries! It happens to the best of us. Enter your email and we'll send you instructions to reset your password.
+            No worries! It happens to the best of us. Enter your email or enrollment number and we'll send you instructions to reset your password.
           </p>
 
           {/* Security features */}
@@ -166,16 +174,16 @@ export function RecoveryPasswordPage() {
                     Reset password
                   </h2>
                   <p className="text-gray-600 dark:text-gray-400">
-                    Enter the email address associated with your account
+                    Enter the email address or enrollment number associated with your account
                   </p>
                 </div>
 
                 {/* Recovery form */}
                 <form onSubmit={handleSubmit} className="space-y-6">
-                  {/* Email field */}
+                  {/* Email or Enrollment Number field */}
                   <div>
-                    <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Email address
+                    <label htmlFor="identifier" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Email or Enrollment Number
                     </label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -184,11 +192,11 @@ export function RecoveryPasswordPage() {
                         </svg>
                       </div>
                       <input
-                        id="email"
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="you@example.com"
+                        id="identifier"
+                        type="text"
+                        value={identifier}
+                        onChange={(e) => setIdentifier(e.target.value)}
+                        placeholder="you@example.com or 2024123456"
                         required
                         className="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 
                                  bg-white dark:bg-dark-card text-gray-900 dark:text-white
@@ -246,10 +254,13 @@ export function RecoveryPasswordPage() {
                   Check your email
                 </h2>
                 <p className="text-gray-600 dark:text-gray-400 mb-6">
-                  We've sent password reset instructions to
+                  {isEnrollmentNumber 
+                    ? "We've sent password reset instructions to the email associated with enrollment number"
+                    : "We've sent password reset instructions to"
+                  }
                 </p>
                 <p className="text-azure dark:text-yellow font-medium text-lg mb-8">
-                  {email}
+                  {identifier}
                 </p>
 
                 {/* Email icon animation */}
@@ -268,7 +279,7 @@ export function RecoveryPasswordPage() {
                   onClick={() => setIsSubmitted(false)}
                   className="text-azure dark:text-yellow hover:underline font-medium"
                 >
-                  Try another email address
+                  Try another email or enrollment number
                 </button>
 
                 {/* Divider */}

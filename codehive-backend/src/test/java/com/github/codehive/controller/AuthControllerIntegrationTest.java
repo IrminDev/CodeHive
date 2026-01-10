@@ -66,11 +66,34 @@ class AuthControllerIntegrationTest {
     class LoginEndpointTests {
 
         @Test
-        @DisplayName("Returns token and user data for valid credentials")
-        void login_WithValidCredentials_ReturnsTokenAndUserData() throws Exception {
+        @DisplayName("Returns token and user data for valid credentials with email")
+        void login_WithValidCredentialsUsingEmail_ReturnsTokenAndUserData() throws Exception {
             // Given
             LoginRequest loginRequest = new LoginRequest();
-            loginRequest.setEmail("existing@example.com");
+            loginRequest.setIdentifier("existing@example.com");
+            loginRequest.setPassword("password123");
+
+            // When/Then
+            mockMvc.perform(post("/api/auth/login")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(loginRequest)))
+                    .andExpect(status().isOk())
+                    .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(jsonPath("$.message").value("Login successful"))
+                    .andExpect(jsonPath("$.data.token").exists())
+                    .andExpect(jsonPath("$.data.token").isNotEmpty())
+                    .andExpect(jsonPath("$.data.user.email").value("existing@example.com"))
+                    .andExpect(jsonPath("$.data.user.name").value("Existing"))
+                    .andExpect(jsonPath("$.data.user.lastName").value("User"))
+                    .andExpect(jsonPath("$.data.user.role").value("STUDENT"));
+        }
+
+        @Test
+        @DisplayName("Returns token and user data for valid credentials with enrollment number")
+        void login_WithValidCredentialsUsingEnrollmentNumber_ReturnsTokenAndUserData() throws Exception {
+            // Given
+            LoginRequest loginRequest = new LoginRequest();
+            loginRequest.setIdentifier("ENR001");
             loginRequest.setPassword("password123");
 
             // When/Then
@@ -93,7 +116,7 @@ class AuthControllerIntegrationTest {
         void login_WithInvalidPassword_ReturnsUnauthorized() throws Exception {
             // Given
             LoginRequest loginRequest = new LoginRequest();
-            loginRequest.setEmail("existing@example.com");
+            loginRequest.setIdentifier("existing@example.com");
             loginRequest.setPassword("wrongpassword");
 
             // When/Then
@@ -105,11 +128,11 @@ class AuthControllerIntegrationTest {
         }
 
         @Test
-        @DisplayName("Returns 401 when email does not exist")
-        void login_WithNonExistentEmail_ReturnsUnauthorized() throws Exception {
+        @DisplayName("Returns 401 when identifier does not exist")
+        void login_WithNonExistentIdentifier_ReturnsUnauthorized() throws Exception {
             // Given
             LoginRequest loginRequest = new LoginRequest();
-            loginRequest.setEmail("nonexistent@example.com");
+            loginRequest.setIdentifier("nonexistent@example.com");
             loginRequest.setPassword("password123");
 
             // When/Then
@@ -121,27 +144,11 @@ class AuthControllerIntegrationTest {
         }
 
         @Test
-        @DisplayName("Returns 400 when email format is invalid")
-        void login_WithInvalidEmailFormat_ReturnsBadRequest() throws Exception {
+        @DisplayName("Returns 400 when identifier is empty")
+        void login_WithEmptyIdentifier_ReturnsBadRequest() throws Exception {
             // Given
             LoginRequest loginRequest = new LoginRequest();
-            loginRequest.setEmail("invalid-email");
-            loginRequest.setPassword("password123");
-
-            // When/Then
-            mockMvc.perform(post("/api/auth/login")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(objectMapper.writeValueAsString(loginRequest)))
-                    .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.errors").exists());
-        }
-
-        @Test
-        @DisplayName("Returns 400 when email is empty")
-        void login_WithEmptyEmail_ReturnsBadRequest() throws Exception {
-            // Given
-            LoginRequest loginRequest = new LoginRequest();
-            loginRequest.setEmail("");
+            loginRequest.setIdentifier("");
             loginRequest.setPassword("password123");
 
             // When/Then
@@ -156,7 +163,7 @@ class AuthControllerIntegrationTest {
         void login_WithEmptyPassword_ReturnsBadRequest() throws Exception {
             // Given
             LoginRequest loginRequest = new LoginRequest();
-            loginRequest.setEmail("existing@example.com");
+            loginRequest.setIdentifier("existing@example.com");
             loginRequest.setPassword("");
 
             // When/Then
@@ -366,7 +373,7 @@ class AuthControllerIntegrationTest {
         void login_WithoutContentType_ReturnsUnsupportedMediaType() throws Exception {
             // Given
             LoginRequest loginRequest = new LoginRequest();
-            loginRequest.setEmail("existing@example.com");
+            loginRequest.setIdentifier("existing@example.com");
             loginRequest.setPassword("password123");
 
             // When/Then
@@ -403,7 +410,7 @@ class AuthControllerIntegrationTest {
         void login_WithoutAuthentication_IsAccessible() throws Exception {
             // Given
             LoginRequest loginRequest = new LoginRequest();
-            loginRequest.setEmail("existing@example.com");
+            loginRequest.setIdentifier("existing@example.com");
             loginRequest.setPassword("password123");
 
             // When/Then
@@ -436,7 +443,7 @@ class AuthControllerIntegrationTest {
         void login_SuccessfulLogin_DoesNotExposePassword() throws Exception {
             // Given
             LoginRequest loginRequest = new LoginRequest();
-            loginRequest.setEmail("existing@example.com");
+            loginRequest.setIdentifier("existing@example.com");
             loginRequest.setPassword("password123");
 
             // When/Then

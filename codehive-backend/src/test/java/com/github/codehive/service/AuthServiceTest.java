@@ -70,7 +70,7 @@ class AuthServiceTest {
 
         // Setup login request
         loginRequest = new LoginRequest();
-        loginRequest.setEmail("test@example.com");
+        loginRequest.setIdentifier("test@example.com");
         loginRequest.setPassword("password123");
 
         // Setup signup request
@@ -91,7 +91,7 @@ class AuthServiceTest {
         @DisplayName("Returns token and user data for valid credentials")
         void login_WithValidCredentials_ReturnsAuthResponse() {
             // Given
-            when(userRepository.findByEmail(loginRequest.getEmail())).thenReturn(Optional.of(testUser));
+            when(userRepository.findByEmail(loginRequest.getIdentifier())).thenReturn(Optional.of(testUser));
             when(passwordEncoder.matches(loginRequest.getPassword(), testUser.getPassword())).thenReturn(true);
             when(jwtUtil.generateToken(any(Map.class), anyString())).thenReturn("jwt-token-123");
 
@@ -106,7 +106,7 @@ class AuthServiceTest {
             assertThat(response.getUser().getName()).isEqualTo("John");
             assertThat(response.getUser().getLastName()).isEqualTo("Doe");
 
-            verify(userRepository).findByEmail(loginRequest.getEmail());
+            verify(userRepository).findByEmail(loginRequest.getIdentifier());
             verify(passwordEncoder).matches(loginRequest.getPassword(), testUser.getPassword());
             verify(jwtUtil).generateToken(any(Map.class), anyString());
         }
@@ -115,14 +115,14 @@ class AuthServiceTest {
         @DisplayName("Throws exception when user not found")
         void login_WithNonExistentEmail_ThrowsIncorrectCredentialsException() {
             // Given
-            when(userRepository.findByEmail(loginRequest.getEmail())).thenReturn(Optional.empty());
+            when(userRepository.findByEmail(loginRequest.getIdentifier())).thenReturn(Optional.empty());
 
             // When & Then
             assertThatThrownBy(() -> authService.login(loginRequest))
                     .isInstanceOf(IncorrectCredentialsException.class)
                     .hasMessage("Invalid credentials");
 
-            verify(userRepository).findByEmail(loginRequest.getEmail());
+            verify(userRepository).findByEmail(loginRequest.getIdentifier());
             verify(passwordEncoder, never()).matches(anyString(), anyString());
             verify(jwtUtil, never()).generateToken(any(), anyString());
         }
@@ -131,7 +131,7 @@ class AuthServiceTest {
         @DisplayName("Throws exception when password is incorrect")
         void login_WithIncorrectPassword_ThrowsIncorrectCredentialsException() {
             // Given
-            when(userRepository.findByEmail(loginRequest.getEmail())).thenReturn(Optional.of(testUser));
+            when(userRepository.findByEmail(loginRequest.getIdentifier())).thenReturn(Optional.of(testUser));
             when(passwordEncoder.matches(loginRequest.getPassword(), testUser.getPassword())).thenReturn(false);
 
             // When & Then
@@ -139,7 +139,7 @@ class AuthServiceTest {
                     .isInstanceOf(IncorrectCredentialsException.class)
                     .hasMessage("Invalid credentials");
 
-            verify(userRepository).findByEmail(loginRequest.getEmail());
+            verify(userRepository).findByEmail(loginRequest.getIdentifier());
             verify(passwordEncoder).matches(loginRequest.getPassword(), testUser.getPassword());
             verify(jwtUtil, never()).generateToken(any(), anyString());
         }
@@ -148,7 +148,7 @@ class AuthServiceTest {
         @DisplayName("Generates JWT token with correct claims")
         void login_GeneratesTokenWithCorrectClaims() {
             // Given
-            when(userRepository.findByEmail(loginRequest.getEmail())).thenReturn(Optional.of(testUser));
+            when(userRepository.findByEmail(loginRequest.getIdentifier())).thenReturn(Optional.of(testUser));
             when(passwordEncoder.matches(loginRequest.getPassword(), testUser.getPassword())).thenReturn(true);
             when(jwtUtil.generateToken(any(Map.class), anyString())).thenAnswer(invocation -> {
                 Map<String, Object> claims = invocation.getArgument(0);
@@ -161,6 +161,31 @@ class AuthServiceTest {
             authService.login(loginRequest);
 
             // Then
+            verify(jwtUtil).generateToken(any(Map.class), anyString());
+        }
+
+        @Test
+        @DisplayName("Returns token and user data when logging in with enrollment number")
+        void login_WithEnrollmentNumber_ReturnsAuthResponse() {
+            // Given
+            LoginRequest enrollmentLoginRequest = new LoginRequest();
+            enrollmentLoginRequest.setIdentifier("ENR001");
+            enrollmentLoginRequest.setPassword("password123");
+            
+            when(userRepository.findByEnrollmentNumber("ENR001")).thenReturn(Optional.of(testUser));
+            when(passwordEncoder.matches(enrollmentLoginRequest.getPassword(), testUser.getPassword())).thenReturn(true);
+            when(jwtUtil.generateToken(any(Map.class), anyString())).thenReturn("jwt-token-123");
+
+            // When
+            AuthResponse response = authService.login(enrollmentLoginRequest);
+
+            // Then
+            assertThat(response).isNotNull();
+            assertThat(response.getToken()).isEqualTo("jwt-token-123");
+            assertThat(response.getUser()).isNotNull();
+
+            verify(userRepository).findByEnrollmentNumber("ENR001");
+            verify(passwordEncoder).matches(enrollmentLoginRequest.getPassword(), testUser.getPassword());
             verify(jwtUtil).generateToken(any(Map.class), anyString());
         }
     }

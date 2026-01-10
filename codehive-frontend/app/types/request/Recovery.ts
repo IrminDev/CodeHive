@@ -1,5 +1,5 @@
 export interface ForgotPasswordRequest {
-  email: string;
+  identifier: string;
 }
 
 export interface ResetPasswordRequest {

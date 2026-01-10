@@ -2,7 +2,7 @@ import type { User } from "../model/User";
 
 // Auth Request Types
 export interface LoginRequest {
-  email: string;
+  identifier: string;
   password: string;
 }
 

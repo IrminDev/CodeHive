@@ -84,22 +84,23 @@ class RecoveryPasswordServiceTest {
     class SendPasswordResetEmailTests {
 
         @Test
-        @DisplayName("Sends reset email for valid active user")
-        void sendPasswordResetEmail_WithValidActiveUser_SendsEmailAndCreatesToken() {
+        @DisplayName("Sends reset email for valid active user with email identifier")
+        void sendPasswordResetEmail_WithValidEmailIdentifier_SendsEmailAndCreatesToken() {
             // Given
             String email = "test@example.com";
             when(userRepository.findByEmail(email)).thenReturn(Optional.of(testUser));
             when(passwordResetTokenRepository.findByUserAndUsedFalse(testUser)).thenReturn(Collections.emptyList());
 
             // When
-            recoveryPasswordService.sendPasswordResetEmail(email);
+            boolean isEnrollmentNumber = recoveryPasswordService.sendPasswordResetEmail(email);
 
             // Then
+            assertThat(isEnrollmentNumber).isFalse();
             ArgumentCaptor<PasswordResetToken> tokenCaptor = ArgumentCaptor.forClass(PasswordResetToken.class);
             verify(userRepository).findByEmail(email);
             verify(passwordResetTokenRepository).findByUserAndUsedFalse(testUser);
             verify(passwordResetTokenRepository).save(tokenCaptor.capture());
-            verify(mailSenderService).sendPasswordResetEmail(eq(email), anyString());
+            verify(mailSenderService).sendPasswordResetEmail(eq(testUser.getEmail()), anyString());
 
             PasswordResetToken savedToken = tokenCaptor.getValue();
             assertThat(savedToken.getToken()).isNotNull();
@@ -109,16 +110,58 @@ class RecoveryPasswordServiceTest {
         }
 
         @Test
-        @DisplayName("Does not throw exception when user not found")
-        void sendPasswordResetEmail_WithNonExistentUser_DoesNotThrowException() {
+        @DisplayName("Sends reset email for valid active user with enrollment number identifier")
+        void sendPasswordResetEmail_WithValidEnrollmentNumberIdentifier_SendsEmailAndCreatesToken() {
+            // Given
+            String enrollmentNumber = "ENR001";
+            when(userRepository.findByEnrollmentNumber(enrollmentNumber)).thenReturn(Optional.of(testUser));
+            when(passwordResetTokenRepository.findByUserAndUsedFalse(testUser)).thenReturn(Collections.emptyList());
+
+            // When
+            boolean isEnrollmentNumber = recoveryPasswordService.sendPasswordResetEmail(enrollmentNumber);
+
+            // Then
+            assertThat(isEnrollmentNumber).isTrue();
+            ArgumentCaptor<PasswordResetToken> tokenCaptor = ArgumentCaptor.forClass(PasswordResetToken.class);
+            verify(userRepository).findByEnrollmentNumber(enrollmentNumber);
+            verify(passwordResetTokenRepository).findByUserAndUsedFalse(testUser);
+            verify(passwordResetTokenRepository).save(tokenCaptor.capture());
+            // Email is sent to user's email, not the enrollment number
+            verify(mailSenderService).sendPasswordResetEmail(eq(testUser.getEmail()), anyString());
+
+            PasswordResetToken savedToken = tokenCaptor.getValue();
+            assertThat(savedToken.getToken()).isNotNull();
+            assertThat(savedToken.getUser()).isEqualTo(testUser);
+        }
+
+        @Test
+        @DisplayName("Does not throw exception when user not found with email")
+        void sendPasswordResetEmail_WithNonExistentEmail_DoesNotThrowException() {
             // Given
             String email = "nonexistent@example.com";
             when(userRepository.findByEmail(email)).thenReturn(Optional.empty());
 
             // When & Then
-            recoveryPasswordService.sendPasswordResetEmail(email);
+            boolean isEnrollmentNumber = recoveryPasswordService.sendPasswordResetEmail(email);
 
+            assertThat(isEnrollmentNumber).isFalse();
             verify(userRepository).findByEmail(email);
+            verify(passwordResetTokenRepository, never()).save(any());
+            verify(mailSenderService, never()).sendPasswordResetEmail(anyString(), anyString());
+        }
+
+        @Test
+        @DisplayName("Does not throw exception when user not found with enrollment number")
+        void sendPasswordResetEmail_WithNonExistentEnrollmentNumber_DoesNotThrowException() {
+            // Given
+            String enrollmentNumber = "INVALID123";
+            when(userRepository.findByEnrollmentNumber(enrollmentNumber)).thenReturn(Optional.empty());
+
+            // When & Then
+            boolean isEnrollmentNumber = recoveryPasswordService.sendPasswordResetEmail(enrollmentNumber);
+
+            assertThat(isEnrollmentNumber).isTrue();
+            verify(userRepository).findByEnrollmentNumber(enrollmentNumber);
             verify(passwordResetTokenRepository, never()).save(any());
             verify(mailSenderService, never()).sendPasswordResetEmail(anyString(), anyString());
         }
@@ -166,7 +209,7 @@ class RecoveryPasswordServiceTest {
             verify(passwordResetTokenRepository, times(3)).save(any(PasswordResetToken.class)); // 2 old marked as used + 1 new
             assertThat(oldToken1.getUsed()).isTrue();
             assertThat(oldToken2.getUsed()).isTrue();
-            verify(mailSenderService).sendPasswordResetEmail(eq(email), anyString());
+            verify(mailSenderService).sendPasswordResetEmail(eq(testUser.getEmail()), anyString());
         }
 
         @Test

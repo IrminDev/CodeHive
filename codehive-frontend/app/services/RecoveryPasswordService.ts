@@ -13,7 +13,7 @@ class RecoveryPasswordServiceClass {
 
   /**
    * Request a password reset email
-   * @param request - Object containing the user's email
+   * @param request - Object containing the user's email or enrollment number
    * @returns Promise with success message
    * @throws Error if request fails
    */

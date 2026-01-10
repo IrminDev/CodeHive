@@ -12,8 +12,8 @@ class AuthServiceClass {
   private readonly baseUrl = `${API_BASE_URL}/api/auth`;
 
   /**
-   * Login user with email and password
-   * @param credentials - Login credentials (email and password)
+   * Login user with email/enrollment number and password
+   * @param credentials - Login credentials (identifier: email or enrollment number, and password)
    * @returns Promise with auth response containing token and user data
    * @throws Error if login fails
    */

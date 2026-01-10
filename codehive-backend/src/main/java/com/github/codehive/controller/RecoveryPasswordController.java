@@ -31,9 +31,9 @@ public class RecoveryPasswordController {
         this.recoveryPasswordService = recoveryPasswordService;
     }
 
-    @Operation(summary = "Request password reset", description = "Send password reset email to user")
+    @Operation(summary = "Request password reset", description = "Send password reset email to user using email or enrollment number")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Password reset email sent (if email exists)",
+            @ApiResponse(responseCode = "200", description = "Password reset email sent (if account exists)",
                     content = @Content(schema = @Schema(implementation = SuccessResponse.class))),
             @ApiResponse(responseCode = "400", description = "Validation error",
                     content = @Content(schema = @Schema(implementation = com.github.codehive.model.response.ErrorResponse.class))),
@@ -44,9 +44,16 @@ public class RecoveryPasswordController {
     @PostMapping("/forgot")
     public ResponseEntity<SuccessResponse<MessageResponse>> forgotPassword(
             @Valid @RequestBody ForgotPasswordRequest request) {
-        recoveryPasswordService.sendPasswordResetEmail(request.getEmail());
-        MessageResponse messageResponse = new MessageResponse(
-                "If the email exists, a password reset link has been sent");
+        boolean isEnrollmentNumber = recoveryPasswordService.sendPasswordResetEmail(request.getIdentifier());
+        
+        String message;
+        if (isEnrollmentNumber) {
+            message = "If the enrollment number exists, a password reset link has been sent to the associated email address";
+        } else {
+            message = "If the email exists, a password reset link has been sent";
+        }
+        
+        MessageResponse messageResponse = new MessageResponse(message);
         SuccessResponse<MessageResponse> response = new SuccessResponse<>(
                 "Password reset email sent", messageResponse);
         return ResponseEntity.ok(response);
