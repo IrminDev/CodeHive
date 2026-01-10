@@ -6,7 +6,7 @@ import type { LoginRequest } from "~/types";
 
 export function LoginPage() {
   const { theme, toggleTheme } = useTheme();
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -20,9 +20,9 @@ export function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    console.log({ email, password, rememberMe });
+    console.log({ identifier, password, rememberMe });
     await AuthService.login({
-      email,
+      identifier,
       password
     } as LoginRequest).then((response) => {
       console.log(response);
@@ -183,17 +183,17 @@ export function LoginPage() {
               </div>
               <div className="relative flex justify-center text-sm">
                 <span className="px-4 bg-white dark:bg-dark-bg text-gray-500 dark:text-gray-400">
-                  Continue with email
+                  Continue with your credentials
                 </span>
               </div>
             </div>
 
             {/* Login form */}
             <form onSubmit={handleSubmit} className="space-y-5">
-              {/* Email field */}
+              {/* Email or Enrollment Number field */}
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Email address
+                <label htmlFor="identifier" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Email or Enrollment Number
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -202,11 +202,11 @@ export function LoginPage() {
                     </svg>
                   </div>
                   <input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@example.com"
+                    id="identifier"
+                    type="text"
+                    value={identifier}
+                    onChange={(e) => setIdentifier(e.target.value)}
+                    placeholder="you@example.com or 2024123456"
                     required
                     className="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 
                              bg-white dark:bg-dark-card text-gray-900 dark:text-white

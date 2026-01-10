@@ -83,7 +83,7 @@ class RecoveryPasswordControllerIntegrationTest {
         void forgotPassword_WithExistingEmail_ReturnsSuccessMessage() throws Exception {
             // Given
             ForgotPasswordRequest request = new ForgotPasswordRequest();
-            request.setEmail("testuser@example.com");
+            request.setIdentifier("testuser@example.com");
 
             // When/Then
             mockMvc.perform(post("/api/recovery-password/forgot")
@@ -96,11 +96,28 @@ class RecoveryPasswordControllerIntegrationTest {
         }
 
         @Test
+        @DisplayName("Returns success message for existing enrollment number")
+        void forgotPassword_WithExistingEnrollmentNumber_ReturnsSuccessMessage() throws Exception {
+            // Given
+            ForgotPasswordRequest request = new ForgotPasswordRequest();
+            request.setIdentifier("ENR001");
+
+            // When/Then
+            mockMvc.perform(post("/api/recovery-password/forgot")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isOk())
+                    .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(jsonPath("$.message").value("Password reset email sent"))
+                    .andExpect(jsonPath("$.data.message").value("If the enrollment number exists, a password reset link has been sent to the associated email address"));
+        }
+
+        @Test
         @DisplayName("Returns same success message for non-existent email (security)")
         void forgotPassword_WithNonExistentEmail_ReturnsSameSuccessMessage() throws Exception {
             // Given
             ForgotPasswordRequest request = new ForgotPasswordRequest();
-            request.setEmail("nonexistent@example.com");
+            request.setIdentifier("nonexistent@example.com");
 
             // When/Then - Should not reveal if email exists or not
             mockMvc.perform(post("/api/recovery-password/forgot")
@@ -116,7 +133,7 @@ class RecoveryPasswordControllerIntegrationTest {
         void forgotPassword_WithExistingEmail_CreatesToken() throws Exception {
             // Given
             ForgotPasswordRequest request = new ForgotPasswordRequest();
-            request.setEmail("testuser@example.com");
+            request.setIdentifier("testuser@example.com");
 
             // When
             mockMvc.perform(post("/api/recovery-password/forgot")
@@ -144,7 +161,7 @@ class RecoveryPasswordControllerIntegrationTest {
             passwordResetTokenRepository.save(oldToken);
 
             ForgotPasswordRequest request = new ForgotPasswordRequest();
-            request.setEmail("testuser@example.com");
+            request.setIdentifier("testuser@example.com");
 
             // When
             mockMvc.perform(post("/api/recovery-password/forgot")
@@ -158,11 +175,11 @@ class RecoveryPasswordControllerIntegrationTest {
         }
 
         @Test
-        @DisplayName("Returns 400 when email format is invalid")
-        void forgotPassword_WithInvalidEmailFormat_ReturnsBadRequest() throws Exception {
+        @DisplayName("Returns 400 when identifier is empty")
+        void forgotPassword_WithEmptyIdentifier_ReturnsBadRequest() throws Exception {
             // Given
             ForgotPasswordRequest request = new ForgotPasswordRequest();
-            request.setEmail("invalid-email-format");
+            request.setIdentifier("");
 
             // When/Then
             mockMvc.perform(post("/api/recovery-password/forgot")
@@ -172,25 +189,11 @@ class RecoveryPasswordControllerIntegrationTest {
         }
 
         @Test
-        @DisplayName("Returns 400 when email is empty")
-        void forgotPassword_WithEmptyEmail_ReturnsBadRequest() throws Exception {
+        @DisplayName("Returns 400 when identifier is null")
+        void forgotPassword_WithNullIdentifier_ReturnsBadRequest() throws Exception {
             // Given
             ForgotPasswordRequest request = new ForgotPasswordRequest();
-            request.setEmail("");
-
-            // When/Then
-            mockMvc.perform(post("/api/recovery-password/forgot")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(objectMapper.writeValueAsString(request)))
-                    .andExpect(status().isBadRequest());
-        }
-
-        @Test
-        @DisplayName("Returns 400 when email is null")
-        void forgotPassword_WithNullEmail_ReturnsBadRequest() throws Exception {
-            // Given
-            ForgotPasswordRequest request = new ForgotPasswordRequest();
-            // email is null
+            // identifier is null
 
             // When/Then
             mockMvc.perform(post("/api/recovery-password/forgot")
@@ -486,7 +489,7 @@ class RecoveryPasswordControllerIntegrationTest {
         void forgotPassword_WithoutContentType_ReturnsUnsupportedMediaType() throws Exception {
             // Given
             ForgotPasswordRequest request = new ForgotPasswordRequest();
-            request.setEmail("testuser@example.com");
+            request.setIdentifier("testuser@example.com");
 
             // When/Then
             mockMvc.perform(post("/api/recovery-password/forgot")
@@ -519,7 +522,7 @@ class RecoveryPasswordControllerIntegrationTest {
         void forgotPassword_WithoutAuthentication_IsAccessible() throws Exception {
             // Given
             ForgotPasswordRequest request = new ForgotPasswordRequest();
-            request.setEmail("testuser@example.com");
+            request.setIdentifier("testuser@example.com");
 
             // When/Then
             mockMvc.perform(post("/api/recovery-password/forgot")

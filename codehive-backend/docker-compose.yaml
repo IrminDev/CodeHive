@@ -8,3 +8,8 @@ services:
       - 'POSTGRES_USER=${DATABASE_USERNAME}'
     ports:
       - '5432:5432'
+    volumes:
+      - 'db_data:/var/lib/postgresql/data'
+
+volumes:
+  db_data:

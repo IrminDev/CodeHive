@@ -2,6 +2,8 @@ package com.github.codehive.service;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
+import java.util.regex.Pattern;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -26,16 +28,39 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
 
+    // Regex pattern for email validation
+    private static final Pattern EMAIL_PATTERN = Pattern.compile(
+            "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
+    );
+
     public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtUtil jwtUtil) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
     }
 
+    /**
+     * Check if the given identifier is an email address
+     * @param identifier the identifier to check
+     * @return true if it's an email, false otherwise (enrollment number)
+     */
+    public static boolean isEmail(String identifier) {
+        return identifier != null && EMAIL_PATTERN.matcher(identifier.trim()).matches();
+    }
+
     @Transactional(readOnly = true)
     public AuthResponse login(LoginRequest loginRequest) throws IncorrectCredentialsException {
-        User user = userRepository.findByEmail(loginRequest.getEmail())
-                .orElseThrow(() -> new IncorrectCredentialsException("Invalid credentials"));
+        String identifier = loginRequest.getIdentifier().trim();
+        
+        // Find user by email or enrollment number based on identifier format
+        Optional<User> userOptional;
+        if (isEmail(identifier)) {
+            userOptional = userRepository.findByEmail(identifier);
+        } else {
+            userOptional = userRepository.findByEnrollmentNumber(identifier);
+        }
+
+        User user = userOptional.orElseThrow(() -> new IncorrectCredentialsException("Invalid credentials"));
 
         if (!passwordEncoder.matches(loginRequest.getPassword(), user.getPassword())) {
             throw new IncorrectCredentialsException("Invalid credentials");
