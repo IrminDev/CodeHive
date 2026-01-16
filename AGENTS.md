@@ -40,6 +40,22 @@ CodeHive/
 │
 ├── codehive-worker/          # Code execution worker service
 │   ├── src/main/java/com/github/codehive/worker/
+│   │   ├── config/           # RabbitMQ and Docker client configuration
+│   │   ├── messaging/
+│   │   │   ├── listener/     # RabbitMQ message listeners (SubmissionListener)
+│   │   │   └── model/        # Message DTOs (SubmissionMessage)
+│   │   ├── sandbox/          # Code execution in isolated Docker containers
+│   │   │   ├── java/         # JavaExecutor for Java code
+│   │   │   ├── python/       # PythonExecutor for Python code
+│   │   │   ├── c/            # CExecutor for C code
+│   │   │   ├── cpp/          # CPPExecutor for C++ code
+│   │   │   ├── factory/      # LanguageExecutorFactory for strategy pattern
+│   │   │   ├── ExecutionResult.java
+│   │   │   ├── LanguageExecutor.java (interface)
+│   │   │   └── SandboxExecutor.java
+│   │   ├── service/          # Business logic services (empty scaffolding)
+│   │   └── util/             # Utility classes (empty scaffolding)
+│   ├── src/test/java/        # Tests with Testcontainers configuration
 │   ├── build.gradle.kts      # Spring Boot 4.0.1, RabbitMQ, Docker Java client
 │   └── settings.gradle.kts
 │
@@ -118,6 +134,11 @@ docker-compose down
 
 ### Worker (codehive-worker)
 
+**Prerequisites:**
+- Java 21
+- Docker (for executing code in isolated containers)
+- RabbitMQ running (via backend's docker-compose)
+
 **Development:**
 ```bash
 cd codehive-worker
@@ -125,12 +146,19 @@ cd codehive-worker
 # Build
 ./gradlew build
 
-# Run
+# Run (connects to RabbitMQ on localhost:5672)
 ./gradlew bootRun
 
 # Test
 ./gradlew test
 ```
+
+**Architecture:**
+- Listens to RabbitMQ queues for code submission messages
+- Executes code in isolated Docker containers per language
+- Supports Java, Python, C, and C++
+- Uses Docker Java API for container management
+- Enforces execution timeouts and resource limits
 
 ### Frontend (codehive-frontend)
 
@@ -356,6 +384,102 @@ class AuthServiceTest {
     }
 }
 ```
+
+### Worker Java Patterns
+
+#### Package Organization
+- **config/**: Spring configuration beans (RabbitMQ, Docker client)
+- **messaging/**: RabbitMQ message handling
+  - **listener/**: `@RabbitListener` components
+  - **model/**: Message DTOs
+- **sandbox/**: Code execution in Docker containers
+  - **{language}/**: Language-specific executor implementations (java, python, c, cpp)
+  - **factory/**: `LanguageExecutorFactory` for strategy pattern
+  - Core interfaces and result models
+- **service/**: Business logic (scaffolding for future implementation)
+- **util/**: Utility classes (scaffolding for future implementation)
+
+#### Language Executor Pattern
+
+**Interface** (`sandbox/LanguageExecutor.java`):
+```java
+public interface LanguageExecutor {
+    // Execute code in sandboxed Docker container
+    // Return ExecutionResult with stdout, stderr, exit code, execution time
+}
+```
+
+**Implementation** (e.g., `sandbox/java/JavaExecutor.java`):
+```java
+@Component("java")  // Bean name matches language identifier
+public class JavaExecutor implements LanguageExecutor {
+    // 1. Create Docker container with language-specific image
+    // 2. Write code to temporary file/volume
+    // 3. Compile (if needed) and execute with timeout
+    // 4. Capture output and cleanup container
+    // 5. Return ExecutionResult
+}
+```
+
+**Supported Languages**:
+- **Java**: `@Component("java")` - JavaExecutor
+- **Python**: `@Component("python")` - PythonExecutor  
+- **C**: `@Component("c")` - CExecutor
+- **C++**: `@Component("cpp")` - CPPExecutor
+
+**Factory Pattern** (`sandbox/factory/LanguageExecutorFactory.java`):
+```java
+@Component
+public class LanguageExecutorFactory {
+    private final Map<String, LanguageExecutor> executors;
+    
+    // Spring injects all LanguageExecutor beans by bean name
+    public LanguageExecutorFactory(Map<String, LanguageExecutor> executors) {
+        this.executors = executors;
+    }
+    
+    public LanguageExecutor getExecutor(String language) {
+        return executors.get(language);  // "java", "python", "c", "cpp"
+    }
+}
+```
+
+#### Messaging Pattern
+
+**Message DTO** (`messaging/model/SubmissionMessage.java`):
+```java
+// Currently empty scaffolding - will contain:
+// - submissionId
+// - userId
+// - language (java, python, c, cpp)
+// - sourceCode
+// - testCases (optional)
+// - timeout
+```
+
+**Listener** (`messaging/listener/SubmissionListener.java`):
+```java
+// Currently empty scaffolding - will contain:
+@Component
+public class SubmissionListener {
+    // @RabbitListener(queues = "code.submission.queue")
+    // public void handleSubmission(SubmissionMessage message) {
+    //     1. Get executor from factory
+    //     2. Execute code in sandbox
+    //     3. Send result back to backend via RabbitMQ
+    // }
+}
+```
+
+#### Sandbox Execution Flow
+
+1. **Message arrives** → `SubmissionListener` receives from RabbitMQ queue
+2. **Factory dispatch** → `LanguageExecutorFactory.getExecutor(language)`
+3. **Container creation** → Executor creates isolated Docker container
+4. **Code execution** → Run code with timeout and resource limits
+5. **Result collection** → Capture stdout/stderr, exit code, timing
+6. **Cleanup** → Remove container, temporary files
+7. **Result publishing** → Send `ExecutionResult` back to backend queue
 
 ### Frontend TypeScript/React Patterns
 
@@ -678,6 +802,37 @@ void login_WithWrongPassword_ThrowsIncorrectCredentialsException() {
 
 ## Common Tasks
 
+### Adding a New Language Executor to Worker
+
+1. **Create Executor Class** in `sandbox/{language}/{Language}Executor.java`:
+   ```java
+   @Component("languagename")  // Bean name must match language identifier
+   public class LanguageExecutor implements LanguageExecutor {
+       // Implement execution logic
+   }
+   ```
+
+2. **Implement Execution Logic**:
+   - Create Docker container with appropriate image (e.g., `openjdk:21`, `python:3.11`, `gcc:latest`)
+   - Mount code as volume or write to container filesystem
+   - Set resource limits (CPU, memory, network: none)
+   - Execute with timeout (use Resilience4j TimeLimiter)
+   - Capture stdout, stderr, exit code
+   - Clean up container (`docker rm -f`)
+
+3. **Add Dependencies** (if needed):
+   - Update `build.gradle.kts` with language-specific libraries
+   - Add Docker image pull logic in executor constructor
+
+4. **Test Execution**:
+   - Create test class in `src/test/java/`
+   - Use Testcontainers to verify Docker execution
+   - Test edge cases: infinite loops, memory leaks, compilation errors
+
+5. **Factory Auto-Discovery**:
+   - No changes needed - `LanguageExecutorFactory` auto-discovers by bean name
+   - Verify: `factory.getExecutor("languagename")` returns your executor
+
 ### Adding a New API Endpoint
 
 1. **Define Request DTO** in `model/request/{domain}/{Action}Request.java`:
@@ -789,6 +944,28 @@ void login_WithWrongPassword_ThrowsIncorrectCredentialsException() {
 
 10. **OpenAPI Documentation**: Always add `@Operation` and `@ApiResponses` to controller methods. Swagger UI auto-updates on application restart.
 
+### Worker
+
+1. **Docker Daemon Required**: Worker service requires Docker daemon running on the host. Ensure Docker socket is accessible (`/var/run/docker.sock` on Unix).
+
+2. **Language Bean Names**: Executor bean names (`@Component("java")`) **must** match the language identifiers used in `SubmissionMessage`. Case-sensitive.
+
+3. **Container Cleanup**: Always clean up Docker containers after execution, even on errors. Use try-finally or `@PreDestroy` hooks.
+
+4. **Execution Timeouts**: Implement timeouts using Resilience4j `TimeLimiter` (already in dependencies). Default should be 10-30 seconds per execution.
+
+5. **Resource Limits**: Set Docker container resource limits: `--memory=512m`, `--cpus=1.0`, `--network=none` for security.
+
+6. **Image Availability**: Worker assumes Docker images are pre-pulled. Add image pull logic in executor constructors or startup to avoid delays.
+
+7. **RabbitMQ Connection**: Worker connects to RabbitMQ on localhost:5672 by default. Configure via `spring.rabbitmq.*` properties if different.
+
+8. **Message Acknowledgement**: Use manual acknowledgement for RabbitMQ messages. Only ack after successful execution and result publishing.
+
+9. **Testcontainers**: Worker tests use Testcontainers (see `TestcontainersConfiguration.java`). Requires Docker for running tests.
+
+10. **Security Isolation**: Never trust user code. Containers must run with `--network=none`, read-only filesystem where possible, and no privileged access.
+
 ### Frontend
 
 1. **API URL Configuration**: Set `VITE_API_URL` in `.env` for non-localhost backends. Defaults to `http://localhost:8080`.
@@ -815,11 +992,13 @@ void login_WithWrongPassword_ThrowsIncorrectCredentialsException() {
 
 ### Infrastructure
 
-1. **RabbitMQ Integration**: Currently in development on `feature/rabbitMQ` branch. Worker service will consume code execution jobs from RabbitMQ queue.
+1. **RabbitMQ Integration**: Currently in development on `feature/rabbitMQ` branch. Worker service will consume code execution jobs from RabbitMQ queue (`code.submission.queue`).
 
-2. **Docker Networking**: Backend, worker, PostgreSQL, and RabbitMQ communicate via Docker Compose network. Check `docker-compose.yaml` for service names.
+2. **Docker Networking**: Backend, worker, PostgreSQL, and RabbitMQ communicate via Docker Compose network. Check `docker-compose.yaml` for service names. Worker accesses host Docker daemon via socket mount.
 
 3. **Port Conflicts**: Ensure ports 5432 (PostgreSQL), 5672/15672 (RabbitMQ), 8080 (backend), 3000/5173 (frontend) are available.
+
+4. **Worker Deployment**: In production, worker should run on separate machines with Docker installed. Use Docker-in-Docker or bind mount Docker socket with caution (security implications).
 
 ---
 
@@ -835,6 +1014,20 @@ void login_WithWrongPassword_ThrowsIncorrectCredentialsException() {
 
 **Issue**: Tests fail with database errors  
 **Solution**: Check `application-test.properties` is configured for H2, not PostgreSQL
+
+### Worker Won't Start
+
+**Issue**: `Cannot connect to Docker daemon`  
+**Solution**: Ensure Docker daemon is running: `docker info` or `systemctl start docker`
+
+**Issue**: `Connection refused` to RabbitMQ  
+**Solution**: Start RabbitMQ via backend's `docker-compose up -d rabbitmq`
+
+**Issue**: Container creation fails  
+**Solution**: Pull required images manually: `docker pull openjdk:21`, `docker pull python:3.11`, etc.
+
+**Issue**: Tests fail with Testcontainers errors  
+**Solution**: Ensure Docker is accessible for tests. Check Docker socket permissions.
 
 ### Frontend Can't Connect to Backend
 
@@ -862,15 +1055,19 @@ void login_WithWrongPassword_ThrowsIncorrectCredentialsException() {
 ## Additional Resources
 
 - **Spring Boot Docs**: https://spring.io/projects/spring-boot
+- **Spring AMQP (RabbitMQ)**: https://spring.io/projects/spring-amqp
+- **Docker Java Client**: https://github.com/docker-java/docker-java
 - **React Router v7 Docs**: https://reactrouter.com/
 - **Bucket4j (Rate Limiting)**: https://bucket4j.com/
 - **Jacoco (Coverage)**: https://www.jacoco.org/jacoco/
+- **Testcontainers**: https://testcontainers.com/
+- **RabbitMQ Docs**: https://www.rabbitmq.com/documentation.html
 
 ---
 
 ## Future Enhancements
 
-1. **Code Execution**: Complete worker service integration with sandboxed Docker containers
+1. **Code Execution**: Complete worker service integration with sandboxed Docker containers (IN PROGRESS)
 2. **Real-time Collaboration**: WebSocket support for live code editing
 3. **Group Management**: Teacher/student group creation and assignment submission
 4. **File Upload**: Support for uploading code files and project archives
@@ -880,9 +1077,14 @@ void login_WithWrongPassword_ThrowsIncorrectCredentialsException() {
 8. **Admin Dashboard**: Frontend admin panel for user management
 9. **API Versioning**: Add `/v1/` prefix to API routes for future compatibility
 10. **Monitoring**: Add Actuator endpoints and Prometheus metrics
+11. **Multi-file Support**: Worker support for projects with multiple source files
+12. **Test Case Validation**: Automated test case execution and grading
+13. **Language Extensions**: Add support for Go, Rust, JavaScript, TypeScript
+14. **Execution History**: Store and display past code execution results
 
 ---
 
 **Last Updated**: 2025-01-15  
 **Current Branch**: `feature/rabbitMQ`  
 **Project Status**: Active Development (Alpha)
+**Worker Status**: Architecture defined, implementation scaffolded (config stubs, empty listeners, language executors with bean naming)
