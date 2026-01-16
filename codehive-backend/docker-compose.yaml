@@ -11,5 +11,12 @@ services:
     volumes:
       - 'db_data:/var/lib/postgresql/data'
 
+  rabbitmq:
+    image: 'rabbitmq:4.2.2-management-alpine'
+    container_name: 'rabbitmq'
+    ports:
+      - '5672:5672'
+      - '15672:15672'
+
 volumes:
   db_data:
