@@ -16,4 +16,12 @@ public class ObjectKeyBuilder {
     public static String executionOutput(Long submissionId, Long executionId, Long groupId, String fileExtension) {
         return String.format("executions/groups/%d/assignments/%d/execution-%d/output.%s", groupId, submissionId, executionId, fileExtension);
     }
+
+    public static String referenceSolutionSourceCode(Long assignmentId, Long referenceSolutionId, String fileExtension) {
+        return String.format("reference-solutions/assignments/%d/reference-solution-%d/Main.%s", assignmentId, referenceSolutionId, fileExtension);
+    }
+
+    public static String executionTestCaseOutput(Long executionId, String fileExtension) {
+        return String.format("test-execution/execution-%d/output.%s", executionId, fileExtension);
+    }
 }
