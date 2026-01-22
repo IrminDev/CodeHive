@@ -54,6 +54,12 @@ dependencies {
 	testImplementation("org.assertj:assertj-core")
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 	testRuntimeOnly("com.h2database:h2")
+
+	// Minio
+	implementation("io.minio:minio:8.6.0")
+
+	// RabbitMQ
+	implementation("org.springframework.boot:spring-boot-starter-amqp")
 }
 
 tasks.withType<Test> {

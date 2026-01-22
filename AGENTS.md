@@ -40,10 +40,12 @@ CodeHive/
 │
 ├── codehive-worker/          # Code execution worker service
 │   ├── src/main/java/com/github/codehive/worker/
-│   │   ├── config/           # RabbitMQ and Docker client configuration
+│   │   ├── config/           # RabbitMQ, Docker, and MinIO configuration
 │   │   ├── messaging/
-│   │   │   ├── listener/     # RabbitMQ message listeners (SubmissionListener)
-│   │   │   └── model/        # Message DTOs (SubmissionMessage)
+│   │   │   └── listener/     # RabbitMQ message listeners (SubmissionListener)
+│   │   ├── model/
+│   │   │   ├── dto/queue/    # ExecutionJob DTO
+│   │   │   └── enums/        # Language, ExecutionStatus, ExecutionType, ComparatorType
 │   │   ├── sandbox/          # Code execution in isolated Docker containers
 │   │   │   ├── java/         # JavaExecutor for Java code
 │   │   │   ├── python/       # PythonExecutor for Python code
@@ -51,12 +53,11 @@ CodeHive/
 │   │   │   ├── cpp/          # CPPExecutor for C++ code
 │   │   │   ├── factory/      # LanguageExecutorFactory for strategy pattern
 │   │   │   ├── ExecutionResult.java
-│   │   │   ├── LanguageExecutor.java (interface)
-│   │   │   └── SandboxExecutor.java
-│   │   ├── service/          # Business logic services (empty scaffolding)
-│   │   └── util/             # Utility classes (empty scaffolding)
+│   │   │   └── LanguageExecutor.java (interface)
+│   │   ├── service/          # ObjectStorageService for MinIO
+│   │   └── util/             # Utility classes (ObjectKeyBuilder, TimeoutUtils)
 │   ├── src/test/java/        # Tests with Testcontainers configuration
-│   ├── build.gradle.kts      # Spring Boot 4.0.1, RabbitMQ, Docker Java client
+│   ├── build.gradle.kts      # Spring Boot 4.0.1, RabbitMQ, Docker Java client, MinIO
 │   └── settings.gradle.kts
 │
 ├── codehive-frontend/        # React Router v7 frontend
@@ -388,44 +389,62 @@ class AuthServiceTest {
 ### Worker Java Patterns
 
 #### Package Organization
-- **config/**: Spring configuration beans (RabbitMQ, Docker client)
+- **config/**: Spring configuration beans (RabbitMQ, Docker client, MinIO)
 - **messaging/**: RabbitMQ message handling
-  - **listener/**: `@RabbitListener` components
-  - **model/**: Message DTOs
+  - **listener/**: `@RabbitListener` components (SubmissionListener)
+- **model/**: Data models
+  - **dto/queue/**: Message DTOs (ExecutionJob)
+  - **enums/**: Enums (Language, ExecutionStatus, ExecutionType, ComparatorType)
 - **sandbox/**: Code execution in Docker containers
   - **{language}/**: Language-specific executor implementations (java, python, c, cpp)
   - **factory/**: `LanguageExecutorFactory` for strategy pattern
   - Core interfaces and result models
-- **service/**: Business logic (scaffolding for future implementation)
-- **util/**: Utility classes (scaffolding for future implementation)
+- **service/**: Business logic (ObjectStorageService for MinIO)
+- **util/**: Utility classes (ObjectKeyBuilder, TimeoutUtils)
 
 #### Language Executor Pattern
 
 **Interface** (`sandbox/LanguageExecutor.java`):
 ```java
 public interface LanguageExecutor {
-    // Execute code in sandboxed Docker container
-    // Return ExecutionResult with stdout, stderr, exit code, execution time
+    /**
+     * Execute code with given constraints
+     * @param sourceCode The source code input stream from MinIO
+     * @param testInput The test input stream from MinIO (can be null)
+     * @param timeLimitMs Time limit in milliseconds
+     * @param memoryLimitMb Memory limit in megabytes
+     * @return ExecutionResult with verdict and execution details
+     */
+    ExecutionResult execute(InputStream sourceCode, InputStream testInput, 
+                           Long timeLimitMs, Long memoryLimitMb) throws Exception;
 }
 ```
 
 **Implementation** (e.g., `sandbox/java/JavaExecutor.java`):
 ```java
-@Component("java")  // Bean name matches language identifier
+@Component("JAVA")  // Bean name matches Language enum
 public class JavaExecutor implements LanguageExecutor {
-    // 1. Create Docker container with language-specific image
-    // 2. Write code to temporary file/volume
-    // 3. Compile (if needed) and execute with timeout
-    // 4. Capture output and cleanup container
-    // 5. Return ExecutionResult
+    private final DockerClient dockerClient;
+    private static final String JAVA_IMAGE = "openjdk:21-slim";
+    
+    @Override
+    public ExecutionResult execute(InputStream sourceCode, InputStream testInput, 
+                                   Long timeLimitMs, Long memoryLimitMb) {
+        // 1. Create temp directory and save source/input files
+        // 2. Compile in Docker container (separate from execution)
+        // 3. Execute in isolated container with resource limits
+        // 4. Monitor for TLE, MLE, RTE, CE
+        // 5. Capture output and cleanup
+        // 6. Return ExecutionResult with status (TLE/MLE/RTE/CE/AC)
+    }
 }
 ```
 
 **Supported Languages**:
-- **Java**: `@Component("java")` - JavaExecutor
-- **Python**: `@Component("python")` - PythonExecutor  
-- **C**: `@Component("c")` - CExecutor
-- **C++**: `@Component("cpp")` - CPPExecutor
+- **Java**: `@Component("JAVA")` - JavaExecutor (openjdk:21-slim)
+- **Python**: `@Component("PYTHON")` - PythonExecutor (python:3.11-slim)
+- **C**: `@Component("C")` - CExecutor (gcc:latest)
+- **C++**: `@Component("CPP")` - CPPExecutor (gcc:latest with g++)
 
 **Factory Pattern** (`sandbox/factory/LanguageExecutorFactory.java`):
 ```java
@@ -438,48 +457,208 @@ public class LanguageExecutorFactory {
         this.executors = executors;
     }
     
-    public LanguageExecutor getExecutor(String language) {
-        return executors.get(language);  // "java", "python", "c", "cpp"
+    public LanguageExecutor getExecutor(Language language) {
+        return executors.get(language.name());  // "JAVA", "PYTHON", "C", "CPP"
     }
 }
 ```
 
+**Execution Result**:
+```java
+public class ExecutionResult {
+    private ExecutionStatus status;  // TLE, MLE, RTE, CE, WA, AC (enum)
+    private String output;           // stdout
+    private String errorOutput;      // stderr
+    private Long executionTimeMs;    // Execution time
+    private Long memoryUsedKb;       // Memory used (best effort)
+    private Integer exitCode;        // Process exit code
+    private String compilationError; // Compilation errors
+    
+    // Factory methods: compilationError(), runtimeError(), 
+    //                  timeLimitExceeded(), memoryLimitExceeded(), success()
+}
+```
+
+**Verdict Detection**:
+- **CE (Compilation Error)**: Non-zero exit code during compilation phase
+- **TLE (Time Limit Exceeded)**: Execution exceeds `timeLimitMs` (detected via Future timeout)
+- **MLE (Memory Limit Exceeded)**: Container killed by Docker (exit code 137)
+- **RTE (Runtime Error)**: Non-zero exit code during execution
+- **AC (Accepted)**: Exit code 0 with successful execution (TODO: output comparison for AC/WA)
+
 #### Messaging Pattern
 
-**Message DTO** (`messaging/model/SubmissionMessage.java`):
+**Message DTO** (`model/dto/queue/ExecutionJob.java`):
 ```java
-// Currently empty scaffolding - will contain:
-// - submissionId
-// - userId
-// - language (java, python, c, cpp)
-// - sourceCode
-// - testCases (optional)
-// - timeout
+public class ExecutionJob {
+    private Long id;                          // Execution ID
+    private String source;                    // MinIO path to source code
+    private String reference;                 // MinIO path to reference solution
+    private Language language;                // Student code language: JAVA, PYTHON, C, CPP
+    private Language referenceLanguage;       // Reference solution language
+    private ExecutionType executionType;      // PRACTICE or DEFINITIVE
+    private List<String> testCases;           // Inline test inputs (PRACTICE mode)
+    private String outputPath;                // MinIO path to store execution report JSON
+    private Long timeLimitMs;                 // Time limit in milliseconds
+    private Long memoryLimitMb;               // Memory limit in megabytes
+    private Integer numTests;                 // Number of test cases (DEFINITIVE mode)
+    private String testsPath;                 // Base path for test files (DEFINITIVE mode)
+    private ComparatorType comparatorType;    // EXACT_MATCH or FLOATING_POINT
+}
 ```
+
+**MinIO Path Structure**:
+- **Test inputs**: `test-suites/assignments/{assignment-id}/tc-{tc-id}/tc-{tc-id}.in`
+- **Expected outputs**: `test-suites/assignments/{assignment-id}/tc-{tc-id}/tc-{tc-id}.out`
+- **Submissions**: `submissions/groups/{group-id}/assignments/{assignment-id}/submission-{submission-id}/Main.{ext}`
+- **Practice executions**: `test-execution/execution-{id}/Main.{ext}`
+
+**Execution Types**:
+- **DEFINITIVE**: Run against stored test cases (1 to numTests) from `testsPath`, compare with `.out` files
+- **PRACTICE**: Run against inline test cases, compare with reference solution output
 
 **Listener** (`messaging/listener/SubmissionListener.java`):
 ```java
-// Currently empty scaffolding - will contain:
 @Component
 public class SubmissionListener {
-    // @RabbitListener(queues = "code.submission.queue")
-    // public void handleSubmission(SubmissionMessage message) {
-    //     1. Get executor from factory
-    //     2. Execute code in sandbox
-    //     3. Send result back to backend via RabbitMQ
-    // }
+    private final TestExecutionService testExecutionService;
+    
+    @RabbitListener(queues = "${rabbitmq.queue:codehive_queue}")
+    public void handleExecutionJob(ExecutionJob job) {
+        // Execute all test cases and generate comprehensive report
+        ExecutionReport report = testExecutionService.executeJob(job);
+        
+        // Report contains:
+        // - Overall status (AC/WA/TLE/MLE/RTE/CE)
+        // - Individual test case results
+        // - Execution statistics
+        // - Stored in MinIO at job.getOutputPath()
+        
+        logger.info("Execution completed: id={}, status={}, passed={}/{}", 
+            job.getId(), report.getOverallStatus(), 
+            report.getPassedTests(), report.getTotalTests());
+        
+        // TODO: Send result back to backend via RabbitMQ result queue
+    }
+}
+```
+
+**Test Execution Service** (`service/TestExecutionService.java`):
+The service orchestrates test execution based on execution type:
+
+1. **DEFINITIVE Mode**:
+   - Downloads source code from `job.getSource()`
+   - For each test case (1 to `job.getNumTests()`):
+     - Downloads input from `{testsPath}/tc-{i}/tc-{i}.in`
+     - Downloads expected output from `{testsPath}/tc-{i}/tc-{i}.out`
+     - Executes student code with test input
+     - Compares output using `OutputComparatorService`
+     - Records result (AC/WA/TLE/MLE/RTE)
+
+2. **PRACTICE Mode**:
+   - Downloads student source from `job.getSource()`
+   - Downloads reference solution from `job.getReference()`
+   - For each inline test case in `job.getTestCases()`:
+     - Executes reference solution to get expected output
+     - Executes student code with same input
+     - Compares outputs using `OutputComparatorService`
+     - Records result (AC/WA/TLE/MLE/RTE)
+
+3. **Output Comparison** (`service/OutputComparatorService.java`):
+   - **EXACT_MATCH**: Trimmed line-by-line comparison
+   - **FLOATING_POINT**: Token-by-token with epsilon tolerance (1e-9)
+
+4. **Report Generation** (`model/dto/ExecutionReport.java`):
+   - Overall status (worst-case verdict)
+   - Per-test-case results with timing/memory
+   - Statistics: passed/failed counts, max time/memory
+   - Uploaded to MinIO as JSON at `job.getOutputPath()`
+
+**Configuration** (`config/RabbitMQConfig.java`):
+```java
+@Configuration
+public class RabbitMQConfig {
+    public static final String QUEUE_NAME = System.getProperty("rabbitmq.queue", "codehive_queue");
+    
+    @Bean
+    Queue executionQueue() {
+        return new Queue(QUEUE_NAME, true);  // Durable queue
+    }
+    
+    @Bean
+    public MessageConverter jsonMessageConverter() {
+        return new Jackson2JsonMessageConverter();  // JSON serialization
+    }
+}
+```
+
+**MinIO Integration** (`service/ObjectStorageService.java`):
+```java
+@Service
+public class ObjectStorageService {
+    private final MinioClient minioClient;
+    private final String bucketName = System.getProperty("minio.bucketName", "codehive");
+    
+    public InputStream download(String objectKey) throws Exception {
+        return minioClient.getObject(
+            GetObjectArgs.builder()
+                .bucket(bucketName)
+                .object(objectKey)
+                .build()
+        );
+    }
+    
+    public void upload(String objectKey, String content) throws Exception {
+        byte[] contentBytes = content.getBytes(StandardCharsets.UTF_8);
+        ByteArrayInputStream stream = new ByteArrayInputStream(contentBytes);
+        
+        minioClient.putObject(
+            PutObjectArgs.builder()
+                .bucket(bucketName)
+                .object(objectKey)
+                .stream(stream, contentBytes.length, -1)
+                .contentType("text/plain")
+                .build()
+        );
+    }
 }
 ```
 
 #### Sandbox Execution Flow
 
-1. **Message arrives** → `SubmissionListener` receives from RabbitMQ queue
-2. **Factory dispatch** → `LanguageExecutorFactory.getExecutor(language)`
-3. **Container creation** → Executor creates isolated Docker container
-4. **Code execution** → Run code with timeout and resource limits
-5. **Result collection** → Capture stdout/stderr, exit code, timing
-6. **Cleanup** → Remove container, temporary files
-7. **Result publishing** → Send `ExecutionResult` back to backend queue
+1. **Message arrives** → `SubmissionListener` receives `ExecutionJob` from RabbitMQ queue (`codehive_queue`)
+2. **Download files** → `ObjectStorageService` downloads source code and test input from MinIO
+3. **Factory dispatch** → `LanguageExecutorFactory.getExecutor(language)` returns appropriate executor
+4. **Temp file creation** → Executor creates temp directory and saves source/input files
+5. **Compilation** (if needed) → Separate Docker container compiles code (Java, C, C++)
+   - Exit code != 0 → Return CE (Compilation Error)
+6. **Container creation** → Executor creates isolated Docker container with:
+   - Language-specific image (openjdk, python, gcc)
+   - Memory limit (`--memory`, `--memory-swap`)
+   - CPU limit (`--cpu-quota`)
+   - Network isolation (`--network=none`)
+   - Volume mount for source/input files
+7. **Code execution** → Run code with timeout monitoring via `Future.get(timeout)`
+   - Timeout → Return TLE (Time Limit Exceeded)
+   - Exit code 137 → Return MLE (Memory Limit Exceeded)
+   - Exit code != 0 → Return RTE (Runtime Error)
+   - Exit code 0 → Return AC (Accepted) or WA (Wrong Answer, TODO)
+8. **Result collection** → Capture stdout, stderr, exit code, execution time
+9. **Cleanup** → Remove Docker container, delete temp files
+10. **Result publishing** → TODO: Send `ExecutionResult` back to backend via RabbitMQ
+
+**Docker Images**:
+- Java: `openjdk:21-slim` (compilation: `javac`, execution: `java`)
+- Python: `python:3.11-slim` (execution: `python`, syntax errors detected as CE)
+- C: `gcc:latest` (compilation: `gcc -o program main.c -lm`, execution: `./program`)
+- C++: `gcc:latest` (compilation: `g++ -o program main.cpp -std=c++17 -lm`, execution: `./program`)
+
+**Resource Limits**:
+- Default time limit: 5000ms (5 seconds)
+- Default memory limit: 256MB
+- CPU limit: 1 CPU (100000 quota)
+- Network: Disabled (`--network=none`)
+- Compilation memory: 512MB (fixed)
 
 ### Frontend TypeScript/React Patterns
 
@@ -992,13 +1171,36 @@ void login_WithWrongPassword_ThrowsIncorrectCredentialsException() {
 
 ### Infrastructure
 
-1. **RabbitMQ Integration**: Currently in development on `feature/rabbitMQ` branch. Worker service will consume code execution jobs from RabbitMQ queue (`code.submission.queue`).
+1. **RabbitMQ Integration**: ✅ **IMPLEMENTED** - Worker service consumes code execution jobs from RabbitMQ queue (`codehive_queue`). Backend sends `ExecutionJob` messages, worker processes them and returns results (result publishing TODO).
 
-2. **Docker Networking**: Backend, worker, PostgreSQL, and RabbitMQ communicate via Docker Compose network. Check `docker-compose.yaml` for service names. Worker accesses host Docker daemon via socket mount.
+2. **MinIO Integration**: ✅ **IMPLEMENTED** - Backend and worker use MinIO for object storage. Source code and test inputs are stored as files in MinIO bucket (`codehive`), referenced by object keys in `ExecutionJob`.
 
-3. **Port Conflicts**: Ensure ports 5432 (PostgreSQL), 5672/15672 (RabbitMQ), 8080 (backend), 3000/5173 (frontend) are available.
+3. **Docker Networking**: Backend, worker, PostgreSQL, RabbitMQ, and MinIO communicate via Docker Compose network. Worker accesses host Docker daemon via socket mount (`/var/run/docker.sock`) to create isolated execution containers.
 
-4. **Worker Deployment**: In production, worker should run on separate machines with Docker installed. Use Docker-in-Docker or bind mount Docker socket with caution (security implications).
+4. **Port Conflicts**: Ensure ports are available:
+   - 5432: PostgreSQL
+   - 5672/15672: RabbitMQ (AMQP/Management UI)
+   - 9000/9001: MinIO (API/Console)
+   - 8080: Backend API
+   - 3000/5173: Frontend dev server
+
+5. **Worker Deployment**: In production, worker should run on separate machines with Docker installed. Use Docker-in-Docker or bind mount Docker socket with caution (security implications). Ensure MinIO and RabbitMQ are accessible from worker.
+
+6. **Language Executors**: ✅ **IMPLEMENTED** - All four language executors (Java, Python, C, C++) are fully implemented with:
+   - Docker-based sandboxing
+   - Resource limits (memory, CPU, network isolation)
+   - Timeout detection (TLE)
+   - Memory limit detection (MLE)
+   - Compilation error detection (CE)
+   - Runtime error detection (RTE)
+   - Output comparison for AC/WA verification (EXACT_MATCH and FLOATING_POINT modes)
+
+7. **Test Execution Pipeline**: ✅ **IMPLEMENTED** - Complete orchestration of test case execution:
+   - DEFINITIVE mode: Batch execution against stored test cases from MinIO
+   - PRACTICE mode: Dynamic execution against inline test cases with reference solution comparison
+   - Per-test-case result tracking with detailed feedback
+   - Comprehensive execution reports with statistics (passed/failed, timing, memory)
+   - JSON report upload to MinIO for backend consumption
 
 ---
 
@@ -1024,10 +1226,19 @@ void login_WithWrongPassword_ThrowsIncorrectCredentialsException() {
 **Solution**: Start RabbitMQ via backend's `docker-compose up -d rabbitmq`
 
 **Issue**: Container creation fails  
-**Solution**: Pull required images manually: `docker pull openjdk:21`, `docker pull python:3.11`, etc.
+**Solution**: Pull required images manually: `docker pull openjdk:21-slim`, `docker pull python:3.11-slim`, `docker pull gcc:latest`
 
 **Issue**: Tests fail with Testcontainers errors  
 **Solution**: Ensure Docker is accessible for tests. Check Docker socket permissions.
+
+**Issue**: MinIO connection errors  
+**Solution**: Ensure MinIO is running and accessible. Check `minio.url`, `minio.accessKey`, `minio.secretKey` in environment variables or system properties.
+
+**Issue**: Execution jobs not being consumed  
+**Solution**: Check RabbitMQ queue name matches between backend and worker (`codehive_queue`). Verify worker is connected to RabbitMQ via management UI (http://localhost:15672).
+
+**Issue**: Language executor not found  
+**Solution**: Verify bean names match enum values: `@Component("JAVA")`, `@Component("PYTHON")`, `@Component("C")`, `@Component("CPP")` (all uppercase).
 
 ### Frontend Can't Connect to Backend
 
@@ -1057,6 +1268,7 @@ void login_WithWrongPassword_ThrowsIncorrectCredentialsException() {
 - **Spring Boot Docs**: https://spring.io/projects/spring-boot
 - **Spring AMQP (RabbitMQ)**: https://spring.io/projects/spring-amqp
 - **Docker Java Client**: https://github.com/docker-java/docker-java
+- **MinIO Java SDK**: https://min.io/docs/minio/linux/developers/java/minio-java.html
 - **React Router v7 Docs**: https://reactrouter.com/
 - **Bucket4j (Rate Limiting)**: https://bucket4j.com/
 - **Jacoco (Coverage)**: https://www.jacoco.org/jacoco/
@@ -1067,7 +1279,7 @@ void login_WithWrongPassword_ThrowsIncorrectCredentialsException() {
 
 ## Future Enhancements
 
-1. **Code Execution**: Complete worker service integration with sandboxed Docker containers (IN PROGRESS)
+1. **Result Publishing**: ✅ **NEXT** - Send `ExecutionReport` back to backend via RabbitMQ result queue
 2. **Real-time Collaboration**: WebSocket support for live code editing
 3. **Group Management**: Teacher/student group creation and assignment submission
 4. **File Upload**: Support for uploading code files and project archives
@@ -1076,15 +1288,26 @@ void login_WithWrongPassword_ThrowsIncorrectCredentialsException() {
 7. **Email Templates**: HTML email templates for password reset and notifications
 8. **Admin Dashboard**: Frontend admin panel for user management
 9. **API Versioning**: Add `/v1/` prefix to API routes for future compatibility
-10. **Monitoring**: Add Actuator endpoints and Prometheus metrics
-11. **Multi-file Support**: Worker support for projects with multiple source files
-12. **Test Case Validation**: Automated test case execution and grading
-13. **Language Extensions**: Add support for Go, Rust, JavaScript, TypeScript
-14. **Execution History**: Store and display past code execution results
+10. **Monitoring**: Add Actuator endpoints and Prometheus metrics for worker execution metrics
+11. **Multi-file Support**: Worker support for projects with multiple source files and complex build systems
+12. **Language Extensions**: Add support for Go, Rust, JavaScript, TypeScript, Ruby
+13. **Execution History**: Store and display past code execution results with analytics
+14. **Security Hardening**: Add seccomp profiles, AppArmor/SELinux policies for worker containers
+15. **Horizontal Scaling**: Support multiple worker instances with load balancing
 
 ---
 
-**Last Updated**: 2025-01-15  
+**Last Updated**: 2026-01-21  
 **Current Branch**: `feature/rabbitMQ`  
-**Project Status**: Active Development (Alpha)
-**Worker Status**: Architecture defined, implementation scaffolded (config stubs, empty listeners, language executors with bean naming)
+**Project Status**: Active Development (Alpha)  
+**Worker Status**: ✅ **FULLY OPERATIONAL** - Complete test execution pipeline implemented:
+- RabbitMQ integration with comprehensive `ExecutionJob` model
+- MinIO integration for source code, test cases, and execution reports
+- All 4 language executors (Java, Python, C, C++) with Docker sandboxing
+- DEFINITIVE mode: Multi-test execution with stored test cases
+- PRACTICE mode: Reference solution comparison
+- Output comparison service with EXACT_MATCH and FLOATING_POINT modes
+- Comprehensive execution reports with per-test-case results and statistics
+- TLE/MLE/RTE/CE/AC/WA verdict detection
+- Report storage in MinIO as JSON
+- Next: Result publishing to backend via RabbitMQ result queue

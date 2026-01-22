@@ -3,8 +3,6 @@ package com.github.codehive.model.entity;
 import java.time.LocalDateTime;
 import java.util.List;
 
-import org.springframework.cglib.core.Local;
-
 import com.github.codehive.model.enums.ComparatorType;
 
 public class Assignment {

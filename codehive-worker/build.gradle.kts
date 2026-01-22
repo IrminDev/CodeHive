@@ -20,12 +20,17 @@ repositories {
 
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter")
-    implementation("org.springframework.boot:spring-boot-starter-amqp")
 	implementation("com.github.docker-java:docker-java-core:3.7.0")
 	implementation("com.github.docker-java:docker-java-transport-httpclient5:3.7.0")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 
+    	// Minio
+	implementation("io.minio:minio:8.6.0")
+
+	// RabbitMQ
+	implementation("org.springframework.boot:spring-boot-starter-amqp")
+    
 	// Timeout utility
 	implementation("io.github.resilience4j:resilience4j-timelimiter:2.3.0")
 }

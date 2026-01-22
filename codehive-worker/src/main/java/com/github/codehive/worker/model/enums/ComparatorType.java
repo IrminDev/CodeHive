@@ -1,4 +1,4 @@
-package com.github.codehive.model.enums;
+package com.github.codehive.worker.model.enums;
 
 public enum ComparatorType {
     EXACT_MATCH,
