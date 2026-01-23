@@ -6,5 +6,6 @@ public enum ExecutionStatus {
     RTE, // Runtime Error
     CE, // Compilation Error
     WA, // Wrong Answer
-    AC  // Accepted
+    AC,  // Accepted
+    PENDING
 }

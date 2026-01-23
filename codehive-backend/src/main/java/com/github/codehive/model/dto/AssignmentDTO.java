@@ -1,86 +1,25 @@
-package com.github.codehive.model.entity;
+package com.github.codehive.model.dto;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.github.codehive.model.enums.ComparatorType;
 
-import jakarta.persistence.CollectionTable;
-import jakarta.persistence.Column;
-import jakarta.persistence.ElementCollection;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.Table;
-
-@Entity
-@Table(name = "assignments")
-public class Assignment {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public class AssignmentDTO {
     private Long id;
-    
-    @Column(nullable = false, length = 200)
     private String title;
-    
-    @Column(nullable = false, columnDefinition = "TEXT")
     private String description;
-    
-    @ElementCollection
-    @CollectionTable(name = "assignment_constraints", joinColumns = @JoinColumn(name = "assignment_id"))
-    @Column(name = "constraint_text", columnDefinition = "TEXT")
-    private List<String> constraints = new ArrayList<>();
-    
-    @ElementCollection
-    @CollectionTable(name = "assignment_hints", joinColumns = @JoinColumn(name = "assignment_id"))
-    @Column(name = "hint_text", columnDefinition = "TEXT")
-    private List<String> hints = new ArrayList<>();
-    
-    @ElementCollection
-    @CollectionTable(name = "assignment_tags", joinColumns = @JoinColumn(name = "assignment_id"))
-    @Column(name = "tag", length = 50)
-    private List<String> tags = new ArrayList<>();
-    
-    @Column(nullable = false)
+    private List<String> constraints;
+    private List<String> hints;
+    private List<String> tags;
     private Integer timeLimitMs;
-    
-    @Column(nullable = false)
     private Integer memoryLimitMb;
-    
-    @Column(nullable = false, length = 20)
-    @Enumerated(EnumType.STRING)
     private ComparatorType comparatorType;
-    
-    @Column(nullable = false)
     private LocalDateTime createdAt;
-    
-    @Column(nullable = false)
     private LocalDateTime updatedAt;
-    
-    @Column(nullable = true)
     private LocalDateTime dueDate;
-
-    public Assignment() {
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
-        this.constraints = new ArrayList<>();
-        this.hints = new ArrayList<>();
-        this.tags = new ArrayList<>();
-    }
-
-    public Assignment(String title, String description, Integer timeLimitMs, Integer memoryLimitMb, ComparatorType comparatorType) {
-        this();
-        this.title = title;
-        this.description = description;
-        this.timeLimitMs = timeLimitMs;
-        this.memoryLimitMb = memoryLimitMb;
-        this.comparatorType = comparatorType;
-    }
 
     public Long getId() {
         return id;
