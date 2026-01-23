@@ -14,68 +14,106 @@ public class OutputComparatorService {
     private static final Logger logger = LoggerFactory.getLogger(OutputComparatorService.class);
     private static final double EPSILON = 1e-9;
 
+    public static class ComparisonResult {
+        private final boolean matches;
+        private final String feedback;
+
+        public ComparisonResult(boolean matches, String feedback) {
+            this.matches = matches;
+            this.feedback = feedback;
+        }
+
+        public boolean matches() {
+            return matches;
+        }
+
+        public String getFeedback() {
+            return feedback;
+        }
+    }
+
     /**
      * Compare two outputs based on the comparator type
+     * @param expected Expected output
+     * @param actual Actual output from execution
+     * @param comparatorType Type of comparison to perform
+     * @return ComparisonResult with match status and detailed feedback
+     */
+    public ComparisonResult compareWithFeedback(String expected, String actual, ComparatorType comparatorType) {
+        if (expected == null && actual == null) {
+            return new ComparisonResult(true, "Passed");
+        }
+        if (expected == null || actual == null) {
+            return new ComparisonResult(false, "Output is null");
+        }
+
+        switch (comparatorType) {
+            case EXACT_MATCH:
+                return compareExactWithFeedback(expected, actual);
+            case FLOATING_POINT:
+                return compareFloatingPointWithFeedback(expected, actual);
+            default:
+                logger.warn("Unknown comparator type: {}, falling back to exact match", comparatorType);
+                return compareExactWithFeedback(expected, actual);
+        }
+    }
+
+    /**
+     * Compare two outputs based on the comparator type (legacy method)
      * @param expected Expected output
      * @param actual Actual output from execution
      * @param comparatorType Type of comparison to perform
      * @return true if outputs match, false otherwise
      */
     public boolean compare(String expected, String actual, ComparatorType comparatorType) {
-        if (expected == null && actual == null) {
-            return true;
-        }
-        if (expected == null || actual == null) {
-            return false;
+        return compareWithFeedback(expected, actual, comparatorType).matches();
+    }
+
+    /**
+     * Exact string comparison with detailed feedback
+     */
+    private ComparisonResult compareExactWithFeedback(String expected, String actual) {
+        List<String> expectedLines = normalizeLines(expected);
+        List<String> actualLines = normalizeLines(actual);
+        
+        if (expectedLines.size() != actualLines.size()) {
+            String feedback = String.format("Line count mismatch: expected %d lines, got %d lines", 
+                expectedLines.size(), actualLines.size());
+            logger.debug(feedback);
+            return new ComparisonResult(false, feedback);
         }
 
-        switch (comparatorType) {
-            case EXACT_MATCH:
-                return compareExact(expected, actual);
-            case FLOATING_POINT:
-                return compareFloatingPoint(expected, actual);
-            default:
-                logger.warn("Unknown comparator type: {}, falling back to exact match", comparatorType);
-                return compareExact(expected, actual);
+        for (int i = 0; i < expectedLines.size(); i++) {
+            if (!expectedLines.get(i).equals(actualLines.get(i))) {
+                String feedback = String.format("Line %d mismatch: expected '%s', got '%s'", 
+                    i + 1, truncate(expectedLines.get(i), 50), truncate(actualLines.get(i), 50));
+                logger.debug(feedback);
+                return new ComparisonResult(false, feedback);
+            }
         }
+
+        return new ComparisonResult(true, "Passed");
     }
 
     /**
      * Exact string comparison (trimmed lines, ignoring trailing whitespace)
      */
     private boolean compareExact(String expected, String actual) {
-        List<String> expectedLines = normalizeLines(expected);
-        List<String> actualLines = normalizeLines(actual);
-        
-        if (expectedLines.size() != actualLines.size()) {
-            logger.debug("Line count mismatch: expected {} lines, got {} lines", 
-                expectedLines.size(), actualLines.size());
-            return false;
-        }
-
-        for (int i = 0; i < expectedLines.size(); i++) {
-            if (!expectedLines.get(i).equals(actualLines.get(i))) {
-                logger.debug("Line {} mismatch: expected '{}', got '{}'", 
-                    i + 1, expectedLines.get(i), actualLines.get(i));
-                return false;
-            }
-        }
-
-        return true;
+        return compareExactWithFeedback(expected, actual).matches();
     }
 
     /**
-     * Floating point comparison with tolerance
-     * Compares token by token, treating numbers with epsilon tolerance
+     * Floating point comparison with tolerance and detailed feedback
      */
-    private boolean compareFloatingPoint(String expected, String actual) {
+    private ComparisonResult compareFloatingPointWithFeedback(String expected, String actual) {
         List<String> expectedLines = normalizeLines(expected);
         List<String> actualLines = normalizeLines(actual);
 
         if (expectedLines.size() != actualLines.size()) {
-            logger.debug("Line count mismatch: expected {} lines, got {} lines", 
+            String feedback = String.format("Line count mismatch: expected %d lines, got %d lines", 
                 expectedLines.size(), actualLines.size());
-            return false;
+            logger.debug(feedback);
+            return new ComparisonResult(false, feedback);
         }
 
         for (int i = 0; i < expectedLines.size(); i++) {
@@ -83,21 +121,40 @@ public class OutputComparatorService {
             String[] actualTokens = actualLines.get(i).split("\\s+");
 
             if (expectedTokens.length != actualTokens.length) {
-                logger.debug("Token count mismatch on line {}: expected {} tokens, got {} tokens", 
+                String feedback = String.format("Token count mismatch on line %d: expected %d tokens, got %d tokens", 
                     i + 1, expectedTokens.length, actualTokens.length);
-                return false;
+                logger.debug(feedback);
+                return new ComparisonResult(false, feedback);
             }
 
             for (int j = 0; j < expectedTokens.length; j++) {
                 if (!compareTokens(expectedTokens[j], actualTokens[j])) {
-                    logger.debug("Token mismatch at line {} position {}: expected '{}', got '{}'", 
+                    String feedback = String.format("Token mismatch at line %d position %d: expected '%s', got '%s'", 
                         i + 1, j + 1, expectedTokens[j], actualTokens[j]);
-                    return false;
+                    logger.debug(feedback);
+                    return new ComparisonResult(false, feedback);
                 }
             }
         }
 
-        return true;
+        return new ComparisonResult(true, "Passed");
+    }
+
+    /**
+     * Floating point comparison with tolerance
+     * Compares token by token, treating numbers with epsilon tolerance
+     */
+    private boolean compareFloatingPoint(String expected, String actual) {
+        return compareFloatingPointWithFeedback(expected, actual).matches();
+    }
+
+    /**
+     * Truncate string for display in feedback
+     */
+    private String truncate(String str, int maxLength) {
+        if (str == null) return "null";
+        if (str.length() <= maxLength) return str;
+        return str.substring(0, maxLength) + "...";
     }
 
     /**

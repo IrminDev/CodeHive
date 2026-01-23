@@ -3,9 +3,11 @@ package com.github.codehive.worker.sandbox.java;
 import com.github.codehive.worker.sandbox.ExecutionResult;
 import com.github.codehive.worker.sandbox.LanguageExecutor;
 import com.github.dockerjava.api.DockerClient;
+import com.github.dockerjava.api.async.ResultCallback.Adapter;
 import com.github.dockerjava.api.command.CreateContainerResponse;
 import com.github.dockerjava.api.command.WaitContainerResultCallback;
 import com.github.dockerjava.api.model.Bind;
+import com.github.dockerjava.api.model.Frame;
 import com.github.dockerjava.api.model.HostConfig;
 import com.github.dockerjava.api.model.Volume;
 import org.slf4j.Logger;
@@ -186,8 +188,7 @@ public class JavaExecutor implements LanguageExecutor {
             if (exitCode != 0) {
                 return ExecutionResult.runtimeError(stderr, exitCode, executionTime);
             }
-
-            // TODO: Compare output with expected output for AC/WA verdict
+            
             return ExecutionResult.success(stdout, executionTime, 0L);
 
         } catch (Exception e) {
@@ -210,9 +211,9 @@ public class JavaExecutor implements LanguageExecutor {
             dockerClient.logContainerCmd(containerId)
                     .withStdOut(!stderr)
                     .withStdErr(stderr)
-                    .exec(new com.github.dockerjava.api.async.ResultCallback.Adapter<com.github.dockerjava.api.model.Frame>() {
+                    .exec(new Adapter<Frame>() {
                         @Override
-                        public void onNext(com.github.dockerjava.api.model.Frame frame) {
+                        public void onNext(Frame frame) {
                             try {
                                 outputStream.write(frame.getPayload());
                             } catch (Exception e) {

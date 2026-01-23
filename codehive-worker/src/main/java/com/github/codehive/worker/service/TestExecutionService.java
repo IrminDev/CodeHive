@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.codehive.worker.model.dto.ExecutionReport;
 import com.github.codehive.worker.model.dto.TestCaseResult;
 import com.github.codehive.worker.model.dto.queue.ExecutionJob;
-import com.github.codehive.worker.model.enums.ComparatorType;
 import com.github.codehive.worker.model.enums.ExecutionStatus;
 import com.github.codehive.worker.model.enums.ExecutionType;
 import com.github.codehive.worker.sandbox.ExecutionResult;
@@ -43,9 +42,6 @@ public class TestExecutionService {
         ExecutionReport report = new ExecutionReport(job.getId());
         
         try {
-            // Download source code
-            InputStream sourceCode = objectStorageService.download(job.getSource());
-            
             // Get executor
             LanguageExecutor executor = executorFactory.getExecutor(job.getLanguage());
             
@@ -113,31 +109,31 @@ public class TestExecutionService {
                     job.getMemoryLimitMb()
                 );
                 
-                // Create test case result
+                // Upload stdout and stderr to MinIO
+                uploadTestCaseOutputs(job.getOutputPath(), i, result.getOutput(), result.getErrorOutput());
+                
+                // Create test case result (without output/errorOutput/expectedOutput)
                 TestCaseResult testResult = new TestCaseResult(
                     i,
                     result.getStatus(),
-                    result.getOutput(),
-                    expectedOutput,
                     result.getExecutionTimeMs(),
                     result.getMemoryUsedKb()
                 );
                 
-                testResult.setErrorOutput(result.getErrorOutput());
-                
                 // Compare outputs if execution was successful
                 if (result.getStatus() == ExecutionStatus.AC) {
-                    boolean matches = outputComparatorService.compare(
-                        expectedOutput,
-                        result.getOutput(),
-                        job.getComparatorType()
-                    );
+                    OutputComparatorService.ComparisonResult comparison = 
+                        outputComparatorService.compareWithFeedback(
+                            expectedOutput,
+                            result.getOutput(),
+                            job.getComparatorType()
+                        );
                     
-                    if (!matches) {
+                    if (!comparison.matches()) {
                         testResult.setStatus(ExecutionStatus.WA);
-                        testResult.setFeedback("Output does not match expected output");
+                        testResult.setFeedback(comparison.getFeedback());
                     } else {
-                        testResult.setFeedback("Test passed");
+                        testResult.setFeedback("Passed");
                     }
                 } else {
                     testResult.setFeedback(getStatusFeedback(result.getStatus()));
@@ -168,7 +164,7 @@ public class TestExecutionService {
         for (int i = 0; i < job.getTestCases().size(); i++) {
             try {
                 String testInput = job.getTestCases().get(i);
-                InputStream testInputStream = new ByteArrayInputStream(testInput.getBytes(StandardCharsets.UTF_8));
+                int testNumber = i + 1;
                 
                 // Execute reference solution to get expected output
                 ExecutionResult referenceResult = referenceExecutor.execute(
@@ -179,9 +175,9 @@ public class TestExecutionService {
                 );
                 
                 if (referenceResult.getStatus() != ExecutionStatus.AC) {
-                    logger.error("Reference solution failed on test case {}: {}", i + 1, referenceResult.getStatus());
+                    logger.error("Reference solution failed on test case {}: {}", testNumber, referenceResult.getStatus());
                     TestCaseResult errorResult = new TestCaseResult();
-                    errorResult.setTestCaseNumber(i + 1);
+                    errorResult.setTestCaseNumber(testNumber);
                     errorResult.setStatus(ExecutionStatus.RTE);
                     errorResult.setFeedback("Reference solution failed");
                     report.addTestCaseResult(errorResult);
@@ -198,31 +194,31 @@ public class TestExecutionService {
                     job.getMemoryLimitMb()
                 );
                 
-                // Create test case result
+                // Upload stdout and stderr to MinIO
+                uploadTestCaseOutputs(job.getOutputPath(), testNumber, result.getOutput(), result.getErrorOutput());
+                
+                // Create test case result (without output/errorOutput/expectedOutput)
                 TestCaseResult testResult = new TestCaseResult(
-                    i + 1,
+                    testNumber,
                     result.getStatus(),
-                    result.getOutput(),
-                    expectedOutput,
                     result.getExecutionTimeMs(),
                     result.getMemoryUsedKb()
                 );
                 
-                testResult.setErrorOutput(result.getErrorOutput());
-                
                 // Compare outputs if execution was successful
                 if (result.getStatus() == ExecutionStatus.AC) {
-                    boolean matches = outputComparatorService.compare(
-                        expectedOutput,
-                        result.getOutput(),
-                        job.getComparatorType()
-                    );
+                    OutputComparatorService.ComparisonResult comparison = 
+                        outputComparatorService.compareWithFeedback(
+                            expectedOutput,
+                            result.getOutput(),
+                            job.getComparatorType()
+                        );
                     
-                    if (!matches) {
+                    if (!comparison.matches()) {
                         testResult.setStatus(ExecutionStatus.WA);
-                        testResult.setFeedback("Output does not match expected output");
+                        testResult.setFeedback(comparison.getFeedback());
                     } else {
-                        testResult.setFeedback("Test passed");
+                        testResult.setFeedback("Passed");
                     }
                 } else {
                     testResult.setFeedback(getStatusFeedback(result.getStatus()));
@@ -238,6 +234,36 @@ public class TestExecutionService {
                 errorResult.setFeedback("Test execution failed: " + e.getMessage());
                 report.addTestCaseResult(errorResult);
             }
+        }
+    }
+
+    /**
+     * Upload test case stdout and stderr to MinIO
+     */
+    private void uploadTestCaseOutputs(String path, int testCaseNumber, String stdout, String stderr) {
+        try {
+            // Upload stdout
+            String stdoutPath = new StringBuilder()
+                .append(path)
+                .append("/tc-")
+                .append(testCaseNumber)
+                .append("/stdout.txt")
+                .toString();
+            objectStorageService.upload(stdoutPath, stdout != null ? stdout : "");
+            logger.debug("Uploaded stdout for test case {} to: {}", testCaseNumber, stdoutPath);
+            
+            // Upload stderr
+            String stderrPath = new StringBuilder()
+                .append(path)
+                .append("/tc-")
+                .append(testCaseNumber)
+                .append("/stderr.txt")
+                .toString();
+            objectStorageService.upload(stderrPath, stderr != null ? stderr : "");
+            logger.debug("Uploaded stderr for test case {} to: {}", testCaseNumber, stderrPath);
+            
+        } catch (Exception e) {
+            logger.error("Failed to upload test case outputs for test {}", testCaseNumber, e);
         }
     }
 
