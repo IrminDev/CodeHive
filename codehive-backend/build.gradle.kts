@@ -33,7 +33,7 @@ dependencies {
 
 	implementation("org.springframework.boot:spring-boot-starter-mail")
 
-	implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.13")
+	implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.1")
 
 	// Rate limiting
 	implementation("com.bucket4j:bucket4j_jdk17-core:8.15.0")
