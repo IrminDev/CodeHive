@@ -3,6 +3,8 @@ package com.github.codehive.worker.service;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import io.minio.GetObjectArgs;
 import io.minio.MinioClient;
@@ -14,7 +16,9 @@ import org.slf4j.LoggerFactory;
 public class ObjectStorageService {
     private static final Logger logger = LoggerFactory.getLogger(ObjectStorageService.class);
     private final MinioClient minioClient;
-    private final String bucketName = System.getProperty("minio.bucketName", "codehive");
+
+    @Value("${minio.bucketName}")
+    private String bucketName;
     
     public ObjectStorageService(MinioClient minioClient) {
         this.minioClient = minioClient;

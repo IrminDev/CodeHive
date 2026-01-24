@@ -95,12 +95,6 @@ public class OutputComparatorService {
         return new ComparisonResult(true, "Passed");
     }
 
-    /**
-     * Exact string comparison (trimmed lines, ignoring trailing whitespace)
-     */
-    private boolean compareExact(String expected, String actual) {
-        return compareExactWithFeedback(expected, actual).matches();
-    }
 
     /**
      * Floating point comparison with tolerance and detailed feedback
@@ -138,14 +132,6 @@ public class OutputComparatorService {
         }
 
         return new ComparisonResult(true, "Passed");
-    }
-
-    /**
-     * Floating point comparison with tolerance
-     * Compares token by token, treating numbers with epsilon tolerance
-     */
-    private boolean compareFloatingPoint(String expected, String actual) {
-        return compareFloatingPointWithFeedback(expected, actual).matches();
     }
 
     /**

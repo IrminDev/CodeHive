@@ -10,6 +10,7 @@ import com.github.codehive.model.enums.ExecutionType;
 public class ExecutionDTO {
     private Long id;
     private Long submissionId;
+    private Long userId;
     private ExecutionType executionType;
     private ExecutionStatus status;
     private Long timeMs;
@@ -31,6 +32,14 @@ public class ExecutionDTO {
 
     public void setSubmissionId(Long submissionId) {
         this.submissionId = submissionId;
+    }
+
+    public Long getUserId() {
+        return userId;
+    }
+
+    public void setUserId(Long userId) {
+        this.userId = userId;
     }
 
     public ExecutionType getExecutionType() {

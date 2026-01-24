@@ -26,7 +26,7 @@ import java.util.concurrent.*;
 public class JavaExecutor implements LanguageExecutor {
     private static final Logger logger = LoggerFactory.getLogger(JavaExecutor.class);
     private final DockerClient dockerClient;
-    private static final String JAVA_IMAGE = "openjdk:21-slim";
+    private static final String JAVA_IMAGE = "eclipse-temurin:21-jdk-ubi10-minimal";
     private static final long DEFAULT_TIME_LIMIT_MS = 5000L;
     private static final long DEFAULT_MEMORY_LIMIT_MB = 256L;
 

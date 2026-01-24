@@ -18,8 +18,10 @@ Current development focuses on authentication, user management, and the foundati
 CodeHive/
 ├── codehive-backend/          # Main Spring Boot API
 │   ├── src/main/java/com/github/codehive/
-│   │   ├── config/           # Spring configuration (Security, OpenAPI, Cache, etc.)
+│   │   ├── config/           # Spring configuration (Security, OpenAPI, Cache, RabbitMQ)
 │   │   ├── controller/       # REST controllers (Auth, RecoveryPassword)
+│   │   ├── messaging/
+│   │   │   └── listener/     # RabbitMQ message listeners (ExecutionResultListener)
 │   │   ├── model/
 │   │   │   ├── entity/       # JPA entities (User, PasswordResetToken)
 │   │   │   ├── dto/          # Data Transfer Objects (UserDTO)
@@ -42,7 +44,8 @@ CodeHive/
 │   ├── src/main/java/com/github/codehive/worker/
 │   │   ├── config/           # RabbitMQ, Docker, and MinIO configuration
 │   │   ├── messaging/
-│   │   │   └── listener/     # RabbitMQ message listeners (SubmissionListener)
+│   │   │   ├── listener/     # RabbitMQ message listeners (SubmissionListener)
+│   │   │   └── producer/     # RabbitMQ message producers (ExecutionResultProducer)
 │   │   ├── model/
 │   │   │   ├── dto/queue/    # ExecutionJob DTO
 │   │   │   └── enums/        # Language, ExecutionStatus, ExecutionType, ComparatorType
@@ -350,6 +353,73 @@ public @interface RateLimit {
 
 3. **Aspect intercepts** and checks `RateLimitService` (IP-based buckets)
 
+#### RabbitMQ Messaging
+
+**Backend RabbitMQ Configuration** (`config/RabbitConfig.java`):
+```java
+@Configuration
+public class RabbitConfig {
+    public static final String QUEUE_NAME = "codehive_queue";           // For sending jobs to worker
+    public static final String RESULT_QUEUE_NAME = "codehive_result_queue";  // For receiving results
+
+    @Bean
+    Queue executionQueue() { return new Queue(QUEUE_NAME, true); }
+
+    @Bean
+    Queue resultQueue() { return new Queue(RESULT_QUEUE_NAME, true); }
+
+    @Bean
+    public MessageConverter jsonMessageConverter() {
+        return new Jackson2JsonMessageConverter();
+    }
+}
+```
+
+**Execution Result Listener** (`messaging/listener/ExecutionResultListener.java`):
+```java
+@Component
+public class ExecutionResultListener {
+    private final ExecutionResultService executionResultService;
+
+    @RabbitListener(queues = "${rabbitmq.result.queue:codehive_result_queue}")
+    public void handleExecutionResult(ExecutionReport report) {
+        logger.info("Received execution result: executionId={}, status={}", 
+            report.getExecutionId(), report.getOverallStatus());
+        executionResultService.processExecutionResult(report);
+    }
+}
+```
+
+**Execution Result Service** (`service/ExecutionResultService.java`):
+```java
+@Service
+public class ExecutionResultService {
+    private final ExecutionRepository executionRepository;
+
+    @Transactional
+    public void processExecutionResult(ExecutionReport report) {
+        Execution execution = executionRepository.findById(report.getExecutionId())
+            .orElse(null);
+        
+        if (execution == null) {
+            logger.warn("Execution not found: id={}", report.getExecutionId());
+            return;
+        }
+
+        execution.setStatus(report.getOverallStatus());
+        execution.setTimeMs(report.getMaxExecutionTimeMs());
+        execution.setMemoryMb(report.getMaxMemoryUsedKb() / 1024);  // KB to MB
+        
+        executionRepository.save(execution);
+    }
+}
+```
+
+**Queue DTOs** (`model/dto/queue/`):
+- `ExecutionJob.java`: Sent to worker (source path, language, test config, limits)
+- `ExecutionReport.java`: Received from worker (status, test results, statistics)
+- `TestCaseResult.java`: Individual test case result (status, time, memory, feedback)
+
 #### Testing Conventions
 
 **Unit Tests** (`*Test.java`):
@@ -392,7 +462,9 @@ class AuthServiceTest {
 - **config/**: Spring configuration beans (RabbitMQ, Docker client, MinIO)
 - **messaging/**: RabbitMQ message handling
   - **listener/**: `@RabbitListener` components (SubmissionListener)
+  - **producer/**: Message producers (ExecutionResultProducer)
 - **model/**: Data models
+  - **dto/**: DTOs (ExecutionReport, TestCaseResult)
   - **dto/queue/**: Message DTOs (ExecutionJob)
   - **enums/**: Enums (Language, ExecutionStatus, ExecutionType, ComparatorType)
 - **sandbox/**: Code execution in Docker containers
@@ -522,6 +594,7 @@ public class ExecutionJob {
 @Component
 public class SubmissionListener {
     private final TestExecutionService testExecutionService;
+    private final ExecutionResultProducer executionResultProducer;
     
     @RabbitListener(queues = "${rabbitmq.queue:codehive_queue}")
     public void handleExecutionJob(ExecutionJob job) {
@@ -538,7 +611,23 @@ public class SubmissionListener {
             job.getId(), report.getOverallStatus(), 
             report.getPassedTests(), report.getTotalTests());
         
-        // TODO: Send result back to backend via RabbitMQ result queue
+        // Send result back to backend via RabbitMQ result queue
+        executionResultProducer.sendExecutionResult(report);
+    }
+}
+```
+
+**Producer** (`messaging/producer/ExecutionResultProducer.java`):
+```java
+@Service
+public class ExecutionResultProducer {
+    private final RabbitTemplate rabbitTemplate;
+
+    public void sendExecutionResult(ExecutionReport report) {
+        logger.info("Sending execution result: executionId={}, status={}", 
+            report.getExecutionId(), report.getOverallStatus());
+        
+        rabbitTemplate.convertAndSend(RabbitMQConfig.RESULT_QUEUE_NAME, report);
     }
 }
 ```
@@ -579,10 +668,16 @@ The service orchestrates test execution based on execution type:
 @Configuration
 public class RabbitMQConfig {
     public static final String QUEUE_NAME = System.getProperty("rabbitmq.queue", "codehive_queue");
+    public static final String RESULT_QUEUE_NAME = System.getProperty("rabbitmq.result.queue", "codehive_result_queue");
     
     @Bean
     Queue executionQueue() {
         return new Queue(QUEUE_NAME, true);  // Durable queue
+    }
+
+    @Bean
+    Queue resultQueue() {
+        return new Queue(RESULT_QUEUE_NAME, true);  // Durable queue for results
     }
     
     @Bean
@@ -645,7 +740,8 @@ public class ObjectStorageService {
    - Exit code 0 → Return AC (Accepted) or WA (Wrong Answer, TODO)
 8. **Result collection** → Capture stdout, stderr, exit code, execution time
 9. **Cleanup** → Remove Docker container, delete temp files
-10. **Result publishing** → TODO: Send `ExecutionResult` back to backend via RabbitMQ
+10. **Result publishing** → `ExecutionResultProducer` sends `ExecutionReport` to `codehive_result_queue`
+11. **Backend processing** → `ExecutionResultListener` receives report, `ExecutionResultService` updates `Execution` entity
 
 **Docker Images**:
 - Java: `openjdk:21-slim` (compilation: `javac`, execution: `java`)
@@ -1171,7 +1267,10 @@ void login_WithWrongPassword_ThrowsIncorrectCredentialsException() {
 
 ### Infrastructure
 
-1. **RabbitMQ Integration**: ✅ **IMPLEMENTED** - Worker service consumes code execution jobs from RabbitMQ queue (`codehive_queue`). Backend sends `ExecutionJob` messages, worker processes them and returns results (result publishing TODO).
+1. **RabbitMQ Integration**: ✅ **FULLY IMPLEMENTED** - Bidirectional communication between backend and worker:
+   - Backend sends `ExecutionJob` to `codehive_queue` via `ExecutionProducer`
+   - Worker processes jobs and sends `ExecutionReport` to `codehive_result_queue` via `ExecutionResultProducer`
+   - Backend receives results via `ExecutionResultListener` and updates `Execution` entity via `ExecutionResultService`
 
 2. **MinIO Integration**: ✅ **IMPLEMENTED** - Backend and worker use MinIO for object storage. Source code and test inputs are stored as files in MinIO bucket (`codehive`), referenced by object keys in `ExecutionJob`.
 
@@ -1201,6 +1300,12 @@ void login_WithWrongPassword_ThrowsIncorrectCredentialsException() {
    - Per-test-case result tracking with detailed feedback
    - Comprehensive execution reports with statistics (passed/failed, timing, memory)
    - JSON report upload to MinIO for backend consumption
+
+8. **Result Publishing Pipeline**: ✅ **IMPLEMENTED** - Complete result flow from worker to backend:
+   - Worker's `ExecutionResultProducer` publishes `ExecutionReport` to `codehive_result_queue`
+   - Backend's `ExecutionResultListener` consumes results from the queue
+   - `ExecutionResultService` updates `Execution` entity with status, timing, and memory stats
+   - Handles error cases by sending error reports back to backend
 
 ---
 
@@ -1279,7 +1384,7 @@ void login_WithWrongPassword_ThrowsIncorrectCredentialsException() {
 
 ## Future Enhancements
 
-1. **Result Publishing**: ✅ **NEXT** - Send `ExecutionReport` back to backend via RabbitMQ result queue
+1. ~~**Result Publishing**~~: ✅ **COMPLETED** - Bidirectional RabbitMQ communication implemented
 2. **Real-time Collaboration**: WebSocket support for live code editing
 3. **Group Management**: Teacher/student group creation and assignment submission
 4. **File Upload**: Support for uploading code files and project archives
@@ -1297,10 +1402,10 @@ void login_WithWrongPassword_ThrowsIncorrectCredentialsException() {
 
 ---
 
-**Last Updated**: 2026-01-21  
+**Last Updated**: 2026-01-22  
 **Current Branch**: `feature/rabbitMQ`  
 **Project Status**: Active Development (Alpha)  
-**Worker Status**: ✅ **FULLY OPERATIONAL** - Complete test execution pipeline implemented:
+**Worker Status**: ✅ **FULLY OPERATIONAL** - Complete bidirectional communication pipeline:
 - RabbitMQ integration with comprehensive `ExecutionJob` model
 - MinIO integration for source code, test cases, and execution reports
 - All 4 language executors (Java, Python, C, C++) with Docker sandboxing
@@ -1310,4 +1415,5 @@ void login_WithWrongPassword_ThrowsIncorrectCredentialsException() {
 - Comprehensive execution reports with per-test-case results and statistics
 - TLE/MLE/RTE/CE/AC/WA verdict detection
 - Report storage in MinIO as JSON
-- Next: Result publishing to backend via RabbitMQ result queue
+- ✅ Result publishing to backend via `codehive_result_queue`
+- ✅ Backend listener updates `Execution` entity with results

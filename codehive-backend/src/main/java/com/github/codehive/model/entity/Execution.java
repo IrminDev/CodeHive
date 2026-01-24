@@ -15,6 +15,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 
 @Entity
@@ -24,9 +25,13 @@ public class Execution {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "submission_id", nullable = true)
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "submission_id", nullable = true, unique = true)
     private Submission submission; // NULLABLE for PRACTICE executions
+    
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = true)
+    private User user; // User who initiated the execution
     
     @Column(nullable = false, length = 20)
     @Enumerated(EnumType.STRING)
@@ -65,6 +70,12 @@ public class Execution {
         this.executionType = executionType;
     }
 
+    public Execution(ExecutionType executionType, User user) {
+        this();
+        this.executionType = executionType;
+        this.user = user;
+    }
+
     public Long getId() {
         return id;
     }
@@ -79,6 +90,14 @@ public class Execution {
 
     public void setSubmission(Submission submission) {
         this.submission = submission;
+    }
+
+    public User getUser() {
+        return user;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
     }
 
     public ExecutionType getExecutionType() {

@@ -1,5 +1,6 @@
 package com.github.codehive.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -7,13 +8,22 @@ import io.minio.MinioClient;
 
 @Configuration
 public class MinioConfig {
+    @Value("${minio.url}")
+    private String minioUrl;
+
+    @Value("${minio.accessKey}")
+    private String minioAccessKey;
+
+    @Value("${minio.secretKey}")
+    private String minioSecretKey;
+
     @Bean
     MinioClient minioClient() {
         return MinioClient.builder()
-                .endpoint(System.getProperty("minio.url", "http://exampleurl.com:9000"))
+                .endpoint(minioUrl)
                 .credentials(
-                        System.getProperty("minio.accessKey", "accesskey"),
-                        System.getProperty("minio.secretKey", "secretkey"))
+                        minioAccessKey,
+                        minioSecretKey)
                 .build();
     }
 }

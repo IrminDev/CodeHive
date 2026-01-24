@@ -1,15 +1,21 @@
 package com.github.codehive.service;
 
+import java.io.ByteArrayInputStream;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import io.minio.MinioClient;
+import io.minio.PutObjectArgs;
 
 @Service
 public class ObjectStorageService {
     private final MinioClient minioClient;
-    private final String bucketName = System.getProperty("minio.bucketName", "codehive");
+
+    @Value("${minio.bucketName}")
+    private String bucketName;
     
     public ObjectStorageService(MinioClient minioClient) {
         this.minioClient = minioClient;
@@ -25,6 +31,21 @@ public class ObjectStorageService {
                 .build()
         );
     }
+
+    public void upload(String objectKey, String content) throws Exception {
+        byte[] contentBytes = content.getBytes(StandardCharsets.UTF_8);
+        ByteArrayInputStream stream = new ByteArrayInputStream(contentBytes);
+        
+        minioClient.putObject(
+            PutObjectArgs.builder()
+                .bucket(bucketName)
+                .object(objectKey)
+                .stream(stream, contentBytes.length, -1)
+                .contentType("text/plain")
+                .build()
+        );
+    }
+
 
     public InputStream download(String objectKey) throws Exception {
         return minioClient.getObject(

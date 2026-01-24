@@ -253,15 +253,16 @@ public class TestExecutionService {
             logger.debug("Uploaded stdout for test case {} to: {}", testCaseNumber, stdoutPath);
             
             // Upload stderr
-            String stderrPath = new StringBuilder()
-                .append(path)
-                .append("/tc-")
-                .append(testCaseNumber)
-                .append("/stderr.txt")
-                .toString();
-            objectStorageService.upload(stderrPath, stderr != null ? stderr : "");
-            logger.debug("Uploaded stderr for test case {} to: {}", testCaseNumber, stderrPath);
-            
+            if(stderr != null && !stderr.isEmpty()) {
+                String stderrPath = new StringBuilder()
+                    .append(path)
+                    .append("/tc-")
+                    .append(testCaseNumber)
+                    .append("/stderr.txt")
+                    .toString();
+                objectStorageService.upload(stderrPath, stderr);
+                logger.debug("Uploaded stderr for test case {} to: {}", testCaseNumber, stderrPath);
+            }
         } catch (Exception e) {
             logger.error("Failed to upload test case outputs for test {}", testCaseNumber, e);
         }
@@ -289,8 +290,9 @@ public class TestExecutionService {
     private void uploadReport(String outputPath, ExecutionReport report) {
         try {
             String jsonReport = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(report);
-            objectStorageService.upload(outputPath, jsonReport);
-            logger.info("Uploaded execution report to: {}", outputPath);
+            String outputPathFinal = outputPath + "report.json";
+            objectStorageService.upload(outputPathFinal, jsonReport);
+            logger.info("Uploaded execution report to: {}", outputPathFinal);
         } catch (Exception e) {
             logger.error("Failed to upload execution report", e);
         }

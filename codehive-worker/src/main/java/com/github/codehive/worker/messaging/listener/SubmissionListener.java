@@ -1,7 +1,9 @@
 package com.github.codehive.worker.messaging.listener;
 
+import com.github.codehive.worker.messaging.producer.ExecutionResultProducer;
 import com.github.codehive.worker.model.dto.ExecutionReport;
 import com.github.codehive.worker.model.dto.queue.ExecutionJob;
+import com.github.codehive.worker.model.enums.ExecutionStatus;
 import com.github.codehive.worker.service.TestExecutionService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,15 +15,32 @@ public class SubmissionListener {
     private static final Logger logger = LoggerFactory.getLogger(SubmissionListener.class);
     
     private final TestExecutionService testExecutionService;
+    private final ExecutionResultProducer executionResultProducer;
 
-    public SubmissionListener(TestExecutionService testExecutionService) {
+    public SubmissionListener(TestExecutionService testExecutionService, 
+                             ExecutionResultProducer executionResultProducer) {
         this.testExecutionService = testExecutionService;
+        this.executionResultProducer = executionResultProducer;
     }
 
     @RabbitListener(queues = "${rabbitmq.queue:codehive_queue}")
     public void handleExecutionJob(ExecutionJob job) {
-        logger.info("Received execution job: id={}, language={}, type={}", 
-            job.getId(), job.getLanguage(), job.getExecutionType());
+        logger.info("[WORKFLOW] RABBITMQ RECEIVE: Received execution job from backend");
+        logger.info("[WORKFLOW] === Execution Job Details ===");
+        logger.info("[WORKFLOW] ID: {}", job.getId());
+        logger.info("[WORKFLOW] Language: {}", job.getLanguage());
+        logger.info("[WORKFLOW] Reference Language: {}", job.getReferenceLanguage());
+        logger.info("[WORKFLOW] Execution Type: {}", job.getExecutionType());
+        logger.info("[WORKFLOW] Source Path: {}", job.getSource());
+        logger.info("[WORKFLOW] Reference Path: {}", job.getReference());
+        logger.info("[WORKFLOW] Output Path: {}", job.getOutputPath());
+        logger.info("[WORKFLOW] Tests Path: {}", job.getTestsPath());
+        logger.info("[WORKFLOW] Num Tests: {}", job.getNumTests());
+        logger.info("[WORKFLOW] Time Limit (ms): {}", job.getTimeLimitMs());
+        logger.info("[WORKFLOW] Memory Limit (MB): {}", job.getMemoryLimitMb());
+        logger.info("[WORKFLOW] Comparator Type: {}", job.getComparatorType());
+        logger.info("[WORKFLOW] Test Cases: {}", job.getTestCases() != null ? job.getTestCases().size() + " inline tests" : "null");
+        logger.info("[WORKFLOW] =============================");
         
         try {
             // Execute the job and get the report
@@ -33,12 +52,17 @@ public class SubmissionListener {
             // Log detailed results
             logExecutionReport(report);
             
-            // TODO: Send result back to backend via RabbitMQ result queue
-            // This will be implemented when we have a result queue configured
+            // Send result back to backend via RabbitMQ result queue
+            executionResultProducer.sendExecutionResult(report);
             
         } catch (Exception e) {
             logger.error("Failed to process execution job: id={}", job.getId(), e);
-            // TODO: Send error result back to backend
+            
+            // Send error result back to backend
+            ExecutionReport errorReport = new ExecutionReport(job.getId());
+            errorReport.setOverallStatus(ExecutionStatus.RTE);
+            errorReport.setCompilationError("Internal error: " + e.getMessage());
+            executionResultProducer.sendExecutionResult(errorReport);
         }
     }
     

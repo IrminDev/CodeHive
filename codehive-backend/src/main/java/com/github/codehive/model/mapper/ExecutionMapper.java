@@ -14,6 +14,8 @@ public class ExecutionMapper {
         dto.setId(execution.getId());
         dto.setSubmissionId(execution.getSubmission() != null ? 
             execution.getSubmission().getId() : null);
+        dto.setUserId(execution.getUser() != null ? 
+            execution.getUser().getId() : null);
         dto.setExecutionType(execution.getExecutionType());
         dto.setStatus(execution.getStatus());
         dto.setTimeMs(execution.getTimeMs());
@@ -29,7 +31,7 @@ public class ExecutionMapper {
         }
         Execution execution = new Execution();
         execution.setId(dto.getId());
-        // Note: Submission must be set separately via submission repository
+        // Note: Submission and User must be set separately via their repositories
         execution.setExecutionType(dto.getExecutionType());
         execution.setStatus(dto.getStatus());
         execution.setTimeMs(dto.getTimeMs());
