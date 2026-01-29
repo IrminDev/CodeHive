@@ -31,7 +31,7 @@ import com.github.codehive.utils.ObjectKeyBuilder;
 public class ExecutionRequestService {
     private static final Logger logger = LoggerFactory.getLogger(ExecutionRequestService.class);
     
-    private static final Long DEFAULT_TIME_LIMIT_MS = 5000L;
+    private static final Long DEFAULT_TIME_LIMIT_MS = 1000L;
     private static final Long DEFAULT_MEMORY_LIMIT_MB = 256L;
     
     private final ExecutionRequestProducer executionRequestProducer;

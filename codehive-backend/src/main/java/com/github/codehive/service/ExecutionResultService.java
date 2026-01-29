@@ -44,8 +44,8 @@ public class ExecutionResultService {
         }
         
         // Update memory (convert KB to MB, use max memory)
-        if (report.getMaxMemoryUsedKb() != null) {
-            execution.setMemoryMb(report.getMaxMemoryUsedKb() / 1024);
+        if (report.getMaxMemoryUsedMb() != null) {
+            execution.setMemoryMb(report.getMaxMemoryUsedMb());
         }
 
         executionRepository.save(execution);

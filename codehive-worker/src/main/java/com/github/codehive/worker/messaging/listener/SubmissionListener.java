@@ -85,8 +85,8 @@ public class SubmissionListener {
             logger.info("Max Execution Time: {}ms", report.getMaxExecutionTimeMs());
         }
         
-        if (report.getMaxMemoryUsedKb() != null) {
-            logger.info("Max Memory Used: {}KB", report.getMaxMemoryUsedKb());
+        if (report.getMaxMemoryUsedMb() != null) {
+            logger.info("Max Memory Used: {}MB", report.getMaxMemoryUsedMb());
         }
         
         logger.info("========================");

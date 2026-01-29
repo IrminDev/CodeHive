@@ -14,7 +14,7 @@ public class ExecutionReport {
     private int failedTests;
     private Long totalExecutionTimeMs;
     private Long maxExecutionTimeMs;
-    private Long maxMemoryUsedKb;
+    private Long maxMemoryUsedMb;
     private String compilationError;
 
     public ExecutionReport() {
@@ -90,12 +90,12 @@ public class ExecutionReport {
         this.maxExecutionTimeMs = maxExecutionTimeMs;
     }
 
-    public Long getMaxMemoryUsedKb() {
-        return maxMemoryUsedKb;
+    public Long getMaxMemoryUsedMb() {
+        return maxMemoryUsedMb;
     }
 
-    public void setMaxMemoryUsedKb(Long maxMemoryUsedKb) {
-        this.maxMemoryUsedKb = maxMemoryUsedKb;
+    public void setMaxMemoryUsedMb(Long maxMemoryUsedMb) {
+        this.maxMemoryUsedMb = maxMemoryUsedMb;
     }
 
     public String getCompilationError() {

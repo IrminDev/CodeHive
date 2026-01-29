@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.github.codehive.model.enums.ComparatorType;
+import com.github.codehive.model.enums.Language;
 
 import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
@@ -45,12 +46,18 @@ public class Assignment {
     @CollectionTable(name = "assignment_tags", joinColumns = @JoinColumn(name = "assignment_id"))
     @Column(name = "tag", length = 50)
     private List<String> tags = new ArrayList<>();
+
+    @ElementCollection
+    @CollectionTable(name = "assignment_allowed_languages", joinColumns = @JoinColumn(name = "assignment_id"))
+    @Column(name = "language", length = 20)
+    @Enumerated(EnumType.STRING)
+    private List<Language> allowedLanguages;
     
     @Column(nullable = false)
-    private Integer timeLimitMs;
+    private Long timeLimitMs;
     
     @Column(nullable = false)
-    private Integer memoryLimitMb;
+    private Long memoryLimitMb;
     
     @Column(nullable = false, length = 20)
     @Enumerated(EnumType.STRING)
@@ -65,21 +72,42 @@ public class Assignment {
     @Column(nullable = true)
     private LocalDateTime dueDate;
 
+    @Column(nullable = false)
+    private Boolean isActive;
+
     public Assignment() {
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
         this.constraints = new ArrayList<>();
         this.hints = new ArrayList<>();
         this.tags = new ArrayList<>();
+        this.allowedLanguages = new ArrayList<>();
+        this.isActive = true;
     }
 
-    public Assignment(String title, String description, Integer timeLimitMs, Integer memoryLimitMb, ComparatorType comparatorType) {
+    public Assignment(String title, String description, Long timeLimitMs, Long memoryLimitMb, ComparatorType comparatorType) {
         this();
         this.title = title;
         this.description = description;
         this.timeLimitMs = timeLimitMs;
         this.memoryLimitMb = memoryLimitMb;
         this.comparatorType = comparatorType;
+    }
+
+    public Boolean getIsActive() {
+        return isActive;
+    }
+
+    public void setIsActive(Boolean isActive) {
+        this.isActive = isActive;
+    }
+
+    public List<Language> getAllowedLanguages() {
+        return allowedLanguages;
+    }
+
+    public void setAllowedLanguages(List<Language> allowedLanguages) {
+        this.allowedLanguages = allowedLanguages;
     }
 
     public Long getId() {
@@ -130,19 +158,19 @@ public class Assignment {
         this.tags = tags;
     }
 
-    public Integer getTimeLimitMs() {
+    public Long getTimeLimitMs() {
         return timeLimitMs;
     }
 
-    public void setTimeLimitMs(Integer timeLimitMs) {
+    public void setTimeLimitMs(Long timeLimitMs) {
         this.timeLimitMs = timeLimitMs;
     }
 
-    public Integer getMemoryLimitMb() {
+    public Long getMemoryLimitMb() {
         return memoryLimitMb;
     }
 
-    public void setMemoryLimitMb(Integer memoryLimitMb) {
+    public void setMemoryLimitMb(Long memoryLimitMb) {
         this.memoryLimitMb = memoryLimitMb;
     }
 

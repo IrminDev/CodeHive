@@ -1,7 +1,5 @@
 package com.github.codehive.model.entity;
 
-import java.time.LocalDateTime;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -28,12 +26,8 @@ public class TestCase {
     
     @Column(nullable = false)
     private Boolean isSample;
-    
-    @Column(nullable = false)
-    private LocalDateTime createdAt;
 
     public TestCase() {
-        this.createdAt = LocalDateTime.now();
         this.isSample = false;
     }
 
@@ -74,13 +68,5 @@ public class TestCase {
 
     public void setIsSample(Boolean isSample) {
         this.isSample = isSample;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
     }
 }

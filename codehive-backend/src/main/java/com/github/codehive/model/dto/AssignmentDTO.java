@@ -5,6 +5,7 @@ import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.github.codehive.model.enums.ComparatorType;
+import com.github.codehive.model.enums.Language;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class AssignmentDTO {
@@ -14,12 +15,22 @@ public class AssignmentDTO {
     private List<String> constraints;
     private List<String> hints;
     private List<String> tags;
-    private Integer timeLimitMs;
-    private Integer memoryLimitMb;
+    private Long timeLimitMs;
+    private Long memoryLimitMb;
     private ComparatorType comparatorType;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private LocalDateTime dueDate;
+    private List<Language> allowedLanguages;
+    private Boolean isActive;
+
+    public Boolean getIsActive() {
+        return isActive;
+    }
+
+    public void setIsActive(Boolean isActive) {
+        this.isActive = isActive;
+    }
 
     public Long getId() {
         return id;
@@ -69,19 +80,19 @@ public class AssignmentDTO {
         this.tags = tags;
     }
 
-    public Integer getTimeLimitMs() {
+    public Long getTimeLimitMs() {
         return timeLimitMs;
     }
 
-    public void setTimeLimitMs(Integer timeLimitMs) {
+    public void setTimeLimitMs(Long timeLimitMs) {
         this.timeLimitMs = timeLimitMs;
     }
 
-    public Integer getMemoryLimitMb() {
+    public Long getMemoryLimitMb() {
         return memoryLimitMb;
     }
 
-    public void setMemoryLimitMb(Integer memoryLimitMb) {
+    public void setMemoryLimitMb(Long memoryLimitMb) {
         this.memoryLimitMb = memoryLimitMb;
     }
 
@@ -115,5 +126,13 @@ public class AssignmentDTO {
 
     public void setDueDate(LocalDateTime dueDate) {
         this.dueDate = dueDate;
+    }
+
+    public List<Language> getAllowedLanguages() {
+        return allowedLanguages;
+    }
+
+    public void setAllowedLanguages(List<Language> allowedLanguages) {
+        this.allowedLanguages = allowedLanguages;
     }
 }

@@ -23,6 +23,8 @@ public class AssignmentMapper {
         dto.setCreatedAt(assignment.getCreatedAt());
         dto.setUpdatedAt(assignment.getUpdatedAt());
         dto.setDueDate(assignment.getDueDate());
+        dto.setAllowedLanguages(assignment.getAllowedLanguages());
+        dto.setIsActive(assignment.getIsActive());
         return dto;
     }
 
@@ -43,6 +45,8 @@ public class AssignmentMapper {
         assignment.setCreatedAt(dto.getCreatedAt());
         assignment.setUpdatedAt(dto.getUpdatedAt());
         assignment.setDueDate(dto.getDueDate());
+        assignment.setAllowedLanguages(dto.getAllowedLanguages());
+        assignment.setIsActive(dto.getIsActive());
         return assignment;
     }
 

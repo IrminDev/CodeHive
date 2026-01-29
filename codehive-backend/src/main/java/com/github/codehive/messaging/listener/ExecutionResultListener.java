@@ -21,9 +21,9 @@ public class ExecutionResultListener {
     public void handleExecutionResult(ExecutionReport report) {
         logger.info("[WORKFLOW] RABBITMQ RECEIVE: Received execution result from worker - executionId={}, overallStatus={}", 
             report.getExecutionId(), report.getOverallStatus());
-        logger.info("[WORKFLOW] RABBITMQ RECEIVE: Result details - passed={}/{}, maxTimeMs={}, maxMemoryKb={}",
+        logger.info("[WORKFLOW] RABBITMQ RECEIVE: Result details - passed={}/{}, maxTimeMs={}, maxMemoryMb={}",
             report.getPassedTests(), report.getTotalTests(), 
-            report.getMaxExecutionTimeMs(), report.getMaxMemoryUsedKb());
+            report.getMaxExecutionTimeMs(), report.getMaxMemoryUsedMb());
 
         try {
             executionResultService.processExecutionResult(report);

@@ -16,7 +16,6 @@ public class TestCaseMapper {
             testCase.getAssignment().getId() : null);
         dto.setOrder(testCase.getOrder());
         dto.setIsSample(testCase.getIsSample());
-        dto.setCreatedAt(testCase.getCreatedAt());
         return dto;
     }
 
@@ -29,7 +28,6 @@ public class TestCaseMapper {
         // Note: Assignment must be set separately via assignment repository
         testCase.setOrder(dto.getOrder());
         testCase.setIsSample(dto.getIsSample());
-        testCase.setCreatedAt(dto.getCreatedAt());
         return testCase;
     }
 

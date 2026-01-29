@@ -6,18 +6,18 @@ public class TestCaseResult {
     private int testCaseNumber;
     private ExecutionStatus status;
     private Long executionTimeMs;
-    private Long memoryUsedKb;
+    private Long memoryUsedMb;
     private String feedback;
 
     public TestCaseResult() {
     }
 
     public TestCaseResult(int testCaseNumber, ExecutionStatus status, 
-                         Long executionTimeMs, Long memoryUsedKb) {
+                         Long executionTimeMs, Long memoryUsedMb) {
         this.testCaseNumber = testCaseNumber;
         this.status = status;
         this.executionTimeMs = executionTimeMs;
-        this.memoryUsedKb = memoryUsedKb;
+        this.memoryUsedMb = memoryUsedMb;
     }
 
     // Getters and setters
@@ -45,12 +45,12 @@ public class TestCaseResult {
         this.executionTimeMs = executionTimeMs;
     }
 
-    public Long getMemoryUsedKb() {
-        return memoryUsedKb;
+    public Long getMemoryUsedMb() {
+        return memoryUsedMb;
     }
 
-    public void setMemoryUsedKb(Long memoryUsedKb) {
-        this.memoryUsedKb = memoryUsedKb;
+    public void setMemoryUsedMb(Long memoryUsedMb) {
+        this.memoryUsedMb = memoryUsedMb;
     }
 
     public String getFeedback() {

@@ -14,7 +14,7 @@ public class ExecutionReport {
     private int failedTests;
     private Long totalExecutionTimeMs;
     private Long maxExecutionTimeMs;
-    private Long maxMemoryUsedKb;
+    private Long maxMemoryUsedMb;
     private String compilationError;
 
     public ExecutionReport() {
@@ -53,9 +53,9 @@ public class ExecutionReport {
         }
 
         // Update memory stats
-        if (result.getMemoryUsedKb() != null) {
-            if (this.maxMemoryUsedKb == null || result.getMemoryUsedKb() > this.maxMemoryUsedKb) {
-                this.maxMemoryUsedKb = result.getMemoryUsedKb();
+        if (result.getMemoryUsedMb() != null) {
+            if (this.maxMemoryUsedMb == null || result.getMemoryUsedMb() > this.maxMemoryUsedMb) {
+                this.maxMemoryUsedMb = result.getMemoryUsedMb();
             }
         }
     }
@@ -157,12 +157,12 @@ public class ExecutionReport {
         this.maxExecutionTimeMs = maxExecutionTimeMs;
     }
 
-    public Long getMaxMemoryUsedKb() {
-        return maxMemoryUsedKb;
+    public Long getMaxMemoryUsedMb() {
+        return maxMemoryUsedMb;
     }
 
-    public void setMaxMemoryUsedKb(Long maxMemoryUsedKb) {
-        this.maxMemoryUsedKb = maxMemoryUsedKb;
+    public void setMaxMemoryUsedMb(Long maxMemoryUsedMb) {
+        this.maxMemoryUsedMb = maxMemoryUsedMb;
     }
 
     public String getCompilationError() {
