@@ -7,7 +7,7 @@ public class ExecutionResult {
     private String output;
     private String errorOutput;
     private Long executionTimeMs;
-    private Long memoryUsedKb;
+    private Long memoryUsedMb;
     private Integer exitCode;
     private String compilationError;
 
@@ -15,12 +15,12 @@ public class ExecutionResult {
     }
 
     public ExecutionResult(ExecutionStatus status, String output, String errorOutput, 
-                          Long executionTimeMs, Long memoryUsedKb, Integer exitCode) {
+                          Long executionTimeMs, Long memoryUsedMb, Integer exitCode) {
         this.status = status;
         this.output = output;
         this.errorOutput = errorOutput;
         this.executionTimeMs = executionTimeMs;
-        this.memoryUsedKb = memoryUsedKb;
+        this.memoryUsedMb = memoryUsedMb;
         this.exitCode = exitCode;
     }
 
@@ -51,16 +51,16 @@ public class ExecutionResult {
     public static ExecutionResult memoryLimitExceeded(Long memoryUsed) {
         ExecutionResult result = new ExecutionResult();
         result.status = ExecutionStatus.MLE;
-        result.memoryUsedKb = memoryUsed;
+        result.memoryUsedMb = memoryUsed;
         return result;
     }
 
     public static ExecutionResult success(String output, Long executionTime, Long memoryUsed) {
         ExecutionResult result = new ExecutionResult();
-        result.status = ExecutionStatus.AC; // TODO: Will be verified later with test cases
+        result.status = ExecutionStatus.AC;
         result.output = output;
         result.executionTimeMs = executionTime;
-        result.memoryUsedKb = memoryUsed;
+        result.memoryUsedMb = memoryUsed;
         result.exitCode = 0;
         return result;
     }
@@ -98,12 +98,12 @@ public class ExecutionResult {
         this.executionTimeMs = executionTimeMs;
     }
 
-    public Long getMemoryUsedKb() {
-        return memoryUsedKb;
+    public Long getMemoryUsedMb() {
+        return memoryUsedMb;
     }
 
-    public void setMemoryUsedKb(Long memoryUsedKb) {
-        this.memoryUsedKb = memoryUsedKb;
+    public void setMemoryUsedMb(Long memoryUsedMb) {
+        this.memoryUsedMb = memoryUsedMb;
     }
 
     public Integer getExitCode() {

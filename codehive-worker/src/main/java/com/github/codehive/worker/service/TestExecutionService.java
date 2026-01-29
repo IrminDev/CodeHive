@@ -117,7 +117,7 @@ public class TestExecutionService {
                     i,
                     result.getStatus(),
                     result.getExecutionTimeMs(),
-                    result.getMemoryUsedKb()
+                    result.getMemoryUsedMb()
                 );
                 
                 // Compare outputs if execution was successful
@@ -202,7 +202,7 @@ public class TestExecutionService {
                     testNumber,
                     result.getStatus(),
                     result.getExecutionTimeMs(),
-                    result.getMemoryUsedKb()
+                    result.getMemoryUsedMb()
                 );
                 
                 // Compare outputs if execution was successful

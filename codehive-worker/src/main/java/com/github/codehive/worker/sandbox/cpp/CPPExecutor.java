@@ -3,10 +3,12 @@ package com.github.codehive.worker.sandbox.cpp;
 import com.github.codehive.worker.model.dto.ExecutionResult;
 import com.github.codehive.worker.sandbox.LanguageExecutor;
 import com.github.dockerjava.api.DockerClient;
+import com.github.dockerjava.api.async.ResultCallback;
 import com.github.dockerjava.api.command.CreateContainerResponse;
 import com.github.dockerjava.api.command.WaitContainerResultCallback;
 import com.github.dockerjava.api.model.Bind;
 import com.github.dockerjava.api.model.HostConfig;
+import com.github.dockerjava.api.model.Statistics;
 import com.github.dockerjava.api.model.Volume;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -187,8 +189,9 @@ public class CPPExecutor implements LanguageExecutor {
                 return ExecutionResult.runtimeError(stderr, exitCode, executionTime);
             }
 
-            // TODO: Compare output with expected output for AC/WA verdict
-            return ExecutionResult.success(stdout, executionTime, 0L);
+            Long memoryUsed = getContainerPeakMemory(containerId);
+
+            return ExecutionResult.success(stdout, executionTime, memoryUsed);
 
         } catch (Exception e) {
             logger.error("Execution error", e);
@@ -243,5 +246,45 @@ public class CPPExecutor implements LanguageExecutor {
         } catch (Exception e) {
             logger.warn("Failed to delete directory: " + directory, e);
         }
+    }
+
+    private Long getContainerPeakMemory(String containerId) {
+        try {
+            final CountDownLatch latch = new CountDownLatch(1);
+            final Statistics[] statsHolder = new Statistics[1];
+            
+            dockerClient.statsCmd(containerId)
+                .withNoStream(true) // Single snapshot
+                .exec(new ResultCallback.Adapter<Statistics>() {
+                    @Override
+                    public void onNext(Statistics stats) {
+                        statsHolder[0] = stats;
+                    }
+                    
+                    @Override
+                    public void onComplete() {
+                        latch.countDown();
+                        super.onComplete();
+                    }
+                    
+                    @Override
+                    public void onError(Throwable throwable) {
+                        latch.countDown();
+                        super.onError(throwable);
+                    }
+                });
+            
+            // Wait for completion (with timeout)
+            latch.await(5, TimeUnit.SECONDS);
+            Statistics stats = statsHolder[0];
+            
+            if (stats != null && stats.getMemoryStats() != null) {
+                Long maxUsage = stats.getMemoryStats().getMaxUsage();
+                return maxUsage != null ? maxUsage / (1024 * 1024) : 0L; // Bytes to MB
+            }
+        } catch (Exception e) {
+            logger.warn("Failed to get memory stats for container {}", containerId, e);
+        }
+        return 0L; // Fallback
     }
 }
