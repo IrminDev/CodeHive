@@ -1,4 +1,4 @@
-package com.github.codehive.worker.sandbox;
+package com.github.codehive.worker.model.dto;
 
 import com.github.codehive.worker.model.enums.ExecutionStatus;
 

@@ -2,6 +2,8 @@ package com.github.codehive.worker.sandbox;
 
 import java.io.InputStream;
 
+import com.github.codehive.worker.model.dto.ExecutionResult;
+
 public interface LanguageExecutor {
     /**
      * Execute code with given constraints

@@ -2,11 +2,11 @@ package com.github.codehive.worker.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.codehive.worker.model.dto.ExecutionReport;
+import com.github.codehive.worker.model.dto.ExecutionResult;
 import com.github.codehive.worker.model.dto.TestCaseResult;
 import com.github.codehive.worker.model.dto.queue.ExecutionJob;
 import com.github.codehive.worker.model.enums.ExecutionStatus;
 import com.github.codehive.worker.model.enums.ExecutionType;
-import com.github.codehive.worker.sandbox.ExecutionResult;
 import com.github.codehive.worker.sandbox.LanguageExecutor;
 import com.github.codehive.worker.sandbox.factory.LanguageExecutorFactory;
 import org.slf4j.Logger;

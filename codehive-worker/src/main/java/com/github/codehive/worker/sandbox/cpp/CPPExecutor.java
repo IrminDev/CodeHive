@@ -1,6 +1,6 @@
 package com.github.codehive.worker.sandbox.cpp;
 
-import com.github.codehive.worker.sandbox.ExecutionResult;
+import com.github.codehive.worker.model.dto.ExecutionResult;
 import com.github.codehive.worker.sandbox.LanguageExecutor;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.CreateContainerResponse;
