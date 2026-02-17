@@ -59,17 +59,6 @@ public class OutputComparatorService {
     }
 
     /**
-     * Compare two outputs based on the comparator type (legacy method)
-     * @param expected Expected output
-     * @param actual Actual output from execution
-     * @param comparatorType Type of comparison to perform
-     * @return true if outputs match, false otherwise
-     */
-    public boolean compare(String expected, String actual, ComparatorType comparatorType) {
-        return compareWithFeedback(expected, actual, comparatorType).matches();
-    }
-
-    /**
      * Exact string comparison with detailed feedback
      */
     private ComparisonResult compareExactWithFeedback(String expected, String actual) {

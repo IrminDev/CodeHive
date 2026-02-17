@@ -11,13 +11,13 @@ import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 
 @Component
-public class SubmissionListener {
-    private static final Logger logger = LoggerFactory.getLogger(SubmissionListener.class);
+public class ExecutionRequestListener {
+    private static final Logger logger = LoggerFactory.getLogger(ExecutionRequestListener.class);
     
     private final TestExecutionService testExecutionService;
     private final ExecutionResultProducer executionResultProducer;
 
-    public SubmissionListener(TestExecutionService testExecutionService, 
+    public ExecutionRequestListener(TestExecutionService testExecutionService, 
                              ExecutionResultProducer executionResultProducer) {
         this.testExecutionService = testExecutionService;
         this.executionResultProducer = executionResultProducer;
