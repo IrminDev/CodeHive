@@ -59,6 +59,9 @@ public class User implements UserDetails {
     @Column(nullable = false)
     private Boolean isActive;
 
+    @Column(nullable = false)
+    private Boolean temporaryPassword;
+
     @ElementCollection(targetClass = Scope.class)
     @Enumerated(EnumType.STRING)
     @CollectionTable(name = "user_scopes", joinColumns = @JoinColumn(name = "user_id"))
@@ -69,6 +72,7 @@ public class User implements UserDetails {
         this.createdAt = LocalDateTime.now();
         this.scopes = List.of();
         this.isActive = true;
+        this.temporaryPassword = false;
         this.profilePictureUrl = "/static/images/default-avatar.png";
     }
 
@@ -82,6 +86,7 @@ public class User implements UserDetails {
         this.profilePictureUrl = profilePictureUrl;
         this.createdAt = LocalDateTime.now();
         this.isActive = true;
+        this.temporaryPassword = false;
         this.scopes = new ArrayList<>();
     }
 
@@ -164,6 +169,14 @@ public class User implements UserDetails {
 
     public void setIsActive(Boolean isActive) {
         this.isActive = isActive;
+    }
+
+    public Boolean getTemporaryPassword() {
+        return temporaryPassword;
+    }
+
+    public void setTemporaryPassword(Boolean temporaryPassword) {
+        this.temporaryPassword = temporaryPassword;
     }
 
     public List<Scope> getScopes() {

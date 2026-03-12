@@ -1,6 +1,6 @@
+import type { Role } from "../model/User";
 import type { User } from "../model/User";
 
-// Auth Request Types
 export interface LoginRequest {
   identifier: string;
   password: string;
@@ -8,15 +8,21 @@ export interface LoginRequest {
 
 export interface SignUpRequest {
   email: string;
-  password: string;
   name: string;
-  lastName: string;
+  fatherLastName: string;
+  motherLastName: string;
   enrollmentNumber: string;
-  profilePictureUrl?: string;
+  role: Role;
 }
 
-// Auth Response Types
 export interface AuthResponse {
   token: string;
   user: User;
+}
+
+export interface CsvBulkRegisterResponse {
+  totalProcessed: number;
+  successCount: number;
+  errorCount: number;
+  errors: string[];
 }

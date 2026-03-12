@@ -107,9 +107,6 @@ export function Header() {
             >
               Sign In
             </a>
-            <a href="/signup" className="btn-primary">
-              Get Started
-            </a>
           </div>
 
           {/* Mobile Menu Button */}
@@ -172,9 +169,6 @@ export function Header() {
               className="text-gray-700 dark:text-gray-300 font-medium py-2"
             >
               Sign In
-            </a>
-            <a href="/signup" className="btn-primary text-center">
-              Get Started
             </a>
           </div>
         </div>

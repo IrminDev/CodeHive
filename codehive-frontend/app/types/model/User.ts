@@ -15,4 +15,5 @@ export interface User {
   role: Role;
   createdAt: string;
   isActive: boolean;
+  temporaryPassword?: boolean;
 }

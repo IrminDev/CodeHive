@@ -1,45 +1,41 @@
 package com.github.codehive.model.request.auth;
 
+import com.github.codehive.model.enums.Role;
+
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 public class SignUpRequest {
-    @NotBlank(message = "Email is required")
-    @Email(message = "Email must be valid")
-    private String email;
-
-    @NotBlank(message = "Password is required")
-    @Size(min = 6, message = "Password must be at least 6 characters")
-    private String password;
+    @NotNull(message = "Role is required")
+    private Role role;
 
     @NotBlank(message = "Name is required")
     @Size(min = 2, max = 50, message = "Name must be between 2 and 50 characters")
     private String name;
 
-    @NotBlank(message = "Last name is required")
-    @Size(min = 2, max = 80, message = "Last name must be between 2 and 80 characters")
-    private String lastName;
+    @NotBlank(message = "Father last name is required")
+    @Size(min = 2, max = 40, message = "Father last name must be between 2 and 40 characters")
+    private String fatherLastName;
+
+    @NotBlank(message = "Mother last name is required")
+    @Size(min = 2, max = 40, message = "Mother last name must be between 2 and 40 characters")
+    private String motherLastName;
 
     @NotBlank(message = "Enrollment number is required")
     private String enrollmentNumber;
 
-    private String profilePictureUrl;
+    @NotBlank(message = "Email is required")
+    @Email(message = "Email must be valid")
+    private String email;
 
-    public String getEmail() {
-        return email;
+    public Role getRole() {
+        return role;
     }
 
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
+    public void setRole(Role role) {
+        this.role = role;
     }
 
     public String getName() {
@@ -50,6 +46,22 @@ public class SignUpRequest {
         this.name = name;
     }
 
+    public String getFatherLastName() {
+        return fatherLastName;
+    }
+
+    public void setFatherLastName(String fatherLastName) {
+        this.fatherLastName = fatherLastName;
+    }
+
+    public String getMotherLastName() {
+        return motherLastName;
+    }
+
+    public void setMotherLastName(String motherLastName) {
+        this.motherLastName = motherLastName;
+    }
+
     public String getEnrollmentNumber() {
         return enrollmentNumber;
     }
@@ -58,19 +70,11 @@ public class SignUpRequest {
         this.enrollmentNumber = enrollmentNumber;
     }
 
-    public String getLastName() {
-        return lastName;
+    public String getEmail() {
+        return email;
     }
 
-    public void setLastName(String lastName) {
-        this.lastName = lastName;
-    }
-
-    public String getProfilePictureUrl() {
-        return profilePictureUrl;
-    }
-
-    public void setProfilePictureUrl(String profilePictureUrl) {
-        this.profilePictureUrl = profilePictureUrl;
+    public void setEmail(String email) {
+        this.email = email;
     }
 }

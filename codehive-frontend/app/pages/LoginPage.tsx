@@ -169,10 +169,7 @@ export function LoginPage() {
                 Sign in
               </h2>
               <p className="text-gray-600 dark:text-gray-400">
-                Don't have an account?{" "}
-                <a href="/signup" className="text-azure dark:text-yellow hover:underline font-medium">
-                  Create one
-                </a>
+                Sign in with your credentials
               </p>
             </div>
 
