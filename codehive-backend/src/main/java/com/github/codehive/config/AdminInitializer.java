@@ -25,7 +25,7 @@ public class AdminInitializer implements CommandLineRunner {
     @Value("${app.admin.email:admin@codehive.com}")
     private String adminEmail;
 
-    @Value("${app.admin.password:Admin123!}")
+    @Value("${app.admin.password}")
     private String adminPassword;
 
     @Value("${app.admin.name:Super}")
