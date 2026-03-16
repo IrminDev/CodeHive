@@ -39,6 +39,26 @@ public class MailSenderService{
         sendSimpleMessage(to, subject, message);
     }
 
+    public void sendWelcomeEmail(String to, String name, String temporaryPassword) {
+        String subject = "Bienvenido a CodeHive - Credenciales de acceso";
+        String message = """
+                Hola %s,
+
+                Se ha creado tu cuenta en CodeHive.
+
+                Tus credenciales de acceso son:
+                Correo: %s
+                Contraseña temporal: %s
+
+                Por seguridad, te recomendamos cambiar tu contraseña después de iniciar sesión.
+
+                Saludos,
+                El equipo de CodeHive
+                """.formatted(name, to, temporaryPassword);
+
+        sendSimpleMessage(to, subject, message);
+    }
+
     public void sendSimpleMessage(String to, String subject, String text) {
         SimpleMailMessage message = new SimpleMailMessage();
         message.setTo(to);

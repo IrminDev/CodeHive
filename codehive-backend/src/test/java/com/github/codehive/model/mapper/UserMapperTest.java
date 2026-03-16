@@ -37,6 +37,7 @@ class UserMapperTest {
         testUser.setRole(Role.STUDENT);
         testUser.setCreatedAt(testDate);
         testUser.setIsActive(true);
+        testUser.setTemporaryPassword(true);
         testUser.setPassword("encodedPassword"); // Should not be mapped to DTO
 
         // Setup test user DTO
@@ -50,6 +51,7 @@ class UserMapperTest {
         testUserDTO.setRole(Role.TEACHER);
         testUserDTO.setCreatedAt(testDate);
         testUserDTO.setIsActive(false);
+        testUserDTO.setTemporaryPassword(true);
     }
 
     @Nested
@@ -73,6 +75,7 @@ class UserMapperTest {
             assertThat(result.getRole()).isEqualTo(testUser.getRole());
             assertThat(result.getCreatedAt()).isEqualTo(testUser.getCreatedAt());
             assertThat(result.getIsActive()).isEqualTo(testUser.getIsActive());
+            assertThat(result.getTemporaryPassword()).isEqualTo(testUser.getTemporaryPassword());
         }
 
         @Test
@@ -159,6 +162,7 @@ class UserMapperTest {
             assertThat(result.getRole()).isEqualTo(testUserDTO.getRole());
             assertThat(result.getCreatedAt()).isEqualTo(testUserDTO.getCreatedAt());
             assertThat(result.getIsActive()).isEqualTo(testUserDTO.getIsActive());
+            assertThat(result.getTemporaryPassword()).isEqualTo(testUserDTO.getTemporaryPassword());
         }
 
         @Test

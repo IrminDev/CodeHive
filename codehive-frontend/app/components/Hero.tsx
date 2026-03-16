@@ -50,8 +50,8 @@ export function Hero() {
 
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-              <a href="/signup" className="btn-primary inline-flex items-center justify-center gap-2 text-lg">
-                Start Teaching Free
+              <a href="/login" className="btn-primary inline-flex items-center justify-center gap-2 text-lg">
+                Get Started
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                 </svg>

@@ -61,6 +61,10 @@ class RecoveryPasswordControllerIntegrationTest {
 
     @BeforeEach
     void setUp() {
+        passwordResetTokenRepository.deleteAll();
+        userRepository.deleteAll();
+        userRepository.flush();
+
         // Create a test user
         testUser = new User();
         testUser.setEmail("testuser@example.com");

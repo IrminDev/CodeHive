@@ -3,8 +3,11 @@ import { useTheme } from "../context/ThemeContext";
 import logo from "../../assets/logo.png";
 import { AuthService } from "~/services";
 import type { LoginRequest } from "~/types";
+import { useNavigate } from "react-router";
 
 export function LoginPage() {
+  const navigate = useNavigate();
+
   const { theme, toggleTheme } = useTheme();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
@@ -20,17 +23,22 @@ export function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    console.log({ identifier, password, rememberMe });
-    await AuthService.login({
-      identifier,
-      password
-    } as LoginRequest).then((response) => {
-      console.log(response);
-    }).catch((error) => {
+    try {
+      const response = await AuthService.login({
+        identifier,
+        password
+      } as LoginRequest);
+      AuthService.setToken(response.data.token);
+      const user = response.data.user;
+      if (user.role === "ADMIN") {
+        navigate("/admin");
+      } else {
+        navigate("/");
+      }
+    } catch (error) {
       console.error(error);
-    });
+    }
     setIsLoading(false);
-    // Handle login logic here
   };
 
   return (
@@ -169,10 +177,7 @@ export function LoginPage() {
                 Sign in
               </h2>
               <p className="text-gray-600 dark:text-gray-400">
-                Don't have an account?{" "}
-                <a href="/signup" className="text-azure dark:text-yellow hover:underline font-medium">
-                  Create one
-                </a>
+                Sign in with your credentials
               </p>
             </div>
 

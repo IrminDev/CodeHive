@@ -19,6 +19,7 @@ public class UserDTO {
     private LocalDateTime createdAt;
     private List<Scope> scopes;
     private Boolean isActive;
+    private Boolean temporaryPassword;
 
     public Long getId() {
         return id;
@@ -98,5 +99,13 @@ public class UserDTO {
 
     public void setScopes(List<Scope> scopes) {
         this.scopes = scopes;
+    }
+
+    public Boolean getTemporaryPassword() {
+        return temporaryPassword;
+    }
+
+    public void setTemporaryPassword(Boolean temporaryPassword) {
+        this.temporaryPassword = temporaryPassword;
     }
 }

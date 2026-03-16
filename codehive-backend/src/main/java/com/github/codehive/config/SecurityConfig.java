@@ -9,6 +9,7 @@ import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -21,6 +22,7 @@ import com.github.codehive.security.UserDetailsServiceImplementation;
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 public class SecurityConfig {
     private final UserDetailsServiceImplementation userDetailsService;
     private final JWTAuthenticationFilter jwtAuthenticationFilter;
@@ -46,9 +48,11 @@ public class SecurityConfig {
             ))
             .authorizeHttpRequests(auth -> auth
                 // Authentication endpoints
-                .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/signup").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                 // Password recovery endpoints
                 .requestMatchers(HttpMethod.POST, "/api/recovery-password/**").permitAll()
+                // WebSocket endpoint
+                .requestMatchers("/ws/**").permitAll()
                 // Swagger/OpenAPI documentation
                 .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                 // All other requests require authentication

@@ -1,13 +1,25 @@
 package com.github.codehive.service;
 
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.regex.Pattern;
 
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVParser;
+import org.apache.commons.csv.CSVRecord;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.github.codehive.model.dto.UserDTO;
 import com.github.codehive.model.entity.User;
@@ -19,24 +31,29 @@ import com.github.codehive.model.mapper.UserMapper;
 import com.github.codehive.model.request.auth.LoginRequest;
 import com.github.codehive.model.request.auth.SignUpRequest;
 import com.github.codehive.model.response.auth.AuthResponse;
+import com.github.codehive.model.response.auth.CsvBulkRegisterResponse;
 import com.github.codehive.repository.UserRepository;
 import com.github.codehive.utils.JwtUtil;
+import com.github.codehive.utils.PasswordGenerator;
 
 @Service
 public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
+    private final MailSenderService mailSenderService;
 
     // Regex pattern for email validation
     private static final Pattern EMAIL_PATTERN = Pattern.compile(
             "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
     );
 
-    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtUtil jwtUtil) {
+    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtUtil jwtUtil,
+                        MailSenderService mailSenderService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
+        this.mailSenderService = mailSenderService;
     }
 
     /**
@@ -73,7 +90,7 @@ public class AuthService {
     }
 
     @Transactional
-    public AuthResponse register(SignUpRequest signUpRequest) throws AlreadyRegisteredEmailException,
+    public UserDTO register(SignUpRequest signUpRequest) throws AlreadyRegisteredEmailException,
             AlreadyRegisteredEnrollmentNumberException {
         if (userRepository.findByEmail(signUpRequest.getEmail()).isPresent()) {
             throw new AlreadyRegisteredEmailException("Email is already registered");
@@ -82,23 +99,127 @@ public class AuthService {
             throw new AlreadyRegisteredEnrollmentNumberException("Enrollment number is already registered");
         }
 
+        String rawPassword = PasswordGenerator.generate();
+        String lastName = signUpRequest.getFatherLastName() + " " + signUpRequest.getMotherLastName();
+
         User newUser = new User();
         newUser.setEmail(signUpRequest.getEmail());
-        newUser.setPassword(passwordEncoder.encode(signUpRequest.getPassword()));
+        newUser.setPassword(passwordEncoder.encode(rawPassword));
         newUser.setName(signUpRequest.getName());
-        newUser.setLastName(signUpRequest.getLastName());
+        newUser.setLastName(lastName);
         newUser.setEnrollmentNumber(signUpRequest.getEnrollmentNumber());
-        if (signUpRequest.getProfilePictureUrl() != null && !signUpRequest.getProfilePictureUrl().isBlank()) {
-            newUser.setProfilePictureUrl(signUpRequest.getProfilePictureUrl());
-        }
-        newUser.setRole(Role.STUDENT); // Default role
+        newUser.setRole(signUpRequest.getRole());
         newUser.setIsActive(true);
+        newUser.setTemporaryPassword(true);
 
         User savedUser = userRepository.save(newUser);
-        String token = generateToken(savedUser);
-        UserDTO userDTO = UserMapper.toDTO(savedUser);
 
-        return new AuthResponse(token, userDTO);
+        mailSenderService.sendWelcomeEmail(savedUser.getEmail(), savedUser.getName(), rawPassword);
+
+        return UserMapper.toDTO(savedUser);
+    }
+
+    @Transactional
+    public CsvBulkRegisterResponse registerFromCsv(MultipartFile file) throws IOException {
+        List<String> errors = new ArrayList<>();
+        int successCount = 0;
+        int rowNumber = 0;
+
+        Set<String> csvEmails = new HashSet<>();
+        Set<String> csvEnrollments = new HashSet<>();
+
+        try (Reader reader = new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8);
+             CSVParser csvParser = CSVFormat.DEFAULT.builder()
+                     .setTrim(true)
+                     .setIgnoreEmptyLines(true)
+                     .build()
+                     .parse(reader)) {
+
+            for (CSVRecord record : csvParser) {
+                rowNumber++;
+
+                if (record.size() < 6) {
+                    errors.add("Row " + rowNumber + ": Expected 6 columns but found " + record.size());
+                    continue;
+                }
+
+                String roleStr = record.get(0).trim().toUpperCase();
+                String name = record.get(1).trim();
+                String fatherLastName = record.get(2).trim();
+                String motherLastName = record.get(3).trim();
+                String enrollmentNumber = record.get(4).trim();
+                String email = record.get(5).trim();
+
+                // Validate role
+                Role role;
+                try {
+                    role = Role.valueOf(roleStr);
+                } catch (IllegalArgumentException e) {
+                    errors.add("Row " + rowNumber + ": Invalid role '" + roleStr + "'. Must be STUDENT, TEACHER, or ADMIN");
+                    continue;
+                }
+
+                // Validate required fields
+                List<String> rowErrors = new ArrayList<>();
+                if (name.isEmpty()) rowErrors.add("name is empty");
+                if (fatherLastName.isEmpty()) rowErrors.add("father last name is empty");
+                if (motherLastName.isEmpty()) rowErrors.add("mother last name is empty");
+                if (enrollmentNumber.isEmpty()) rowErrors.add("enrollment number is empty");
+                if (email.isEmpty()) rowErrors.add("email is empty");
+                if (!email.isEmpty() && !EMAIL_PATTERN.matcher(email).matches()) rowErrors.add("email is invalid");
+
+                if (!rowErrors.isEmpty()) {
+                    errors.add("Row " + rowNumber + ": " + String.join(", ", rowErrors));
+                    continue;
+                }
+
+                // Check for duplicates within the CSV itself
+                if (!csvEmails.add(email)) {
+                    errors.add("Row " + rowNumber + ": Duplicate email '" + email + "' in CSV");
+                    continue;
+                }
+                if (!csvEnrollments.add(enrollmentNumber)) {
+                    errors.add("Row " + rowNumber + ": Duplicate enrollment number '" + enrollmentNumber + "' in CSV");
+                    continue;
+                }
+
+                // Check for duplicates in database
+                if (userRepository.findByEmail(email).isPresent()) {
+                    errors.add("Row " + rowNumber + ": Email '" + email + "' is already registered");
+                    continue;
+                }
+                if (userRepository.findByEnrollmentNumber(enrollmentNumber).isPresent()) {
+                    errors.add("Row " + rowNumber + ": Enrollment number '" + enrollmentNumber + "' is already registered");
+                    continue;
+                }
+
+                String rawPassword = PasswordGenerator.generate();
+                String lastName = fatherLastName + " " + motherLastName;
+
+                User newUser = new User();
+                newUser.setEmail(email);
+                newUser.setPassword(passwordEncoder.encode(rawPassword));
+                newUser.setName(name);
+                newUser.setLastName(lastName);
+                newUser.setEnrollmentNumber(enrollmentNumber);
+                newUser.setRole(role);
+                newUser.setIsActive(true);
+                newUser.setTemporaryPassword(true);
+
+                userRepository.save(newUser);
+                mailSenderService.sendWelcomeEmail(email, name, rawPassword);
+                successCount++;
+            }
+        }
+
+        return new CsvBulkRegisterResponse(rowNumber, successCount, errors.size(), errors.isEmpty() ? null : errors);
+    }
+
+    public UserDTO getUserByToken(String token) {
+        String email = jwtUtil.extractClaim(token, claims -> claims.getSubject());
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IncorrectCredentialsException("User not found"));
+        return UserMapper.toDTO(user);
     }
 
     private String generateToken(User user) {

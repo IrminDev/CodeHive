@@ -1,6 +1,6 @@
 plugins {
 	java
-	id("org.springframework.boot") version "3.5.6"
+	id("org.springframework.boot") version "3.5.11"
 	id("io.spring.dependency-management") version "1.1.7"
 	jacoco
 }
@@ -23,6 +23,7 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-data-jpa")
 	implementation("org.springframework.boot:spring-boot-starter-security")
 	implementation("org.springframework.boot:spring-boot-starter-web")
+	implementation("org.springframework.boot:spring-boot-starter-websocket")
 	implementation("org.springframework.boot:spring-boot-starter-validation")
 	developmentOnly("org.springframework.boot:spring-boot-devtools")
 	developmentOnly("org.springframework.boot:spring-boot-docker-compose")
@@ -34,6 +35,9 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-mail")
 
 	implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.13")
+
+	// CSV parsing
+	implementation("org.apache.commons:commons-csv:1.12.0")
 
 	// Rate limiting
 	implementation("com.bucket4j:bucket4j_jdk17-core:8.15.0")
