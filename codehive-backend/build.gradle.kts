@@ -37,7 +37,7 @@ dependencies {
 	implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.13")
 
 	// CSV parsing
-	implementation("org.apache.commons:commons-csv:1.12.0")
+	implementation("org.apache.commons:commons-csv:1.14.1")
 
 	// Rate limiting
 	implementation("com.bucket4j:bucket4j_jdk17-core:8.15.0")
