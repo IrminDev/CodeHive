@@ -461,8 +461,8 @@ class AuthControllerIntegrationTest {
     class CsvSignUpEndpointTests {
 
         @Test
-        @DisplayName("Returns 200 with results for valid CSV")
-        void signupCsv_WithValidCsv_ReturnsOk() throws Exception {
+        @DisplayName("Returns 202 with taskId for valid CSV")
+        void signupCsv_WithValidCsv_ReturnsAccepted() throws Exception {
             // Given
             String csv = "STUDENT,Juan,Garcia,Lopez,20230001,juan@example.com\n"
                        + "TEACHER,Maria,Hernandez,Ruiz,T00001,maria@example.com\n";
@@ -473,11 +473,10 @@ class AuthControllerIntegrationTest {
             mockMvc.perform(multipart("/api/auth/signup/csv")
                     .file(file)
                     .header("Authorization", "Bearer " + adminToken))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.message").value("CSV processed"))
-                    .andExpect(jsonPath("$.data.totalProcessed").value(2))
-                    .andExpect(jsonPath("$.data.successCount").value(2))
-                    .andExpect(jsonPath("$.data.errorCount").value(0));
+                    .andExpect(status().isAccepted())
+                    .andExpect(jsonPath("$.message").value("CSV processing started"))
+                    .andExpect(jsonPath("$.data.taskId").exists())
+                    .andExpect(jsonPath("$.data.taskId").isNotEmpty());
         }
 
         @Test
@@ -515,8 +514,8 @@ class AuthControllerIntegrationTest {
         }
 
         @Test
-        @DisplayName("Handles CSV with errors and reports them")
-        void signupCsv_WithMixedRows_ReportsErrors() throws Exception {
+        @DisplayName("Returns 202 and processes CSV with errors asynchronously")
+        void signupCsv_WithMixedRows_ReturnsAccepted() throws Exception {
             // Given
             String csv = "STUDENT,Juan,Garcia,Lopez,20230001,juan@example.com\n"
                        + "INVALID,Bad,Data,Row,20230002,bad@example.com\n"
@@ -524,39 +523,33 @@ class AuthControllerIntegrationTest {
             MockMultipartFile file = new MockMultipartFile("file", "users.csv", "text/csv",
                     csv.getBytes(StandardCharsets.UTF_8));
 
-            // When/Then
+            // When/Then - endpoint returns accepted with taskId
             mockMvc.perform(multipart("/api/auth/signup/csv")
                     .file(file)
                     .header("Authorization", "Bearer " + adminToken))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.data.totalProcessed").value(3))
-                    .andExpect(jsonPath("$.data.successCount").value(2))
-                    .andExpect(jsonPath("$.data.errorCount").value(1))
-                    .andExpect(jsonPath("$.data.errors").isArray())
-                    .andExpect(jsonPath("$.data.errors[0]").value(org.hamcrest.Matchers.containsString("Invalid role")));
+                    .andExpect(status().isAccepted())
+                    .andExpect(jsonPath("$.data.taskId").exists());
         }
 
         @Test
-        @DisplayName("Rejects duplicate emails already in database")
-        void signupCsv_WithExistingEmail_ReportsError() throws Exception {
+        @DisplayName("Returns 202 for CSV with existing email")
+        void signupCsv_WithExistingEmail_ReturnsAccepted() throws Exception {
             // Given
             String csv = "STUDENT,Existing,User,Test,20230099,existing@example.com\n";
             MockMultipartFile file = new MockMultipartFile("file", "users.csv", "text/csv",
                     csv.getBytes(StandardCharsets.UTF_8));
 
-            // When/Then
+            // When/Then - endpoint accepts and processes asynchronously
             mockMvc.perform(multipart("/api/auth/signup/csv")
                     .file(file)
                     .header("Authorization", "Bearer " + adminToken))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.data.successCount").value(0))
-                    .andExpect(jsonPath("$.data.errorCount").value(1))
-                    .andExpect(jsonPath("$.data.errors[0]").value(org.hamcrest.Matchers.containsString("already registered")));
+                    .andExpect(status().isAccepted())
+                    .andExpect(jsonPath("$.data.taskId").exists());
         }
 
         @Test
-        @DisplayName("Creates users in database from CSV")
-        void signupCsv_WithValidCsv_PersistsUsersInDb() throws Exception {
+        @DisplayName("Returns 202 and processes CSV asynchronously")
+        void signupCsv_WithValidCsv_ReturnsTaskId() throws Exception {
             // Given
             String csv = "STUDENT,Juan,Garcia,Lopez,20230001,juan@example.com\n";
             MockMultipartFile file = new MockMultipartFile("file", "users.csv", "text/csv",
@@ -566,9 +559,11 @@ class AuthControllerIntegrationTest {
             mockMvc.perform(multipart("/api/auth/signup/csv")
                     .file(file)
                     .header("Authorization", "Bearer " + adminToken))
-                    .andExpect(status().isOk());
+                    .andExpect(status().isAccepted())
+                    .andExpect(jsonPath("$.data.taskId").exists());
 
-            // Then
+            // Then - wait for async processing
+            Thread.sleep(2000);
             User savedUser = userRepository.findByEmail("juan@example.com").orElseThrow();
             assert savedUser.getName().equals("Juan");
             assert savedUser.getLastName().equals("Garcia Lopez");

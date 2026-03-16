@@ -1,15 +1,28 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useTheme } from "../../context/ThemeContext";
 import { AuthService } from "~/services";
-import type { CsvBulkRegisterResponse } from "~/types";
+import type { CsvProgressMessage } from "~/types";
 
 export function CsvUploadPage() {
   const { theme, toggleTheme } = useTheme();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const wsRef = useRef<WebSocket | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [result, setResult] = useState<CsvBulkRegisterResponse | null>(null);
+  const [progress, setProgress] = useState<CsvProgressMessage | null>(null);
+  const [errors, setErrors] = useState<string[]>([]);
   const [errorMessage, setErrorMessage] = useState("");
+
+  const cleanupWebSocket = useCallback(() => {
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    return cleanupWebSocket;
+  }, [cleanupWebSocket]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0];
@@ -25,20 +38,62 @@ export function CsvUploadPage() {
   const handleUpload = async () => {
     if (!file) return;
     setIsLoading(true);
-    setResult(null);
+    setProgress(null);
+    setErrors([]);
     setErrorMessage("");
 
     try {
       const response = await AuthService.uploadCsv(file);
-      setResult(response.data);
-      setFile(null);
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      const { taskId } = response.data;
+
+      const wsUrl = AuthService.getWebSocketUrl();
+      const ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        ws.send(taskId);
+      };
+
+      ws.onmessage = (event) => {
+        const msg: CsvProgressMessage = JSON.parse(event.data);
+        setProgress(msg);
+
+        if (msg.status === "ROW_ERROR" && msg.message) {
+          setErrors((prev) => [...prev, msg.message!]);
+        }
+
+        if (msg.status === "COMPLETED") {
+          setIsLoading(false);
+          setFile(null);
+          if (fileInputRef.current) fileInputRef.current.value = "";
+          cleanupWebSocket();
+        }
+      };
+
+      ws.onerror = () => {
+        setErrorMessage("WebSocket connection error. Check your connection.");
+        setIsLoading(false);
+        cleanupWebSocket();
+      };
+
+      ws.onclose = () => {
+        if (isLoading && !progress?.status?.includes("COMPLETED")) {
+          // Connection closed unexpectedly during processing
+        }
+      };
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Upload failed";
       setErrorMessage(message);
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
+
+  const progressPercent =
+    progress && progress.totalRows > 0
+      ? Math.round((progress.currentRow / progress.totalRows) * 100)
+      : 0;
+
+  const isCompleted = progress?.status === "COMPLETED";
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-dark-bg transition-colors duration-300">
@@ -144,31 +199,53 @@ export function CsvUploadPage() {
           </button>
         </div>
 
-        {/* Results */}
-        {result && (
+        {/* Progress Bar */}
+        {progress && (
           <div className="bg-white dark:bg-dark-surface rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Upload Results</h2>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                {isCompleted ? "Upload Complete" : "Processing..."}
+              </h2>
+              <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                {progress.currentRow} / {progress.totalRows} rows
+              </span>
+            </div>
+
+            <div className="w-full bg-gray-200 dark:bg-dark-card rounded-full h-3 mb-4">
+              <div
+                className={`h-3 rounded-full transition-all duration-300 ${
+                  isCompleted ? "bg-green-500" : "bg-azure dark:bg-yellow"
+                }`}
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
 
             <div className="grid grid-cols-3 gap-4 mb-4">
               <div className="bg-gray-50 dark:bg-dark-card rounded-xl p-4 text-center">
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{result.totalProcessed}</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">{progress.currentRow}</p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">Processed</p>
               </div>
               <div className="bg-green-50 dark:bg-green-900/20 rounded-xl p-4 text-center">
-                <p className="text-2xl font-bold text-green-600 dark:text-green-400">{result.successCount}</p>
+                <p className="text-2xl font-bold text-green-600 dark:text-green-400">{progress.successCount}</p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">Succeeded</p>
               </div>
               <div className="bg-red-50 dark:bg-red-900/20 rounded-xl p-4 text-center">
-                <p className="text-2xl font-bold text-red-600 dark:text-red-400">{result.errorCount}</p>
+                <p className="text-2xl font-bold text-red-600 dark:text-red-400">{progress.errorCount}</p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">Failed</p>
               </div>
             </div>
 
-            {result.errors && result.errors.length > 0 && (
-              <div>
+            {!isCompleted && progress.message && (
+              <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
+                {progress.message}
+              </p>
+            )}
+
+            {errors.length > 0 && (
+              <div className="mt-4">
                 <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Errors:</h3>
                 <ul className="space-y-1 max-h-48 overflow-y-auto">
-                  {result.errors.map((err, i) => (
+                  {errors.map((err, i) => (
                     <li key={i} className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/10 px-3 py-1.5 rounded-lg">
                       {err}
                     </li>

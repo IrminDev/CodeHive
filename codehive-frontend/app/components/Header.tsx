@@ -1,11 +1,23 @@
 import { useState, useEffect } from "react";
 import { useTheme } from "../context/ThemeContext";
+import { AuthService } from "../services";
+import type { Role } from "../types";
 import logo from "../../assets/logo.png";
+
+function getDashboardRoute(role: Role): string {
+  switch (role) {
+    case "ADMIN":
+      return "/admin";
+    default:
+      return "/";
+  }
+}
 
 export function Header() {
   const { theme, toggleTheme } = useTheme();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [dashboardHref, setDashboardHref] = useState<string | null>(null);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -13,6 +25,20 @@ export function Header() {
     };
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const token = AuthService.getToken();
+    if (!token) return;
+    AuthService.getMe()
+      .then((res) => {
+        if (!cancelled) setDashboardHref(getDashboardRoute(res.data.role));
+      })
+      .catch(() => {
+        AuthService.removeToken();
+      });
+    return () => { cancelled = true; };
   }, []);
 
   const navLinks = [
@@ -100,13 +126,23 @@ export function Header() {
               )}
             </button>
 
-            <a
-              href="/login"
-              className="text-gray-700 dark:text-gray-300 hover:text-azure dark:hover:text-yellow 
-                       font-medium transition-colors duration-200"
-            >
-              Sign In
-            </a>
+            {dashboardHref ? (
+              <a
+                href={dashboardHref}
+                className="px-4 py-2 rounded-lg bg-azure dark:bg-yellow text-white dark:text-dark-bg 
+                         font-medium transition-colors duration-200 hover:opacity-90"
+              >
+                Dashboard
+              </a>
+            ) : (
+              <a
+                href="/login"
+                className="text-gray-700 dark:text-gray-300 hover:text-azure dark:hover:text-yellow 
+                         font-medium transition-colors duration-200"
+              >
+                Sign In
+              </a>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -164,12 +200,21 @@ export function Header() {
               </a>
             ))}
             <hr className="border-gray-200 dark:border-gray-700" />
-            <a
-              href="/login"
-              className="text-gray-700 dark:text-gray-300 font-medium py-2"
-            >
-              Sign In
-            </a>
+            {dashboardHref ? (
+              <a
+                href={dashboardHref}
+                className="text-azure dark:text-yellow font-medium py-2"
+              >
+                Dashboard
+              </a>
+            ) : (
+              <a
+                href="/login"
+                className="text-gray-700 dark:text-gray-300 font-medium py-2"
+              >
+                Sign In
+              </a>
+            )}
           </div>
         </div>
       </nav>

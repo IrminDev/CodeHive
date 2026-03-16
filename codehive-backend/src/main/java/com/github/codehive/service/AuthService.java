@@ -215,6 +215,13 @@ public class AuthService {
         return new CsvBulkRegisterResponse(rowNumber, successCount, errors.size(), errors.isEmpty() ? null : errors);
     }
 
+    public UserDTO getUserByToken(String token) {
+        String email = jwtUtil.extractClaim(token, claims -> claims.getSubject());
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IncorrectCredentialsException("User not found"));
+        return UserMapper.toDTO(user);
+    }
+
     private String generateToken(User user) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", user.getId());

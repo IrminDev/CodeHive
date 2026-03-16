@@ -51,6 +51,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                 // Password recovery endpoints
                 .requestMatchers(HttpMethod.POST, "/api/recovery-password/**").permitAll()
+                // WebSocket endpoint
+                .requestMatchers("/ws/**").permitAll()
                 // Swagger/OpenAPI documentation
                 .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                 // All other requests require authentication

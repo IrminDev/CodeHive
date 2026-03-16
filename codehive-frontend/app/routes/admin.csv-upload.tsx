@@ -1,6 +1,8 @@
 import type { Route } from "./+types/admin.csv-upload";
 import { ThemeProvider } from "../context/ThemeContext";
+import { ProtectedRoute } from "../components/ProtectedRoute";
 import { CsvUploadPage } from "../pages/admin/CsvUploadPage";
+import { Role } from "~/types";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -12,7 +14,9 @@ export function meta({}: Route.MetaArgs) {
 export default function AdminCsvUpload() {
   return (
     <ThemeProvider>
-      <CsvUploadPage />
+      <ProtectedRoute roles={[Role.ADMIN]}>
+        <CsvUploadPage />
+      </ProtectedRoute>
     </ThemeProvider>
   );
 }

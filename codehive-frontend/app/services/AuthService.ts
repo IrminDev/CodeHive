@@ -4,7 +4,7 @@ import type {
   AuthResponse,
   SuccessResponse,
   ErrorResponse,
-  CsvBulkRegisterResponse,
+  CsvTaskResponse,
 } from "../types";
 import type { User } from "../types";
 
@@ -44,7 +44,7 @@ class AuthServiceClass {
     return data as SuccessResponse<User>;
   }
 
-  async uploadCsv(file: File): Promise<SuccessResponse<CsvBulkRegisterResponse>> {
+  async uploadCsv(file: File): Promise<SuccessResponse<CsvTaskResponse>> {
     const formData = new FormData();
     formData.append("file", file);
     const response = await fetch(`${this.baseUrl}/signup/csv`, {
@@ -59,12 +59,39 @@ class AuthServiceClass {
       const errorData = data as ErrorResponse;
       throw new Error(errorData.error || errorData.message || "CSV upload failed");
     }
-    return data as SuccessResponse<CsvBulkRegisterResponse>;
+    return data as SuccessResponse<CsvTaskResponse>;
   }
 
-  setToken(token: string): void { localStorage.setItem("authToken", token); }
-  getToken(): string | null { return localStorage.getItem("authToken"); }
-  removeToken(): void { localStorage.removeItem("authToken"); }
+  getWebSocketUrl(): string {
+    const base = API_BASE_URL.replace(/^http/, "ws");
+    return `${base}/ws/csv-progress`;
+  }
+
+  async getMe(): Promise<SuccessResponse<User>> {
+    const token = this.getToken();
+    const response = await fetch(`${this.baseUrl}/me`, {
+      headers: {
+        "Authorization": `Bearer ${token}`,
+      },
+    });
+    if (!response.ok) {
+      const text = await response.text();
+      console.error("getMe failed:", response.status, text);
+      throw new Error("Invalid token");
+    }
+    return (await response.json()) as SuccessResponse<User>;
+  }
+
+  setToken(token: string): void {
+    if (typeof window !== "undefined") localStorage.setItem("authToken", token);
+  }
+  getToken(): string | null {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem("authToken");
+  }
+  removeToken(): void {
+    if (typeof window !== "undefined") localStorage.removeItem("authToken");
+  }
   isAuthenticated(): boolean { return this.getToken() !== null; }
   logout(): void { this.removeToken(); }
 }

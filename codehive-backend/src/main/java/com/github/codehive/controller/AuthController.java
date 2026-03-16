@@ -1,13 +1,17 @@
 package com.github.codehive.controller;
 
 import java.io.IOException;
+import java.util.Map;
+import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -18,9 +22,9 @@ import com.github.codehive.model.request.auth.LoginRequest;
 import com.github.codehive.model.request.auth.SignUpRequest;
 import com.github.codehive.model.response.SuccessResponse;
 import com.github.codehive.model.response.auth.AuthResponse;
-import com.github.codehive.model.response.auth.CsvBulkRegisterResponse;
 import com.github.codehive.ratelimit.RateLimit;
 import com.github.codehive.service.AuthService;
+import com.github.codehive.service.CsvRegistrationService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -35,9 +39,26 @@ import jakarta.validation.Valid;
 @Tag(name = "Authentication", description = "Authentication management APIs")
 public class AuthController {
     private final AuthService authService;
+    private final CsvRegistrationService csvRegistrationService;
 
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService, CsvRegistrationService csvRegistrationService) {
         this.authService = authService;
+        this.csvRegistrationService = csvRegistrationService;
+    }
+
+    @Operation(summary = "Get current user", description = "Returns the authenticated user's information based on the JWT token")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "User info retrieved",
+                    content = @Content(schema = @Schema(implementation = SuccessResponse.class))),
+            @ApiResponse(responseCode = "401", description = "Invalid or missing token",
+                    content = @Content(schema = @Schema(implementation = com.github.codehive.model.response.ErrorResponse.class)))
+    })
+    @GetMapping("/me")
+    public ResponseEntity<SuccessResponse<UserDTO>> me(@RequestHeader("Authorization") String authHeader) {
+        String token = authHeader.substring(7);
+        UserDTO userDTO = authService.getUserByToken(token);
+        SuccessResponse<UserDTO> response = new SuccessResponse<>("User info retrieved", userDTO);
+        return ResponseEntity.ok(response);
     }
 
     @Operation(summary = "User login", description = "Authenticate user with email and password")
@@ -81,9 +102,9 @@ public class AuthController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    @Operation(summary = "Bulk register users from CSV (Admin only)", description = "Upload a CSV file to register multiple users. CSV columns: role (STUDENT/TEACHER/ADMIN), name, father last name, mother last name, enrollment number, email. Temporary passwords will be generated and sent via email.")
+    @Operation(summary = "Bulk register users from CSV (Admin only)", description = "Upload a CSV file to register multiple users. CSV columns: role (STUDENT/TEACHER/ADMIN), name, father last name, mother last name, enrollment number, email. Returns a taskId to track progress via WebSocket at /ws -> /topic/csv-progress/{taskId}.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "CSV processed",
+            @ApiResponse(responseCode = "202", description = "CSV processing started",
                     content = @Content(schema = @Schema(implementation = SuccessResponse.class))),
             @ApiResponse(responseCode = "403", description = "Access denied - Admin role required",
                     content = @Content(schema = @Schema(implementation = com.github.codehive.model.response.ErrorResponse.class))),
@@ -92,13 +113,16 @@ public class AuthController {
     })
     @PreAuthorize("hasAuthority('ADMIN')")
     @PostMapping(value = "/signup/csv", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<SuccessResponse<CsvBulkRegisterResponse>> signupFromCsv(
+    public ResponseEntity<SuccessResponse<Map<String, String>>> signupFromCsv(
             @RequestParam("file") MultipartFile file) throws IOException {
         if (file.isEmpty()) {
             throw new com.github.codehive.model.exception.ValidationException("CSV file is empty");
         }
-        CsvBulkRegisterResponse result = authService.registerFromCsv(file);
-        SuccessResponse<CsvBulkRegisterResponse> response = new SuccessResponse<>("CSV processed", result);
-        return ResponseEntity.ok(response);
+        byte[] csvData = file.getBytes();
+        String taskId = UUID.randomUUID().toString();
+        csvRegistrationService.processAsync(csvData, taskId);
+        Map<String, String> taskInfo = Map.of("taskId", taskId);
+        SuccessResponse<Map<String, String>> response = new SuccessResponse<>("CSV processing started", taskInfo);
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
     }
 }
