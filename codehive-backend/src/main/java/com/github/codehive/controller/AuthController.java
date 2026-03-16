@@ -105,7 +105,7 @@ public class AuthController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    @Operation(summary = "Bulk register users from CSV (Admin only)", description = "Upload a CSV file to register multiple users. CSV columns: role (STUDENT/TEACHER/ADMIN), name, father last name, mother last name, enrollment number, email. Returns a taskId to track progress via WebSocket at /ws -> /topic/csv-progress/{taskId}.")
+    @Operation(summary = "Bulk register users from CSV (Admin only)", description = "Upload a CSV file to register multiple users. CSV columns: role (STUDENT/TEACHER/ADMIN), name, father last name, mother last name, enrollment number, email. Returns a taskId to track progress via a plain WebSocket at /ws/csv-progress; after connecting, send the taskId as a message to receive progress updates.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "202", description = "CSV processing started",
                     content = @Content(schema = @Schema(implementation = SuccessResponse.class))),
