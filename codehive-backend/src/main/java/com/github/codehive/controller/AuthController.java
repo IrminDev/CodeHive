@@ -54,7 +54,10 @@ public class AuthController {
                     content = @Content(schema = @Schema(implementation = com.github.codehive.model.response.ErrorResponse.class)))
     })
     @GetMapping("/me")
-    public ResponseEntity<SuccessResponse<UserDTO>> me(@RequestHeader("Authorization") String authHeader) {
+    public ResponseEntity<SuccessResponse<UserDTO>> me(@RequestHeader(value = "Authorization", required = false) String authHeader) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ") || authHeader.length() <= 7) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
         String token = authHeader.substring(7);
         UserDTO userDTO = authService.getUserByToken(token);
         SuccessResponse<UserDTO> response = new SuccessResponse<>("User info retrieved", userDTO);
