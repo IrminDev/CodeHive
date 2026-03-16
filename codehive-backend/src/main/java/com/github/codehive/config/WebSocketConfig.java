@@ -47,7 +47,7 @@ public class WebSocketConfig implements WebSocketConfigurer {
                     public void afterHandshake(ServerHttpRequest request,
                                                ServerHttpResponse response,
                                                WebSocketHandler wsHandler,
-                                               java.util.Map<String, Object> attributes) {
+                                               Exception exception) {
                         // No-op
                     }
                 });
