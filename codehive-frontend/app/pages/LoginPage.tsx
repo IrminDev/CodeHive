@@ -30,7 +30,6 @@ export function LoginPage() {
       } as LoginRequest);
       AuthService.setToken(response.data.token);
       const user = response.data.user;
-      console.log("Logged in user:", user);
       if (user.role === "ADMIN") {
         navigate("/admin");
       } else {
