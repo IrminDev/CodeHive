@@ -31,7 +31,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchUser = useCallback(async () => {
     const token = AuthService.getToken();
-    console.log("AuthProvider fetchUser: token =", token ? "present" : "null");
     if (!token) {
       setUser(null);
       setIsLoading(false);
@@ -40,7 +39,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     try {
       const response = await AuthService.getMe();
-      console.log("AuthProvider fetchUser: getMe success", response.data);
       setUser(response.data);
     } catch (error) {
       console.error("AuthProvider fetchUser: getMe failed", error);
@@ -52,7 +50,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    console.log("AuthProvider: useEffect fired");
     fetchUser();
   }, [fetchUser]);
 
