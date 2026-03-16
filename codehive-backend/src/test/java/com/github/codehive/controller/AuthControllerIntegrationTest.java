@@ -27,16 +27,19 @@ import com.github.codehive.model.entity.User;
 import com.github.codehive.model.enums.Role;
 import com.github.codehive.model.request.auth.LoginRequest;
 import com.github.codehive.model.request.auth.SignUpRequest;
+import com.github.codehive.config.TestAsyncConfig;
 import com.github.codehive.repository.UserRepository;
 import com.github.codehive.service.MailSenderService;
 import com.github.codehive.utils.JwtUtil;
 
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
 @ActiveProfiles("test")
+@Import(TestAsyncConfig.class)
 @DisplayName("AuthController Integration")
 class AuthControllerIntegrationTest {
 
@@ -64,6 +67,13 @@ class AuthControllerIntegrationTest {
 
     @BeforeEach
     void setUp() {
+        // Clean up any data committed by @Async CSV processing (runs outside test transaction).
+        // Flush immediately so Hibernate sends DELETEs to the DB before subsequent INSERTs
+        // (Hibernate's default flush order is inserts-before-deletes, which would cause
+        // unique constraint violations).
+        userRepository.deleteAll();
+        userRepository.flush();
+
         // Create a test student user
         testUser = new User();
         testUser.setEmail("existing@example.com");
