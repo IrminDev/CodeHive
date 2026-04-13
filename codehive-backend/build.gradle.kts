@@ -34,7 +34,7 @@ dependencies {
 
 	implementation("org.springframework.boot:spring-boot-starter-mail")
 
-	implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.13")
+	implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3")
 
 	// CSV parsing
 	implementation("org.apache.commons:commons-csv:1.12.0")
