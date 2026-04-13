@@ -40,7 +40,7 @@ dependencies {
 	implementation("org.apache.commons:commons-csv:1.12.0")
 
 	// Rate limiting
-	implementation("com.bucket4j:bucket4j_jdk17-core:8.15.0")
+	implementation("com.bucket4j:bucket4j_jdk17-core:8.18.0")
 	implementation("org.springframework.boot:spring-boot-starter-cache")
 	implementation("org.springframework.boot:spring-boot-starter-aop")
 
