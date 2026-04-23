@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useTheme } from "~/core/providers/ThemeProvider";
-import { AuthService } from "~/features/auth/services/auth.service";
+import { useAuth } from "~/features/auth/hooks/useAuth";
 import type { Role } from "~/shared/types";
 import logo from "../../../../assets/logo.png";
 
@@ -15,9 +15,9 @@ function getDashboardRoute(role: Role): string {
 
 export function Header() {
   const { theme, toggleTheme } = useTheme();
+  const { user, isLoading } = useAuth();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [dashboardHref, setDashboardHref] = useState<string | null>(null);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -27,21 +27,7 @@ export function Header() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-    const token = AuthService.getToken();
-    if (!token) return;
-    AuthService.getMe()
-      .then((res) => {
-        if (!cancelled) setDashboardHref(getDashboardRoute(res.data.role));
-      })
-      .catch(() => {
-        AuthService.removeToken();
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const dashboardHref = user ? getDashboardRoute(user.role) : null;
 
   const navLinks = [
     { name: "Features", href: "#features" },
@@ -128,7 +114,7 @@ export function Header() {
               )}
             </button>
 
-            {dashboardHref ? (
+            {isLoading ? null : dashboardHref ? (
               <a
                 href={dashboardHref}
                 className="px-4 py-2 rounded-lg bg-azure dark:bg-yellow text-white dark:text-dark-bg 
@@ -202,7 +188,7 @@ export function Header() {
               </a>
             ))}
             <hr className="border-gray-200 dark:border-gray-700" />
-            {dashboardHref ? (
+            {isLoading ? null : dashboardHref ? (
               <a
                 href={dashboardHref}
                 className="text-azure dark:text-yellow font-medium py-2"

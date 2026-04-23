@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useTheme } from "~/core/providers/ThemeProvider";
 import { AuthService } from "~/features/auth/services/auth.service";
-import type { CsvProgressMessage } from "~/shared/types";
+import type { CsvProgressMessage } from "~/features/auth/types";
 
 export function CsvUploadPage() {
   const { theme, toggleTheme } = useTheme();

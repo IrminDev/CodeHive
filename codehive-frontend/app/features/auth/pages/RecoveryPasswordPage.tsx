@@ -3,7 +3,6 @@ import { useState, useEffect } from "react";
 import { useTheme } from "~/core/providers/ThemeProvider";
 import logo from "../../../../assets/logo.png";
 import { RecoveryPasswordService } from "../services/recovery-password.service";
-import type { ForgotPasswordRequest } from "~/shared/types";
 
 export function RecoveryPasswordPage() {
   const { theme, toggleTheme } = useTheme();
@@ -29,17 +28,18 @@ export function RecoveryPasswordPage() {
     setIsLoading(true);
     const usedEnrollmentNumber = !isEmail(identifier);
     setIsEnrollmentNumber(usedEnrollmentNumber);
-    await RecoveryPasswordService.forgotPassword({
-      identifier,
-    } as ForgotPasswordRequest)
-      .then(() => {
-        setIsSubmitted(true);
-      })
-      .catch((error) => {
-        alert(
-          error.message || "An error occurred while sending the reset email."
-        );
+    try {
+      await RecoveryPasswordService.forgotPassword({
+        identifier,
       });
+      setIsSubmitted(true);
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "An error occurred while sending the reset email.";
+      alert(message);
+    }
     setIsLoading(false);
   };
 

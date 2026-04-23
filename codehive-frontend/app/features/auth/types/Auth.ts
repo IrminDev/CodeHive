@@ -1,5 +1,4 @@
-import type { Role } from "../model/User";
-import type { User } from "../model/User";
+import type { Role, User } from "~/shared/types";
 
 export interface LoginRequest {
   identifier: string;

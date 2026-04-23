@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useTheme } from "~/core/providers/ThemeProvider";
 import { AuthService } from "~/features/auth/services/auth.service";
 import { Role } from "~/shared/types";
-import type { SignUpRequest } from "~/shared/types";
 
 export function CreateUserPage() {
   const { theme, toggleTheme } = useTheme();
@@ -30,7 +29,7 @@ export function CreateUserPage() {
         motherLastName,
         enrollmentNumber,
         role,
-      } as SignUpRequest);
+      });
       setSuccessMessage("User created successfully. A welcome email with temporary credentials has been sent.");
       setName("");
       setFatherLastName("");

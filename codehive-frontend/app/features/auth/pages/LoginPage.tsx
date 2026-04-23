@@ -4,7 +4,6 @@ import { useNavigate } from "react-router";
 import { useTheme } from "~/core/providers/ThemeProvider";
 import logo from "../../../../assets/logo.png";
 import { AuthService } from "../services/auth.service";
-import type { LoginRequest } from "~/shared/types";
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -28,7 +27,7 @@ export function LoginPage() {
       const response = await AuthService.login({
         identifier,
         password,
-      } as LoginRequest);
+      });
       AuthService.setToken(response.data.token);
       const user = response.data.user;
       if (user.role === "ADMIN") {

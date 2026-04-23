@@ -1,20 +1,19 @@
+import type { ForgotPasswordRequest, ResetPasswordRequest } from "~/features/auth/types";
 import type {
-  ForgotPasswordRequest,
-  ResetPasswordRequest,
   MessageResponse,
   SuccessResponse,
   ErrorResponse,
 } from "~/shared/types";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
+import { API_BASE_URL } from "~/core/config/env";
 
-class RecoveryPasswordServiceClass {
-  private readonly baseUrl = `${API_BASE_URL}/api/recovery-password`;
+const RECOVERY_BASE_URL = `${API_BASE_URL}/api/recovery-password`;
 
+export const RecoveryPasswordService = {
   async forgotPassword(
     request: ForgotPasswordRequest
   ): Promise<SuccessResponse<MessageResponse>> {
-    const response = await fetch(`${this.baseUrl}/forgot`, {
+    const response = await fetch(`${RECOVERY_BASE_URL}/forgot`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -30,12 +29,12 @@ class RecoveryPasswordServiceClass {
     }
 
     return data as SuccessResponse<MessageResponse>;
-  }
+  },
 
   async resetPassword(
     request: ResetPasswordRequest
   ): Promise<SuccessResponse<MessageResponse>> {
-    const response = await fetch(`${this.baseUrl}/reset`, {
+    const response = await fetch(`${RECOVERY_BASE_URL}/reset`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -51,8 +50,7 @@ class RecoveryPasswordServiceClass {
     }
 
     return data as SuccessResponse<MessageResponse>;
-  }
-}
+  },
+} as const;
 
-export const RecoveryPasswordService = new RecoveryPasswordServiceClass();
 export default RecoveryPasswordService;
