@@ -40,3 +40,12 @@ export interface CsvProgressMessage {
   message: string | null;
   timestamp: string;
 }
+
+export interface ForgotPasswordRequest {
+  identifier: string;
+}
+
+export interface ResetPasswordRequest {
+  token: string;
+  newPassword: string;
+}

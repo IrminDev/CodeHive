@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 
 import { useTheme } from "~/core/providers/ThemeProvider";
 import logo from "../../../../assets/logo.png";
-import { RecoveryPasswordService } from "../services/recovery-password.service";
+import { AuthService } from "../services/auth.service";
 
 export function RecoveryPasswordPage() {
   const { theme, toggleTheme } = useTheme();
@@ -19,7 +19,7 @@ export function RecoveryPasswordPage() {
   // Check if identifier is an email
   const isEmail = (value: string) => {
     return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(
-      value.trim()
+      value.trim(),
     );
   };
 
@@ -29,7 +29,7 @@ export function RecoveryPasswordPage() {
     const usedEnrollmentNumber = !isEmail(identifier);
     setIsEnrollmentNumber(usedEnrollmentNumber);
     try {
-      await RecoveryPasswordService.forgotPassword({
+      await AuthService.forgotPassword({
         identifier,
       });
       setIsSubmitted(true);

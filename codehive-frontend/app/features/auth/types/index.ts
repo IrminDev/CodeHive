@@ -1,2 +1,1 @@
-export * from "./Auth";
-export * from "./Recovery";
+export * from "./auth.types";

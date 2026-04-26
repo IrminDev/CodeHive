@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 
 import { useTheme } from "~/core/providers/ThemeProvider";
 import logo from "../../../../assets/logo.png";
-import { RecoveryPasswordService } from "../services/recovery-password.service";
+import { AuthService } from "../services/auth.service";
 
 export function ResetPasswordPage() {
   const { theme, toggleTheme } = useTheme();
@@ -52,7 +52,7 @@ export function ResetPasswordPage() {
     setIsLoading(true);
 
     try {
-      await RecoveryPasswordService.resetPassword({
+      await AuthService.resetPassword({
         token,
         newPassword,
       });
