@@ -9,6 +9,7 @@ import {
 import { useNavigate } from "react-router";
 
 import { AuthService } from "~/features/auth/services/auth.service";
+import { getAuthToken, removeAuthToken } from "~/core/storage/token.storage";
 import type { Role, Scope, User } from "~/shared/types";
 
 export interface AuthContextType {
@@ -31,7 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	const navigate = useNavigate();
 
 	const fetchUser = useCallback(async () => {
-		const token = AuthService.getToken();
+		const token = getAuthToken();
 		if (!token) {
 			setUser(null);
 			setIsLoading(false);
@@ -43,7 +44,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 			setUser(response.data);
 		} catch (error) {
 			console.error("AuthProvider fetchUser: getMe failed", error);
-			AuthService.removeToken();
+			removeAuthToken();
 			setUser(null);
 		} finally {
 			setIsLoading(false);
@@ -72,7 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	);
 
 	const logout = useCallback(() => {
-		AuthService.logout();
+		removeAuthToken();
 		setUser(null);
 		navigate("/login");
 	}, [navigate]);

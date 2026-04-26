@@ -7,7 +7,7 @@ import type {
 } from "~/features/auth/types";
 
 import * as authApi from "../api/auth.api";
-import { getAuthToken, removeAuthToken, setAuthToken } from "../storage/auth.storage";
+import { getAuthToken } from "~/core/storage/token.storage";
 
 export const AuthService = {
   login(credentials: LoginRequest) {
@@ -37,13 +37,6 @@ export const AuthService = {
 
   resetPassword(request: ResetPasswordRequest) {
     return authApi.resetPassword(request);
-  },
-
-  setToken: setAuthToken,
-  getToken: getAuthToken,
-  removeToken: removeAuthToken,
-  logout(): void {
-    removeAuthToken();
   },
 } as const;
 
