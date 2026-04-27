@@ -11,6 +11,7 @@ import type { Route } from "./+types/root";
 import "./styles/global.css";
 import { AuthProvider } from "~/core/providers/AuthProvider";
 import { ThemeProvider } from "~/core/providers/ThemeProvider";
+import { Toaster } from "sileo";
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -64,6 +65,7 @@ export default function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
+        <Toaster />
         <Outlet />
       </AuthProvider>
     </ThemeProvider>

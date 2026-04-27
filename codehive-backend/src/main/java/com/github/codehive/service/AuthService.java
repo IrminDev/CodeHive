@@ -228,4 +228,39 @@ public class AuthService {
         claims.put("role", user.getRole().name());
         return jwtUtil.generateToken(claims, user.getEmail());
     }
+
+    @Transactional
+    public void updatePassword(Long userId, com.github.codehive.model.request.auth.UpdatePasswordRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IncorrectCredentialsException("User not found"));
+
+        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
+            throw new IncorrectCredentialsException("Incorrect current password");
+        }
+
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        user.setTemporaryPassword(false);
+        userRepository.save(user);
+    }
+
+    @Transactional
+    public String updateProfilePicture(Long userId, MultipartFile file) throws IOException {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IncorrectCredentialsException("User not found"));
+
+        if (file.isEmpty()) {
+            throw new IllegalArgumentException("File is empty");
+        }
+
+        // Simulating file storage for the frontend development since Minio was removed.
+        // In a real scenario, we'd save the file to disk/S3 and get a URL.
+        // We'll create a fake URL containing the original filename to prove the endpoint works.
+        String fileName = System.currentTimeMillis() + "_" + file.getOriginalFilename();
+        String fakeUrl = "/static/images/avatars/" + fileName; 
+        
+        user.setProfilePictureUrl(fakeUrl);
+        userRepository.save(user);
+        
+        return fakeUrl;
+    }
 }

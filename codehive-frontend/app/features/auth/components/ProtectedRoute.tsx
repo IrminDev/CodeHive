@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router";
 
 import type { Role, Scope } from "~/shared/types";
-import { useAuth } from "../hooks/useAuth";
+import { useAuth } from "~/core/providers/AuthProvider";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -81,6 +81,6 @@ function getDashboardRoute(role: string): string {
     case "ADMIN":
       return "/admin";
     default:
-      return "/";
+      return "/dashboard";
   }
 }

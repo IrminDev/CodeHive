@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useTheme } from "~/core/providers/ThemeProvider";
-import { useAuth } from "~/features/auth/hooks/useAuth";
+import { useAuth } from "~/core/providers/AuthProvider";
 import type { Role } from "~/shared/types";
 import logo from "../../../../assets/logo.png";
 
@@ -9,7 +9,7 @@ function getDashboardRoute(role: Role): string {
     case "ADMIN":
       return "/admin";
     default:
-      return "/";
+      return "/dashboard";
   }
 }
 

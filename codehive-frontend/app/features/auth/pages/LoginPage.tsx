@@ -2,13 +2,15 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 
 import { useTheme } from "~/core/providers/ThemeProvider";
+import { useAuth } from "~/core/providers/AuthProvider";
+import { sileo } from "sileo";
 import logo from "../../../../assets/logo.png";
 import { AuthService } from "../services/auth.service";
 import { setAuthToken } from "~/core/storage/token.storage";
 
 export function LoginPage() {
   const navigate = useNavigate();
-
+  const { refreshUser, user } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
@@ -21,6 +23,16 @@ export function LoginPage() {
     setMounted(true);
   }, []);
 
+  useEffect(() => {
+    if (user) {
+      if (user.role === "ADMIN") {
+        navigate("/admin");
+      } else {
+        navigate("/dashboard");
+      }
+    }
+  }, [user, navigate]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -30,16 +42,13 @@ export function LoginPage() {
         password,
       });
       setAuthToken(response.data.token);
-      const user = response.data.user;
-      if (user.role === "ADMIN") {
-        navigate("/admin");
-      } else {
-        navigate("/");
-      }
-    } catch (error) {
+      await refreshUser();
+      sileo.success("Successfully logged in!");
+    } catch (error: any) {
       console.error(error);
+      sileo.error(error.message || "Failed to log in. Check your credentials.");
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   return (
