@@ -51,7 +51,7 @@ public class User implements UserDetails {
     private Role role;
 
     @Column(nullable = true, length = 255)
-    private String profilePictureUrl;
+
 
     @Column(nullable = false)
     private LocalDateTime createdAt;
@@ -70,20 +70,18 @@ public class User implements UserDetails {
 
     public User() {
         this.createdAt = LocalDateTime.now();
-        this.scopes = List.of();
+        this.scopes = new ArrayList<>();
         this.isActive = true;
         this.temporaryPassword = false;
-        this.profilePictureUrl = "/static/images/default-avatar.png";
     }
 
-    public User(String name, String lastName, String enrollmentNumber, String email, String password, Role role, String profilePictureUrl) {
+    public User(String name, String lastName, String enrollmentNumber, String email, String password, Role role) {
         this.name = name;
         this.lastName = lastName;
         this.enrollmentNumber = enrollmentNumber;
         this.email = email;
         this.password = password;
         this.role = role;
-        this.profilePictureUrl = profilePictureUrl;
         this.createdAt = LocalDateTime.now();
         this.isActive = true;
         this.temporaryPassword = false;
@@ -147,13 +145,6 @@ public class User implements UserDetails {
         this.role = role;
     }
 
-    public String getProfilePictureUrl() {
-        return profilePictureUrl;
-    }
-
-    public void setProfilePictureUrl(String profilePictureUrl) {
-        this.profilePictureUrl = profilePictureUrl;
-    }
 
     public LocalDateTime getCreatedAt() {
         return createdAt;

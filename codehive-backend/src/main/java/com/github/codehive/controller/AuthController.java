@@ -131,21 +131,6 @@ public class AuthController {
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
     }
 
-    @Operation(summary = "Update profile picture", description = "Update the authenticated user's profile picture")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Profile picture updated successfully"),
-            @ApiResponse(responseCode = "401", description = "Invalid or missing token")
-    })
-    @PutMapping(value = "/me/profile-picture", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<SuccessResponse<String>> updateProfilePicture(
-            @RequestHeader(value = "Authorization") String authHeader,
-            @RequestParam("file") MultipartFile file) throws IOException {
-        String token = authHeader.substring(7);
-        UserDTO userDTO = authService.getUserByToken(token);
-        String pictureUrl = authService.updateProfilePicture(userDTO.getId(), file);
-        return ResponseEntity.ok(new SuccessResponse<>("Profile picture updated", pictureUrl));
-    }
-
     @Operation(summary = "Update password", description = "Update the authenticated user's password")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Password updated successfully"),

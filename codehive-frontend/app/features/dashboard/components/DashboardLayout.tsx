@@ -77,11 +77,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
               onClick={() => setIsProfileModalOpen(true)}
               className="h-10 w-10 rounded-full bg-azure dark:bg-yellow flex items-center justify-center font-bold text-lg text-white dark:text-dark-bg overflow-hidden border-2 border-transparent hover:border-blue-400 transition-all focus:outline-none focus:ring-2 focus:ring-azure dark:focus:ring-yellow focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-[#1a1a1a]"
             >
-              {user?.profilePictureUrl && user.profilePictureUrl !== "/static/images/default-avatar.png" ? (
-                <img src={user.profilePictureUrl} alt={user.name} className="w-full h-full object-cover" />
-              ) : (
-                <span>{user?.name?.charAt(0) || 'U'}</span>
-              )}
+              <span>{user?.name?.charAt(0) || 'U'}</span>
             </button>
           </div>
         </div>

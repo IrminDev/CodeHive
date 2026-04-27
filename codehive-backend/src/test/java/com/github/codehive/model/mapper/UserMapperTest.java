@@ -33,7 +33,6 @@ class UserMapperTest {
         testUser.setName("John");
         testUser.setLastName("Doe");
         testUser.setEnrollmentNumber("ENR001");
-        testUser.setProfilePictureUrl("https://example.com/pic.jpg");
         testUser.setRole(Role.STUDENT);
         testUser.setCreatedAt(testDate);
         testUser.setIsActive(true);
@@ -47,7 +46,6 @@ class UserMapperTest {
         testUserDTO.setName("Jane");
         testUserDTO.setLastName("Smith");
         testUserDTO.setEnrollmentNumber("ENR002");
-        testUserDTO.setProfilePictureUrl("https://example.com/jane.jpg");
         testUserDTO.setRole(Role.TEACHER);
         testUserDTO.setCreatedAt(testDate);
         testUserDTO.setIsActive(false);

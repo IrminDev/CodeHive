@@ -1,7 +1,7 @@
 import React, { useState, useRef } from "react";
 import { X, Upload, Lock, User, Loader2, LogOut } from "lucide-react";
 import { sileo } from "sileo";
-import { updatePassword, updateProfilePicture } from "../api/dashboard.api";
+import { updatePassword } from "../api/dashboard.api";
 import { useAuth } from "~/core/providers/AuthProvider";
 
 interface ProfileSettingsModalProps {
@@ -18,36 +18,8 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ isOp
   const [newPassword, setNewPassword] = useState("");
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
 
-  // Picture State
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
   if (!isOpen) return null;
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setSelectedFile(file);
-      setPreviewUrl(URL.createObjectURL(file));
-    }
-  };
-
-  const handleUpdatePicture = async () => {
-    if (!selectedFile) return;
-    setIsUploading(true);
-    try {
-      await updateProfilePicture(selectedFile);
-      sileo.success("Profile picture updated! Please reload.");
-      setSelectedFile(null);
-      setPreviewUrl(null);
-    } catch (error: any) {
-      sileo.error(error.message || "Failed to update profile picture");
-    } finally {
-      setIsUploading(false);
-    }
-  };
 
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -106,43 +78,14 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ isOp
             <div className="flex flex-col items-center gap-6">
               <div className="relative group">
                 <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-[#2a2a2a] bg-[#121212] flex items-center justify-center text-2xl font-bold text-gray-400">
-                  {previewUrl ? (
-                    <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
-                  ) : user?.profilePictureUrl && user.profilePictureUrl !== "/static/images/default-avatar.png" ? (
-                    <img src={user.profilePictureUrl} alt={user.name} className="w-full h-full object-cover" />
-                  ) : (
-                    user?.name?.charAt(0) || 'U'
-                  )}
+                  {user?.name?.charAt(0) || 'U'}
                 </div>
-                <button 
-                  onClick={() => fileInputRef.current?.click()}
-                  className="absolute bottom-0 right-0 w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white shadow-lg hover:bg-blue-500 transition-colors border-2 border-[#1e1e1e]"
-                >
-                  <Upload size={14} />
-                </button>
-                <input 
-                  type="file" 
-                  ref={fileInputRef} 
-                  className="hidden" 
-                  accept="image/png, image/jpeg, image/jpg" 
-                  onChange={handleFileChange}
-                />
               </div>
 
               <div className="w-full text-center">
                 <h3 className="text-white font-medium">{user?.name} {user?.lastName}</h3>
                 <p className="text-gray-400 text-sm">{user?.email}</p>
               </div>
-
-              {selectedFile && (
-                <button 
-                  onClick={handleUpdatePicture}
-                  disabled={isUploading}
-                  className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-                >
-                  {isUploading ? <Loader2 size={18} className="animate-spin" /> : "Save Profile Picture"}
-                </button>
-              )}
 
               <div className="w-full mt-4 pt-6 border-t border-[#2a2a2a]">
                 <button 

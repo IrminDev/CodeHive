@@ -82,7 +82,6 @@ class AuthControllerIntegrationTest {
         testUser.setPassword(passwordEncoder.encode("password123"));
         testUser.setEnrollmentNumber("ENR001");
         testUser.setRole(Role.STUDENT);
-        testUser.setProfilePictureUrl("/static/images/default-avatar.png");
         testUser.setIsActive(true);
         testUser.setTemporaryPassword(false);
         userRepository.save(testUser);
@@ -95,7 +94,6 @@ class AuthControllerIntegrationTest {
         adminUser.setPassword(passwordEncoder.encode("admin123"));
         adminUser.setEnrollmentNumber("ADM001");
         adminUser.setRole(Role.ADMIN);
-        adminUser.setProfilePictureUrl("/static/images/default-avatar.png");
         adminUser.setIsActive(true);
         adminUser.setTemporaryPassword(false);
         adminUser = userRepository.save(adminUser);

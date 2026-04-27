@@ -60,22 +60,3 @@ export const updatePassword = async (currentPassword: string, newPassword: strin
   }
   return response.json();
 };
-
-export const updateProfilePicture = async (file: File) => {
-  const token = localStorage.getItem("auth_token");
-  const formData = new FormData();
-  formData.append("file", file);
-
-  const response = await fetch("/api/auth/me/profile-picture", {
-    method: "PUT",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-    body: formData,
-  });
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.message || "Failed to upload picture");
-  }
-  return response.json();
-};

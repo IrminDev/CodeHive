@@ -18,7 +18,6 @@ export interface User {
   name: string;
   lastName: string;
   enrollmentNumber: string;
-  profilePictureUrl?: string;
   role: Role;
   scopes?: Scope[];
   createdAt: string;
