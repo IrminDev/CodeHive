@@ -1,13 +1,14 @@
 import { API_BASE_URL } from "~/core/config/env";
 import type {
   AuthResponse,
-  CsvTaskResponse,
   LoginRequest,
   SignUpRequest,
   ForgotPasswordRequest,
   ResetPasswordRequest,
-} from "~/features/auth/types";
-import type { MessageResponse, SuccessResponse, User } from "~/shared/types";
+} from "~/features/auth/types/auth.types";
+import type { CsvTaskResponse } from "~/features/admin/types/admin.types";
+import type { MessageResponse, SuccessResponse } from "~/shared/types/response/Api";
+import type { User } from "~/shared/types/model/User";
 
 import { requestJson } from "./http";
 
@@ -23,6 +24,7 @@ export function login(credentials: LoginRequest) {
 }
 
 export function signUp(userData: SignUpRequest, token: string | null) {
+  if (!token) throw new Error("Your session is invalid or has expired. Please log in again.");
   return requestJson<SuccessResponse<User>>(`${AUTH_BASE_URL}/signup`, {
     method: "POST",
     headers: {
@@ -34,6 +36,7 @@ export function signUp(userData: SignUpRequest, token: string | null) {
 }
 
 export function uploadCsv(file: File, token: string | null) {
+  if (!token) throw new Error("Your session is invalid or has expired. Please log in again.");
   const formData = new FormData();
   formData.append("file", file);
 
@@ -50,6 +53,7 @@ export function uploadCsv(file: File, token: string | null) {
 }
 
 export async function getMe(token: string | null) {
+  if (!token) throw new Error("Your session is invalid or has expired. Please log in again.");
   return requestJson<SuccessResponse<User>>(`${AUTH_BASE_URL}/me`, {
     headers: {
       Authorization: `Bearer ${token}`,

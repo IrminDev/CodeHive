@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTheme } from "~/core/providers/ThemeProvider";
 import { AuthService } from "~/features/auth/services/auth.service";
-import { Role } from "~/shared/types";
+import { Role } from "~/shared/types/model/User";
 
 export function CreateUserPage() {
   const { theme, toggleTheme } = useTheme();

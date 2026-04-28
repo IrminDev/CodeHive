@@ -10,5 +10,5 @@ services:
     ports:
       # Dev server (react-router dev)
       - "5173:5173"
-      # Production server (react-router-serve)
-      - "3000:3000"
+      # Production server (react-router-serve). Uncomment for production.
+      # - "3000:3000"

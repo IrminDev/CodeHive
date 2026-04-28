@@ -1,5 +1,5 @@
-import React, { useState, useRef } from "react";
-import { X, Upload, Lock, User, Loader2, LogOut } from "lucide-react";
+import React, { useState } from "react";
+import { X, Lock, User, Loader2, LogOut } from "lucide-react";
 import { sileo } from "sileo";
 import { updatePassword } from "../api/dashboard.api";
 import { useAuth } from "~/core/providers/AuthProvider";
@@ -25,18 +25,18 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ isOp
     e.preventDefault();
     if (!currentPassword || !newPassword) return;
     if (newPassword.length < 8) {
-      sileo.error("New password must be at least 8 characters");
+      sileo.error({ title: "New password must be at least 8 characters" });
       return;
     }
     
     setIsUpdatingPassword(true);
     try {
       await updatePassword(currentPassword, newPassword);
-      sileo.success("Password updated successfully");
+      sileo.success({ title: "Password updated successfully" });
       setCurrentPassword("");
       setNewPassword("");
     } catch (error: any) {
-      sileo.error(error.message || "Failed to update password");
+      sileo.error({ title: error.message || "Failed to update password" });
     } finally {
       setIsUpdatingPassword(false);
     }
@@ -44,7 +44,7 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ isOp
 
   const handleLogout = () => {
     onClose();
-    sileo.success("Successfully logged out!");
+    sileo.success({ title: "Successfully logged out!" });
     logout();
   };
 

@@ -1,4 +1,4 @@
-import type { ErrorResponse } from "~/shared/types";
+import type { ErrorResponse } from "~/shared/types/response/Api";
 
 export async function requestJson<TResponse>(
   url: string,

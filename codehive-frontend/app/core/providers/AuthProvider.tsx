@@ -10,9 +10,9 @@ import { useNavigate } from "react-router";
 
 import { AuthService } from "~/features/auth/services/auth.service";
 import { getAuthToken, removeAuthToken } from "~/core/storage/token.storage";
-import type { Role, Scope, User } from "~/shared/types";
+import type { Role, Scope, User } from "~/shared/types/model/User";
 
-export interface AuthContextType {
+interface AuthContextType {
 	user: User | null;
 	isLoading: boolean;
 	isAuthenticated: boolean;

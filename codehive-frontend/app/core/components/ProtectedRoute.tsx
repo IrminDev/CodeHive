@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router";
 
-import type { Role, Scope } from "~/shared/types";
+import type { Role, Scope } from "~/shared/types/model/User";
 import { useAuth } from "~/core/providers/AuthProvider";
 
 interface ProtectedRouteProps {

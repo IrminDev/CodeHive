@@ -4,7 +4,8 @@ import type {
   SignUpRequest,
   ForgotPasswordRequest,
   ResetPasswordRequest
-} from "~/features/auth/types";
+} from "~/features/auth/types/auth.types";
+import type { CsvTaskResponse } from "~/features/admin/types/admin.types";
 
 import * as authApi from "../api/auth.api";
 import { getAuthToken } from "~/core/storage/token.storage";
@@ -39,5 +40,3 @@ export const AuthService = {
     return authApi.resetPassword(request);
   },
 } as const;
-
-export default AuthService;

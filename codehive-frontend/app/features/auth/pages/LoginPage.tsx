@@ -4,7 +4,7 @@ import { useNavigate } from "react-router";
 import { useTheme } from "~/core/providers/ThemeProvider";
 import { useAuth } from "~/core/providers/AuthProvider";
 import { sileo } from "sileo";
-import logo from "../../../../assets/logo.png";
+import logo from "~/assets/logo.png";
 import { AuthService } from "../services/auth.service";
 import { setAuthToken } from "~/core/storage/token.storage";
 
@@ -43,10 +43,10 @@ export function LoginPage() {
       });
       setAuthToken(response.data.token);
       await refreshUser();
-      sileo.success("Successfully logged in!");
+      sileo.success({ title: "Successfully logged in!" });
     } catch (error: any) {
       console.error(error);
-      sileo.error(error.message || "Failed to log in. Check your credentials.");
+      sileo.error({ title: error.message || "Failed to log in. Check your credentials." });
       setIsLoading(false);
     }
   };

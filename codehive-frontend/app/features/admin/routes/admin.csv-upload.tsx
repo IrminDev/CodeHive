@@ -1,7 +1,7 @@
 import type { Route } from "./+types/admin.csv-upload";
 import { ProtectedRoute } from "~/core/components/ProtectedRoute";
 import { CsvUploadPage } from "../pages/CsvUploadPage";
-import { Role } from "~/shared/types";
+import { Role } from "~/shared/types/model/User";
 
 export function meta({}: Route.MetaArgs) {
   return [

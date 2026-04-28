@@ -7,9 +7,3 @@ export interface Group {
   inProgress: number;
   nextDeadline: string;
 }
-
-export interface ProfileUpdateRequest {
-  currentPassword?: string;
-  newPassword?: string;
-  profilePicture?: File;
-}

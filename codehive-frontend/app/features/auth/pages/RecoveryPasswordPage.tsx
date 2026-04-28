@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 
 import { useTheme } from "~/core/providers/ThemeProvider";
-import logo from "../../../../assets/logo.png";
+import logo from "~/assets/logo.png";
 import { AuthService } from "../services/auth.service";
 
 export function RecoveryPasswordPage() {

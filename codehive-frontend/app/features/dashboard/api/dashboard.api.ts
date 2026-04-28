@@ -2,7 +2,7 @@ import type { Group } from "../types/dashboard.types";
 import { API_BASE_URL } from "~/core/config/env";
 import { getAuthToken } from "~/core/storage/token.storage";
 
-export const MOCK_GROUPS: Group[] = [
+const MOCK_GROUPS: Group[] = [
   {
     id: "1",
     name: "Fundamentos de programación",
@@ -42,12 +42,16 @@ export const MOCK_GROUPS: Group[] = [
 ];
 
 export const getGroups = async (): Promise<Group[]> => {
+  // TODO: Replace with real backend endpoint once implemented
   // Simulate network delay
   return new Promise((resolve) => setTimeout(() => resolve(MOCK_GROUPS), 500));
 };
 
 export const updatePassword = async (currentPassword: string, newPassword: string) => {
   const token = getAuthToken();
+  if (!token) {
+    throw new Error("Your session is invalid or has expired. Please log in again.");
+  }
   const response = await fetch(`${API_BASE_URL}/api/auth/me/password`, {
     method: "PUT",
     headers: {

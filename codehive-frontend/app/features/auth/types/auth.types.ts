@@ -1,4 +1,4 @@
-import type { Role, User } from "~/shared/types";
+import type { Role, User } from "~/shared/types/model/User";
 
 export interface LoginRequest {
   identifier: string;
@@ -17,28 +17,6 @@ export interface SignUpRequest {
 export interface AuthResponse {
   token: string;
   user: User;
-}
-
-export interface CsvBulkRegisterResponse {
-  totalProcessed: number;
-  successCount: number;
-  errorCount: number;
-  errors: string[];
-}
-
-export interface CsvTaskResponse {
-  taskId: string;
-}
-
-export interface CsvProgressMessage {
-  taskId: string;
-  status: "PROCESSING" | "ROW_SUCCESS" | "ROW_ERROR" | "COMPLETED";
-  currentRow: number;
-  totalRows: number;
-  successCount: number;
-  errorCount: number;
-  message: string | null;
-  timestamp: string;
 }
 
 export interface ForgotPasswordRequest {

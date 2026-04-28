@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { DashboardLayout } from "../components/DashboardLayout";
 import { GroupCard } from "../components/GroupCard";
 import type { Group } from "../types/dashboard.types";

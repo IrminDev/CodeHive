@@ -13,7 +13,6 @@ export interface ErrorResponse {
   errors?: string[];
 }
 
-export type ApiResponse<T> = SuccessResponse<T> | ErrorResponse;
 
 // Message Response
 export interface MessageResponse {

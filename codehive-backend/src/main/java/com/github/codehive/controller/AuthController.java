@@ -17,13 +17,15 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.bind.annotation.RequestHeader;
 
 import com.github.codehive.model.dto.UserDTO;
 import com.github.codehive.model.request.auth.LoginRequest;
 import com.github.codehive.model.request.auth.SignUpRequest;
+import com.github.codehive.model.request.auth.UpdatePasswordRequest;
 import com.github.codehive.model.response.SuccessResponse;
+import com.github.codehive.model.response.ErrorResponse;
 import com.github.codehive.model.response.auth.AuthResponse;
+import com.github.codehive.model.exception.ValidationException;
 import com.github.codehive.ratelimit.RateLimit;
 import com.github.codehive.service.AuthService;
 import com.github.codehive.service.CsvRegistrationService;
@@ -53,7 +55,7 @@ public class AuthController {
             @ApiResponse(responseCode = "200", description = "User info retrieved",
                     content = @Content(schema = @Schema(implementation = SuccessResponse.class))),
             @ApiResponse(responseCode = "401", description = "Invalid or missing token",
-                    content = @Content(schema = @Schema(implementation = com.github.codehive.model.response.ErrorResponse.class)))
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     @GetMapping("/me")
     public ResponseEntity<SuccessResponse<UserDTO>> me(@RequestHeader(value = "Authorization", required = false) String authHeader) {
@@ -71,11 +73,11 @@ public class AuthController {
             @ApiResponse(responseCode = "200", description = "Login successful",
                     content = @Content(schema = @Schema(implementation = SuccessResponse.class))),
             @ApiResponse(responseCode = "401", description = "Invalid credentials",
-                    content = @Content(schema = @Schema(implementation = com.github.codehive.model.response.ErrorResponse.class))),
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @ApiResponse(responseCode = "400", description = "Validation error",
-                    content = @Content(schema = @Schema(implementation = com.github.codehive.model.response.ErrorResponse.class))),
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @ApiResponse(responseCode = "429", description = "Too many requests",
-                    content = @Content(schema = @Schema(implementation = com.github.codehive.model.response.ErrorResponse.class)))
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     @RateLimit(limit = 5, duration = 60, message = "Too many login attempts. Please try again in 1 minute.")
     @PostMapping("/login")
@@ -90,13 +92,13 @@ public class AuthController {
             @ApiResponse(responseCode = "201", description = "Registration successful",
                     content = @Content(schema = @Schema(implementation = SuccessResponse.class))),
             @ApiResponse(responseCode = "403", description = "Access denied - Admin role required",
-                    content = @Content(schema = @Schema(implementation = com.github.codehive.model.response.ErrorResponse.class))),
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @ApiResponse(responseCode = "409", description = "Email or enrollment number already exists",
-                    content = @Content(schema = @Schema(implementation = com.github.codehive.model.response.ErrorResponse.class))),
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @ApiResponse(responseCode = "400", description = "Validation error",
-                    content = @Content(schema = @Schema(implementation = com.github.codehive.model.response.ErrorResponse.class))),
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @ApiResponse(responseCode = "429", description = "Too many requests",
-                    content = @Content(schema = @Schema(implementation = com.github.codehive.model.response.ErrorResponse.class)))
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     @PreAuthorize("hasAuthority('ADMIN')")
     @RateLimit(limit = 3, duration = 300, message = "Too many registration attempts. Please try again in 5 minutes.")
@@ -112,16 +114,16 @@ public class AuthController {
             @ApiResponse(responseCode = "202", description = "CSV processing started",
                     content = @Content(schema = @Schema(implementation = SuccessResponse.class))),
             @ApiResponse(responseCode = "403", description = "Access denied - Admin role required",
-                    content = @Content(schema = @Schema(implementation = com.github.codehive.model.response.ErrorResponse.class))),
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @ApiResponse(responseCode = "400", description = "Invalid CSV file",
-                    content = @Content(schema = @Schema(implementation = com.github.codehive.model.response.ErrorResponse.class)))
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     @PreAuthorize("hasAuthority('ADMIN')")
     @PostMapping(value = "/signup/csv", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<SuccessResponse<Map<String, String>>> signupFromCsv(
             @RequestParam("file") MultipartFile file) throws IOException {
         if (file.isEmpty()) {
-            throw new com.github.codehive.model.exception.ValidationException("CSV file is empty");
+            throw new ValidationException("CSV file is empty");
         }
         byte[] csvData = file.getBytes();
         String taskId = UUID.randomUUID().toString();
@@ -140,7 +142,10 @@ public class AuthController {
     @PutMapping("/me/password")
     public ResponseEntity<SuccessResponse<Void>> updatePassword(
             @RequestHeader(value = "Authorization") String authHeader,
-            @Valid @RequestBody com.github.codehive.model.request.auth.UpdatePasswordRequest request) {
+            @Valid @RequestBody UpdatePasswordRequest request) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ") || authHeader.length() <= 7) {
+            throw new ValidationException("Invalid Authorization header format");
+        }
         String token = authHeader.substring(7);
         UserDTO userDTO = authService.getUserByToken(token);
         authService.updatePassword(userDTO.getId(), request);

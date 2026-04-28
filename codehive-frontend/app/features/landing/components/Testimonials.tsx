@@ -1,9 +1,13 @@
+import irminAvatar from "~/assets/creators/irmin.png";
+import johannAvatar from "~/assets/creators/johann.png";
+import rodolfoAvatar from "~/assets/creators/rodolfo.png";
+
 const creators = [
   {
     name: "Irmin Hernandez Jimenez",
     role: "Co-Founder & Lead Developer",
     bio: "I am eager to apply my technical knowledge and problem-solving skills in a challenging and innovative environment.",
-    avatar: "/assets/creators/irmin.png",
+    avatar: irminAvatar,
     socials: {
       github: "https://github.com/IrminDev/",
       linkedin: "https://www.linkedin.com/in/irmindev/",
@@ -13,7 +17,7 @@ const creators = [
     name: "Johann Daniel Trejo Flores",
     role: "Co-Founder & Backend Engineer",
     bio: "Dedicated to creating robust and scalable systems that power the next generation of coding education.",
-    avatar: "/assets/creators/johann.png",
+    avatar: johannAvatar,
     socials: {
       github: "https://github.com/johannTF/",
       linkedin: "https://www.linkedin.com/in/johann-trejo/",
@@ -23,7 +27,7 @@ const creators = [
     name: "Rodolfo Aparicio Lopez",
     role: "Co-Founder & UI/UX Designer",
     bio: "Focused on crafting intuitive and beautiful experiences that inspire students and teachers alike.",
-    avatar: "/assets/creators/rodolfo.png",
+    avatar: rodolfoAvatar,
     socials: {
       github: "https://github.com/rodolfo-rgb",
       linkedin:

@@ -1,7 +1,7 @@
 import type { Route } from "./+types/admin.create-user";
 import { ProtectedRoute } from "~/core/components/ProtectedRoute";
 import { CreateUserPage } from "../pages/CreateUserPage";
-import { Role } from "~/shared/types";
+import { Role } from "~/shared/types/model/User";
 
 export function meta({}: Route.MetaArgs) {
   return [
