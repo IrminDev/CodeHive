@@ -11,5 +11,4 @@ export const routes = [
   ...authRoutes,
   ...adminRoutes,
   ...dashboardRoutes,
-  route(".well-known/appspecific/com.chrome.devtools.json", "core/router/devtools.ts"),
 ] satisfies RouteConfig;

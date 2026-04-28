@@ -1,5 +1,5 @@
 import type { Route } from "./+types/admin.csv-upload";
-import { ProtectedRoute } from "~/features/auth/components/ProtectedRoute";
+import { ProtectedRoute } from "~/core/components/ProtectedRoute";
 import { CsvUploadPage } from "../pages/CsvUploadPage";
 import { Role } from "~/shared/types";
 

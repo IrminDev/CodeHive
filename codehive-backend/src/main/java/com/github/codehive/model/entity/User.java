@@ -50,9 +50,6 @@ public class User implements UserDetails {
     @Enumerated(EnumType.STRING)
     private Role role;
 
-    @Column(nullable = true, length = 255)
-
-
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
@@ -87,7 +84,6 @@ public class User implements UserDetails {
         this.temporaryPassword = false;
         this.scopes = new ArrayList<>();
     }
-
 
     public Long getId() {
         return id;
@@ -145,7 +141,6 @@ public class User implements UserDetails {
         this.role = role;
     }
 
-
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
@@ -179,8 +174,10 @@ public class User implements UserDetails {
     }
 
     public void addScope(Scope scope) {
-        if (scope == null) return;
-        if (this.scopes == null) this.scopes = new ArrayList<>();
+        if (scope == null)
+            return;
+        if (this.scopes == null)
+            this.scopes = new ArrayList<>();
         if (!this.scopes.contains(scope)) {
             this.scopes.add(scope);
         }

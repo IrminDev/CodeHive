@@ -1,5 +1,5 @@
 import type { Route } from "./+types/dashboard";
-import { ProtectedRoute } from "~/features/auth/components/ProtectedRoute";
+import { ProtectedRoute } from "~/core/components/ProtectedRoute";
 import { DashboardPage } from "../pages/DashboardPage";
 
 export function meta({}: Route.MetaArgs) {

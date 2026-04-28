@@ -1,5 +1,5 @@
 import type { Route } from "./+types/admin";
-import { ProtectedRoute } from "~/features/auth/components/ProtectedRoute";
+import { ProtectedRoute } from "~/core/components/ProtectedRoute";
 import { AdminDashboardPage } from "../pages/AdminDashboardPage";
 import { Role } from "~/shared/types";
 
