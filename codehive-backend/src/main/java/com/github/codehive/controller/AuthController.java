@@ -2,7 +2,6 @@ package com.github.codehive.controller;
 
 import java.io.IOException;
 import java.util.Map;
-import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -19,13 +18,13 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.github.codehive.model.dto.UserDTO;
+import com.github.codehive.model.exception.ValidationException;
 import com.github.codehive.model.request.auth.LoginRequest;
 import com.github.codehive.model.request.auth.SignUpRequest;
 import com.github.codehive.model.request.auth.UpdatePasswordRequest;
-import com.github.codehive.model.response.SuccessResponse;
 import com.github.codehive.model.response.ErrorResponse;
+import com.github.codehive.model.response.SuccessResponse;
 import com.github.codehive.model.response.auth.AuthResponse;
-import com.github.codehive.model.exception.ValidationException;
 import com.github.codehive.ratelimit.RateLimit;
 import com.github.codehive.service.AuthService;
 import com.github.codehive.service.CsvRegistrationService;
@@ -45,7 +44,7 @@ public class AuthController {
     private final AuthService authService;
     private final CsvRegistrationService csvRegistrationService;
 
-    public AuthController(AuthService authService, CsvRegistrationService csvRegistrationService) {
+        public AuthController(AuthService authService, CsvRegistrationService csvRegistrationService) {
         this.authService = authService;
         this.csvRegistrationService = csvRegistrationService;
     }
@@ -126,8 +125,7 @@ public class AuthController {
             throw new ValidationException("CSV file is empty");
         }
         byte[] csvData = file.getBytes();
-        String taskId = UUID.randomUUID().toString();
-        csvRegistrationService.processAsync(csvData, taskId);
+        String taskId = csvRegistrationService.submitCsvJob(csvData);        
         Map<String, String> taskInfo = Map.of("taskId", taskId);
         SuccessResponse<Map<String, String>> response = new SuccessResponse<>("CSV processing started", taskInfo);
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);

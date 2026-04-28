@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import java.util.regex.Pattern;
 
 import org.apache.commons.csv.CSVFormat;
@@ -15,6 +16,7 @@ import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -39,13 +41,22 @@ public class CsvRegistrationService {
     private final PasswordEncoder passwordEncoder;
     private final MailSenderService mailSenderService;
     private final CsvProgressWebSocketHandler webSocketHandler;
+    private final ObjectProvider<CsvRegistrationService> selfProvider;
 
     public CsvRegistrationService(UserRepository userRepository, PasswordEncoder passwordEncoder,
-                                   MailSenderService mailSenderService, CsvProgressWebSocketHandler webSocketHandler) {
+                                   MailSenderService mailSenderService, CsvProgressWebSocketHandler webSocketHandler,
+                                   ObjectProvider<CsvRegistrationService> selfProvider) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.mailSenderService = mailSenderService;
         this.webSocketHandler = webSocketHandler;
+        this.selfProvider = selfProvider;
+    }
+
+    public String submitCsvJob(byte[] csvData) {
+        String taskId = UUID.randomUUID().toString();
+        webSocketHandler.queueTask(taskId, () -> selfProvider.getObject().processAsync(csvData, taskId));
+        return taskId;
     }
 
     @Async

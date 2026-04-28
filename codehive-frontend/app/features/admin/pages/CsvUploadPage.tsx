@@ -71,7 +71,9 @@ export function CsvUploadPage() {
       };
 
       ws.onerror = () => {
-        setErrorMessage("WebSocket connection error. Check your connection.");
+        setErrorMessage(
+          "A connection error occurred while tracking progress. Please check your connection.",
+        );
         setIsLoading(false);
         cleanupWebSocket();
       };
