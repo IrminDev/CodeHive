@@ -1,10 +1,12 @@
 import type { Group } from "../types/dashboard.types";
+import { API_BASE_URL } from "~/core/config/env";
+import { getAuthToken } from "~/core/storage/token.storage";
 
 export const MOCK_GROUPS: Group[] = [
   {
     id: "1",
-    name: "Advanced Algorithms 2026",
-    subject: "Computer Science",
+    name: "Fundamentos de programación",
+    subject: "Primer semestre",
     colorClass: "bg-blue-600",
     pendingPractices: 2,
     inProgress: 1,
@@ -12,8 +14,8 @@ export const MOCK_GROUPS: Group[] = [
   },
   {
     id: "2",
-    name: "Web Development Fundamentals",
-    subject: "Software Engineering",
+    name: "Algoritmos y Estructuras de Datos",
+    subject: "Segundo semestre",
     colorClass: "bg-teal-500",
     pendingPractices: 0,
     inProgress: 1,
@@ -21,8 +23,8 @@ export const MOCK_GROUPS: Group[] = [
   },
   {
     id: "3",
-    name: "Data Structures Spring",
-    subject: "Computer Science",
+    name: "Análisis y Diseño de Algoritmos",
+    subject: "Tercer semestre",
     colorClass: "bg-orange-500",
     pendingPractices: 1,
     inProgress: 0,
@@ -30,8 +32,8 @@ export const MOCK_GROUPS: Group[] = [
   },
   {
     id: "4",
-    name: "Introduction to Python",
-    subject: "Programming Basics",
+    name: "Algoritmos y Estructuras de datos",
+    subject: "Segundo Semestre",
     colorClass: "bg-yellow-500",
     pendingPractices: 0,
     inProgress: 2,
@@ -45,8 +47,8 @@ export const getGroups = async (): Promise<Group[]> => {
 };
 
 export const updatePassword = async (currentPassword: string, newPassword: string) => {
-  const token = localStorage.getItem("auth_token");
-  const response = await fetch("/api/auth/me/password", {
+  const token = getAuthToken();
+  const response = await fetch(`${API_BASE_URL}/api/auth/me/password`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
