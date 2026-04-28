@@ -10,7 +10,7 @@ import {
 import type { Route } from "./+types/root";
 import "./styles/global.css";
 import { AuthProvider } from "~/core/providers/AuthProvider";
-import { ThemeProvider } from "~/core/providers/ThemeProvider";
+import { ThemeProvider, useTheme } from "~/core/providers/ThemeProvider";
 import { Toaster } from "sileo";
 
 export const links: Route.LinksFunction = () => [
@@ -61,11 +61,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
   );
 }
 
+function ThemedToaster() {
+  const { theme } = useTheme();
+  return <Toaster position="bottom-right" theme={theme} />;
+}
+
 export default function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <Toaster />
+        <ThemedToaster />
         <Outlet />
       </AuthProvider>
     </ThemeProvider>
