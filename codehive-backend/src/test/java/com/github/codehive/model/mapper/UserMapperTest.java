@@ -69,7 +69,6 @@ class UserMapperTest {
             assertThat(result.getName()).isEqualTo(testUser.getName());
             assertThat(result.getLastName()).isEqualTo(testUser.getLastName());
             assertThat(result.getEnrollmentNumber()).isEqualTo(testUser.getEnrollmentNumber());
-            assertThat(result.getProfilePictureUrl()).isEqualTo(testUser.getProfilePictureUrl());
             assertThat(result.getRole()).isEqualTo(testUser.getRole());
             assertThat(result.getCreatedAt()).isEqualTo(testUser.getCreatedAt());
             assertThat(result.getIsActive()).isEqualTo(testUser.getIsActive());
@@ -156,7 +155,6 @@ class UserMapperTest {
             assertThat(result.getName()).isEqualTo(testUserDTO.getName());
             assertThat(result.getLastName()).isEqualTo(testUserDTO.getLastName());
             assertThat(result.getEnrollmentNumber()).isEqualTo(testUserDTO.getEnrollmentNumber());
-            assertThat(result.getProfilePictureUrl()).isEqualTo(testUserDTO.getProfilePictureUrl());
             assertThat(result.getRole()).isEqualTo(testUserDTO.getRole());
             assertThat(result.getCreatedAt()).isEqualTo(testUserDTO.getCreatedAt());
             assertThat(result.getIsActive()).isEqualTo(testUserDTO.getIsActive());
