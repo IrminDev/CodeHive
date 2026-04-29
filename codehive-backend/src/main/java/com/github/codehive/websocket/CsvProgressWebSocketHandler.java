@@ -3,6 +3,9 @@ package com.github.codehive.websocket;
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,34 +18,52 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.codehive.model.response.auth.CsvProgressMessage;
 
+import jakarta.annotation.PreDestroy;
+
 @Component
 public class CsvProgressWebSocketHandler extends TextWebSocketHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(CsvProgressWebSocketHandler.class);
 
+    private static final String TASK_ID_ATTRIBUTE = "taskId";
+    private static final long PENDING_TASK_TTL_MINUTES = 5;
+
     private final Map<String, WebSocketSession> taskSessions = new ConcurrentHashMap<>();
+    private final Map<String, Runnable> pendingTasks = new ConcurrentHashMap<>();
     private final ObjectMapper objectMapper;
+    private final ScheduledExecutorService cleanupScheduler = Executors.newSingleThreadScheduledExecutor();
 
     public CsvProgressWebSocketHandler(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
     }
 
     @Override
-    public void afterConnectionEstablished(WebSocketSession session) {
-        logger.debug("WebSocket connection established: {}", session.getId());
-    }
-
-    @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message) {
         String taskId = message.getPayload().trim();
+        session.getAttributes().put(TASK_ID_ATTRIBUTE, taskId);
         taskSessions.put(taskId, session);
-        logger.debug("Client subscribed to task: {}", taskId);
+        Runnable task = pendingTasks.remove(taskId);
+        if (task != null) {
+            task.run();
+        }
+    }
+
+    public void queueTask(String taskId, Runnable task) {
+        pendingTasks.put(taskId, task);
+
+        cleanupScheduler.schedule(
+                () -> pendingTasks.remove(taskId, task),
+                PENDING_TASK_TTL_MINUTES,
+                TimeUnit.MINUTES);
     }
 
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
-        taskSessions.values().removeIf(s -> s.getId().equals(session.getId()));
-        logger.debug("WebSocket connection closed: {}", session.getId());
+        String taskId = (String) session.getAttributes().get(TASK_ID_ATTRIBUTE);
+        if (taskId != null) {
+            taskSessions.remove(taskId);
+            pendingTasks.remove(taskId);
+        }
     }
 
     public void sendProgress(String taskId, CsvProgressMessage progress) {
@@ -58,6 +79,20 @@ public class CsvProgressWebSocketHandler extends TextWebSocketHandler {
     }
 
     public void completeTask(String taskId) {
-        taskSessions.remove(taskId);
+        WebSocketSession session = taskSessions.remove(taskId);
+        pendingTasks.remove(taskId);
+
+        if (session != null && session.isOpen()) {
+            try {
+                session.close(CloseStatus.NORMAL);
+            } catch (IOException e) {
+                logger.warn("Error closing WebSocket session for task {}", taskId, e);
+            }
+        }
+    }
+
+    @PreDestroy
+    public void shutdownScheduler() {
+        cleanupScheduler.shutdownNow();
     }
 }

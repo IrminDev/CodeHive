@@ -2,6 +2,7 @@ package com.github.codehive.controller;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -27,6 +28,7 @@ import com.github.codehive.model.entity.User;
 import com.github.codehive.model.enums.Role;
 import com.github.codehive.model.request.auth.LoginRequest;
 import com.github.codehive.model.request.auth.SignUpRequest;
+import com.github.codehive.model.request.auth.UpdatePasswordRequest;
 import com.github.codehive.config.TestAsyncConfig;
 import com.github.codehive.repository.UserRepository;
 import com.github.codehive.service.MailSenderService;
@@ -82,7 +84,6 @@ class AuthControllerIntegrationTest {
         testUser.setPassword(passwordEncoder.encode("password123"));
         testUser.setEnrollmentNumber("ENR001");
         testUser.setRole(Role.STUDENT);
-        testUser.setProfilePictureUrl("/static/images/default-avatar.png");
         testUser.setIsActive(true);
         testUser.setTemporaryPassword(false);
         userRepository.save(testUser);
@@ -95,7 +96,6 @@ class AuthControllerIntegrationTest {
         adminUser.setPassword(passwordEncoder.encode("admin123"));
         adminUser.setEnrollmentNumber("ADM001");
         adminUser.setRole(Role.ADMIN);
-        adminUser.setProfilePictureUrl("/static/images/default-avatar.png");
         adminUser.setIsActive(true);
         adminUser.setTemporaryPassword(false);
         adminUser = userRepository.save(adminUser);
@@ -557,30 +557,7 @@ class AuthControllerIntegrationTest {
                     .andExpect(jsonPath("$.data.taskId").exists());
         }
 
-        @Test
-        @DisplayName("Returns 202 and processes CSV asynchronously")
-        void signupCsv_WithValidCsv_ReturnsTaskId() throws Exception {
-            // Given
-            String csv = "STUDENT,Juan,Garcia,Lopez,20230001,juan@example.com\n";
-            MockMultipartFile file = new MockMultipartFile("file", "users.csv", "text/csv",
-                    csv.getBytes(StandardCharsets.UTF_8));
 
-            // When
-            mockMvc.perform(multipart("/api/auth/signup/csv")
-                    .file(file)
-                    .header("Authorization", "Bearer " + adminToken))
-                    .andExpect(status().isAccepted())
-                    .andExpect(jsonPath("$.data.taskId").exists());
-
-            // Then - wait for async processing
-            Thread.sleep(2000);
-            User savedUser = userRepository.findByEmail("juan@example.com").orElseThrow();
-            assert savedUser.getName().equals("Juan");
-            assert savedUser.getLastName().equals("Garcia Lopez");
-            assert savedUser.getEnrollmentNumber().equals("20230001");
-            assert savedUser.getRole() == Role.STUDENT;
-            assert savedUser.getTemporaryPassword();
-        }
     }
 
     @Nested
@@ -695,6 +672,80 @@ class AuthControllerIntegrationTest {
                     .content(objectMapper.writeValueAsString(signUpRequest)))
                     .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.data.password").doesNotExist());
+        }
+    }
+
+    @Nested
+    @DisplayName("PUT /api/auth/me/password")
+    class UpdatePasswordEndpointTests {
+
+        @Test
+        @DisplayName("Returns 200 and updates password with valid request")
+        void updatePassword_WithValidRequest_ReturnsOk() throws Exception {
+            // Given
+            UpdatePasswordRequest request = new UpdatePasswordRequest();
+            request.setCurrentPassword("admin123");
+            request.setNewPassword("newAdminPass456");
+
+            // When/Then
+            mockMvc.perform(put("/api/auth/me/password")
+                    .header("Authorization", "Bearer " + adminToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.message").value("Password updated successfully"));
+
+            // Verify password actually changed
+            User updatedAdmin = userRepository.findByEmail("admin@example.com").orElseThrow();
+            assert passwordEncoder.matches("newAdminPass456", updatedAdmin.getPassword());
+        }
+
+        @Test
+        @DisplayName("Returns 401 when current password is incorrect")
+        void updatePassword_WithIncorrectCurrentPassword_ReturnsUnauthorized() throws Exception {
+            // Given
+            UpdatePasswordRequest request = new UpdatePasswordRequest();
+            request.setCurrentPassword("wrongPassword");
+            request.setNewPassword("newAdminPass456");
+
+            // When/Then
+            mockMvc.perform(put("/api/auth/me/password")
+                    .header("Authorization", "Bearer " + adminToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isUnauthorized())
+                    .andExpect(jsonPath("$.error").value("Incorrect current password"));
+        }
+
+        @Test
+        @DisplayName("Returns 403 when token is missing")
+        void updatePassword_WithoutToken_ReturnsForbidden() throws Exception {
+            // Given
+            UpdatePasswordRequest request = new UpdatePasswordRequest();
+            request.setCurrentPassword("admin123");
+            request.setNewPassword("newAdminPass456");
+
+            // When/Then
+            mockMvc.perform(put("/api/auth/me/password")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isForbidden());
+        }
+        
+        @Test
+        @DisplayName("Returns 400 when validation fails (empty password)")
+        void updatePassword_WithEmptyNewPassword_ReturnsBadRequest() throws Exception {
+            // Given
+            UpdatePasswordRequest request = new UpdatePasswordRequest();
+            request.setCurrentPassword("admin123");
+            request.setNewPassword(""); // Invalid
+
+            // When/Then
+            mockMvc.perform(put("/api/auth/me/password")
+                    .header("Authorization", "Bearer " + adminToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isBadRequest());
         }
     }
 }

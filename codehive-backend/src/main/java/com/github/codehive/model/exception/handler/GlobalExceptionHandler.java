@@ -54,7 +54,11 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(IncorrectCredentialsException.class)
     public ResponseEntity<ErrorResponse> handleIncorrectCredentials(IncorrectCredentialsException ex) {
-        ErrorResponse errorResponse = new ErrorResponse("Authentication failed", "Invalid email or password");
+        String message = ex.getMessage();
+        if (message == null || message.equals("Invalid credentials")) {
+            message = "Invalid email or password";
+        }
+        ErrorResponse errorResponse = new ErrorResponse("Authentication failed", message);
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
     }
 

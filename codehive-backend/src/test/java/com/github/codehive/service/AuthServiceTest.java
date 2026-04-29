@@ -75,7 +75,6 @@ class AuthServiceTest {
         testUser.setLastName("Doe Smith");
         testUser.setEnrollmentNumber("ENR001");
         testUser.setRole(Role.STUDENT);
-        testUser.setProfilePictureUrl("https://example.com/pic.jpg");
         testUser.setIsActive(true);
         testUser.setTemporaryPassword(false);
 

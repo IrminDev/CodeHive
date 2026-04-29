@@ -14,7 +14,7 @@ public class UserDTO {
     private String name;
     private String lastName;
     private String enrollmentNumber;
-    private String profilePictureUrl;
+
     private Role role;
     private LocalDateTime createdAt;
     private List<Scope> scopes;
@@ -61,13 +61,7 @@ public class UserDTO {
         this.enrollmentNumber = enrollmentNumber;
     }
 
-    public String getProfilePictureUrl() {
-        return profilePictureUrl;
-    }
 
-    public void setProfilePictureUrl(String profilePictureUrl) {
-        this.profilePictureUrl = profilePictureUrl;
-    }
 
     public Role getRole() {
         return role;

@@ -1,87 +1,68 @@
-# Welcome to React Router!
+<p align="center">
+	<h1 align="center">CodeHive • Frontend</h1>
+</p>
 
-A modern, production-ready template for building full-stack React applications using React Router.
+<p align="center">
+	<em>Aplicación web (SSR) construida con React Router + Vite para consumir el backend de CodeHive.</em>
+</p>
 
-[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/remix-run/react-router-templates/tree/main/default)
+<p align="center">
+	<img src="https://img.shields.io/badge/Node.js-20%2B-339933?style=flat&logo=node.js&logoColor=white" alt="Node.js 20+" />
+	<img src="https://img.shields.io/badge/React%20Router-7-CA4245?style=flat&logo=reactrouter&logoColor=white" alt="React Router 7" />
+	<img src="https://img.shields.io/badge/Docker-ready-2496ED?style=flat&logo=docker&logoColor=white" alt="Docker" />
+</p>
 
-## Features
+## Requisitos
 
-- 🚀 Server-side rendering
-- ⚡️ Hot Module Replacement (HMR)
-- 📦 Asset bundling and optimization
-- 🔄 Data loading and mutations
-- 🔒 TypeScript by default
-- 🎉 TailwindCSS for styling
-- 📖 [React Router docs](https://reactrouter.com/)
+- Node.js 20+
 
-## Getting Started
+## Variables de entorno
 
-### Installation
+Crear el archivo `.env` en la raíz del frontend:
 
-Install the dependencies:
+```env
+VITE_API_URL=http://localhost:8080
+```
+
+## Ejecutar en desarrollo (local)
 
 ```bash
 npm install
-```
-
-### Development
-
-Start the development server with HMR:
-
-```bash
 npm run dev
 ```
 
-Your application will be available at `http://localhost:5173`.
+- App: `http://localhost:5173`
 
-## Building for Production
-
-Create a production build:
+## Ejecutar en producción (local)
 
 ```bash
 npm run build
+npm run start
 ```
 
-## Deployment
+- App: `http://localhost:3000`
 
-### Docker Deployment
+## Docker
 
-To build and run using Docker:
+Dev (por defecto):
 
 ```bash
-docker build -t my-app .
-
-# Run the container
-docker run -p 3000:3000 my-app
+docker compose up --build
 ```
 
-The containerized application can be deployed to any platform that supports Docker, including:
+Prod:
 
-- AWS ECS
-- Google Cloud Run
-- Azure Container Apps
-- Digital Ocean App Platform
-- Fly.io
-- Railway
-
-### DIY Deployment
-
-If you're familiar with deploying Node applications, the built-in app server is production-ready.
-
-Make sure to deploy the output of `npm run build`
-
-```
-├── package.json
-├── package-lock.json (or pnpm-lock.yaml, or bun.lockb)
-├── build/
-│   ├── client/    # Static assets
-│   └── server/    # Server-side code
+```bash
+DOCKER_TARGET=prod docker compose up --build
 ```
 
-## Styling
+Nota: si alguna llamada al backend se ejecuta desde el servidor SSR dentro del contenedor, `http://localhost:8080` apuntará al contenedor (no al host). En ese caso, ajusta `VITE_API_URL` a la IP del host o a `http://host.docker.internal:8080` (si está disponible en tu Docker).
 
-This template comes with [Tailwind CSS](https://tailwindcss.com/) already configured for a simple default starting experience. You can use whatever CSS framework you prefer.
+## Scripts útiles
 
----
-
-Built with ❤️ using React Router.
+| Script              | Descripción                  |
+| ------------------- | ---------------------------- |
+| `npm run dev`       | Servidor de desarrollo       |
+| `npm run build`     | Build de producción          |
+| `npm run start`     | Servidor de producción       |
+| `npm run typecheck` | Typegen + TypeScript         |
