@@ -228,4 +228,18 @@ public class AuthService {
         claims.put("role", user.getRole().name());
         return jwtUtil.generateToken(claims, user.getEmail());
     }
+
+    @Transactional
+    public void updatePassword(Long userId, com.github.codehive.model.request.auth.UpdatePasswordRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IncorrectCredentialsException("User not found"));
+
+        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
+            throw new IncorrectCredentialsException("Incorrect current password");
+        }
+
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        user.setTemporaryPassword(false);
+        userRepository.save(user);
+    }
 }

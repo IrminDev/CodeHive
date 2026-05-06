@@ -73,7 +73,6 @@ class RecoveryPasswordControllerIntegrationTest {
         testUser.setPassword(passwordEncoder.encode("oldpassword123"));
         testUser.setEnrollmentNumber("ENR001");
         testUser.setRole(Role.STUDENT);
-        testUser.setProfilePictureUrl("/static/images/default-avatar.png");
         testUser.setIsActive(true);
         userRepository.save(testUser);
     }

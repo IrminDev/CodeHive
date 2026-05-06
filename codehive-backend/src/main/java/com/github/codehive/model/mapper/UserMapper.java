@@ -16,7 +16,6 @@ public class UserMapper {
         dto.setName(user.getName());
         dto.setLastName(user.getLastName());
         dto.setEnrollmentNumber(user.getEnrollmentNumber());
-        dto.setProfilePictureUrl(user.getProfilePictureUrl());
         dto.setRole(user.getRole());
         dto.setCreatedAt(user.getCreatedAt());
         dto.setIsActive(user.getIsActive());
@@ -35,7 +34,6 @@ public class UserMapper {
         user.setName(dto.getName());
         user.setLastName(dto.getLastName());
         user.setEnrollmentNumber(dto.getEnrollmentNumber());
-        user.setProfilePictureUrl(dto.getProfilePictureUrl());
         user.setRole(dto.getRole());
         user.setCreatedAt(dto.getCreatedAt());
         user.setIsActive(dto.getIsActive());

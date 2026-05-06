@@ -1,0 +1,14 @@
+services:
+  frontend:
+    build:
+      context: .
+      target: ${DOCKER_TARGET:-dev}
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8080}
+    environment:
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:8080}
+    ports:
+      # Dev server (react-router dev)
+      - "5173:5173"
+      # Production server (react-router-serve). Uncomment for production.
+      # - "3000:3000"

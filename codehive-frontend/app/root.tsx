@@ -8,7 +8,10 @@ import {
 } from "react-router";
 
 import type { Route } from "./+types/root";
-import "./app.css";
+import "./styles/global.css";
+import { AuthProvider } from "~/core/providers/AuthProvider";
+import { ThemeProvider, useTheme } from "~/core/providers/ThemeProvider";
+import { Toaster } from "sileo";
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -58,8 +61,20 @@ export function Layout({ children }: { children: React.ReactNode }) {
   );
 }
 
+function ThemedToaster() {
+  const { theme } = useTheme();
+  return <Toaster position="bottom-right" theme={theme} />;
+}
+
 export default function App() {
-  return <Outlet />;
+  return (
+    <ThemeProvider>
+      <AuthProvider>
+        <ThemedToaster />
+        <Outlet />
+      </AuthProvider>
+    </ThemeProvider>
+  );
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
