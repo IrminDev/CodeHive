@@ -1,0 +1,50 @@
+# ============================================================
+# STEP 7 — PRACTICE execution: Python WA solution
+#
+# Mode:    PRACTICE
+# Language: PYTHON
+# Verdict:  WA (Wrong Answer) on the all-negative test case
+#
+# The buggy solution initialises max_sum = 0 instead of
+# max_sum = window. It produces the correct answer whenever
+# the maximum sum is positive, but returns 0 for arrays whose
+# every subarray sum is negative.
+#
+# Test case used here: "6\n-1 -2 -3 -4 -5 -6\n2"
+#   Correct answer : -3   (window [-1, -2])
+#   Buggy output   :  0   → WA
+#
+# A second test case with positive values is also included to
+# show the solution passes when the answer is non-negative.
+#
+# Set @token from 01_login.http response.
+# assignmentId is optional for PRACTICE but recommended.
+#
+# Compatible with: VS Code REST Client, IntelliJ HTTP Client
+# ============================================================
+
+@baseUrl      = http://localhost:8080
+@token        = <paste-token-here>
+@assignmentId = <paste-assignment-id-here>
+
+### Practice run — Python WA solution (max_sum = 0 bug)
+POST {{baseUrl}}/api/execution/check
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "code": "import sys\n\ndef main():\n    data = sys.stdin.read().split()\n    n = int(data[0])\n    nums = [int(data[i + 1]) for i in range(n)]\n    k = int(data[n + 1])\n    if k > n or k <= 0:\n        print(0)\n        return\n    window = sum(nums[:k])\n    max_sum = 0\n    if window > max_sum:\n        max_sum = window\n    for i in range(k, n):\n        window += nums[i] - nums[i - k]\n        if window > max_sum:\n            max_sum = window\n    print(max_sum)\n\nmain()",
+  "language": "PYTHON",
+  "assignmentId": "{{assignmentId}}",
+  "executionType": "PRACTICE",
+  "testCases": [
+    "6\n-1 -2 -3 -4 -5 -6\n2",
+    "5\n1 2 3 4 5\n2"
+  ]
+}
+
+###
+# Expected result after polling 05_poll_execution.http:
+#   status: COMPLETED
+#   testCaseResults[0]: verdict=WA  got="0"   expected="-3"
+#   testCaseResults[1]: verdict=AC  got="9"   expected="9"
