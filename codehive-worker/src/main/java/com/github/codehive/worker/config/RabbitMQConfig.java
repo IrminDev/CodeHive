@@ -3,34 +3,43 @@ package com.github.codehive.worker.config;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class RabbitMQConfig {
-    public static final String QUEUE_NAME = System.getProperty("rabbitmq.queue", "codehive_queue");
-    public static final String RESULT_QUEUE_NAME = System.getProperty("rabbitmq.result.queue", "codehive_result_queue");
-    public static final String TEST_GENERATION_QUEUE_NAME = System.getProperty("rabbitmq.test-generation.queue", "codehive_test_generation_queue");
-    public static final String TEST_GENERATION_RESULT_QUEUE_NAME = System.getProperty("rabbitmq.test-generation.result.queue", "codehive_test_generation_result_queue");
+
+    @Value("${rabbitmq.queue:codehive_queue}")
+    private String queueName;
+
+    @Value("${rabbitmq.result.queue:codehive_result_queue}")
+    private String resultQueueName;
+
+    @Value("${rabbitmq.test-generation.queue:codehive_test_generation_queue}")
+    private String testGenerationQueueName;
+
+    @Value("${rabbitmq.test-generation.result.queue:codehive_test_generation_result_queue}")
+    private String testGenerationResultQueueName;
 
     @Bean
     Queue executionQueue() {
-        return new Queue(QUEUE_NAME, true);
+        return new Queue(queueName, true);
     }
 
     @Bean
     Queue resultQueue() {
-        return new Queue(RESULT_QUEUE_NAME, true);
+        return new Queue(resultQueueName, true);
     }
 
     @Bean
     Queue testGenerationQueue() {
-        return new Queue(TEST_GENERATION_QUEUE_NAME, true);
+        return new Queue(testGenerationQueueName, true);
     }
 
     @Bean
     Queue testGenerationResultQueue() {
-        return new Queue(TEST_GENERATION_RESULT_QUEUE_NAME, true);
+        return new Queue(testGenerationResultQueueName, true);
     }
 
     @Bean

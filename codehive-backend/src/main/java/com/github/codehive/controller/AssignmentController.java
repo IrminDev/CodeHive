@@ -63,7 +63,7 @@ public class AssignmentController {
             content = @Content(schema = @Schema(implementation = ErrorResponse.class))
         )
     })
-    @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
+    @PreAuthorize("hasAnyAuthority('TEACHER', 'ADMIN')")
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<SuccessResponse<AssignmentDTO>> createAssignment(
             @Valid @RequestPart("metadata") CreateAssignmentRequest metadata,
