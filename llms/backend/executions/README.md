@@ -1,75 +1,100 @@
 # Backend Execution Orchestration
 
 ## Scope
-This document explains how the backend receives execution requests, persists execution state, stores source code, and coordinates with the worker.
+This document explains assignment creation, execution requests, and execution result processing.
 
 Primary classes:
+- controller/AssignmentController.java
 - controller/CheckExecutionController.java
+- service/AssignmentService.java
 - service/ExecutionRequestService.java
 - service/ExecutionResultService.java
 - messaging/producer/ExecutionRequestProducer.java
+- messaging/producer/TestGenerationRequestProducer.java
 - messaging/listener/ExecutionResultListener.java
+- messaging/listener/TestGenerationResultListener.java
 
-## Request-to-Queue Flow
-1. Client sends ExecutionRequest to POST /api/execution/check.
-2. Controller validates payload and delegates to ExecutionRequestService.
-3. Service creates Execution entity with status PENDING.
-4. Source code is uploaded to MinIO via ObjectStorageService.
-5. Service builds ExecutionJob payload.
-6. Producer sends ExecutionJob to RabbitMQ queue.
-7. API returns 202 Accepted with ExecutionDTO (for polling).
+## Assignment Creation Flow (Teacher)
+1. Teacher sends `POST /api/assignments` (multipart/form-data).
+   - Part `metadata`: JSON matching CreateAssignmentRequest.
+   - Part `referenceSolution`: source file.
+   - Part `testCaseInputs`: list of test case input files.
+2. AssignmentService:
+   - Creates Assignment entity with `isActive = false`.
+   - Creates ReferenceSolution entity.
+   - Creates TestCase entities (order = upload position, isSample from sampleFlags).
+   - Uploads reference solution to `test-suites/assignments/{id}/reference/Main.{ext}`.
+   - Uploads each test case input to `test-suites/assignments/{id}/tc-{tcId}/tc{tcId}.in`.
+   - Publishes TestGenerationJob to `codehive_test_generation_queue`.
+3. Worker generates expected outputs and publishes TestGenerationResult.
+4. TestGenerationResultListener sets `assignment.isActive = true` on success.
 
-## Result Processing Flow
+The API returns 202 Accepted immediately — output generation is asynchronous.
+
+## Request-to-Queue Flow (Student Execution)
+1. Client sends ExecutionRequest to `POST /api/execution/check`.
+2. Controller validates and delegates to ExecutionRequestService.
+3. Service loads Assignment to get real limits (timeLimitMs, memoryLimitMb, comparatorType).
+4. Service creates Execution entity with status PENDING.
+5. Source code is uploaded to MinIO via ObjectStorageService.
+6. Service builds ExecutionJob with assignment-driven values.
+7. Producer sends ExecutionJob to `codehive_queue`.
+8. API returns 202 Accepted with ExecutionDTO (for polling).
+
+## Result Processing Flow (Student Execution)
 1. Worker publishes ExecutionReport.
 2. ExecutionResultListener consumes the report.
 3. ExecutionResultService loads execution by id.
-4. Status/time/memory are updated in the executions table.
-5. Client retrieves updated status via GET /api/execution/check/{id}.
+4. Status, timeMs, and memoryMb are updated in the executions table.
+5. Client retrieves updated status via `GET /api/execution/check/{id}`.
 
 ## Key Data Contracts
-API request:
+Assignment creation request:
+- model/request/assignment/CreateAssignmentRequest.java
+
+Execution API request:
 - model/request/execution/ExecutionRequest.java
 
-Queue request:
+Queue payloads:
 - model/dto/queue/ExecutionJob.java
-
-Queue result:
 - model/dto/queue/ExecutionReport.java
+- model/dto/queue/TestGenerationJob.java (contains list of TestCaseInfo)
+- model/dto/queue/TestGenerationResult.java
 
 API polling response:
 - model/dto/ExecutionDTO.java
 
-## Current Constraints and Defaults
-- Time and memory limits are currently static defaults in ExecutionRequestService:
-  - time: 1000 ms
-  - memory: 256 MB
-- Comparator type is currently fixed to EXACT_MATCH.
-- Reference language is currently hard-coded in job building path.
-- TODO comments indicate this is temporary and should become assignment-driven.
+## Execution Job Construction
+PRACTICE mode:
+- Loads first ReferenceSolution for the assignment to get language and reference path.
+- Uses inline testCases from the request.
+- timeLimitMs, memoryLimitMb, comparatorType come from Assignment entity.
+
+DEFINITIVE mode:
+- No reference solution path needed (outputs already in MinIO).
+- numTests counted from TestCaseRepository.
+- testsPath from ObjectKeyBuilder.testsPath(assignmentId).
 
 ## Storage Keys and Artifacts
-Object paths are generated through ObjectKeyBuilder:
-- execution source keys
-- execution output keys
-- test suite and reference keys
-
-File extension mapping is resolved by FileExtensionUtil based on Language enum.
+Object paths are generated through ObjectKeyBuilder (utils/ObjectKeyBuilder.java).
+File extension mapping resolved by FileExtensionUtil based on Language enum.
 
 ## Persistence Model
-Execution entity fields track:
-- executionType
-- status
-- timeMs
-- memoryMb
-- createdAt
-- isOutdated
-- optional user
-- optional submission
+Assignment entity fields:
+- title, description, constraints, hints, tags
+- allowedLanguages (element collection)
+- timeLimitMs, memoryLimitMb, comparatorType
+- dueDate, createdAt, updatedAt
+- isActive (false while generation in progress, true when ready)
 
-Repository:
+Execution entity fields:
+- executionType, status (PENDING → final)
+- timeMs, memoryMb (set from worker result)
+- isOutdated, createdAt
+- optional user, optional submission
+
+Repositories:
+- repository/AssignmentRepository.java
 - repository/ExecutionRepository.java
-
-## Extension Guidance
-- Move defaults to assignment configuration and database-backed policies.
-- Version queue payloads when adding fields to avoid producer/consumer drift.
-- Keep execution polling backward compatible for frontend stability.
+- repository/TestCaseRepository.java
+- repository/ReferenceSolutionRepository.java

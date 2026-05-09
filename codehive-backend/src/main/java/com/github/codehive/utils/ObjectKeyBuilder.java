@@ -15,12 +15,12 @@ public class ObjectKeyBuilder {
         return String.format("test-suites/assignments/%s/", assignmentId);
     }
 
-    public static String submissionSourceCode(UUID assignmentId, UUID submissionId, String fileExtension, UUID groupId) {
-        return String.format("submissions/groups/%s/assignments/%s/submission-%s/Main.%s", groupId, assignmentId, submissionId, fileExtension);
+    public static String submissionSourceCode(UUID assignmentId, UUID submissionId, String fileExtension) {
+        return String.format("submissions/assignments/%s/submission-%s/Main.%s", assignmentId, submissionId, fileExtension);
     }
 
-    public static String executionOutput(UUID submissionId, UUID executionId, UUID groupId, String fileExtension) {
-        return String.format("executions/groups/%s/assignments/%s/execution-%s/output.%s", groupId, submissionId, executionId, fileExtension);
+    public static String executionOutput(UUID submissionId, UUID executionId, String fileExtension) {
+        return String.format("executions/assignments/%s/execution-%s/output.%s", submissionId, executionId, fileExtension);
     }
 
     public static String referenceSolutionSourceCode(UUID assignmentId, String fileExtension) {

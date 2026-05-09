@@ -7,6 +7,7 @@ Service classes:
 - AuthService
 - RecoveryPasswordService
 - CsvRegistrationService
+- AssignmentService
 - ExecutionRequestService
 - ExecutionResultService
 - ObjectStorageService
@@ -26,10 +27,7 @@ Responsibilities:
 - JWT issuance and user retrieval by token.
 
 Key dependencies:
-- UserRepository
-- PasswordEncoder
-- JwtUtil
-- MailSenderService
+- UserRepository, PasswordEncoder, JwtUtil, MailSenderService
 
 ## RecoveryPasswordService
 Responsibilities:
@@ -39,10 +37,7 @@ Responsibilities:
 - Validate token (exists, not expired, not used) and update password.
 
 Key dependencies:
-- PasswordResetTokenRepository
-- UserRepository
-- PasswordEncoder
-- MailSenderService
+- PasswordResetTokenRepository, UserRepository, PasswordEncoder, MailSenderService
 
 ## CsvRegistrationService
 Responsibilities:
@@ -54,31 +49,50 @@ Execution model:
 - Runs with @Async.
 - Uses taskId routing to send progress to subscribed clients.
 
+## AssignmentService
+Responsibilities:
+- Create Assignment, ReferenceSolution, and TestCase entities in one transaction.
+- Upload reference solution and test case inputs to MinIO via ObjectStorageService.
+- Publish TestGenerationJob to `codehive_test_generation_queue`.
+- Assignment is created with `isActive = false`; activated only after worker confirms output generation.
+
+Key dependencies:
+- AssignmentRepository, TestCaseRepository, ReferenceSolutionRepository
+- ObjectStorageService, TestGenerationRequestProducer
+
+Key detail: `sampleFlags` from the request is a parallel list to the uploaded files indicating which test cases are samples. Missing flags default to false.
+
 ## ExecutionRequestService
 Responsibilities:
-- Create execution records.
-- Persist source code to object storage.
-- Build ExecutionJob payload.
-- Send execution request to RabbitMQ.
+- Load Assignment entity to get real time/memory limits, comparator, and test count.
+- Load ReferenceSolution to determine reference language and storage path.
+- Create Execution entity.
+- Upload source code to MinIO.
+- Build and publish ExecutionJob to `codehive_queue`.
 
-Current implementation notes:
-- Contains TODOs indicating current behavior is oriented to manual test execution.
-- Uses default time/memory/comparator values pending assignment-driven policies.
+Key dependencies:
+- ExecutionRepository, AssignmentRepository, ReferenceSolutionRepository, TestCaseRepository
+- ObjectStorageService, ExecutionRequestProducer, UserRepository
+
+PRACTICE mode: uses inline testCases, resolves reference solution from DB.
+DEFINITIVE mode: numTests counted from TestCaseRepository, no reference solution needed at runtime.
 
 ## ExecutionResultService
 Responsibilities:
 - Consume worker reports (via listener call chain).
-- Update execution status and resource metrics.
+- Update execution status, timeMs, and memoryMb.
 - Persist result summary for polling clients.
 
 ## ObjectStorageService
 Responsibilities:
-- Upload and download artifacts from MinIO bucket.
-- Support both stream uploads and plain-text content uploads.
+- Upload artifacts to MinIO bucket: stream or plain-text overloads.
+- Download artifacts by object key.
+
+All keys follow ObjectKeyBuilder conventions.
 
 ## MailSenderService
 Responsibilities:
-- Send password recovery emails.
+- Send password recovery emails with reset links.
 - Send welcome emails with temporary credentials.
 
 Configuration-driven fields:

@@ -10,6 +10,8 @@ import org.springframework.context.annotation.Configuration;
 public class RabbitMQConfig {
     public static final String QUEUE_NAME = System.getProperty("rabbitmq.queue", "codehive_queue");
     public static final String RESULT_QUEUE_NAME = System.getProperty("rabbitmq.result.queue", "codehive_result_queue");
+    public static final String TEST_GENERATION_QUEUE_NAME = System.getProperty("rabbitmq.test-generation.queue", "codehive_test_generation_queue");
+    public static final String TEST_GENERATION_RESULT_QUEUE_NAME = System.getProperty("rabbitmq.test-generation.result.queue", "codehive_test_generation_result_queue");
 
     @Bean
     Queue executionQueue() {
@@ -19,6 +21,16 @@ public class RabbitMQConfig {
     @Bean
     Queue resultQueue() {
         return new Queue(RESULT_QUEUE_NAME, true);
+    }
+
+    @Bean
+    Queue testGenerationQueue() {
+        return new Queue(TEST_GENERATION_QUEUE_NAME, true);
+    }
+
+    @Bean
+    Queue testGenerationResultQueue() {
+        return new Queue(TEST_GENERATION_RESULT_QUEUE_NAME, true);
     }
 
     @Bean

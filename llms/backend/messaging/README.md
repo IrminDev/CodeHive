@@ -1,51 +1,74 @@
 # Backend Messaging Implementation
 
 ## Scope
-This document covers backend message production/consumption for code execution workflows.
+This document covers backend message production/consumption for code execution and assignment creation workflows.
 
 Key classes:
 - config/RabbitConfig.java
 - messaging/producer/ExecutionRequestProducer.java
+- messaging/producer/TestGenerationRequestProducer.java
 - messaging/listener/ExecutionResultListener.java
+- messaging/listener/TestGenerationResultListener.java
 
 ## Queue Topology
-Configured in RabbitConfig:
-- Request queue: codehive_queue (default, configurable by system property)
-- Result queue: codehive_result_queue (default, configurable by system property)
+All queues are declared durable with Jackson JSON message conversion.
 
-Message converter:
-- Jackson2JsonMessageConverter for JSON serialization/deserialization.
+Configured in RabbitConfig via system properties (defaults shown):
 
-## Producer Flow
+| Constant | Default name | Direction |
+|---|---|---|
+| `QUEUE_NAME` | `codehive_queue` | backend → worker |
+| `RESULT_QUEUE_NAME` | `codehive_result_queue` | worker → backend |
+| `TEST_GENERATION_QUEUE_NAME` | `codehive_test_generation_queue` | backend → worker |
+| `TEST_GENERATION_RESULT_QUEUE_NAME` | `codehive_test_generation_result_queue` | worker → backend |
+
+## Execution Flow (student submissions)
+
+### Producer
 ExecutionRequestProducer:
-1. Receives ExecutionJob from service layer.
-2. Logs execution context and limits.
-3. Publishes to request queue using RabbitTemplate.convertAndSend.
+1. Receives ExecutionJob from ExecutionRequestService.
+2. Publishes to `codehive_queue` via RabbitTemplate.convertAndSend.
+3. Rethrows on publish failure.
 
-Produced payload model:
-- model/dto/queue/ExecutionJob.java
+Payload: `model/dto/queue/ExecutionJob`
 
-## Consumer Flow
+### Consumer
 ExecutionResultListener:
-1. Listens on configured result queue.
-2. Receives ExecutionReport payload.
-3. Delegates to ExecutionResultService for database update.
-4. Logs processing success/failures.
+1. Listens on `codehive_result_queue`.
+2. Receives ExecutionReport from worker.
+3. Delegates to ExecutionResultService for execution entity update.
 
-Consumed payload model:
-- model/dto/queue/ExecutionReport.java
+Payload: `model/dto/queue/ExecutionReport`
+
+## Test Generation Flow (assignment creation)
+
+### Producer
+TestGenerationRequestProducer:
+1. Receives TestGenerationJob from AssignmentService after files are uploaded to MinIO.
+2. Publishes to `codehive_test_generation_queue`.
+
+Payload: `model/dto/queue/TestGenerationJob`
+
+### Consumer
+TestGenerationResultListener:
+1. Listens on `codehive_test_generation_result_queue`.
+2. On success: sets `assignment.isActive = true` in the database.
+3. On failure: logs error — assignment stays inactive.
+
+Payload: `model/dto/queue/TestGenerationResult`
 
 ## Reliability Notes
-- Queues are declared durable in RabbitConfig.
-- Listener catches processing errors and logs them to prevent silent failures.
-- Producer rethrows publish exceptions.
+- All queues are declared durable — messages survive broker restarts.
+- Listeners catch and log processing errors to prevent silent failures.
+- Producers rethrow publish exceptions so the caller can handle them.
 
 ## Compatibility Rules
 - Treat queue DTO changes as contract changes.
 - If fields are added, coordinate worker and backend deployment.
 - Keep default queue names stable unless infrastructure update is coordinated.
+- Both sides (backend and worker) declare the same queues — no exchange routing is used.
 
 ## Operational Tips
 - Verify backend and worker use matching queue names.
-- Keep RabbitMQ running before submitting execution requests.
-- Use execution logs to trace request id and status transitions.
+- Keep RabbitMQ running before starting either service.
+- Use `[WORKFLOW]`-prefixed log lines to trace message flow end to end.

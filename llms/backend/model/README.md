@@ -8,76 +8,62 @@ Package root:
 
 ## Entity Model
 Entities are plain JPA classes with explicit constraints via @Column and relationship annotations.
+All primary keys use `java.util.UUID` with `@GeneratedValue(strategy = GenerationType.UUID)`.
 
 ### User
 File: model/entity/User.java
-
-Important constraints:
 - name: nullable=false, length=50
 - lastName: nullable=false, length=80
 - enrollmentNumber: nullable=false, unique=true, length=50
 - email: nullable=false, unique=true, length=100
 - password: nullable=false, length=255
 - role: enum stored as string, length=15
-
-Behavior notes:
 - Implements UserDetails for Spring Security integration.
-- createdAt defaults to LocalDateTime.now().
-- isActive defaults to true.
-- temporaryPassword defaults to false.
+- createdAt defaults to LocalDateTime.now(); isActive defaults to true; temporaryPassword defaults to false.
 - scopes stored as element collection in user_scopes table.
 
 ### PasswordResetToken
 File: model/entity/PasswordResetToken.java
-
-Important constraints:
-- token unique and non-null.
-- expiryDate non-null.
-- used non-null default false.
-- ManyToOne relation to User (nullable=false).
+- token: unique, non-null
+- expiryDate: non-null; tokens expire after 15 minutes
+- used: non-null, default false
+- ManyToOne relation to User (nullable=false)
 
 ### Assignment
 File: model/entity/Assignment.java
-
-Important constraints:
-- title length 200, non-null.
-- description TEXT, non-null.
-- timeLimitMs and memoryLimitMb non-null.
-- comparatorType enum string, non-null.
-- createdAt and updatedAt non-null.
-
-Collection-backed tables:
-- assignment_constraints
-- assignment_hints
-- assignment_tags
-- assignment_allowed_languages
+- title: length 200, non-null
+- description: TEXT, non-null
+- timeLimitMs, memoryLimitMb: non-null
+- comparatorType: enum string, non-null
+- isActive: defaults to false on creation; set to true after worker confirms test output generation
+- allowedLanguages, constraints, hints, tags: element collections in dedicated tables
+- dueDate: nullable
 
 ### Submission
 File: model/entity/Submission.java
-- ManyToOne assignment relation (non-null).
-- language enum string (non-null).
-- createdAt initialized in constructor.
+- ManyToOne assignment (non-null)
+- language: enum string (non-null)
+- createdAt initialized in constructor
 
 ### Execution
 File: model/entity/Execution.java
-
-Important constraints and semantics:
-- executionType and status are required enums.
-- status defaults to PENDING.
-- isOutdated defaults to false.
-- submission is nullable (practice executions may have no submission).
-- user relation is nullable (depends on requester context).
+- executionType and status: required enums (status defaults to PENDING)
+- isOutdated defaults to false
+- submission nullable (practice executions have no submission)
+- user nullable
+- timeMs, memoryMb: set from worker result
 
 ### TestCase
 File: model/entity/TestCase.java
-- assignment relation required.
-- order stored as order_index, non-null.
-- isSample default false.
+- assignment relation required
+- order stored as order_index, non-null; represents 1-based upload position
+- isSample defaults to false
 
 ### ReferenceSolution
 File: model/entity/ReferenceSolution.java
-- assignment relation required.
-- language enum required.
+- assignment relation required
+- language: enum required
+- one ReferenceSolution per assignment per language; stored in MinIO at ObjectKeyBuilder.referenceSolutionSourceCode
 
 ## Request Contract Structure
 Request classes live under model/request grouped by domain:
@@ -86,27 +72,29 @@ Request classes live under model/request grouped by domain:
 - recovery/ForgotPasswordRequest
 - recovery/RecoveryPasswordRequest
 - execution/ExecutionRequest
+- assignment/CreateAssignmentRequest
+
+### CreateAssignmentRequest fields
+- title, description, constraints, hints, tags
+- timeLimitMs (@Min 100), memoryLimitMb (@Min 16)
+- comparatorType, allowedLanguages, referenceLanguage
+- dueDate (nullable)
+- sampleFlags: parallel list to uploaded files; true = sample test case
 
 Validation patterns:
-- @NotBlank for required strings.
-- @NotNull for required enum fields.
-- @Size for password and text boundaries.
-- @Email for email format in signup.
-
-Examples of enforced constraints:
-- login password min length 6.
-- signup name 2..50.
-- signup father/mother last name 2..40.
-- recovery new password min length 6.
+- @NotBlank for required strings
+- @NotNull for required enum fields
+- @NotEmpty for required collections
+- @Min for numeric limits
 
 ## Response Contract Structure
 Base response pattern:
 - ApiResponse(success, message)
 
 Concrete wrappers:
-- SuccessResponse<T> for successful payload responses.
-- ErrorResponse for timestamped API failures.
-- MessageResponse for simple text payloads.
+- SuccessResponse<T> for successful payload responses
+- ErrorResponse for timestamped API failures
+- MessageResponse for simple text payloads
 
 Auth-specific responses:
 - auth/AuthResponse (token + UserDTO)
@@ -114,30 +102,26 @@ Auth-specific responses:
 - auth/CsvProgressMessage
 
 ## DTO and Mapper Layer
-DTOs mirror API-safe views and queue contracts.
+Application DTOs:
+- UserDTO, ExecutionDTO, AssignmentDTO, SubmissionDTO, TestCaseDTO, ReferenceSolutionDTO
 
-Application DTO examples:
-- UserDTO
-- ExecutionDTO
-- AssignmentDTO
-- SubmissionDTO
+Queue DTOs (model/dto/queue):
+- ExecutionJob — student execution job sent to worker
+- ExecutionReport — student execution result from worker
+- TestGenerationJob — assignment output generation job sent to worker; contains List<TestCaseInfo>
+- TestCaseInfo — per-test-case input/output MinIO paths
+- TestGenerationResult — outcome of output generation; drives assignment activation
 
-Queue DTO examples:
-- queue/ExecutionJob
-- queue/ExecutionReport
-
-Mappers convert entity <-> DTO, for example:
-- ExecutionMapper
-- UserMapper
-- AssignmentMapper
+Mappers convert entity <-> DTO:
+- ExecutionMapper, UserMapper, AssignmentMapper, SubmissionMapper, TestCaseMapper, ReferenceSolutionMapper
 
 ## Enum Strategy
 Enums are persisted and transferred as string values:
 - Role, Scope
-- Language
-- ExecutionType
-- ExecutionStatus
-- ComparatorType
+- Language (JAVA, PYTHON, C, CPP)
+- ExecutionType (PRACTICE, DEFINITIVE)
+- ExecutionStatus (AC, WA, CE, RTE, TLE, MLE, PENDING)
+- ComparatorType (EXACT_MATCH, FLOATING_POINT)
 
 ## Exception Model
 Exception packages are domain-grouped:
@@ -151,4 +135,5 @@ GlobalExceptionHandler maps exceptions to stable HTTP responses and ErrorRespons
 - Keep entity constraints aligned with request validation, not looser.
 - Prefer DTO exposure over returning entities directly.
 - If adding enum values, validate impact on frontend and worker contracts.
-- Queue DTO evolution must be coordinated across services.
+- Queue DTO evolution must be coordinated across backend and worker — both projects declare mirrored copies.
+- All IDs are UUID, never Long.
