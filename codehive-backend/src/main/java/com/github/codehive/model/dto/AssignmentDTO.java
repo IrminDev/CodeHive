@@ -2,6 +2,7 @@ package com.github.codehive.model.dto;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.github.codehive.model.enums.ComparatorType;
@@ -9,7 +10,7 @@ import com.github.codehive.model.enums.Language;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class AssignmentDTO {
-    private Long id;
+    private UUID id;
     private String title;
     private String description;
     private List<String> constraints;
@@ -32,11 +33,11 @@ public class AssignmentDTO {
         this.isActive = isActive;
     }
 
-    public Long getId() {
+    public UUID getId() {
         return id;
     }
 
-    public void setId(Long id) {
+    public void setId(UUID id) {
         this.id = id;
     }
 

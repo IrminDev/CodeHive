@@ -1,6 +1,7 @@
 package com.github.codehive.model.dto.queue;
 
 import java.util.List;
+import java.util.UUID;
 
 import com.github.codehive.model.enums.ComparatorType;
 import com.github.codehive.model.enums.ExecutionType;
@@ -8,7 +9,7 @@ import com.github.codehive.model.enums.Language;
 
 
 public class ExecutionJob {
-    private Long id;
+    private UUID id;
     private String source;
     private String reference;
     private Language language;
@@ -25,8 +26,8 @@ public class ExecutionJob {
     public ExecutionJob() {
     }
 
-    public ExecutionJob(Long id, String source, String reference, Language language, 
-                       ExecutionType executionType, List<String> testCases, 
+    public ExecutionJob(UUID id, String source, String reference, Language language,
+                       ExecutionType executionType, List<String> testCases,
                        Long timeLimitMs, Long memoryLimitMb, ComparatorType comparatorType, String outputPath, Integer numTests, String testsPath, Language referenceLanguage) {
         this.id = id;
         this.source = source;
@@ -74,11 +75,11 @@ public class ExecutionJob {
         this.outputPath = outputPath;
     }
 
-    public Long getId() {
+    public UUID getId() {
         return id;
     }
 
-    public void setId(Long id) {
+    public void setId(UUID id) {
         this.id = id;
     }
 

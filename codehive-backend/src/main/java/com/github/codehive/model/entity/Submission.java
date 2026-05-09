@@ -1,6 +1,7 @@
 package com.github.codehive.model.entity;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 import com.github.codehive.model.enums.Language;
 
@@ -20,8 +21,8 @@ import jakarta.persistence.Table;
 @Table(name = "submissions")
 public class Submission {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "assignment_id", nullable = false)
@@ -44,11 +45,11 @@ public class Submission {
         this.language = language;
     }
 
-    public Long getId() {
+    public UUID getId() {
         return id;
     }
 
-    public void setId(Long id) {
+    public void setId(UUID id) {
         this.id = id;
     }
 

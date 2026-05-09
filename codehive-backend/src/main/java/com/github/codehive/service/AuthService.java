@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.regex.Pattern;
 
 import org.apache.commons.csv.CSVFormat;
@@ -230,7 +231,7 @@ public class AuthService {
     }
 
     @Transactional
-    public void updatePassword(Long userId, com.github.codehive.model.request.auth.UpdatePasswordRequest request) {
+    public void updatePassword(UUID userId, com.github.codehive.model.request.auth.UpdatePasswordRequest request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IncorrectCredentialsException("User not found"));
 

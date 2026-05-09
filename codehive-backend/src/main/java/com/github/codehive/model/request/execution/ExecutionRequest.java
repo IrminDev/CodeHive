@@ -1,6 +1,7 @@
 package com.github.codehive.model.request.execution;
 
 import java.util.List;
+import java.util.UUID;
 
 import com.github.codehive.model.enums.ExecutionType;
 import com.github.codehive.model.enums.Language;
@@ -15,9 +16,9 @@ public class ExecutionRequest {
     @NotNull(message = "Language is required")
     private Language language;
     
-    private Long requesterId;
-    
-    private Long assignmentId;
+    private UUID requesterId;
+
+    private UUID assignmentId;
     
     private List<String> testCases;
     
@@ -27,8 +28,8 @@ public class ExecutionRequest {
     public ExecutionRequest() {
     }
 
-    public ExecutionRequest(String code, Language language, Long requesterId,
-                            Long assignmentId, List<String> testCases, ExecutionType executionType) {
+    public ExecutionRequest(String code, Language language, UUID requesterId,
+                            UUID assignmentId, List<String> testCases, ExecutionType executionType) {
         this.code = code;
         this.language = language;
         this.requesterId = requesterId;
@@ -53,19 +54,19 @@ public class ExecutionRequest {
         this.language = language;
     }
 
-    public Long getRequesterId() {
+    public UUID getRequesterId() {
         return requesterId;
     }
 
-    public void setRequesterId(Long requesterId) {
+    public void setRequesterId(UUID requesterId) {
         this.requesterId = requesterId;
     }
 
-    public Long getAssignmentId() {
+    public UUID getAssignmentId() {
         return assignmentId;
     }
 
-    public void setAssignmentId(Long assignmentId) {
+    public void setAssignmentId(UUID assignmentId) {
         this.assignmentId = assignmentId;
     }
 

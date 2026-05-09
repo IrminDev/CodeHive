@@ -1,6 +1,7 @@
 package com.github.codehive.model.entity;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 import com.github.codehive.model.enums.ExecutionStatus;
 import com.github.codehive.model.enums.ExecutionType;
@@ -22,8 +23,8 @@ import jakarta.persistence.Table;
 @Table(name = "executions")
 public class Execution {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
     
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "submission_id", nullable = true, unique = true)
@@ -76,11 +77,11 @@ public class Execution {
         this.user = user;
     }
 
-    public Long getId() {
+    public UUID getId() {
         return id;
     }
 
-    public void setId(Long id) {
+    public void setId(UUID id) {
         this.id = id;
     }
 

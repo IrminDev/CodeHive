@@ -1,5 +1,7 @@
 package com.github.codehive.service;
 
+import java.util.UUID;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -93,7 +95,7 @@ public class ExecutionRequestService {
     }
 
     @Transactional(readOnly = true)
-    public ExecutionDTO getExecutionById(Long id) {
+    public ExecutionDTO getExecutionById(UUID id) {
         Execution execution = executionRepository.findById(id)
             .orElseThrow(() -> new EntityNotFoundException("Execution not found with id: " + id));
         return ExecutionMapper.toDTO(execution);

@@ -1,36 +1,37 @@
 package com.github.codehive.utils;
 
+import java.util.UUID;
+
 public class ObjectKeyBuilder {
-    public static String testCaseInput(Long assignmentId, Long testCaseId) {
-        return String.format("test-suites/assignments/%d/tc-%d/tc%d.in", assignmentId, testCaseId, testCaseId);
+    public static String testCaseInput(UUID assignmentId, UUID testCaseId) {
+        return String.format("test-suites/assignments/%s/tc-%s/tc%s.in", assignmentId, testCaseId, testCaseId);
     }
 
-    public static String testCaseOutput(Long assignmentId, Long testCaseId) {
-        return String.format("test-suites/assignments/%d/tc-%d/tc%d.out", assignmentId, testCaseId, testCaseId);
+    public static String testCaseOutput(UUID assignmentId, UUID testCaseId) {
+        return String.format("test-suites/assignments/%s/tc-%s/tc%s.out", assignmentId, testCaseId, testCaseId);
     }
 
-    public static String testsPath(Long assignmentId) {
-        return String.format("test-suites/assignments/%d/", assignmentId);
-
+    public static String testsPath(UUID assignmentId) {
+        return String.format("test-suites/assignments/%s/", assignmentId);
     }
 
-    public static String submissionSourceCode(Long assignmentId, Long submissionId, String fileExtension, Long groupId) {
-        return String.format("submissions/groups/%d/assignments/%d/submission-%d/Main.%s", groupId, assignmentId, submissionId, fileExtension);
+    public static String submissionSourceCode(UUID assignmentId, UUID submissionId, String fileExtension, UUID groupId) {
+        return String.format("submissions/groups/%s/assignments/%s/submission-%s/Main.%s", groupId, assignmentId, submissionId, fileExtension);
     }
 
-    public static String executionOutput(Long submissionId, Long executionId, Long groupId, String fileExtension) {
-        return String.format("executions/groups/%d/assignments/%d/execution-%d/output.%s", groupId, submissionId, executionId, fileExtension);
+    public static String executionOutput(UUID submissionId, UUID executionId, UUID groupId, String fileExtension) {
+        return String.format("executions/groups/%s/assignments/%s/execution-%s/output.%s", groupId, submissionId, executionId, fileExtension);
     }
 
-    public static String referenceSolutionSourceCode(Long assignmentId, String fileExtension) {
-        return String.format("test-suites/assignments/%d/reference/Main.%s", assignmentId, fileExtension);
+    public static String referenceSolutionSourceCode(UUID assignmentId, String fileExtension) {
+        return String.format("test-suites/assignments/%s/reference/Main.%s", assignmentId, fileExtension);
     }
 
-    public static String executionTestCaseOutput(Long executionId) {
-        return String.format("test-execution/execution-%d/output/", executionId);
+    public static String executionTestCaseOutput(UUID executionId) {
+        return String.format("test-execution/execution-%s/output/", executionId);
     }
 
-    public static String executionSourceCode(Long executionId, String fileExtension) {
-        return String.format("test-execution/execution-%d/source.%s", executionId, fileExtension);
+    public static String executionSourceCode(UUID executionId, String fileExtension) {
+        return String.format("test-execution/execution-%s/source.%s", executionId, fileExtension);
     }
 }

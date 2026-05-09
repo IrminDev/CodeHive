@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Optional;
+import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -61,7 +62,7 @@ class RecoveryPasswordServiceTest {
     void setUp() {
         // Setup test user
         testUser = new User();
-        testUser.setId(1L);
+        testUser.setId(UUID.fromString("00000000-0000-0000-0000-000000000001"));
         testUser.setEmail("test@example.com");
         testUser.setPassword("oldEncodedPassword");
         testUser.setName("John");
@@ -72,7 +73,7 @@ class RecoveryPasswordServiceTest {
 
         // Setup valid token
         validToken = new PasswordResetToken();
-        validToken.setId(1L);
+        validToken.setId(UUID.fromString("00000000-0000-0000-0000-000000000011"));
         validToken.setToken("valid-token-123");
         validToken.setExpiryDate(LocalDateTime.now().plusMinutes(10));
         validToken.setUsed(false);
@@ -189,12 +190,12 @@ class RecoveryPasswordServiceTest {
             String email = "test@example.com";
             
             PasswordResetToken oldToken1 = new PasswordResetToken();
-            oldToken1.setId(10L);
+            oldToken1.setId(UUID.fromString("00000000-0000-0000-0000-000000000020"));
             oldToken1.setToken("old-token-1");
             oldToken1.setUsed(false);
-            
+
             PasswordResetToken oldToken2 = new PasswordResetToken();
-            oldToken2.setId(11L);
+            oldToken2.setId(UUID.fromString("00000000-0000-0000-0000-000000000021"));
             oldToken2.setToken("old-token-2");
             oldToken2.setUsed(false);
             

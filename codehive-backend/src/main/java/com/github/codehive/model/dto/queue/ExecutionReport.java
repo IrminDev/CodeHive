@@ -1,12 +1,14 @@
 package com.github.codehive.model.dto.queue;
 
+import java.util.UUID;
+
 import com.github.codehive.model.enums.ExecutionStatus;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class ExecutionReport {
-    private Long executionId;
+    private UUID executionId;
     private ExecutionStatus overallStatus;
     private List<TestCaseResult> testCaseResults;
     private int totalTests;
@@ -21,16 +23,16 @@ public class ExecutionReport {
         this.testCaseResults = new ArrayList<>();
     }
 
-    public ExecutionReport(Long executionId) {
+    public ExecutionReport(UUID executionId) {
         this.executionId = executionId;
         this.testCaseResults = new ArrayList<>();
     }
 
-    public Long getExecutionId() {
+    public UUID getExecutionId() {
         return executionId;
     }
 
-    public void setExecutionId(Long executionId) {
+    public void setExecutionId(UUID executionId) {
         this.executionId = executionId;
     }
 

@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -18,6 +19,13 @@ import com.github.codehive.model.enums.Role;
 @DisplayName("UserMapper Unit")
 class UserMapperTest {
 
+    private static final UUID USER_ID_1  = UUID.fromString("00000000-0000-0000-0000-000000000001");
+    private static final UUID USER_ID_2  = UUID.fromString("00000000-0000-0000-0000-000000000002");
+    private static final UUID USER_ID_A  = UUID.fromString("00000000-0000-0000-0000-000000000010");
+    private static final UUID USER_ID_B  = UUID.fromString("00000000-0000-0000-0000-000000000020");
+    private static final UUID MINIMAL_ID = UUID.fromString("00000000-0000-0000-0000-000000000999");
+    private static final UUID DTO_MIN_ID = UUID.fromString("00000000-0000-0000-0000-000000000888");
+
     private User testUser;
     private UserDTO testUserDTO;
     private LocalDateTime testDate;
@@ -28,7 +36,7 @@ class UserMapperTest {
 
         // Setup test user entity
         testUser = new User();
-        testUser.setId(1L);
+        testUser.setId(USER_ID_1);
         testUser.setEmail("test@example.com");
         testUser.setName("John");
         testUser.setLastName("Doe");
@@ -41,7 +49,7 @@ class UserMapperTest {
 
         // Setup test user DTO
         testUserDTO = new UserDTO();
-        testUserDTO.setId(2L);
+        testUserDTO.setId(USER_ID_2);
         testUserDTO.setEmail("jane@example.com");
         testUserDTO.setName("Jane");
         testUserDTO.setLastName("Smith");
@@ -90,7 +98,7 @@ class UserMapperTest {
         void toDTO_WithMinimalUser_MapsAvailableFields() {
             // Given
             User minimalUser = new User();
-            minimalUser.setId(999L);
+            minimalUser.setId(MINIMAL_ID);
             minimalUser.setEmail("minimal@example.com");
 
             // When
@@ -98,7 +106,7 @@ class UserMapperTest {
 
             // Then
             assertThat(result).isNotNull();
-            assertThat(result.getId()).isEqualTo(999L);
+            assertThat(result.getId()).isEqualTo(MINIMAL_ID);
             assertThat(result.getEmail()).isEqualTo("minimal@example.com");
             assertThat(result.getName()).isNull();
             assertThat(result.getLastName()).isNull();
@@ -176,7 +184,7 @@ class UserMapperTest {
         void toEntity_WithMinimalDTO_MapsAvailableFields() {
             // Given
             UserDTO minimalDTO = new UserDTO();
-            minimalDTO.setId(888L);
+            minimalDTO.setId(DTO_MIN_ID);
             minimalDTO.setEmail("minimal@example.com");
 
             // When
@@ -184,7 +192,7 @@ class UserMapperTest {
 
             // Then
             assertThat(result).isNotNull();
-            assertThat(result.getId()).isEqualTo(888L);
+            assertThat(result.getId()).isEqualTo(DTO_MIN_ID);
             assertThat(result.getEmail()).isEqualTo("minimal@example.com");
             assertThat(result.getName()).isNull();
             assertThat(result.getPassword()).isNull();
@@ -200,13 +208,13 @@ class UserMapperTest {
         void toDTOList_WithMultipleUsers_MapsAllCorrectly() {
             // Given
             User user1 = new User();
-            user1.setId(1L);
+            user1.setId(USER_ID_1);
             user1.setEmail("user1@example.com");
             user1.setName("User");
             user1.setLastName("One");
-            
+
             User user2 = new User();
-            user2.setId(2L);
+            user2.setId(USER_ID_2);
             user2.setEmail("user2@example.com");
             user2.setName("User");
             user2.setLastName("Two");
@@ -218,9 +226,9 @@ class UserMapperTest {
 
             // Then
             assertThat(result).hasSize(2);
-            assertThat(result.get(0).getId()).isEqualTo(1L);
+            assertThat(result.get(0).getId()).isEqualTo(USER_ID_1);
             assertThat(result.get(0).getEmail()).isEqualTo("user1@example.com");
-            assertThat(result.get(1).getId()).isEqualTo(2L);
+            assertThat(result.get(1).getId()).isEqualTo(USER_ID_2);
             assertThat(result.get(1).getEmail()).isEqualTo("user2@example.com");
         }
 
@@ -239,11 +247,11 @@ class UserMapperTest {
         void toEntityList_WithMultipleDTOs_MapsAllCorrectly() {
             // Given
             UserDTO dto1 = new UserDTO();
-            dto1.setId(10L);
+            dto1.setId(USER_ID_A);
             dto1.setEmail("dto1@example.com");
-            
+
             UserDTO dto2 = new UserDTO();
-            dto2.setId(20L);
+            dto2.setId(USER_ID_B);
             dto2.setEmail("dto2@example.com");
 
             List<UserDTO> dtos = Arrays.asList(dto1, dto2);
@@ -253,9 +261,9 @@ class UserMapperTest {
 
             // Then
             assertThat(result).hasSize(2);
-            assertThat(result.get(0).getId()).isEqualTo(10L);
+            assertThat(result.get(0).getId()).isEqualTo(USER_ID_A);
             assertThat(result.get(0).getEmail()).isEqualTo("dto1@example.com");
-            assertThat(result.get(1).getId()).isEqualTo(20L);
+            assertThat(result.get(1).getId()).isEqualTo(USER_ID_B);
             assertThat(result.get(1).getEmail()).isEqualTo("dto2@example.com");
         }
 
@@ -264,7 +272,7 @@ class UserMapperTest {
         void toDTOList_WithNullValuesInList_SkipsNulls() {
             // Given
             User user1 = new User();
-            user1.setId(1L);
+            user1.setId(USER_ID_1);
             user1.setEmail("user1@example.com");
 
             List<User> users = Arrays.asList(user1, null);

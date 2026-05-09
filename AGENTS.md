@@ -126,6 +126,14 @@ High-level architecture:
 - Worker consumes execution jobs, runs sandboxed code, and publishes execution results.
 - Shared infrastructure includes RabbitMQ and object storage.
 
+## ID Convention
+All entity primary keys use `java.util.UUID` (not `Long`).
+- JPA entities: `@GeneratedValue(strategy = GenerationType.UUID)`
+- Repositories: `JpaRepository<Entity, UUID>`
+- DTOs, request/response models, and queue DTOs: `UUID` fields
+- Controllers: `@PathVariable UUID id`
+- Frontend: entity IDs are typed as `string`
+
 For concrete architecture, contracts, data models, and execution flow, always consult:
 - llms/backend/OVERVIEW.md
 - llms/frontend/OVERVIEW.md

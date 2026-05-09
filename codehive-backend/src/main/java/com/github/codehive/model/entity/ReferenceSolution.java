@@ -1,5 +1,7 @@
 package com.github.codehive.model.entity;
 
+import java.util.UUID;
+
 import com.github.codehive.model.enums.Language;
 
 import jakarta.persistence.Column;
@@ -18,8 +20,8 @@ import jakarta.persistence.Table;
 @Table(name = "reference_solutions")
 public class ReferenceSolution {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "assignment_id", nullable = false)
@@ -37,11 +39,11 @@ public class ReferenceSolution {
         this.language = language;
     }
 
-    public Long getId() {
+    public UUID getId() {
         return id;
     }
 
-    public void setId(Long id) {
+    public void setId(UUID id) {
         this.id = id;
     }
 

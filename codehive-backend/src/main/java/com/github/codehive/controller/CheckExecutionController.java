@@ -1,5 +1,7 @@
 package com.github.codehive.controller;
 
+import java.util.UUID;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -102,7 +104,7 @@ public class CheckExecutionController {
     @GetMapping("/check/{id}")
     public ResponseEntity<SuccessResponse<ExecutionDTO>> getExecution(
             @Parameter(description = "Execution ID", required = true)
-            @PathVariable Long id) {
+            @PathVariable UUID id) {
         logger.info("[WORKFLOW] GET /api/execution/check/{} - Fetching execution status", id);
         
         ExecutionDTO execution = executionRequestService.getExecutionById(id);

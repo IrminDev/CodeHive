@@ -1,30 +1,31 @@
 package com.github.codehive.model.dto;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.github.codehive.model.enums.Language;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class SubmissionDTO {
-    private Long id;
-    private Long assignmentId;
+    private UUID id;
+    private UUID assignmentId;
     private Language language;
     private LocalDateTime createdAt;
 
-    public Long getId() {
+    public UUID getId() {
         return id;
     }
 
-    public void setId(Long id) {
+    public void setId(UUID id) {
         this.id = id;
     }
 
-    public Long getAssignmentId() {
+    public UUID getAssignmentId() {
         return assignmentId;
     }
 
-    public void setAssignmentId(Long assignmentId) {
+    public void setAssignmentId(UUID assignmentId) {
         this.assignmentId = assignmentId;
     }
 

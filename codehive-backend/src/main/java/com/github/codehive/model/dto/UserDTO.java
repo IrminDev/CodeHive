@@ -2,6 +2,7 @@ package com.github.codehive.model.dto;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.github.codehive.model.enums.Role;
@@ -9,7 +10,7 @@ import com.github.codehive.model.enums.Scope;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class UserDTO {
-    private Long id;
+    private UUID id;
     private String email;
     private String name;
     private String lastName;
@@ -21,11 +22,11 @@ public class UserDTO {
     private Boolean isActive;
     private Boolean temporaryPassword;
 
-    public Long getId() {
+    public UUID getId() {
         return id;
     }
 
-    public void setId(Long id) {
+    public void setId(UUID id) {
         this.id = id;
     }
 

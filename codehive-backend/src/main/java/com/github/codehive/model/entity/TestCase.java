@@ -1,5 +1,7 @@
 package com.github.codehive.model.entity;
 
+import java.util.UUID;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -14,8 +16,8 @@ import jakarta.persistence.Table;
 @Table(name = "test_cases")
 public class TestCase {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "assignment_id", nullable = false)
@@ -38,11 +40,11 @@ public class TestCase {
         this.isSample = isSample;
     }
 
-    public Long getId() {
+    public UUID getId() {
         return id;
     }
 
-    public void setId(Long id) {
+    public void setId(UUID id) {
         this.id = id;
     }
 

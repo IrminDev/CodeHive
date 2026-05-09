@@ -1,6 +1,7 @@
 package com.github.codehive.model.dto;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.github.codehive.model.enums.ExecutionStatus;
@@ -8,9 +9,9 @@ import com.github.codehive.model.enums.ExecutionType;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class ExecutionDTO {
-    private Long id;
-    private Long submissionId;
-    private Long userId;
+    private UUID id;
+    private UUID submissionId;
+    private UUID userId;
     private ExecutionType executionType;
     private ExecutionStatus status;
     private Long timeMs;
@@ -18,27 +19,27 @@ public class ExecutionDTO {
     private Boolean isOutdated;
     private LocalDateTime createdAt;
 
-    public Long getId() {
+    public UUID getId() {
         return id;
     }
 
-    public void setId(Long id) {
+    public void setId(UUID id) {
         this.id = id;
     }
 
-    public Long getSubmissionId() {
+    public UUID getSubmissionId() {
         return submissionId;
     }
 
-    public void setSubmissionId(Long submissionId) {
+    public void setSubmissionId(UUID submissionId) {
         this.submissionId = submissionId;
     }
 
-    public Long getUserId() {
+    public UUID getUserId() {
         return userId;
     }
 
-    public void setUserId(Long userId) {
+    public void setUserId(UUID userId) {
         this.userId = userId;
     }
 

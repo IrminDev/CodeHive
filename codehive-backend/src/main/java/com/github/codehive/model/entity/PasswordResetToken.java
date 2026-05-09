@@ -1,6 +1,7 @@
 package com.github.codehive.model.entity;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -15,8 +16,8 @@ import jakarta.persistence.Table;
 @Table(name = "password_reset_tokens")
 public class PasswordResetToken {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
 
     @Column(nullable = false, unique = true)
     private String token;
@@ -41,11 +42,11 @@ public class PasswordResetToken {
         this.used = false;
     }
 
-    public Long getId() {
+    public UUID getId() {
         return id;
     }
 
-    public void setId(Long id) {
+    public void setId(UUID id) {
         this.id = id;
     }
 

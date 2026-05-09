@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -68,7 +69,7 @@ class AuthServiceTest {
     void setUp() {
         // Setup test user
         testUser = new User();
-        testUser.setId(1L);
+        testUser.setId(UUID.fromString("00000000-0000-0000-0000-000000000001"));
         testUser.setEmail("test@example.com");
         testUser.setPassword("encodedPassword123");
         testUser.setName("John");
@@ -162,7 +163,7 @@ class AuthServiceTest {
             when(passwordEncoder.matches(loginRequest.getPassword(), testUser.getPassword())).thenReturn(true);
             when(jwtUtil.generateToken(any(Map.class), anyString())).thenAnswer(invocation -> {
                 Map<String, Object> claims = invocation.getArgument(0);
-                assertThat(claims).containsEntry("userId", 1L);
+                assertThat(claims).containsEntry("userId", testUser.getId());
                 assertThat(claims).containsEntry("role", "STUDENT");
                 return "jwt-token-123";
             });
@@ -213,7 +214,7 @@ class AuthServiceTest {
             when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
 
             User savedUser = new User();
-            savedUser.setId(2L);
+            savedUser.setId(UUID.fromString("00000000-0000-0000-0000-000000000002"));
             savedUser.setEmail(signUpRequest.getEmail());
             savedUser.setPassword("encodedPassword");
             savedUser.setName(signUpRequest.getName());
@@ -285,7 +286,7 @@ class AuthServiceTest {
             when(passwordEncoder.encode(anyString())).thenReturn("encodedRandomPassword");
 
             User savedUser = new User();
-            savedUser.setId(2L);
+            savedUser.setId(UUID.fromString("00000000-0000-0000-0000-000000000002"));
             savedUser.setEmail(signUpRequest.getEmail());
             savedUser.setName(signUpRequest.getName());
             savedUser.setLastName("Smith Doe");
@@ -313,7 +314,7 @@ class AuthServiceTest {
             when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
 
             User savedUser = new User();
-            savedUser.setId(2L);
+            savedUser.setId(UUID.fromString("00000000-0000-0000-0000-000000000002"));
             savedUser.setEmail(signUpRequest.getEmail());
             savedUser.setName(signUpRequest.getName());
             savedUser.setLastName("Smith Doe");
@@ -343,7 +344,7 @@ class AuthServiceTest {
             when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
 
             User savedUser = new User();
-            savedUser.setId(2L);
+            savedUser.setId(UUID.fromString("00000000-0000-0000-0000-000000000002"));
             savedUser.setEmail(signUpRequest.getEmail());
             savedUser.setName(signUpRequest.getName());
             savedUser.setLastName("Smith Doe");
@@ -374,7 +375,7 @@ class AuthServiceTest {
             when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
 
             User savedUser = new User();
-            savedUser.setId(2L);
+            savedUser.setId(UUID.fromString("00000000-0000-0000-0000-000000000002"));
             savedUser.setEmail(signUpRequest.getEmail());
             savedUser.setName(signUpRequest.getName());
             savedUser.setLastName("Smith Doe");
@@ -404,7 +405,7 @@ class AuthServiceTest {
             when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
 
             User savedUser = new User();
-            savedUser.setId(2L);
+            savedUser.setId(UUID.fromString("00000000-0000-0000-0000-000000000002"));
             savedUser.setEmail(signUpRequest.getEmail());
             savedUser.setName(signUpRequest.getName());
             savedUser.setLastName("Smith Doe");
@@ -432,7 +433,7 @@ class AuthServiceTest {
             ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
 
             User savedUser = new User();
-            savedUser.setId(2L);
+            savedUser.setId(UUID.fromString("00000000-0000-0000-0000-000000000002"));
             savedUser.setEmail(signUpRequest.getEmail());
             savedUser.setName(signUpRequest.getName());
             savedUser.setLastName("Smith Doe");
