@@ -47,6 +47,10 @@ The API returns 202 Accepted immediately — output generation is asynchronous.
 3. ExecutionResultService loads execution by id.
 4. Status, timeMs, and memoryMb are updated in the executions table.
 5. Client retrieves updated status via `GET /api/execution/check/{id}`.
+6. Client retrieves the full per-test-case report via `GET /api/execution/check/{id}/report`.
+   - Fetches `report.json` from MinIO at `test-execution/execution-{id}/output/report.json`.
+   - Returns 404 with a clear message when execution is still PENDING.
+   - Deserializes into `ExecutionReport` using Jackson ObjectMapper.
 
 ## Key Data Contracts
 Assignment creation request:
@@ -63,6 +67,9 @@ Queue payloads:
 
 API polling response:
 - model/dto/ExecutionDTO.java
+
+Full report response (from MinIO):
+- model/dto/queue/ExecutionReport.java (deserialized from JSON stored by worker)
 
 ## Execution Job Construction
 PRACTICE mode:

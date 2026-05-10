@@ -34,4 +34,8 @@ public class ObjectKeyBuilder {
     public static String executionSourceCode(UUID executionId, String fileExtension) {
         return String.format("test-execution/execution-%s/source.%s", executionId, fileExtension);
     }
+
+    public static String executionReport(UUID executionId) {
+        return String.format("test-execution/execution-%s/output/report.json", executionId);
+    }
 }

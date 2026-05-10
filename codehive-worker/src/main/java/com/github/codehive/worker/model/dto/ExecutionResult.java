@@ -55,6 +55,14 @@ public class ExecutionResult {
         return result;
     }
 
+    public static ExecutionResult outputLimitExceeded(String truncatedOutput, Long executionTimeMs) {
+        ExecutionResult result = new ExecutionResult();
+        result.status = ExecutionStatus.OLE;
+        result.output = truncatedOutput;
+        result.executionTimeMs = executionTimeMs;
+        return result;
+    }
+
     public static ExecutionResult success(String output, Long executionTime, Long memoryUsed) {
         ExecutionResult result = new ExecutionResult();
         result.status = ExecutionStatus.AC;

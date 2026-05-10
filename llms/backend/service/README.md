@@ -24,7 +24,12 @@ Responsibilities:
 - Login using email or enrollment number identifier.
 - Admin-driven user registration.
 - CSV batch registration support.
-- JWT issuance and user retrieval by token.
+- JWT issuance and user retrieval by token or email.
+- Password updates (verify current, encode new, clear temporaryPassword flag).
+
+Key methods:
+- `getUserByEmail(email)` — load UserDTO from email; used by controllers that receive `Authentication`
+- `updatePassword(userId, request)` — verifies current password and persists the new one
 
 Key dependencies:
 - UserRepository, PasswordEncoder, JwtUtil, MailSenderService
@@ -69,10 +74,16 @@ Responsibilities:
 - Create Execution entity.
 - Upload source code to MinIO.
 - Build and publish ExecutionJob to `codehive_queue`.
+- Fetch and deserialize the execution report JSON from MinIO.
+
+Key methods:
+- `requestExecution(ExecutionRequest)` — full submission flow; returns ExecutionDTO for polling
+- `getExecutionById(UUID)` — status polling
+- `getExecutionReport(UUID)` — downloads `report.json` from MinIO and deserializes via ObjectMapper; returns 404 if pending or not found
 
 Key dependencies:
 - ExecutionRepository, AssignmentRepository, ReferenceSolutionRepository, TestCaseRepository
-- ObjectStorageService, ExecutionRequestProducer, UserRepository
+- ObjectStorageService, ExecutionRequestProducer, UserRepository, ObjectMapper
 
 PRACTICE mode: uses inline testCases, resolves reference solution from DB.
 DEFINITIVE mode: numTests counted from TestCaseRepository, no reference solution needed at runtime.

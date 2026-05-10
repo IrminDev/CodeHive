@@ -33,10 +33,9 @@ Configured in SecurityConfig:
 - Permit all:
   - POST /api/auth/login
   - POST /api/recovery-password/**
-  - /api/execution/** (currently open)
   - /ws/**
   - Swagger endpoints
-- All other routes require authentication.
+- All other routes (including `/api/execution/**`) require authentication via `anyRequest().authenticated()`.
 
 Method-level restrictions:
 - Admin-only actions use @PreAuthorize("hasAuthority('ADMIN')").
@@ -57,6 +56,16 @@ Security-related exceptions are translated by GlobalExceptionHandler:
 - AccessDeniedException -> 403
 
 ## Hardening Notes
-- /api/execution/** is currently permitAll and should be reviewed if requester identity becomes mandatory.
 - CORS allow-all is convenient for development but should be narrowed for production.
 - Keep JWT secret/expiration in environment configuration and rotate when required.
+
+## Controller Identity Pattern
+Controllers that need the authenticated user's identity must inject `Authentication` as a parameter — never re-parse the `Authorization` header manually. The filter already validated and stored the principal in `SecurityContextHolder` before the controller is invoked.
+
+```java
+@GetMapping("/me")
+public ResponseEntity<?> me(Authentication authentication) {
+    UserDTO user = authService.getUserByEmail(authentication.getName());
+    ...
+}
+```

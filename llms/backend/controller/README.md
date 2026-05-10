@@ -37,6 +37,7 @@ Error handling is centralized in:
 ### CheckExecutionController
 - `POST /api/execution/check` — creates execution and queues worker job.
 - `GET /api/execution/check/{id}` — polls execution status.
+- `GET /api/execution/check/{id}/report` — fetches the full execution report JSON from MinIO (per-test-case results, timing, memory, feedback). Returns 404 if the execution is still PENDING or the report is not available yet.
 
 ### AssignmentController
 - `POST /api/assignments` — multipart; creates assignment, uploads files, queues test generation.

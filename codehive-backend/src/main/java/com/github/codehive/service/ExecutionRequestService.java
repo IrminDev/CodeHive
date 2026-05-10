@@ -1,14 +1,17 @@
 package com.github.codehive.service;
 
+import java.io.InputStream;
 import java.util.List;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.codehive.messaging.producer.ExecutionRequestProducer;
 import com.github.codehive.model.dto.ExecutionDTO;
 import com.github.codehive.model.dto.queue.ExecutionJob;
+import com.github.codehive.model.dto.queue.ExecutionReport;
 import com.github.codehive.model.entity.Assignment;
 import com.github.codehive.model.entity.Execution;
 import com.github.codehive.model.entity.ReferenceSolution;
@@ -35,6 +38,7 @@ public class ExecutionRequestService {
     private final AssignmentRepository assignmentRepository;
     private final ReferenceSolutionRepository referenceSolutionRepository;
     private final TestCaseRepository testCaseRepository;
+    private final ObjectMapper objectMapper;
 
     public ExecutionRequestService(ExecutionRequestProducer executionRequestProducer,
                                    ExecutionRepository executionRepository,
@@ -42,7 +46,8 @@ public class ExecutionRequestService {
                                    UserRepository userRepository,
                                    AssignmentRepository assignmentRepository,
                                    ReferenceSolutionRepository referenceSolutionRepository,
-                                   TestCaseRepository testCaseRepository) {
+                                   TestCaseRepository testCaseRepository,
+                                   ObjectMapper objectMapper) {
         this.executionRequestProducer = executionRequestProducer;
         this.executionRepository = executionRepository;
         this.objectStorageService = objectStorageService;
@@ -50,6 +55,7 @@ public class ExecutionRequestService {
         this.assignmentRepository = assignmentRepository;
         this.referenceSolutionRepository = referenceSolutionRepository;
         this.testCaseRepository = testCaseRepository;
+        this.objectMapper = objectMapper;
     }
 
     @Transactional
@@ -89,6 +95,23 @@ public class ExecutionRequestService {
         Execution execution = executionRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Execution not found with id: " + id));
         return ExecutionMapper.toDTO(execution);
+    }
+
+    @Transactional(readOnly = true)
+    public ExecutionReport getExecutionReport(UUID id) {
+        Execution execution = executionRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Execution not found with id: " + id));
+
+        String reportKey = ObjectKeyBuilder.executionReport(id);
+        try {
+            InputStream reportStream = objectStorageService.download(reportKey);
+            return objectMapper.readValue(reportStream, ExecutionReport.class);
+        } catch (Exception e) {
+            if (execution.getStatus() != null && execution.getStatus().name().equals("PENDING")) {
+                throw new EntityNotFoundException("Report not available yet: execution " + id + " is still pending");
+            }
+            throw new EntityNotFoundException("Report not found for execution: " + id);
+        }
     }
 
     private ExecutionJob buildExecutionJob(Execution execution, ExecutionRequest request,

@@ -34,6 +34,18 @@ Safety and reliability concerns:
 - Compilation gate aborts both pipelines early on CE.
 - Results (including failures) are always published — no silent job loss.
 
+Container security hardening (all executors):
+- PID limit prevents fork bombs (64 for JVM/Python, 32 for C/C++).
+- `Capability.ALL` dropped — containers have no Linux capabilities.
+- Read-only root filesystem with tmpfs at `/tmp` and `/run`.
+- `nobody` user — containers never run as root.
+- Custom seccomp profile blocks dangerous syscalls (ptrace, bpf, io_uring, clone+NEWUSER, etc.).
+- `no-new-privileges:true` security option.
+- fsize ulimit prevents disk exhaustion.
+- Combined stdout+stderr capped at 4 MB — excess returns OLE verdict.
+
+Execution verdicts: AC, WA, TLE, MLE, OLE (output limit exceeded), RTE, CE, PENDING.
+
 ## Useful Commands
 Run these from codehive-worker.
 

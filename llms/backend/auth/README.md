@@ -8,6 +8,7 @@ This document explains the authentication and user registration behavior impleme
 - POST /api/auth/signup
 - POST /api/auth/signup/csv
 - GET /api/auth/me
+- PUT /api/auth/me/password
 
 Controller: codehive-backend/src/main/java/com/github/codehive/controller/AuthController.java
 
@@ -44,10 +45,17 @@ Important validation rules:
 - Duplicate email/enrollment is blocked both in-file and in-database.
 
 ## Current User (/me)
-1. Controller reads Authorization header.
-2. Bearer token is extracted.
-3. AuthService resolves user from token subject.
-4. UserDTO is returned.
+1. Spring Security's `JWTAuthenticationFilter` runs before the controller and populates `SecurityContextHolder`.
+2. Controller receives the already-authenticated `Authentication` object as a method argument.
+3. `authentication.getName()` returns the subject email from the validated JWT.
+4. `AuthService.getUserByEmail(email)` loads and returns the UserDTO.
+
+Do NOT re-parse the `Authorization` header in controller methods — the `Authentication` injection already provides the verified identity.
+
+## Update Password (/me/password)
+1. Same `Authentication` injection as `/me` to identify the caller.
+2. `UpdatePasswordRequest` carries `currentPassword` and `newPassword`.
+3. `AuthService.updatePassword(userId, request)` verifies current password, encodes and persists new password, and sets `temporaryPassword = false`.
 
 ## Data and Contracts
 Request classes:
@@ -66,6 +74,13 @@ User storage model:
 - Duplicate email/enrollment throws conflict exceptions.
 - Validation errors are handled by GlobalExceptionHandler.
 - Endpoint rate limits are enforced via @RateLimit.
+
+## AuthService Key Methods
+- `login(LoginRequest)` — authenticate by email or enrollment number, return JWT + UserDTO
+- `register(SignUpRequest)` — admin-only registration; generates temporary password and sends welcome email
+- `getUserByEmail(String email)` — load UserDTO from email; used by controllers receiving `Authentication`
+- `updatePassword(UUID userId, UpdatePasswordRequest)` — verify current password and persist new one
+- `generateToken(User)` — build JWT with `userId` and `role` claims, `email` as subject
 
 ## Notes for Future Changes
 - If role/permission model expands, update JWT claims and authorities mapping.

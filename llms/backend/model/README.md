@@ -120,7 +120,7 @@ Enums are persisted and transferred as string values:
 - Role, Scope
 - Language (JAVA, PYTHON, C, CPP)
 - ExecutionType (PRACTICE, DEFINITIVE)
-- ExecutionStatus (AC, WA, CE, RTE, TLE, MLE, PENDING)
+- ExecutionStatus (AC, WA, CE, RTE, TLE, MLE, OLE, PENDING) — OLE = Output Limit Exceeded (> 4 MB combined stdout+stderr)
 - ComparatorType (EXACT_MATCH, FLOATING_POINT)
 
 ## Exception Model

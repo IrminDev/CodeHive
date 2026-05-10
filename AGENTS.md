@@ -171,6 +171,7 @@ All paths are produced by `utils/ObjectKeyBuilder`:
 | `referenceSolutionSourceCode(assignmentId, ext)` | `test-suites/assignments/{a}/reference/Main.{ext}` |
 | `executionSourceCode(executionId, ext)` | `test-execution/execution-{e}/source.{ext}` |
 | `executionTestCaseOutput(executionId)` | `test-execution/execution-{e}/output/` |
+| `executionReport(executionId)` | `test-execution/execution-{e}/output/report.json` |
 | `submissionSourceCode(assignmentId, submissionId, ext)` | `submissions/assignments/{a}/submission-{s}/Main.{ext}` |
 
 ## Implemented Features
@@ -179,6 +180,8 @@ All paths are produced by `utils/ObjectKeyBuilder`:
 - Assignment creation: teacher uploads reference solution + test case inputs; worker generates expected outputs asynchronously
 - Student execution: PRACTICE (inline test cases vs reference solution) and DEFINITIVE (pre-generated outputs)
 - Execution status polling
+- Execution report retrieval: `GET /api/execution/check/{id}/report` fetches per-test-case results from MinIO
+- Docker sandbox security hardening: PID limits, capability drop, read-only rootfs, tmpfs mounts, seccomp profile, nobody user, OLE verdict for output floods
 
 ## Not Yet Implemented (frontend)
 - Professor/teacher pages for assignment management

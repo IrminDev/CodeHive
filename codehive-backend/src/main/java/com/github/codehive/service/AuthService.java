@@ -223,6 +223,13 @@ public class AuthService {
         return UserMapper.toDTO(user);
     }
 
+    @Transactional(readOnly = true)
+    public UserDTO getUserByEmail(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IncorrectCredentialsException("User not found"));
+        return UserMapper.toDTO(user);
+    }
+
     private String generateToken(User user) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", user.getId());

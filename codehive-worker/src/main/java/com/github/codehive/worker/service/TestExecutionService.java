@@ -274,6 +274,8 @@ public class TestExecutionService {
                 return "Time limit exceeded";
             case MLE:
                 return "Memory limit exceeded";
+            case OLE:
+                return "Output limit exceeded";
             case RTE:
                 return "Runtime error";
             case CE:

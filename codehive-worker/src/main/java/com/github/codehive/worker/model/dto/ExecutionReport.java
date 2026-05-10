@@ -86,6 +86,8 @@ public class ExecutionReport {
             this.overallStatus = ExecutionStatus.TLE;
         } else if (testCaseResults.stream().anyMatch(r -> r.getStatus() == ExecutionStatus.MLE)) {
             this.overallStatus = ExecutionStatus.MLE;
+        } else if (testCaseResults.stream().anyMatch(r -> r.getStatus() == ExecutionStatus.OLE)) {
+            this.overallStatus = ExecutionStatus.OLE;
         } else if (testCaseResults.stream().anyMatch(r -> r.getStatus() == ExecutionStatus.RTE)) {
             this.overallStatus = ExecutionStatus.RTE;
         } else {
