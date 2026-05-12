@@ -155,12 +155,12 @@ export function Hero() {
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-azure to-french flex items-center justify-center">
                     <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m9 5.197v1" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                     </svg>
                   </div>
                   <div>
-                    <div className="text-sm font-semibold text-gray-900 dark:text-white">Team Collab</div>
-                    <div className="text-xs text-gray-500">Real-time</div>
+                    <div className="text-sm font-semibold text-gray-900 dark:text-white">Secure Sandbox</div>
+                    <div className="text-xs text-gray-500">Isolated execution</div>
                   </div>
                 </div>
               </div>

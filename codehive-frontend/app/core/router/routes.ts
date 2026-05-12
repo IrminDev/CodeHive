@@ -3,10 +3,12 @@ import { authRoutes } from "../../features/auth/routes";
 import { adminRoutes } from "../../features/admin/routes";
 import { landingRoutes } from "../../features/landing/routes";
 import { dashboardRoutes } from "../../features/dashboard/routes";
+import { practiceWorkspaceRoutes } from "../../features/practice-workspace/routes";
 
 export const routes = [
   ...landingRoutes,
   ...authRoutes,
   ...adminRoutes,
   ...dashboardRoutes,
+  ...practiceWorkspaceRoutes,
 ] satisfies RouteConfig;

@@ -77,13 +77,16 @@ export function Contact() {
 
                 <div className="space-y-4">
                   {[
-                    { text: "Academic & institutional pricing" },
-                    { text: "Custom integrations & features" },
-                    { text: "Dedicated support & SLA" },
-                    { text: "Scalable for any class size" },
-                  ].map((item) => (
-                    <div key={item.text} className="flex items-center gap-3">
-                      <span>{item.text}</span>
+                    "Academic & institutional pricing",
+                    "Custom integrations & features",
+                    "Dedicated support & SLA",
+                    "Scalable for any class size",
+                  ].map((text) => (
+                    <div key={text} className="flex items-center gap-3">
+                      <svg className="w-5 h-5 text-yellow flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                      <span>{text}</span>
                     </div>
                   ))}
                 </div>
