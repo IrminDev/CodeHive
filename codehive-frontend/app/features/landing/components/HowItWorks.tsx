@@ -62,7 +62,7 @@ export function HowItWorks() {
             How <span className="gradient-text-gold">CodeHive</span> Works
           </h2>
           <p className="text-lg text-gray-600 dark:text-gray-400">
-            Get started in minutes and transform the way you teach programming.
+            Get started and change the way you create coding assignments.
           </p>
         </div>
 

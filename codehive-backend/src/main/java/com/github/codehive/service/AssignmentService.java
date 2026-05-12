@@ -4,6 +4,9 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -45,6 +48,12 @@ public class AssignmentService {
         this.referenceSolutionRepository = referenceSolutionRepository;
         this.objectStorageService = objectStorageService;
         this.testGenerationRequestProducer = testGenerationRequestProducer;
+    }
+
+    public Page<AssignmentDTO> listAssignments(int page, int size) {
+        return assignmentRepository
+                .findAllByOrderByCreatedAtDesc(PageRequest.of(page, size))
+                .map(AssignmentMapper::toDTO);
     }
 
     @Transactional

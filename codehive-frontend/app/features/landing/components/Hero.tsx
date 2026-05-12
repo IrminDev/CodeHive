@@ -28,7 +28,7 @@ export function Hero() {
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-azure/10 dark:bg-yellow/10 border border-azure/20 dark:border-yellow/20">
               <span className="w-2 h-2 rounded-full bg-azure dark:bg-yellow animate-pulse" />
               <span className="text-sm font-medium text-azure dark:text-yellow">
-                The Future of Coding Education
+                A platform built for eduators
               </span>
             </div>
 
@@ -43,9 +43,7 @@ export function Hero() {
 
             {/* Subtitle */}
             <p className="text-lg lg:text-xl text-gray-600 dark:text-gray-400 max-w-xl mx-auto lg:mx-0">
-              Empower your teaching with CodeHive. Create coding challenges, 
-              automate grading, and help students master programming skills 
-              — all in one collaborative platform.
+              Reduce your grading time with autograded assignments, designed to engage students and provide instant feedback.
             </p>
 
             {/* CTA Buttons */}

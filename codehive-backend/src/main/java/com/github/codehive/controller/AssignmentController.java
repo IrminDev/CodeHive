@@ -4,12 +4,15 @@ import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
@@ -17,6 +20,7 @@ import org.springframework.web.multipart.MultipartFile;
 import com.github.codehive.model.dto.AssignmentDTO;
 import com.github.codehive.model.request.assignment.CreateAssignmentRequest;
 import com.github.codehive.model.response.ErrorResponse;
+import com.github.codehive.model.response.PageResponse;
 import com.github.codehive.model.response.SuccessResponse;
 import com.github.codehive.service.AssignmentService;
 
@@ -38,6 +42,18 @@ public class AssignmentController {
 
     public AssignmentController(AssignmentService assignmentService) {
         this.assignmentService = assignmentService;
+    }
+
+    @Operation(summary = "List assignments (paginated)",
+            description = "Returns a page of assignments ordered by creation date descending.")
+    @ApiResponse(responseCode = "200", description = "Assignments retrieved successfully",
+            content = @Content(schema = @Schema(implementation = SuccessResponse.class)))
+    @GetMapping
+    public ResponseEntity<SuccessResponse<PageResponse<AssignmentDTO>>> listAssignments(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        Page<AssignmentDTO> result = assignmentService.listAssignments(page, size);
+        return ResponseEntity.ok(new SuccessResponse<>("Assignments retrieved successfully.", new PageResponse<>(result)));
     }
 
     @Operation(

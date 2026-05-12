@@ -78,7 +78,7 @@ export function Footer() {
               Ready to transform your classroom?
             </h2>
             <p className="text-lg lg:text-xl text-white/80 max-w-2xl mx-auto mb-8">
-              Be among the first to experience a smarter way to teach programming — built for universities, designed for students.
+              Experience a modern platform designed for educators and students.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <a href="/login" className="btn-secondary inline-flex items-center justify-center gap-2 text-lg">

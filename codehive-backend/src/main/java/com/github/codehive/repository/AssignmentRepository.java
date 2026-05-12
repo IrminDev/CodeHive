@@ -5,12 +5,16 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.github.codehive.model.entity.Assignment;
 
 public interface AssignmentRepository extends JpaRepository<Assignment, UUID> {
     List<Assignment> findAllByOrderByCreatedAtDesc();
+
+    Page<Assignment> findAllByOrderByCreatedAtDesc(Pageable pageable);
     
     List<Assignment> findByTitleContainingIgnoreCase(String title);
     

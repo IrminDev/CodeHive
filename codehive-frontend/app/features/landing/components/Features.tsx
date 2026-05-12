@@ -7,8 +7,8 @@ const features = [
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
       </svg>
     ),
-    title: "Code Challenges",
-    description: "Create engaging coding challenges with multiple test cases, time limits, and difficulty levels that push students to learn.",
+    title: "Code Assignment Creation",
+    description: "Create coding assignments with multiple test cases, time limits, and difficulty levels that push students to learn.",
     color: "from-azure to-french",
   },
   {
@@ -18,7 +18,7 @@ const features = [
       </svg>
     ),
     title: "Auto-Grading",
-    description: "Save hours with automatic code evaluation. Our system tests submissions against your test cases instantly.",
+    description: "Save hours with automatic code evaluation. Our platform tests submissions against your test cases instantly.",
     color: "from-yellow to-gold",
   },
   {
@@ -28,18 +28,8 @@ const features = [
       </svg>
     ),
     title: "Classroom Management",
-    description: "Organize students into classrooms, track progress, and manage assignments all from one intuitive dashboard.",
+    description: "Organize students into classrooms, track progress, and manage assignments all from one dashboard.",
     color: "from-french to-imperial",
-  },
-  {
-    icon: (
-      <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-      </svg>
-    ),
-    title: "Progress Analytics",
-    description: "Gain insights with detailed analytics. Track student performance, identify areas for improvement, and celebrate achievements.",
-    color: "from-azure to-azure-light",
   },
   {
     icon: (
@@ -48,7 +38,7 @@ const features = [
       </svg>
     ),
     title: "Real-time Feedback",
-    description: "Students receive instant feedback on their code. No more waiting – learn and iterate faster than ever.",
+    description: "Students receive instant feedback on their code. Buy you can also provide custom feedback to guide their learning journey.",
     color: "from-gold to-yellow",
   },
   {
@@ -103,11 +93,10 @@ export function Features() {
           </div>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white mb-6">
             Everything you need to{" "}
-            <span className="gradient-text">teach coding</span>
+            <span className="gradient-text">grade assignments</span>
           </h2>
           <p className="text-lg text-gray-600 dark:text-gray-400">
-            From creating challenges to grading submissions, CodeHive provides all the tools 
-            you need to run a successful programming course.
+            From creating coding assignments to tracking student progress, CodeHive has all the tools you need to succeed in the classroom.
           </p>
         </div>
 

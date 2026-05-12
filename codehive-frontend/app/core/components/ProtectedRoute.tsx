@@ -80,6 +80,8 @@ function getDashboardRoute(role: string): string {
   switch (role) {
     case "ADMIN":
       return "/admin";
+    case "TEACHER":
+      return "/teacher";
     default:
       return "/dashboard";
   }
