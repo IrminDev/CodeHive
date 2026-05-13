@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router";
-import Editor from "@monaco-editor/react";
+import { CodeEditor } from "~/shared/components/CodeEditor";
 import { sileo } from "sileo";
 import { TeacherLayout } from "../components/TeacherLayout";
 import { createAssignment } from "../api/assignment.api";
@@ -658,20 +658,11 @@ export function CreateAssignmentPage() {
                 </span>
               </div>
               <div style={{ height: 400 }}>
-                <Editor
+                <CodeEditor
                   height="100%"
-                  theme="vs-dark"
                   language={monacoLang}
                   value={solutionCode}
-                  onChange={(v) => setSolutionCode(v ?? "")}
-                  options={{
-                    fontSize: 14,
-                    minimap: { enabled: false },
-                    automaticLayout: true,
-                    scrollBeyondLastLine: false,
-                    fontLigatures: true,
-                    smoothScrolling: true,
-                  }}
+                  onChange={(v) => setSolutionCode(v)}
                 />
               </div>
             </div>

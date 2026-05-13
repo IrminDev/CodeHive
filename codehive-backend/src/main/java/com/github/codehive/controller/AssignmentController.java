@@ -9,7 +9,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import java.util.UUID;
+
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -54,6 +57,18 @@ public class AssignmentController {
             @RequestParam(defaultValue = "10") int size) {
         Page<AssignmentDTO> result = assignmentService.listAssignments(page, size);
         return ResponseEntity.ok(new SuccessResponse<>("Assignments retrieved successfully.", new PageResponse<>(result)));
+    }
+
+    @Operation(summary = "Get assignment by ID")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Assignment retrieved successfully",
+                content = @Content(schema = @Schema(implementation = SuccessResponse.class))),
+        @ApiResponse(responseCode = "404", description = "Assignment not found",
+                content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    @GetMapping("/{id}")
+    public ResponseEntity<SuccessResponse<AssignmentDTO>> getAssignment(@PathVariable UUID id) {
+        return ResponseEntity.ok(new SuccessResponse<>("Assignment retrieved successfully.", assignmentService.getAssignmentById(id)));
     }
 
     @Operation(

@@ -14,7 +14,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.github.codehive.messaging.producer.TestGenerationRequestProducer;
+import java.util.UUID;
+
 import com.github.codehive.model.dto.AssignmentDTO;
+import com.github.codehive.model.exception.EntityNotFoundException;
 import com.github.codehive.model.dto.queue.TestCaseInfo;
 import com.github.codehive.model.dto.queue.TestGenerationJob;
 import com.github.codehive.model.entity.Assignment;
@@ -54,6 +57,12 @@ public class AssignmentService {
         return assignmentRepository
                 .findAllByOrderByCreatedAtDesc(PageRequest.of(page, size))
                 .map(AssignmentMapper::toDTO);
+    }
+
+    public AssignmentDTO getAssignmentById(UUID id) {
+        Assignment assignment = assignmentRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Assignment not found: " + id));
+        return AssignmentMapper.toDTO(assignment);
     }
 
     @Transactional
