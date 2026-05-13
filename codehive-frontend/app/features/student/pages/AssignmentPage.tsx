@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router";
 import { Clock, Cpu, Scale } from "lucide-react";
+import { Group as PanelGroup, Panel, Separator as PanelResizeHandle } from "react-resizable-panels";
 import { CodeEditor } from "~/shared/components/CodeEditor";
 import { useAuth } from "~/core/providers/AuthProvider";
 import { getAssignment } from "../api/assignment.api";
@@ -77,6 +78,8 @@ export function AssignmentPage() {
 
   const [activeTab, setActiveTab] = useState<ActiveTab>("problem");
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const isDesktop = useIsDesktop();
 
   useEffect(() => {
     if (!id) return;
@@ -253,128 +256,245 @@ export function AssignmentPage() {
 
       {/* Body */}
       <div className="flex flex-1 min-h-0">
-        {/* Left: Problem */}
-        <aside
-          className={`w-full lg:w-2/5 xl:w-[38%] overflow-y-auto border-r border-gray-200 dark:border-gray-700/50 bg-white dark:bg-dark-surface ${
-            activeTab !== "problem" ? "hidden lg:block" : "block"
-          }`}
-        >
-          <ProblemPanel assignment={assignment} />
-        </aside>
-
-        {/* Right: Editor + Tests */}
-        <div
-          className={`flex-1 flex flex-col min-h-0 ${
-            activeTab !== "editor" ? "hidden lg:flex" : "flex"
-          }`}
-        >
-          {/* Mobile language select */}
-          <div className="lg:hidden px-3 py-2 border-b border-gray-200 dark:border-gray-700/50 bg-white dark:bg-dark-surface flex-shrink-0">
-            <select
-              value={selectedLanguage}
-              onChange={(e) => handleLanguageChange(e.target.value as Language)}
-              className="w-full text-sm px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-dark-card text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-azure dark:focus:ring-yellow"
-            >
-              {allowedLangs.map((lang) => (
-                <option key={lang} value={lang}>
-                  {LANGUAGE_LABELS[lang]}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Monaco Editor */}
-          <div className="flex-1 min-h-0">
-            <CodeEditor
-              language={MONACO_LANG_MAP[selectedLanguage]}
-              value={code}
-              onChange={setCode}
-            />
-          </div>
-
-          {/* Test Cases Panel */}
-          <div className="flex-shrink-0 h-52 border-t border-gray-200 dark:border-gray-700/50 bg-white dark:bg-dark-surface flex flex-col">
-            <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200 dark:border-gray-700/50 flex-shrink-0">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">Test Cases</span>
-                {report && (
-                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
-                    {report.passedTests}/{report.totalTests} passed
-                  </span>
-                )}
+        {isDesktop ? (
+          /* Desktop: resizable panels */
+          <PanelGroup orientation="horizontal" className="flex-1">
+            {/* Problem panel */}
+            <Panel defaultSize="38" minSize="20" maxSize="60">
+              <div className="h-full overflow-y-auto bg-white dark:bg-dark-surface">
+                <ProblemPanel assignment={assignment} />
               </div>
-              <button
-                onClick={addTestCase}
-                className="inline-flex items-center gap-1 text-xs font-medium text-azure dark:text-yellow hover:underline"
-              >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                Add
-              </button>
-            </div>
+            </Panel>
 
-            <div className="flex-1 overflow-x-auto overflow-y-hidden">
-              {execError && (
-                <div className="px-4 py-2 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20">
-                  {execError}
-                </div>
-              )}
-              {report?.compilationError && (
-                <div className="px-4 py-2 text-xs text-yellow-700 dark:text-yellow-300 bg-yellow-50 dark:bg-yellow-900/20 font-mono whitespace-pre-wrap">
-                  {report.compilationError}
-                </div>
-              )}
-              <div className="flex gap-3 p-3 h-full">
-                {testCases.map((tc, i) => {
-                  const result = report?.testCaseResults?.[i];
-                  return (
-                    <div
-                      key={i}
-                      className={`flex-shrink-0 w-52 flex flex-col rounded-xl border overflow-hidden ${
-                        result
-                          ? STATUS_STYLES[result.status] ?? "border-gray-200 dark:border-gray-700/50"
-                          : "border-gray-200 dark:border-gray-700/50 bg-gray-50 dark:bg-dark-card"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-current/10 flex-shrink-0">
-                        <span className="text-xs font-semibold">Case {i + 1}</span>
-                        <div className="flex items-center gap-1.5">
-                          {result && (
-                            <span className="text-xs font-bold">{result.status}</span>
-                          )}
-                          {testCases.length > 1 && (
-                            <button
-                              onClick={() => removeTestCase(i)}
-                              className="opacity-60 hover:opacity-100 transition-opacity"
-                              aria-label="Remove test case"
-                            >
-                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                              </svg>
-                            </button>
-                          )}
-                        </div>
+            <ResizeHandle direction="horizontal" />
+
+            {/* Editor + Tests panel */}
+            <Panel minSize="30">
+              <PanelGroup orientation="vertical" className="h-full">
+                {/* Monaco Editor */}
+                <Panel defaultSize="68" minSize="25">
+                  <CodeEditor
+                    language={MONACO_LANG_MAP[selectedLanguage]}
+                    value={code}
+                    onChange={setCode}
+                  />
+                </Panel>
+
+                <ResizeHandle direction="vertical" />
+
+                {/* Test Cases */}
+                <Panel defaultSize="32" minSize="12" maxSize="60">
+                  <div className="h-full bg-white dark:bg-dark-surface flex flex-col">
+                    <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200 dark:border-gray-700/50 flex-shrink-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">Test Cases</span>
+                        {report && (
+                          <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                            {report.passedTests}/{report.totalTests} passed
+                          </span>
+                        )}
                       </div>
-                      <textarea
-                        value={tc}
-                        onChange={(e) => updateTestCase(i, e.target.value)}
-                        placeholder="Input…"
-                        className="flex-1 w-full resize-none bg-transparent text-xs font-mono p-2 focus:outline-none placeholder:text-gray-400 dark:placeholder:text-gray-600"
-                      />
-                      {result && (result.executionTimeMs !== undefined || result.memoryUsedMb !== undefined) && (
-                        <div className="px-2 py-1 text-[10px] opacity-70 border-t border-current/10 flex gap-2">
-                          {result.executionTimeMs !== undefined && <span>{result.executionTimeMs}ms</span>}
-                          {result.memoryUsedMb !== undefined && <span>{result.memoryUsedMb}MB</span>}
+                      <button
+                        onClick={addTestCase}
+                        className="inline-flex items-center gap-1 text-xs font-medium text-azure dark:text-yellow hover:underline"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                        Add
+                      </button>
+                    </div>
+                    <div className="flex-1 overflow-x-auto overflow-y-hidden">
+                      {execError && (
+                        <div className="px-4 py-2 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20">
+                          {execError}
                         </div>
                       )}
+                      {report?.compilationError && (
+                        <div className="px-4 py-2 text-xs text-yellow-700 dark:text-yellow-300 bg-yellow-50 dark:bg-yellow-900/20 font-mono whitespace-pre-wrap">
+                          {report.compilationError}
+                        </div>
+                      )}
+                      <div className="flex gap-3 p-3 h-full">
+                        {testCases.map((tc, i) => {
+                          const result = report?.testCaseResults?.[i];
+                          return (
+                            <div
+                              key={i}
+                              className={`flex-shrink-0 w-52 flex flex-col rounded-xl border overflow-hidden ${
+                                result
+                                  ? STATUS_STYLES[result.status] ?? "border-gray-200 dark:border-gray-700/50"
+                                  : "border-gray-200 dark:border-gray-700/50 bg-gray-50 dark:bg-dark-card"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-current/10 flex-shrink-0">
+                                <span className="text-xs font-semibold">Case {i + 1}</span>
+                                <div className="flex items-center gap-1.5">
+                                  {result && (
+                                    <span className="text-xs font-bold">{result.status}</span>
+                                  )}
+                                  {testCases.length > 1 && (
+                                    <button
+                                      onClick={() => removeTestCase(i)}
+                                      className="opacity-60 hover:opacity-100 transition-opacity"
+                                      aria-label="Remove test case"
+                                    >
+                                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                      </svg>
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                              <textarea
+                                value={tc}
+                                onChange={(e) => updateTestCase(i, e.target.value)}
+                                placeholder="Input…"
+                                className="flex-1 w-full resize-none bg-transparent text-xs font-mono p-2 focus:outline-none placeholder:text-gray-400 dark:placeholder:text-gray-600"
+                              />
+                              {result && (result.executionTimeMs !== undefined || result.memoryUsedMb !== undefined) && (
+                                <div className="px-2 py-1 text-[10px] opacity-70 border-t border-current/10 flex gap-2">
+                                  {result.executionTimeMs !== undefined && <span>{result.executionTimeMs}ms</span>}
+                                  {result.memoryUsedMb !== undefined && <span>{result.memoryUsedMb}MB</span>}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
-                  );
-                })}
+                  </div>
+                </Panel>
+              </PanelGroup>
+            </Panel>
+          </PanelGroup>
+        ) : (
+          /* Mobile: tab-based layout */
+          <>
+            {/* Left: Problem */}
+            <aside
+              className={`w-full overflow-y-auto bg-white dark:bg-dark-surface ${
+                activeTab !== "problem" ? "hidden" : "block"
+              }`}
+            >
+              <ProblemPanel assignment={assignment} />
+            </aside>
+
+            {/* Right: Editor + Tests */}
+            <div
+              className={`flex-1 flex flex-col min-h-0 ${
+                activeTab !== "editor" ? "hidden" : "flex"
+              }`}
+            >
+              {/* Mobile language select */}
+              <div className="px-3 py-2 border-b border-gray-200 dark:border-gray-700/50 bg-white dark:bg-dark-surface flex-shrink-0">
+                <select
+                  value={selectedLanguage}
+                  onChange={(e) => handleLanguageChange(e.target.value as Language)}
+                  className="w-full text-sm px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-dark-card text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-azure dark:focus:ring-yellow"
+                >
+                  {allowedLangs.map((lang) => (
+                    <option key={lang} value={lang}>
+                      {LANGUAGE_LABELS[lang]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Monaco Editor */}
+              <div className="flex-1 min-h-0">
+                <CodeEditor
+                  language={MONACO_LANG_MAP[selectedLanguage]}
+                  value={code}
+                  onChange={setCode}
+                />
+              </div>
+
+              {/* Test Cases Panel */}
+              <div className="flex-shrink-0 h-52 border-t border-gray-200 dark:border-gray-700/50 bg-white dark:bg-dark-surface flex flex-col">
+                <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200 dark:border-gray-700/50 flex-shrink-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">Test Cases</span>
+                    {report && (
+                      <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                        {report.passedTests}/{report.totalTests} passed
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    onClick={addTestCase}
+                    className="inline-flex items-center gap-1 text-xs font-medium text-azure dark:text-yellow hover:underline"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    Add
+                  </button>
+                </div>
+
+                <div className="flex-1 overflow-x-auto overflow-y-hidden">
+                  {execError && (
+                    <div className="px-4 py-2 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20">
+                      {execError}
+                    </div>
+                  )}
+                  {report?.compilationError && (
+                    <div className="px-4 py-2 text-xs text-yellow-700 dark:text-yellow-300 bg-yellow-50 dark:bg-yellow-900/20 font-mono whitespace-pre-wrap">
+                      {report.compilationError}
+                    </div>
+                  )}
+                  <div className="flex gap-3 p-3 h-full">
+                    {testCases.map((tc, i) => {
+                      const result = report?.testCaseResults?.[i];
+                      return (
+                        <div
+                          key={i}
+                          className={`flex-shrink-0 w-52 flex flex-col rounded-xl border overflow-hidden ${
+                            result
+                              ? STATUS_STYLES[result.status] ?? "border-gray-200 dark:border-gray-700/50"
+                              : "border-gray-200 dark:border-gray-700/50 bg-gray-50 dark:bg-dark-card"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-current/10 flex-shrink-0">
+                            <span className="text-xs font-semibold">Case {i + 1}</span>
+                            <div className="flex items-center gap-1.5">
+                              {result && (
+                                <span className="text-xs font-bold">{result.status}</span>
+                              )}
+                              {testCases.length > 1 && (
+                                <button
+                                  onClick={() => removeTestCase(i)}
+                                  className="opacity-60 hover:opacity-100 transition-opacity"
+                                  aria-label="Remove test case"
+                                >
+                                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                  </svg>
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          <textarea
+                            value={tc}
+                            onChange={(e) => updateTestCase(i, e.target.value)}
+                            placeholder="Input…"
+                            className="flex-1 w-full resize-none bg-transparent text-xs font-mono p-2 focus:outline-none placeholder:text-gray-400 dark:placeholder:text-gray-600"
+                          />
+                          {result && (result.executionTimeMs !== undefined || result.memoryUsedMb !== undefined) && (
+                            <div className="px-2 py-1 text-[10px] opacity-70 border-t border-current/10 flex gap-2">
+                              {result.executionTimeMs !== undefined && <span>{result.executionTimeMs}ms</span>}
+                              {result.memoryUsedMb !== undefined && <span>{result.memoryUsedMb}MB</span>}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -529,6 +649,37 @@ function TabBtn({
       {children}
     </button>
   );
+}
+
+function ResizeHandle({ direction }: { direction: "horizontal" | "vertical" }) {
+  return (
+    <PanelResizeHandle
+      className={`group relative flex items-center justify-center z-10 transition-colors duration-150 ${
+        direction === "horizontal"
+          ? "w-1.5 cursor-col-resize bg-gray-200 dark:bg-gray-700/50 hover:bg-azure/20 dark:hover:bg-yellow/10"
+          : "h-1.5 cursor-row-resize bg-gray-200 dark:bg-gray-700/50 hover:bg-azure/20 dark:hover:bg-yellow/10"
+      }`}
+    >
+      <div
+        className={`rounded-full bg-gray-400 dark:bg-gray-500 group-hover:bg-azure dark:group-hover:bg-yellow transition-colors duration-150 ${
+          direction === "horizontal" ? "w-0.5 h-8" : "h-0.5 w-8"
+        }`}
+      />
+    </PanelResizeHandle>
+  );
+}
+
+function useIsDesktop() {
+  const [isDesktop, setIsDesktop] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches
+  );
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+  return isDesktop;
 }
 
 function LoadingScreen() {
