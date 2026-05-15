@@ -30,15 +30,6 @@ const MOCK_GROUPS: Group[] = [
     inProgress: 0,
     nextDeadline: "April 30, 2026",
   },
-  {
-    id: "4",
-    name: "Algoritmos y Estructuras de datos",
-    subject: "Segundo Semestre",
-    colorClass: "bg-yellow-500",
-    pendingPractices: 0,
-    inProgress: 2,
-    nextDeadline: "May 8, 2026",
-  },
 ];
 
 export const getGroups = async (): Promise<Group[]> => {

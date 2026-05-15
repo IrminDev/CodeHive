@@ -1,10 +1,9 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { useTheme } from "~/core/providers/ThemeProvider";
 import { AuthService } from "~/features/auth/services/auth.service";
 import type { CsvProgressMessage } from "~/features/admin/types/admin.types";
+import { AppHeader } from "~/shared/components/AppHeader";
 
 export function CsvUploadPage() {
-  const { theme, toggleTheme } = useTheme();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -91,51 +90,20 @@ export function CsvUploadPage() {
         <div className="absolute bottom-0 left-1/4 w-80 h-80 bg-yellow/5 dark:bg-yellow/10 rounded-full blur-3xl" />
       </div>
 
-      {/* Header */}
-      <header className="bg-white/80 dark:bg-dark-surface/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
-          <div className="flex items-center gap-3">
-            <a
-              href="/admin"
-              className="p-2 rounded-xl border border-gray-200 dark:border-gray-700
-                         text-gray-500 dark:text-gray-400
-                         hover:border-azure/50 dark:hover:border-yellow/50
-                         hover:text-azure dark:hover:text-yellow transition-all duration-200"
-              aria-label="Back to Admin Dashboard"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </a>
-            <div className="flex items-center gap-2">
-              <span className="font-semibold text-gray-900 dark:text-white">Bulk Registration</span>
-              <div className="inline-flex items-center px-2 py-0.5 rounded-full bg-azure/10 dark:bg-yellow/10 border border-azure/20 dark:border-yellow/20">
-                <span className="text-xs font-medium text-azure dark:text-yellow">Admin</span>
-              </div>
-            </div>
-          </div>
-
-          <button
-            onClick={toggleTheme}
-            className="p-2 rounded-full bg-gray-100 dark:bg-dark-card hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200"
-            aria-label="Toggle theme"
-          >
-            {theme === "light" ? (
-              <svg className="w-5 h-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-              </svg>
-            ) : (
-              <svg className="w-5 h-5 text-yellow" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-              </svg>
-            )}
-          </button>
-        </div>
-      </header>
+      <AppHeader badge="Admin" logoLinkTo="/admin" />
 
       <main className="relative max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-6">
         {/* Page header */}
         <div>
+          <a
+            href="/admin"
+            className="inline-flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-azure dark:hover:text-yellow transition-colors mb-4"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            Back to Admin
+          </a>
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-azure/10 dark:bg-yellow/10 border border-azure/20 dark:border-yellow/20 mb-4">
             <span className="text-sm font-medium text-azure dark:text-yellow">Bulk Upload</span>
           </div>
