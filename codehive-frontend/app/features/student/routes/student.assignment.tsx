@@ -1,6 +1,6 @@
 import type { Route } from "./+types/student.assignment";
 import { ProtectedRoute } from "~/core/components/ProtectedRoute";
-import { AssignmentPage } from "../pages/AssignmentPage";
+import { AssignmentPage } from "../../execution/pages/AssignmentPage";
 
 export function meta({}: Route.MetaArgs) {
   return [

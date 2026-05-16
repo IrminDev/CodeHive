@@ -3,22 +3,9 @@ import { Link } from "react-router";
 
 import { useAuth } from "~/core/providers/AuthProvider";
 import { DashboardLayout } from "~/shared/components/DashboardLayout";
+import { StatCard } from "~/shared/components/StatCard";
 import { TEACHER_NAV, TEACHER_SIDEBAR_ITEMS } from "../config/dashboard.config";
-
-// TODO: Replace mock data with real API calls
-const MOCK_STATS = {
-  totalAssignments: 12,
-  activeGroups: 4,
-  totalStudents: 87,
-  pendingReviews: 5,
-};
-
-const MOCK_ASSIGNMENTS = [
-  { id: "1", title: "Binary Search Implementation", language: "PYTHON", status: "ACTIVE", submissions: 42, dueDate: "Jun 1, 2026" },
-  { id: "2", title: "Sorting Algorithms", language: "JAVA", status: "ACTIVE", submissions: 28, dueDate: "May 25, 2026" },
-  { id: "3", title: "Graph Traversal", language: "CPP", status: "PENDING", submissions: 0, dueDate: "Jun 15, 2026" },
-  { id: "4", title: "Dynamic Programming Basics", language: "PYTHON", status: "ACTIVE", submissions: 17, dueDate: "May 30, 2026" },
-];
+import { MOCK_ASSIGNMENTS, TEACHER_STATS_CONFIG } from "../data/teacher-dashboard.data";
 
 const LANGUAGE_LABELS: Record<string, string> = {
   PYTHON: "Python",
@@ -64,48 +51,9 @@ export function TeacherDashboardPage() {
           isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
         }`}
       >
-        <StatCard
-          label="Total Assignments"
-          value={MOCK_STATS.totalAssignments}
-          gradient="from-azure to-french"
-          icon={
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            </svg>
-          }
-        />
-        <StatCard
-          label="Active Groups"
-          value={MOCK_STATS.activeGroups}
-          gradient="from-french to-imperial"
-          icon={
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-          }
-        />
-        <StatCard
-          label="Total Students"
-          value={MOCK_STATS.totalStudents}
-          gradient="from-yellow to-gold"
-          textDark
-          icon={
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197" />
-            </svg>
-          }
-        />
-        <StatCard
-          label="Pending Reviews"
-          value={MOCK_STATS.pendingReviews}
-          gradient="from-gold to-yellow"
-          textDark
-          icon={
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          }
-        />
+        {TEACHER_STATS_CONFIG.map((stat, idx) => (
+          <StatCard key={idx} accent={stat.gradient} {...stat} />
+        ))}
       </div>
 
       {/* TEMPORARY: Create Assignment CTA — will be removed in the final version */}
@@ -197,32 +145,3 @@ export function TeacherDashboardPage() {
     </DashboardLayout>
   );
 }
-
-function StatCard({
-  label,
-  value,
-  gradient,
-  icon,
-  textDark = false,
-}: {
-  label: string;
-  value: number;
-  gradient: string;
-  icon: React.ReactNode;
-  textDark?: boolean;
-}) {
-  return (
-    <div className="bg-white dark:bg-dark-card rounded-2xl p-5 border border-gray-200 dark:border-gray-700/50 hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5">
-      <div
-        className={`inline-flex items-center justify-center w-11 h-11 rounded-xl bg-gradient-to-br ${gradient} ${
-          textDark ? "text-imperial" : "text-white"
-        } mb-3`}
-      >
-        {icon}
-      </div>
-      <div className="text-2xl font-bold text-gray-900 dark:text-white">{value}</div>
-      <div className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{label}</div>
-    </div>
-  );
-}
-
