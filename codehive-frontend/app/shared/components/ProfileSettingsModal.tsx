@@ -1,18 +1,18 @@
 import React, { useState } from "react";
 import { X, Lock, User, Loader2, LogOut } from "lucide-react";
 import { sileo } from "sileo";
-import { updatePassword } from "../api/dashboard.api";
+
 import { useAuth } from "~/core/providers/AuthProvider";
+import { AuthService } from "~/features/auth/services/auth.service";
 
 interface ProfileSettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ isOpen, onClose }) => {
+export function ProfileSettingsModal({ isOpen, onClose }: ProfileSettingsModalProps) {
   const { user, logout } = useAuth();
   const [activeTab, setActiveTab] = useState<"profile" | "security">("profile");
-
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
@@ -21,7 +21,9 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ isOp
 
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (!currentPassword || !newPassword) return;
+
     if (newPassword.length < 8) {
       sileo.error({ title: "New password must be at least 8 characters" });
       return;
@@ -29,7 +31,7 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ isOp
 
     setIsUpdatingPassword(true);
     try {
-      await updatePassword(currentPassword, newPassword);
+      await AuthService.updatePassword(currentPassword, newPassword);
       sileo.success({ title: "Password updated successfully" });
       setCurrentPassword("");
       setNewPassword("");
@@ -49,7 +51,6 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ isOp
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
       <div className="bg-white dark:bg-dark-card border border-gray-200 dark:border-gray-700/50 rounded-xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col">
-        {/* Modal header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700/50">
           <h2 className="text-lg font-bold text-gray-900 dark:text-white">Settings</h2>
           <button
@@ -60,7 +61,6 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ isOp
           </button>
         </div>
 
-        {/* Tabs */}
         <div className="flex border-b border-gray-200 dark:border-gray-700/50">
           <button
             className={`flex-1 py-3 text-sm font-medium flex justify-center items-center gap-2 border-b-2 transition-colors ${
@@ -84,7 +84,6 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ isOp
           </button>
         </div>
 
-        {/* Content */}
         <div className="p-6 overflow-y-auto">
           {activeTab === "profile" && (
             <div className="flex flex-col items-center gap-6">
@@ -156,4 +155,4 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ isOp
       </div>
     </div>
   );
-};
+}

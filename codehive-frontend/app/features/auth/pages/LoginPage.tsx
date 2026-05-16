@@ -7,6 +7,7 @@ import { sileo } from "sileo";
 import logo from "~/assets/logo.png";
 import { AuthService } from "../services/auth.service";
 import { setAuthToken } from "~/core/storage/token.storage";
+import { getDashboardRoute } from "~/shared/lib/role-routing";
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -25,11 +26,7 @@ export function LoginPage() {
 
   useEffect(() => {
     if (user) {
-      if (user.role === "ADMIN") {
-        navigate("/admin");
-      } else {
-        navigate("/dashboard");
-      }
+      navigate(getDashboardRoute(user.role), { replace: true });
     }
   }, [user, navigate]);
 

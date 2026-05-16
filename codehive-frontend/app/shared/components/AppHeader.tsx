@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router";
 import { useAuth } from "~/core/providers/AuthProvider";
 import { useTheme } from "~/core/providers/ThemeProvider";
-import { ProfileSettingsModal } from "~/features/dashboard/components/ProfileSettingsModal";
+import { ProfileSettingsModal } from "./ProfileSettingsModal";
 import logo from "~/assets/logo.png";
 
 interface NavLink {

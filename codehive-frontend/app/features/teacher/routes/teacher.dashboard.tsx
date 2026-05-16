@@ -1,4 +1,4 @@
-import type { Route } from "./+types/teacher";
+import type { Route } from "./+types/teacher.dashboard";
 import { ProtectedRoute } from "~/core/components/ProtectedRoute";
 import { TeacherDashboardPage } from "../pages/TeacherDashboardPage";
 import { Role } from "~/shared/types/model/User";

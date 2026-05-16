@@ -1,10 +1,11 @@
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { CodeEditor } from "~/shared/components/CodeEditor";
+import { DashboardLayout } from "~/shared/components/DashboardLayout";
 import { sileo } from "sileo";
-import { TeacherLayout } from "../components/TeacherLayout";
 import { createAssignment } from "../api/assignment.api";
 import type { Language, ComparatorType } from "../api/assignment.api";
+import { TEACHER_CREATE_NAV, TEACHER_CREATE_SIDEBAR_ITEMS } from "../config/dashboard.config";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -421,7 +422,11 @@ export function CreateAssignmentPage() {
   const monacoLang = LANGUAGES.find((l) => l.value === referenceLanguage)?.monaco ?? "python";
 
   return (
-    <TeacherLayout>
+    <DashboardLayout
+      logoLinkTo="/teacher"
+      navLinks={TEACHER_CREATE_NAV}
+      sidebarItems={TEACHER_CREATE_SIDEBAR_ITEMS}
+    >
       {/* Page header */}
       <div className="flex items-center gap-4 mb-8">
         <button
@@ -814,6 +819,6 @@ export function CreateAssignmentPage() {
           </button>
         </div>
       </form>
-    </TeacherLayout>
+    </DashboardLayout>
   );
 }

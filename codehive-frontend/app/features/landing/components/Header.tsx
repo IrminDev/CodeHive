@@ -1,17 +1,8 @@
 import { useState, useEffect } from "react";
 import { useTheme } from "~/core/providers/ThemeProvider";
 import { useAuth } from "~/core/providers/AuthProvider";
-import type { Role } from "~/shared/types/model/User";
 import logo from "~/assets/logo.png";
-
-function getDashboardRoute(role: Role): string {
-  switch (role) {
-    case "ADMIN":
-      return "/admin";
-    default:
-      return "/dashboard";
-  }
-}
+import { getDashboardRoute } from "~/shared/lib/role-routing";
 
 export function Header() {
   const { theme, toggleTheme } = useTheme();

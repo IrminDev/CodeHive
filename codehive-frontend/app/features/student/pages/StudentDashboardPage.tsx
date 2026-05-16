@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
-import { DashboardLayout } from "~/features/dashboard/components/DashboardLayout";
+
 import { useAuth } from "~/core/providers/AuthProvider";
-import { getGroups } from "~/features/dashboard/api/dashboard.api";
-import type { Group } from "~/features/dashboard/types/dashboard.types";
+import { DashboardLayout } from "~/shared/components/DashboardLayout";
+import { getGroups } from "../api/groups.api";
+import { GroupCard } from "../components/GroupCard";
 import { listAssignments } from "../api/assignment.api";
+import type { Group } from "../types/group.types";
 import type { Assignment } from "../types/assignment.types";
+import { STUDENT_NAV, STUDENT_SIDEBAR_ITEMS, STUDENT_STATS_ICONS } from "../config/dashboard.config";
 
 const LANGUAGE_LABELS: Record<string, string> = {
   PYTHON: "Python",
@@ -53,7 +56,11 @@ export function StudentDashboardPage() {
   const totalPending = groups.reduce((acc, g) => acc + g.pendingPractices, 0);
 
   return (
-    <DashboardLayout>
+    <DashboardLayout
+      logoLinkTo="/dashboard"
+      navLinks={STUDENT_NAV}
+      sidebarItems={STUDENT_SIDEBAR_ITEMS}
+    >
       {/* Ambient orbs */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
         <div className="absolute top-20 -left-32 w-96 h-96 rounded-full blur-3xl bg-azure/10 dark:bg-azure/5 animate-float" />
@@ -62,6 +69,7 @@ export function StudentDashboardPage() {
 
       {/* Welcome hero */}
       <div
+        id="overview"
         className={`mb-10 transition-all duration-700 ${
           isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
         }`}
@@ -90,31 +98,32 @@ export function StudentDashboardPage() {
         <StatCard
           label="Pending"
           value={totalPending}
-          icon={<ClipboardIcon />}
+          icon={STUDENT_STATS_ICONS.pending}
           accent="from-azure to-french"
         />
         <StatCard
           label="Groups"
           value={groups.length}
-          icon={<GroupIcon />}
+          icon={STUDENT_STATS_ICONS.groups}
           accent="from-french to-imperial"
         />
         <StatCard
           label="In Progress"
           value={groups.reduce((a, g) => a + g.inProgress, 0)}
-          icon={<CodeIcon />}
+          icon={STUDENT_STATS_ICONS.inProgress}
           accent="from-azure to-french"
         />
         <StatCard
           label="Assignments"
           value={assignments.length}
-          icon={<AssignmentIcon />}
+          icon={STUDENT_STATS_ICONS.assignments}
           accent="from-yellow to-gold"
         />
       </div>
 
       {/* My Groups */}
       <section
+        id="groups"
         className={`mb-12 transition-all duration-700 delay-200 ${
           isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
         }`}
@@ -138,7 +147,7 @@ export function StudentDashboardPage() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
             {groups.map((group) => (
-              <GroupCardStyled key={group.id} group={group} />
+              <GroupCard key={group.id} group={group} />
             ))}
           </div>
         )}
@@ -146,6 +155,7 @@ export function StudentDashboardPage() {
 
       {/* Available Assignments */}
       <section
+        id="assignments"
         className={`transition-all duration-700 delay-300 ${
           isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
         }`}
@@ -171,7 +181,7 @@ export function StudentDashboardPage() {
         ) : assignments.length === 0 ? (
           <div className="rounded-2xl border border-gray-200 dark:border-gray-700/50 bg-white dark:bg-dark-card p-12 text-center">
             <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-gradient-to-br from-azure to-french text-white mb-4">
-              <AssignmentIcon />
+              {STUDENT_STATS_ICONS.assignments}
             </div>
             <p className="text-gray-900 dark:text-white font-semibold mb-1">No assignments yet</p>
             <p className="text-sm text-gray-500 dark:text-gray-400">Your teacher will publish assignments here.</p>
@@ -216,36 +226,6 @@ function StatCard({
       </div>
       <p className="text-2xl font-bold text-gray-900 dark:text-white">{value}</p>
       <p className="text-sm text-gray-500 dark:text-gray-400">{label}</p>
-    </div>
-  );
-}
-
-function GroupCardStyled({ group }: { group: Group }) {
-  return (
-    <div className="group bg-white dark:bg-dark-card rounded-2xl border border-gray-200 dark:border-gray-700/50 hover:border-azure/50 dark:hover:border-yellow/50 transition-all duration-500 hover:shadow-xl hover:shadow-azure/5 dark:hover:shadow-yellow/5 hover:-translate-y-1 overflow-hidden cursor-pointer flex flex-col">
-      <div className={`${group.colorClass} h-28 p-5 flex flex-col justify-end relative overflow-hidden`}>
-        <div className="absolute -top-8 -right-8 w-28 h-28 bg-white/10 rounded-full group-hover:scale-110 transition-transform duration-500" />
-        <h3 className="text-base font-bold text-white z-10 leading-tight">{group.name}</h3>
-        <p className="text-white/75 text-xs z-10 mt-0.5">{group.subject}</p>
-      </div>
-      <div className="p-4 flex flex-col gap-2.5 flex-1 text-sm">
-        <Row label="Pending" value={group.pendingPractices} highlight={group.pendingPractices > 0} />
-        <Row label="In Progress" value={group.inProgress} />
-        <div className="pt-3 mt-auto border-t border-gray-100 dark:border-gray-700/50">
-          <Row label="Next Deadline" value={group.nextDeadline} />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function Row({ label, value, highlight }: { label: string; value: string | number; highlight?: boolean }) {
-  return (
-    <div className="flex justify-between items-center">
-      <span className="text-gray-500 dark:text-gray-400">{label}</span>
-      <span className={`font-medium ${highlight ? "text-azure dark:text-yellow" : "text-gray-900 dark:text-white"}`}>
-        {value}
-      </span>
     </div>
   );
 }
@@ -309,32 +289,3 @@ function AssignmentCard({ assignment }: { assignment: Assignment }) {
   );
 }
 
-// Inline icons
-function ClipboardIcon() {
-  return (
-    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-    </svg>
-  );
-}
-function GroupIcon() {
-  return (
-    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-    </svg>
-  );
-}
-function CodeIcon() {
-  return (
-    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-    </svg>
-  );
-}
-function AssignmentIcon() {
-  return (
-    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-    </svg>
-  );
-}

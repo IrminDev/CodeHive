@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
-import { TeacherLayout } from "../components/TeacherLayout";
+
 import { useAuth } from "~/core/providers/AuthProvider";
+import { DashboardLayout } from "~/shared/components/DashboardLayout";
+import { TEACHER_NAV, TEACHER_SIDEBAR_ITEMS } from "../config/dashboard.config";
 
 // TODO: Replace mock data with real API calls
 const MOCK_STATS = {
@@ -34,9 +36,14 @@ export function TeacherDashboardPage() {
   }, []);
 
   return (
-    <TeacherLayout>
+    <DashboardLayout
+      logoLinkTo="/teacher"
+      navLinks={TEACHER_NAV}
+      sidebarItems={TEACHER_SIDEBAR_ITEMS}
+    >
       {/* Welcome header */}
       <div
+        id="overview"
         className={`mb-8 transition-all duration-700 ${
           isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
         }`}
@@ -52,6 +59,7 @@ export function TeacherDashboardPage() {
 
       {/* Stats grid */}
       <div
+        id="stats"
         className={`grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8 transition-all duration-700 delay-100 ${
           isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
         }`}
@@ -102,6 +110,7 @@ export function TeacherDashboardPage() {
 
       {/* TEMPORARY: Create Assignment CTA — will be removed in the final version */}
       <div
+        id="assignments"
         className={`relative overflow-hidden rounded-3xl bg-gradient-to-br from-imperial via-french to-azure p-8 mb-8 transition-all duration-700 delay-200 ${
           isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
         }`}
@@ -133,6 +142,7 @@ export function TeacherDashboardPage() {
 
       {/* Recent assignments */}
       <div
+        id="recent-assignments"
         className={`transition-all duration-700 delay-300 ${
           isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
         }`}
@@ -184,7 +194,7 @@ export function TeacherDashboardPage() {
           ))}
         </div>
       </div>
-    </TeacherLayout>
+    </DashboardLayout>
   );
 }
 
@@ -215,3 +225,4 @@ function StatCard({
     </div>
   );
 }
+
