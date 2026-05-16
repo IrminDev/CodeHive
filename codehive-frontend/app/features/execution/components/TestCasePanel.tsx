@@ -7,6 +7,7 @@ interface TestCasePanelProps {
   setTestCases: React.Dispatch<React.SetStateAction<string[]>>;
   report: ExecutionReport | null;
   execError: string | null;
+  sampleCount: number;
 }
 
 export function TestCasePanel({
@@ -14,6 +15,7 @@ export function TestCasePanel({
   setTestCases,
   report,
   execError,
+  sampleCount,
 }: TestCasePanelProps) {
   function addTestCase() {
     setTestCases((prev) => [...prev, ""]);
@@ -62,6 +64,7 @@ export function TestCasePanel({
         <div className="flex gap-3 p-3 h-full min-h-[140px]">
           {testCases.map((tc, i) => {
             const result = report?.testCaseResults?.[i];
+            const isSample = i < sampleCount;
             return (
               <div
                 key={i}
@@ -72,12 +75,19 @@ export function TestCasePanel({
                 }`}
               >
                 <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-current/10 flex-shrink-0">
-                  <span className="text-xs font-semibold">Case {i + 1}</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-semibold">Case {i + 1}</span>
+                    {isSample && (
+                      <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-azure/10 dark:bg-yellow/10 text-azure dark:text-yellow">
+                        Sample
+                      </span>
+                    )}
+                  </div>
                   <div className="flex items-center gap-1.5">
                     {result && (
                       <span className="text-xs font-bold">{result.status}</span>
                     )}
-                    {testCases.length > 1 && (
+                    {!isSample && testCases.length > sampleCount + 1 && (
                       <button
                         onClick={() => removeTestCase(i)}
                         className="opacity-60 hover:opacity-100 transition-opacity"
@@ -93,8 +103,11 @@ export function TestCasePanel({
                 <textarea
                   value={tc}
                   onChange={(e) => updateTestCase(i, e.target.value)}
+                  readOnly={isSample}
                   placeholder="Input…"
-                  className="flex-1 w-full resize-none bg-transparent text-xs font-mono p-2 focus:outline-none placeholder:text-gray-400 dark:placeholder:text-gray-600"
+                  className={`flex-1 w-full resize-none bg-transparent text-xs font-mono p-2 focus:outline-none placeholder:text-gray-400 dark:placeholder:text-gray-600 ${
+                    isSample ? "cursor-default text-gray-500 dark:text-gray-400" : ""
+                  }`}
                 />
                 {result && (result.executionTimeMs !== undefined || result.memoryUsedMb !== undefined) && (
                   <div className="px-2 py-1 text-[10px] opacity-70 border-t border-current/10 flex gap-2">

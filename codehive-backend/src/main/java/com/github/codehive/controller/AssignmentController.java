@@ -71,6 +71,21 @@ public class AssignmentController {
         return ResponseEntity.ok(new SuccessResponse<>("Assignment retrieved successfully.", assignmentService.getAssignmentById(id)));
     }
 
+    @Operation(summary = "Get sample test case inputs",
+            description = "Returns the content of visible (sample) test case input files for a given assignment.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Sample inputs retrieved successfully",
+                content = @Content(schema = @Schema(implementation = SuccessResponse.class))),
+        @ApiResponse(responseCode = "404", description = "Assignment not found",
+                content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    @GetMapping("/{id}/sample-inputs")
+    public ResponseEntity<SuccessResponse<List<String>>> getSampleInputs(@PathVariable UUID id) {
+        List<String> sampleInputs = assignmentService.getSampleInputs(id);
+        return ResponseEntity.ok(new SuccessResponse<>("Sample inputs retrieved successfully.", sampleInputs));
+    }
+
+
     @Operation(
         summary = "Create a new assignment",
         description = "Teacher uploads assignment metadata, a reference solution, and test case input files. " +

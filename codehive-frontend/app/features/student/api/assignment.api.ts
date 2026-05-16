@@ -30,3 +30,10 @@ export async function listAssignments(page = 0, size = 12): Promise<AssignmentPa
   });
   return parseResponse<AssignmentPage>(res);
 }
+
+export async function getSampleInputs(assignmentId: string): Promise<string[]> {
+  const res = await fetch(`${API_BASE_URL}/api/assignments/${assignmentId}/sample-inputs`, {
+    headers: authHeaders(),
+  });
+  return parseResponse<string[]>(res);
+}

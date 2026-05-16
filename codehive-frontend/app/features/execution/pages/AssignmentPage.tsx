@@ -4,7 +4,7 @@ import { Group as PanelGroup, Panel } from "react-resizable-panels";
 import { CodeEditor } from "~/shared/components/CodeEditor";
 import { useAuth } from "~/core/providers/AuthProvider";
 
-import { getAssignment } from "../../student/api/assignment.api";
+import { getAssignment, getSampleInputs } from "../../student/api/assignment.api";
 import type { Assignment, Language } from "../../student/types/assignment.types";
 
 import { useExecutionRunner } from "../hooks/useExecutionRunner";
@@ -34,6 +34,7 @@ export function AssignmentPage() {
   const [selectedLanguage, setSelectedLanguage] = useState<Language>("PYTHON");
   const [code, setCode] = useState(LANGUAGE_TEMPLATES["PYTHON"]);
   const [testCases, setTestCases] = useState<string[]>([""]);
+  const [sampleCount, setSampleCount] = useState(0);
 
   const { isRunning, report, execError, runCode } = useExecutionRunner();
   const [activeTab, setActiveTab] = useState<ActiveTab>("problem");
@@ -42,12 +43,16 @@ export function AssignmentPage() {
   useEffect(() => {
     if (!id) return;
     setLoading(true);
-    getAssignment(id)
-      .then((a) => {
+    Promise.all([getAssignment(id), getSampleInputs(id)])
+      .then(([a, samples]) => {
         setAssignment(a);
         if (a.allowedLanguages?.length > 0) {
           setSelectedLanguage(a.allowedLanguages[0]);
           setCode(LANGUAGE_TEMPLATES[a.allowedLanguages[0]] ?? "");
+        }
+        if (samples.length > 0) {
+          setTestCases([...samples, ""]);
+          setSampleCount(samples.length);
         }
       })
       .catch((e) => setError(e.message))
@@ -185,6 +190,7 @@ export function AssignmentPage() {
                     setTestCases={setTestCases}
                     report={report}
                     execError={execError}
+                    sampleCount={sampleCount}
                   />
                 </Panel>
               </PanelGroup>
@@ -239,6 +245,7 @@ export function AssignmentPage() {
                   setTestCases={setTestCases}
                   report={report}
                   execError={execError}
+                  sampleCount={sampleCount}
                 />
               </div>
             </div>

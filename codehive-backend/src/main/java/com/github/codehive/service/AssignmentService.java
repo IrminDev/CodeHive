@@ -1,6 +1,7 @@
 package com.github.codehive.service;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -63,6 +64,28 @@ public class AssignmentService {
         Assignment assignment = assignmentRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Assignment not found: " + id));
         return AssignmentMapper.toDTO(assignment);
+    }
+
+    @Transactional(readOnly = true)
+    public List<String> getSampleInputs(UUID assignmentId) {
+        assignmentRepository.findById(assignmentId)
+                .orElseThrow(() -> new EntityNotFoundException("Assignment not found: " + assignmentId));
+
+        List<TestCase> sampleCases = testCaseRepository.findByAssignmentIdAndIsSample(assignmentId, true);
+
+        List<String> inputs = new ArrayList<>();
+        for (TestCase tc : sampleCases) {
+            String inputKey = ObjectKeyBuilder.testCaseInput(assignmentId, tc.getId());
+            try {
+                InputStream stream = objectStorageService.download(inputKey);
+                String content = new String(stream.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+                inputs.add(content);
+            } catch (Exception e) {
+                logger.warn("Failed to read sample input for testCase={}: {}", tc.getId(), e.getMessage());
+                inputs.add("");
+            }
+        }
+        return inputs;
     }
 
     @Transactional
