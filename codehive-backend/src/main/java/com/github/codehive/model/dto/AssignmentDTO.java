@@ -24,6 +24,7 @@ public class AssignmentDTO {
     private LocalDateTime dueDate;
     private List<Language> allowedLanguages;
     private Boolean isActive;
+    private List<SampleTestCaseDTO> sampleTestCases;
 
     public Boolean getIsActive() {
         return isActive;
@@ -135,5 +136,13 @@ public class AssignmentDTO {
 
     public void setAllowedLanguages(List<Language> allowedLanguages) {
         this.allowedLanguages = allowedLanguages;
+    }
+
+    public List<SampleTestCaseDTO> getSampleTestCases() {
+        return sampleTestCases;
+    }
+
+    public void setSampleTestCases(List<SampleTestCaseDTO> sampleTestCases) {
+        this.sampleTestCases = sampleTestCases;
     }
 }

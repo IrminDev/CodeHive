@@ -71,6 +71,7 @@ export function AssignmentPage() {
   const [selectedLanguage, setSelectedLanguage] = useState<Language>("PYTHON");
   const [code, setCode] = useState(LANGUAGE_TEMPLATES["PYTHON"]);
   const [testCases, setTestCases] = useState<string[]>([""]);
+  const [selectedTestCase, setSelectedTestCase] = useState<number>(0);
 
   const [isRunning, setIsRunning] = useState(false);
   const [report, setReport] = useState<ExecutionReport | null>(null);
@@ -90,6 +91,14 @@ export function AssignmentPage() {
         if (a.allowedLanguages?.length > 0) {
           setSelectedLanguage(a.allowedLanguages[0]);
           setCode(LANGUAGE_TEMPLATES[a.allowedLanguages[0]] ?? "");
+        }
+        if (a.sampleTestCases && a.sampleTestCases.length > 0) {
+          const sorted = [...a.sampleTestCases].sort((x, y) => x.order - y.order);
+          setTestCases(sorted.map((tc) => tc.input));
+          setSelectedTestCase(0);
+        } else {
+          setTestCases([""]);
+          setSelectedTestCase(0);
         }
       })
       .catch((e) => setError(e.message))
@@ -158,11 +167,20 @@ export function AssignmentPage() {
   }
 
   function addTestCase() {
-    setTestCases((prev) => [...prev, ""]);
+    setTestCases((prev) => {
+      if (prev.length >= 30) return prev;
+      const next = [...prev, ""];
+      setSelectedTestCase(next.length - 1);
+      return next;
+    });
   }
 
   function removeTestCase(i: number) {
-    setTestCases((prev) => prev.filter((_, idx) => idx !== i));
+    setTestCases((prev) => {
+      const next = prev.filter((_, idx) => idx !== i);
+      setSelectedTestCase((sel) => Math.min(sel, next.length - 1));
+      return next;
+    });
   }
 
   function updateTestCase(i: number, value: string) {
@@ -284,86 +302,16 @@ export function AssignmentPage() {
 
                 {/* Test Cases */}
                 <Panel defaultSize="32" minSize="12" maxSize="60">
-                  <div className="h-full bg-white dark:bg-dark-surface flex flex-col">
-                    <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200 dark:border-gray-700/50 flex-shrink-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">Test Cases</span>
-                        {report && (
-                          <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
-                            {report.passedTests}/{report.totalTests} passed
-                          </span>
-                        )}
-                      </div>
-                      <button
-                        onClick={addTestCase}
-                        className="inline-flex items-center gap-1 text-xs font-medium text-azure dark:text-yellow hover:underline"
-                      >
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                        </svg>
-                        Add
-                      </button>
-                    </div>
-                    <div className="flex-1 overflow-x-auto overflow-y-hidden">
-                      {execError && (
-                        <div className="px-4 py-2 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20">
-                          {execError}
-                        </div>
-                      )}
-                      {report?.compilationError && (
-                        <div className="px-4 py-2 text-xs text-yellow-700 dark:text-yellow-300 bg-yellow-50 dark:bg-yellow-900/20 font-mono whitespace-pre-wrap">
-                          {report.compilationError}
-                        </div>
-                      )}
-                      <div className="flex gap-3 p-3 h-full">
-                        {testCases.map((tc, i) => {
-                          const result = report?.testCaseResults?.[i];
-                          return (
-                            <div
-                              key={i}
-                              className={`flex-shrink-0 w-52 flex flex-col rounded-xl border overflow-hidden ${
-                                result
-                                  ? STATUS_STYLES[result.status] ?? "border-gray-200 dark:border-gray-700/50"
-                                  : "border-gray-200 dark:border-gray-700/50 bg-gray-50 dark:bg-dark-card"
-                              }`}
-                            >
-                              <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-current/10 flex-shrink-0">
-                                <span className="text-xs font-semibold">Case {i + 1}</span>
-                                <div className="flex items-center gap-1.5">
-                                  {result && (
-                                    <span className="text-xs font-bold">{result.status}</span>
-                                  )}
-                                  {testCases.length > 1 && (
-                                    <button
-                                      onClick={() => removeTestCase(i)}
-                                      className="opacity-60 hover:opacity-100 transition-opacity"
-                                      aria-label="Remove test case"
-                                    >
-                                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                      </svg>
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-                              <textarea
-                                value={tc}
-                                onChange={(e) => updateTestCase(i, e.target.value)}
-                                placeholder="Input…"
-                                className="flex-1 w-full resize-none bg-transparent text-xs font-mono p-2 focus:outline-none placeholder:text-gray-400 dark:placeholder:text-gray-600"
-                              />
-                              {result && (result.executionTimeMs !== undefined || result.memoryUsedMb !== undefined) && (
-                                <div className="px-2 py-1 text-[10px] opacity-70 border-t border-current/10 flex gap-2">
-                                  {result.executionTimeMs !== undefined && <span>{result.executionTimeMs}ms</span>}
-                                  {result.memoryUsedMb !== undefined && <span>{result.memoryUsedMb}MB</span>}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
+                  <TestCasePanel
+                    testCases={testCases}
+                    selectedTestCase={selectedTestCase}
+                    setSelectedTestCase={setSelectedTestCase}
+                    onAdd={addTestCase}
+                    onRemove={removeTestCase}
+                    onUpdate={updateTestCase}
+                    report={report}
+                    execError={execError}
+                  />
                 </Panel>
               </PanelGroup>
             </Panel>
@@ -411,90 +359,185 @@ export function AssignmentPage() {
               </div>
 
               {/* Test Cases Panel */}
-              <div className="flex-shrink-0 h-52 border-t border-gray-200 dark:border-gray-700/50 bg-white dark:bg-dark-surface flex flex-col">
-                <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200 dark:border-gray-700/50 flex-shrink-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">Test Cases</span>
-                    {report && (
-                      <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
-                        {report.passedTests}/{report.totalTests} passed
-                      </span>
-                    )}
-                  </div>
-                  <button
-                    onClick={addTestCase}
-                    className="inline-flex items-center gap-1 text-xs font-medium text-azure dark:text-yellow hover:underline"
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
-                    Add
-                  </button>
-                </div>
-
-                <div className="flex-1 overflow-x-auto overflow-y-hidden">
-                  {execError && (
-                    <div className="px-4 py-2 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20">
-                      {execError}
-                    </div>
-                  )}
-                  {report?.compilationError && (
-                    <div className="px-4 py-2 text-xs text-yellow-700 dark:text-yellow-300 bg-yellow-50 dark:bg-yellow-900/20 font-mono whitespace-pre-wrap">
-                      {report.compilationError}
-                    </div>
-                  )}
-                  <div className="flex gap-3 p-3 h-full">
-                    {testCases.map((tc, i) => {
-                      const result = report?.testCaseResults?.[i];
-                      return (
-                        <div
-                          key={i}
-                          className={`flex-shrink-0 w-52 flex flex-col rounded-xl border overflow-hidden ${
-                            result
-                              ? STATUS_STYLES[result.status] ?? "border-gray-200 dark:border-gray-700/50"
-                              : "border-gray-200 dark:border-gray-700/50 bg-gray-50 dark:bg-dark-card"
-                          }`}
-                        >
-                          <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-current/10 flex-shrink-0">
-                            <span className="text-xs font-semibold">Case {i + 1}</span>
-                            <div className="flex items-center gap-1.5">
-                              {result && (
-                                <span className="text-xs font-bold">{result.status}</span>
-                              )}
-                              {testCases.length > 1 && (
-                                <button
-                                  onClick={() => removeTestCase(i)}
-                                  className="opacity-60 hover:opacity-100 transition-opacity"
-                                  aria-label="Remove test case"
-                                >
-                                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                  </svg>
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                          <textarea
-                            value={tc}
-                            onChange={(e) => updateTestCase(i, e.target.value)}
-                            placeholder="Input…"
-                            className="flex-1 w-full resize-none bg-transparent text-xs font-mono p-2 focus:outline-none placeholder:text-gray-400 dark:placeholder:text-gray-600"
-                          />
-                          {result && (result.executionTimeMs !== undefined || result.memoryUsedMb !== undefined) && (
-                            <div className="px-2 py-1 text-[10px] opacity-70 border-t border-current/10 flex gap-2">
-                              {result.executionTimeMs !== undefined && <span>{result.executionTimeMs}ms</span>}
-                              {result.memoryUsedMb !== undefined && <span>{result.memoryUsedMb}MB</span>}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
+              <div className="flex-shrink-0 h-64 border-t border-gray-200 dark:border-gray-700/50">
+                <TestCasePanel
+                  testCases={testCases}
+                  selectedTestCase={selectedTestCase}
+                  setSelectedTestCase={setSelectedTestCase}
+                  onAdd={addTestCase}
+                  onRemove={removeTestCase}
+                  onUpdate={updateTestCase}
+                  report={report}
+                  execError={execError}
+                />
               </div>
             </div>
           </>
         )}
+      </div>
+    </div>
+  );
+}
+
+function TestCasePanel({
+  testCases,
+  selectedTestCase,
+  setSelectedTestCase,
+  onAdd,
+  onRemove,
+  onUpdate,
+  report,
+  execError,
+}: {
+  testCases: string[];
+  selectedTestCase: number;
+  setSelectedTestCase: (i: number) => void;
+  onAdd: () => void;
+  onRemove: (i: number) => void;
+  onUpdate: (i: number, value: string) => void;
+  report: ExecutionReport | null;
+  execError: string | null;
+}) {
+  const selected = Math.min(selectedTestCase, testCases.length - 1);
+  const result = report?.testCaseResults?.[selected];
+  const tc = testCases[selected] ?? "";
+
+  return (
+    <div className="h-full bg-white dark:bg-dark-surface flex flex-col">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200 dark:border-gray-700/50 flex-shrink-0">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">Test Cases</span>
+          {report && (
+            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+              {report.passedTests}/{report.totalTests} passed
+            </span>
+          )}
+        </div>
+        <button
+          onClick={onAdd}
+          disabled={testCases.length >= 30}
+          className="inline-flex items-center gap-1 text-xs font-medium text-azure dark:text-yellow hover:underline disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          Add {testCases.length >= 30 ? "(max)" : ""}
+        </button>
+      </div>
+
+      {/* Error / Compilation */}
+      {execError && (
+        <div className="px-4 py-2 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 flex-shrink-0">
+          {execError}
+        </div>
+      )}
+      {report?.compilationError && (
+        <div className="px-4 py-2 text-xs text-yellow-700 dark:text-yellow-300 bg-yellow-50 dark:bg-yellow-900/20 font-mono whitespace-pre-wrap flex-shrink-0">
+          {report.compilationError}
+        </div>
+      )}
+
+      {/* Body: tab bar + content */}
+      <div className="flex flex-1 min-h-0">
+        {/* Left: vertical tab bar */}
+        <div className="w-28 flex-shrink-0 border-r border-gray-200 dark:border-gray-700/50 overflow-y-auto">
+          {testCases.map((_, i) => {
+            const r = report?.testCaseResults?.[i];
+            const isSelected = i === selected;
+            return (
+              <button
+                key={i}
+                onClick={() => setSelectedTestCase(i)}
+                className={`w-full flex items-center justify-between px-2.5 py-2 text-xs font-medium transition-colors border-b border-gray-100 dark:border-gray-700/30 ${
+                  isSelected
+                    ? "bg-azure/10 dark:bg-yellow/10 text-azure dark:text-yellow"
+                    : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-dark-card"
+                }`}
+              >
+                <span>Test {i + 1}</span>
+                {r && (
+                  <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                    r.status === "AC" ? "bg-green-500" :
+                    r.status === "PENDING" ? "bg-yellow-400 animate-pulse" :
+                    "bg-red-500"
+                  }`} />
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Right: input + result */}
+        <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+          {/* Tab header with remove button */}
+          <div className="flex items-center justify-between px-3 py-1.5 border-b border-gray-100 dark:border-gray-700/30 flex-shrink-0">
+            <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+              Test {selected + 1}
+              {result && (
+                <span className={`ml-2 px-1.5 py-0.5 rounded text-[10px] font-bold border ${STATUS_STYLES[result.status] ?? ""}`}>
+                  {result.status}
+                </span>
+              )}
+            </span>
+            {testCases.length > 1 && (
+              <button
+                onClick={() => onRemove(selected)}
+                className="opacity-60 hover:opacity-100 transition-opacity"
+                aria-label="Remove test case"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
+
+          {/* Input label + textarea */}
+          <div className="px-3 pt-2 pb-1 flex-shrink-0">
+            <span className="text-[10px] uppercase tracking-wide text-gray-400 dark:text-gray-500 font-semibold">Input</span>
+          </div>
+          <textarea
+            value={tc}
+            onChange={(e) => onUpdate(selected, e.target.value)}
+            placeholder="Enter input…"
+            className="flex-1 w-full resize-none bg-transparent text-xs font-mono px-3 pb-2 focus:outline-none placeholder:text-gray-400 dark:placeholder:text-gray-600 min-h-[60px]"
+          />
+
+          {/* Result details */}
+          {result && (
+            <div className="border-t border-gray-100 dark:border-gray-700/30 px-3 py-2 space-y-2 flex-shrink-0">
+              {/* Timing */}
+              {(result.executionTimeMs !== undefined || result.memoryUsedMb !== undefined) && (
+                <div className="flex gap-3 text-[10px] text-gray-500 dark:text-gray-400">
+                  {result.executionTimeMs !== undefined && <span>{result.executionTimeMs}ms</span>}
+                  {result.memoryUsedMb !== undefined && result.memoryUsedMb > 0 && <span>{result.memoryUsedMb}MB</span>}
+                </div>
+              )}
+              {/* Expected / Got for WA */}
+              {result.status === "WA" && result.expectedOutput !== undefined && (
+                <div className="space-y-1.5">
+                  <div>
+                    <div className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-0.5">Expected</div>
+                    <pre className="text-xs font-mono bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-300 rounded p-1.5 whitespace-pre-wrap break-all max-h-24 overflow-y-auto">
+                      {result.expectedOutput}
+                    </pre>
+                  </div>
+                  <div>
+                    <div className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-0.5">Got</div>
+                    <pre className="text-xs font-mono bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300 rounded p-1.5 whitespace-pre-wrap break-all max-h-24 overflow-y-auto">
+                      {result.actualOutput ?? ""}
+                    </pre>
+                  </div>
+                </div>
+              )}
+              {/* Feedback for non-WA failures */}
+              {result.status !== "AC" && result.status !== "WA" && result.feedback && (
+                <div className="text-[10px] text-gray-500 dark:text-gray-400 italic">{result.feedback}</div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

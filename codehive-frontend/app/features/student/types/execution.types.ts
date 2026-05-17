@@ -48,6 +48,8 @@ export type TestCaseResult = {
   executionTimeMs?: number
   memoryUsedMb?: number
   feedback?: string
+  expectedOutput?: string
+  actualOutput?: string
 }
 
 export type ExecutionReport = {

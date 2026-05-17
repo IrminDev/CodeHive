@@ -1,6 +1,11 @@
 export type ComparatorType = "EXACT_MATCH" | "FLOATING_POINT";
 export type Language = "JAVA" | "PYTHON" | "CPP" | "C";
 
+export interface SampleTestCase {
+  order: number;
+  input: string;
+}
+
 export interface Assignment {
   id: string;
   title: string;
@@ -16,6 +21,7 @@ export interface Assignment {
   dueDate?: string;
   allowedLanguages: Language[];
   isActive: boolean;
+  sampleTestCases?: SampleTestCase[];
 }
 
 export interface AssignmentPage {

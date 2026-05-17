@@ -1,7 +1,9 @@
 package com.github.codehive.service;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 import org.springframework.data.domain.Page;
@@ -17,6 +19,7 @@ import com.github.codehive.messaging.producer.TestGenerationRequestProducer;
 import java.util.UUID;
 
 import com.github.codehive.model.dto.AssignmentDTO;
+import com.github.codehive.model.dto.SampleTestCaseDTO;
 import com.github.codehive.model.exception.EntityNotFoundException;
 import com.github.codehive.model.dto.queue.TestCaseInfo;
 import com.github.codehive.model.dto.queue.TestGenerationJob;
@@ -62,7 +65,30 @@ public class AssignmentService {
     public AssignmentDTO getAssignmentById(UUID id) {
         Assignment assignment = assignmentRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Assignment not found: " + id));
-        return AssignmentMapper.toDTO(assignment);
+        AssignmentDTO dto = AssignmentMapper.toDTO(assignment);
+
+        // Fetch sample test cases and their inputs from MinIO
+        List<TestCase> samples = testCaseRepository
+                .findByAssignmentIdAndIsSample(id, true)
+                .stream()
+                .sorted(Comparator.comparing(TestCase::getOrder))
+                .toList();
+
+        List<SampleTestCaseDTO> sampleDTOs = new ArrayList<>();
+        for (TestCase tc : samples) {
+            try {
+                String inputPath = ObjectKeyBuilder.testCaseInput(id, tc.getId());
+                InputStream is = objectStorageService.download(inputPath);
+                String input = new String(is.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+                sampleDTOs.add(new SampleTestCaseDTO(tc.getOrder(), input));
+            } catch (Exception e) {
+                logger.warn("Failed to fetch sample test case input: tcId={}", tc.getId(), e);
+            }
+        }
+        if (!sampleDTOs.isEmpty()) {
+            dto.setSampleTestCases(sampleDTOs);
+        }
+        return dto;
     }
 
     @Transactional

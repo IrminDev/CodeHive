@@ -8,6 +8,8 @@ public class TestCaseResult {
     private Long executionTimeMs;
     private Long memoryUsedMb;
     private String feedback;
+    private String expectedOutput;
+    private String actualOutput;
 
     public TestCaseResult() {
     }
@@ -58,5 +60,21 @@ public class TestCaseResult {
 
     public void setFeedback(String feedback) {
         this.feedback = feedback;
+    }
+
+    public String getExpectedOutput() {
+        return expectedOutput;
+    }
+
+    public void setExpectedOutput(String expectedOutput) {
+        this.expectedOutput = expectedOutput;
+    }
+
+    public String getActualOutput() {
+        return actualOutput;
+    }
+
+    public void setActualOutput(String actualOutput) {
+        this.actualOutput = actualOutput;
     }
 }
