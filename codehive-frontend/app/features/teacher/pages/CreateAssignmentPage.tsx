@@ -18,6 +18,10 @@ const LANGUAGES: { value: Language; label: string; ext: string; monaco: string }
   { value: "C", label: "C", ext: "c", monaco: "c" },
 ];
 
+// Execution limits — enforced both in UI and at submit time
+const TIME_LIMIT = { min: 500, max: 5000, step: 100, default: 2000, unit: "ms" } as const;
+const MEMORY_LIMIT = { min: 64, max: 512, step: 64, default: 256, unit: "MB" } as const;
+
 const LANGUAGE_TEMPLATES: Record<Language, string> = {
   PYTHON: "def solution():\n    pass\n",
   JAVA: "class Solution {\n\n}\n",
@@ -145,6 +149,85 @@ function TabButton({
     >
       {children}
     </button>
+  );
+}
+
+function SteppedRangeInput({
+  id,
+  value,
+  onChange,
+  min,
+  max,
+  step,
+  unit,
+  label,
+}: {
+  id: string;
+  value: number;
+  onChange: (v: number) => void;
+  min: number;
+  max: number;
+  step: number;
+  unit: string;
+  label: string;
+}) {
+  const pct = ((value - min) / (max - min)) * 100;
+
+  // Determine badge color based on position in range
+  const badgeClass =
+    pct <= 33
+      ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-green-200 dark:border-green-700/40"
+      : pct <= 66
+        ? "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-700/40"
+        : "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-200 dark:border-red-700/40";
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <label htmlFor={id} className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+          {label}
+        </label>
+        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${badgeClass}`}>
+          {value} {unit}
+        </span>
+      </div>
+
+      <div className="relative">
+        <input
+          id={id}
+          type="range"
+          min={min}
+          max={max}
+          step={step}
+          value={value}
+          onChange={(e) => onChange(Number(e.target.value))}
+          className="w-full h-2 rounded-full appearance-none cursor-pointer
+                     bg-gray-200 dark:bg-gray-700
+                     [&::-webkit-slider-thumb]:appearance-none
+                     [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5
+                     [&::-webkit-slider-thumb]:rounded-full
+                     [&::-webkit-slider-thumb]:bg-azure [&::-webkit-slider-thumb]:dark:bg-yellow
+                     [&::-webkit-slider-thumb]:shadow-md
+                     [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white
+                     [&::-webkit-slider-thumb]:dark:border-dark-card
+                     [&::-webkit-slider-thumb]:transition-transform [&::-webkit-slider-thumb]:duration-150
+                     [&::-webkit-slider-thumb]:hover:scale-110
+                     [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5
+                     [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-2
+                     [&::-moz-range-thumb]:border-white [&::-moz-range-thumb]:dark:border-dark-card
+                     [&::-moz-range-thumb]:bg-azure [&::-moz-range-thumb]:dark:bg-yellow
+                     [&::-moz-range-thumb]:shadow-md"
+          style={{
+            background: `linear-gradient(to right, var(--color-azure) 0%, var(--color-azure) ${pct}%, var(--color-gray-200, #e5e7eb) ${pct}%, var(--color-gray-200, #e5e7eb) 100%)`,
+          }}
+        />
+      </div>
+
+      <div className="flex justify-between mt-1.5">
+        <span className="text-[10px] text-gray-400">{min} {unit}</span>
+        <span className="text-[10px] text-gray-400">{max} {unit}</span>
+      </div>
+    </div>
   );
 }
 
@@ -294,8 +377,8 @@ export function CreateAssignmentPage() {
   // Configuration
   const [referenceLanguage, setReferenceLanguage] = useState<Language>("PYTHON");
   const [allowedLanguages, setAllowedLanguages] = useState<Language[]>(["PYTHON", "JAVA", "CPP", "C"]);
-  const [timeLimitMs, setTimeLimitMs] = useState("2000");
-  const [memoryLimitMb, setMemoryLimitMb] = useState("256");
+  const [timeLimitMs, setTimeLimitMs] = useState<number>(TIME_LIMIT.default);
+  const [memoryLimitMb, setMemoryLimitMb] = useState<number>(MEMORY_LIMIT.default);
   const [comparatorType, setComparatorType] = useState<ComparatorType>("EXACT_MATCH");
   const [dueDate, setDueDate] = useState("");
 
@@ -358,6 +441,16 @@ export function CreateAssignmentPage() {
       return;
     }
 
+    // Guard: enforce limits even if UI constraints are bypassed
+    if (timeLimitMs < TIME_LIMIT.min || timeLimitMs > TIME_LIMIT.max) {
+      sileo.error({ title: `Time limit must be between ${TIME_LIMIT.min} and ${TIME_LIMIT.max} ms.` });
+      return;
+    }
+    if (memoryLimitMb < MEMORY_LIMIT.min || memoryLimitMb > MEMORY_LIMIT.max) {
+      sileo.error({ title: `Memory limit must be between ${MEMORY_LIMIT.min} and ${MEMORY_LIMIT.max} MB.` });
+      return;
+    }
+
     // Build the reference solution file
     let resolvedSolution: File;
     if (solutionMode === "editor") {
@@ -399,8 +492,8 @@ export function CreateAssignmentPage() {
           constraints: constraints.filter(Boolean),
           hints: hints.filter(Boolean),
           tags: tags.filter(Boolean),
-          timeLimitMs: Number(timeLimitMs),
-          memoryLimitMb: Number(memoryLimitMb),
+          timeLimitMs,
+          memoryLimitMb,
           comparatorType,
           allowedLanguages,
           referenceLanguage,
@@ -537,27 +630,29 @@ export function CreateAssignmentPage() {
 
             {/* Time limit */}
             <div>
-              <FieldLabel htmlFor="timeLimit">Time Limit (ms)</FieldLabel>
-              <TextInput
+              <SteppedRangeInput
                 id="timeLimit"
-                type="number"
+                label="Time Limit"
                 value={timeLimitMs}
                 onChange={setTimeLimitMs}
-                placeholder="2000"
-                required
+                min={TIME_LIMIT.min}
+                max={TIME_LIMIT.max}
+                step={TIME_LIMIT.step}
+                unit={TIME_LIMIT.unit}
               />
             </div>
 
             {/* Memory limit */}
             <div>
-              <FieldLabel htmlFor="memLimit">Memory Limit (MB)</FieldLabel>
-              <TextInput
+              <SteppedRangeInput
                 id="memLimit"
-                type="number"
+                label="Memory Limit"
                 value={memoryLimitMb}
                 onChange={setMemoryLimitMb}
-                placeholder="256"
-                required
+                min={MEMORY_LIMIT.min}
+                max={MEMORY_LIMIT.max}
+                step={MEMORY_LIMIT.step}
+                unit={MEMORY_LIMIT.unit}
               />
             </div>
 
