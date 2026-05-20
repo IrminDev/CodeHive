@@ -1,5 +1,7 @@
 package com.github.codehive.worker.sandbox.python;
 
+import static com.github.codehive.worker.sandbox.SandboxConstants.*;
+
 import com.github.codehive.worker.model.dto.ExecutionResult;
 import com.github.codehive.worker.sandbox.ContainerSession;
 import com.github.codehive.worker.sandbox.LanguageExecutor;
@@ -39,21 +41,7 @@ public class PythonExecutor implements LanguageExecutor {
     private static final Logger logger = LoggerFactory.getLogger(PythonExecutor.class);
     private final DockerClient dockerClient;
     private static final String PYTHON_IMAGE = "python:3.11-slim";
-    private static final long DEFAULT_TIME_LIMIT_MS = 5000L;
-    private static final long DEFAULT_MEMORY_LIMIT_MB = 256L;
-    private static final int OUTPUT_LIMIT_BYTES = 4 * 1024 * 1024;
     private static final long PIDS_LIMIT = 64L;
-
-    private static final String SECCOMP_PROFILE;
-    static {
-        String profile = null;
-        try (InputStream is = PythonExecutor.class.getResourceAsStream("/seccomp/sandbox-profile.json")) {
-            if (is != null) profile = new String(is.readAllBytes(), StandardCharsets.UTF_8);
-        } catch (Exception e) {
-            // Runs without seccomp if profile fails to load
-        }
-        SECCOMP_PROFILE = profile;
-    }
 
     public PythonExecutor(DockerClient dockerClient) {
         this.dockerClient = dockerClient;
@@ -85,26 +73,26 @@ public class PythonExecutor implements LanguageExecutor {
         Files.setPosixFilePermissions(tempDir, PosixFilePermissions.fromString("rwxrwxrwx"));
 
         Path sourceFile = tempDir.resolve("main.py");
-        byte[] sourceBytes = sourceCode.readNBytes(512 * 1024);
+        byte[] sourceBytes = sourceCode.readNBytes(SOURCE_SIZE_LIMIT_BYTES);
         Files.write(sourceFile, sourceBytes);
         Files.setPosixFilePermissions(sourceFile, PosixFilePermissions.fromString("r--r--r--"));
 
         HostConfig hostConfig = HostConfig.newHostConfig()
                 .withBinds(new Bind(tempDir.toString(), new Volume("/workspace")))
-                .withMemory(memoryLimitMb * 1024 * 1024L)
-                .withMemorySwap(memoryLimitMb * 1024 * 1024L)
-                .withCpuQuota(100000L)
+                .withMemory(memoryLimitMb * 1024 * 1024)
+                .withMemorySwap(memoryLimitMb * 1024 * 1024)
+                .withCpuQuota(CPU_QUOTA)
                 .withNetworkMode("none")
                 .withPidsLimit(PIDS_LIMIT)
                 .withCapDrop(Capability.ALL)
                 .withReadonlyRootfs(true)
                 .withMounts(List.of(
                     new Mount().withType(MountType.TMPFS).withTarget("/tmp")
-                        .withTmpfsOptions(new TmpfsOptions().withSizeBytes(32L * 1024 * 1024).withMode(01777)),
+                        .withTmpfsOptions(new TmpfsOptions().withSizeBytes(RUN_TMPFS_BYTES).withMode(01777)),
                     new Mount().withType(MountType.TMPFS).withTarget("/run")
-                        .withTmpfsOptions(new TmpfsOptions().withSizeBytes(8L * 1024 * 1024).withMode(0755))
+                        .withTmpfsOptions(new TmpfsOptions().withSizeBytes(RUN_TMPFS_RUN_BYTES).withMode(0755))
                 ))
-                .withUlimits(new Ulimit[]{new Ulimit("fsize", 33554432L, 33554432L)})
+                .withUlimits(new Ulimit[]{new Ulimit("fsize", RUN_ULIMIT_FSIZE, RUN_ULIMIT_FSIZE)})
                 .withSecurityOpts(buildSecurityOpts());
 
         CreateContainerResponse container = dockerClient.createContainerCmd(PYTHON_IMAGE)
@@ -127,7 +115,7 @@ public class PythonExecutor implements LanguageExecutor {
 
         // Write or remove input.txt
         if (testInput != null) {
-            byte[] inputBytes = testInput.readNBytes(5 * 1024 * 1024);
+            byte[] inputBytes = testInput.readNBytes(INPUT_SIZE_LIMIT_BYTES);
             Files.write(inputFile, inputBytes);
             Files.setPosixFilePermissions(inputFile, PosixFilePermissions.fromString("r--r--r--"));
         } else {

@@ -1,5 +1,7 @@
 package com.github.codehive.worker.sandbox.java;
 
+import static com.github.codehive.worker.sandbox.SandboxConstants.*;
+
 import com.github.codehive.worker.model.dto.ExecutionResult;
 import com.github.codehive.worker.sandbox.ContainerSession;
 import com.github.codehive.worker.sandbox.LanguageExecutor;
@@ -40,22 +42,7 @@ public class JavaExecutor implements LanguageExecutor {
     private static final Logger logger = LoggerFactory.getLogger(JavaExecutor.class);
     private final DockerClient dockerClient;
     private static final String JAVA_IMAGE = "eclipse-temurin:21-jdk-ubi10-minimal";
-    private static final long DEFAULT_TIME_LIMIT_MS = 5000L;
-    private static final long DEFAULT_MEMORY_LIMIT_MB = 256L;
-    private static final int OUTPUT_LIMIT_BYTES = 4 * 1024 * 1024;
-    private static final int COMPILE_STDERR_LIMIT_BYTES = 256 * 1024;
     private static final long PIDS_LIMIT = 64L;
-
-    private static final String SECCOMP_PROFILE;
-    static {
-        String profile = null;
-        try (InputStream is = JavaExecutor.class.getResourceAsStream("/seccomp/sandbox-profile.json")) {
-            if (is != null) profile = new String(is.readAllBytes(), StandardCharsets.UTF_8);
-        } catch (Exception e) {
-            // Runs without seccomp if profile fails to load
-        }
-        SECCOMP_PROFILE = profile;
-    }
 
     public JavaExecutor(DockerClient dockerClient) {
         this.dockerClient = dockerClient;
@@ -87,7 +74,7 @@ public class JavaExecutor implements LanguageExecutor {
         Files.setPosixFilePermissions(tempDir, PosixFilePermissions.fromString("rwxrwxrwx"));
 
         Path sourceFile = tempDir.resolve("Main.java");
-        byte[] sourceBytes = sourceCode.readNBytes(512 * 1024);
+        byte[] sourceBytes = sourceCode.readNBytes(SOURCE_SIZE_LIMIT_BYTES);
         Files.write(sourceFile, sourceBytes);
         Files.setPosixFilePermissions(sourceFile, PosixFilePermissions.fromString("r--r--r--"));
 
@@ -101,20 +88,20 @@ public class JavaExecutor implements LanguageExecutor {
         // Start long-running execution container
         HostConfig hostConfig = HostConfig.newHostConfig()
                 .withBinds(new Bind(tempDir.toString(), new Volume("/workspace")))
-                .withMemory(memoryLimitMb * 1024 * 1024L)
-                .withMemorySwap(memoryLimitMb * 1024 * 1024L)
-                .withCpuQuota(100000L)
+                .withMemory(memoryLimitMb * 1024 * 1024)
+                .withMemorySwap(memoryLimitMb * 1024 * 1024)
+                .withCpuQuota(CPU_QUOTA)
                 .withNetworkMode("none")
                 .withPidsLimit(PIDS_LIMIT)
                 .withCapDrop(Capability.ALL)
                 .withReadonlyRootfs(true)
                 .withMounts(List.of(
                     new Mount().withType(MountType.TMPFS).withTarget("/tmp")
-                        .withTmpfsOptions(new TmpfsOptions().withSizeBytes(32L * 1024 * 1024).withMode(01777)),
+                        .withTmpfsOptions(new TmpfsOptions().withSizeBytes(RUN_TMPFS_BYTES).withMode(01777)),
                     new Mount().withType(MountType.TMPFS).withTarget("/run")
-                        .withTmpfsOptions(new TmpfsOptions().withSizeBytes(8L * 1024 * 1024).withMode(0755))
+                        .withTmpfsOptions(new TmpfsOptions().withSizeBytes(RUN_TMPFS_RUN_BYTES).withMode(0755))
                 ))
-                .withUlimits(new Ulimit[]{new Ulimit("fsize", 33554432L, 33554432L)})
+                .withUlimits(new Ulimit[]{new Ulimit("fsize", RUN_ULIMIT_FSIZE, RUN_ULIMIT_FSIZE)})
                 .withSecurityOpts(buildSecurityOpts());
 
         CreateContainerResponse container = dockerClient.createContainerCmd(JAVA_IMAGE)
@@ -135,7 +122,7 @@ public class JavaExecutor implements LanguageExecutor {
         Path inputFile = session.getTempDir().resolve("input.txt");
 
         if (testInput != null) {
-            byte[] inputBytes = testInput.readNBytes(5 * 1024 * 1024);
+            byte[] inputBytes = testInput.readNBytes(INPUT_SIZE_LIMIT_BYTES);
             Files.write(inputFile, inputBytes);
             Files.setPosixFilePermissions(inputFile, PosixFilePermissions.fromString("r--r--r--"));
         } else {
@@ -252,20 +239,20 @@ public class JavaExecutor implements LanguageExecutor {
         try {
             HostConfig hostConfig = HostConfig.newHostConfig()
                     .withBinds(new Bind(workDir.toString(), new Volume("/workspace")))
-                    .withMemory(512 * 1024 * 1024L)
-                    .withMemorySwap(512 * 1024 * 1024L)
-                    .withCpuQuota(100000L)
+                    .withMemory(COMPILE_MEMORY_BYTES)
+                    .withMemorySwap(COMPILE_MEMORY_BYTES)
+                    .withCpuQuota(CPU_QUOTA)
                     .withNetworkMode("none")
                     .withPidsLimit(PIDS_LIMIT)
                     .withCapDrop(Capability.ALL)
                     .withReadonlyRootfs(true)
                     .withMounts(List.of(
                         new Mount().withType(MountType.TMPFS).withTarget("/tmp")
-                            .withTmpfsOptions(new TmpfsOptions().withSizeBytes(64L * 1024 * 1024).withMode(01777)),
+                            .withTmpfsOptions(new TmpfsOptions().withSizeBytes(COMPILE_TMPFS_BYTES).withMode(01777)),
                         new Mount().withType(MountType.TMPFS).withTarget("/run")
-                            .withTmpfsOptions(new TmpfsOptions().withSizeBytes(8L * 1024 * 1024).withMode(0755))
+                            .withTmpfsOptions(new TmpfsOptions().withSizeBytes(RUN_TMPFS_RUN_BYTES).withMode(0755))
                     ))
-                    .withUlimits(new Ulimit[]{new Ulimit("fsize", 67108864L, 67108864L)})
+                    .withUlimits(new Ulimit[]{new Ulimit("fsize", COMPILE_ULIMIT_FSIZE, COMPILE_ULIMIT_FSIZE)})
                     .withSecurityOpts(buildSecurityOpts());
 
             CreateContainerResponse container = dockerClient.createContainerCmd(JAVA_IMAGE)
