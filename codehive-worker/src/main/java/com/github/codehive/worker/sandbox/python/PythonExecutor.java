@@ -127,7 +127,7 @@ public class PythonExecutor implements LanguageExecutor {
 
         // Write or remove input.txt
         if (testInput != null) {
-            byte[] inputBytes = testInput.readNBytes(64 * 1024 * 1024);
+            byte[] inputBytes = testInput.readNBytes(5 * 1024 * 1024);
             Files.write(inputFile, inputBytes);
             Files.setPosixFilePermissions(inputFile, PosixFilePermissions.fromString("r--r--r--"));
         } else {

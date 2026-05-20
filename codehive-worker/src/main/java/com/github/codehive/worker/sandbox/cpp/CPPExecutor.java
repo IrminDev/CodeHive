@@ -135,7 +135,7 @@ public class CPPExecutor implements LanguageExecutor {
         Path inputFile = session.getTempDir().resolve("input.txt");
 
         if (testInput != null) {
-            byte[] inputBytes = testInput.readNBytes(64 * 1024 * 1024);
+            byte[] inputBytes = testInput.readNBytes(5 * 1024 * 1024);
             Files.write(inputFile, inputBytes);
             Files.setPosixFilePermissions(inputFile, PosixFilePermissions.fromString("r--r--r--"));
         } else {
@@ -253,6 +253,8 @@ public class CPPExecutor implements LanguageExecutor {
             HostConfig hostConfig = HostConfig.newHostConfig()
                     .withBinds(new Bind(workDir.toString(), new Volume("/workspace")))
                     .withMemory(512 * 1024 * 1024L)
+                    .withMemorySwap(512 * 1024 * 1024L)
+                    .withCpuQuota(100000L)
                     .withNetworkMode("none")
                     .withPidsLimit(PIDS_LIMIT)
                     .withCapDrop(Capability.ALL)
