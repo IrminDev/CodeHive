@@ -3,8 +3,8 @@ package com.github.codehive.worker.sandbox.java;
 import static com.github.codehive.worker.sandbox.SandboxConstants.*;
 
 import com.github.codehive.worker.model.dto.ExecutionResult;
+import com.github.codehive.worker.sandbox.AbstractLanguageExecutor;
 import com.github.codehive.worker.sandbox.ContainerSession;
-import com.github.codehive.worker.sandbox.LanguageExecutor;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.async.ResultCallback;
 import com.github.dockerjava.api.command.CreateContainerResponse;
@@ -19,50 +19,29 @@ import com.github.dockerjava.api.model.StreamType;
 import com.github.dockerjava.api.model.TmpfsOptions;
 import com.github.dockerjava.api.model.Ulimit;
 import com.github.dockerjava.api.model.Volume;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.SimpleFileVisitor;
-import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.PosixFilePermissions;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 @Component("JAVA")
-public class JavaExecutor implements LanguageExecutor {
-    private static final Logger logger = LoggerFactory.getLogger(JavaExecutor.class);
-    private final DockerClient dockerClient;
+public class JavaExecutor extends AbstractLanguageExecutor {
     private static final String JAVA_IMAGE = "eclipse-temurin:21-jdk-ubi10-minimal";
     private static final long PIDS_LIMIT = 64L;
 
     public JavaExecutor(DockerClient dockerClient) {
-        this.dockerClient = dockerClient;
-        ensureImageExists();
+        super(dockerClient);
     }
 
-    private void ensureImageExists() {
-        try {
-            dockerClient.inspectImageCmd(JAVA_IMAGE).exec();
-            logger.info("Docker image {} is available", JAVA_IMAGE);
-        } catch (Exception e) {
-            logger.info("Pulling Docker image {}...", JAVA_IMAGE);
-            try {
-                dockerClient.pullImageCmd(JAVA_IMAGE).start().awaitCompletion();
-                logger.info("Successfully pulled image {}", JAVA_IMAGE);
-            } catch (InterruptedException ex) {
-                Thread.currentThread().interrupt();
-                logger.error("Image pull interrupted", ex);
-            }
-        }
+    @Override
+    protected String dockerImage() {
+        return JAVA_IMAGE;
     }
 
     @Override
@@ -200,39 +179,7 @@ public class JavaExecutor implements LanguageExecutor {
         return ExecutionResult.success(stdout, executionTime, 0L);
     }
 
-    @Override
-    public void cleanup(ContainerSession session) {
-        if (session.getContainerId() != null) {
-            try {
-                dockerClient.removeContainerCmd(session.getContainerId()).withForce(true).exec();
-            } catch (Exception e) {
-                logger.warn("Failed to remove container {}", session.getContainerId(), e);
-            }
-        }
-        if (session.getTempDir() != null) {
-            deleteDirectory(session.getTempDir());
-        }
-    }
 
-    private void cleanupBetweenRuns(ContainerSession session) {
-        try {
-            Files.deleteIfExists(session.getTempDir().resolve("input.txt"));
-        } catch (Exception e) {
-            logger.warn("Failed to delete input.txt between runs", e);
-        }
-        try {
-            String cleanExecId = dockerClient.execCreateCmd(session.getContainerId())
-                    .withCmd("sh", "-c", "rm -rf /tmp/* 2>/dev/null; true")
-                    .withUser("nobody")
-                    .exec()
-                    .getId();
-            dockerClient.execStartCmd(cleanExecId)
-                    .exec(new ResultCallback.Adapter<Frame>() {})
-                    .awaitCompletion(3, TimeUnit.SECONDS);
-        } catch (Exception e) {
-            logger.warn("Failed to clean /tmp between runs", e);
-        }
-    }
 
     private ExecutionResult compile(Path workDir) {
         String containerId = null;
@@ -314,36 +261,4 @@ public class JavaExecutor implements LanguageExecutor {
         return baos.toString(StandardCharsets.UTF_8);
     }
 
-    private List<String> buildSecurityOpts() {
-        List<String> opts = new ArrayList<>();
-        opts.add("no-new-privileges:true");
-        if (SECCOMP_PROFILE != null) {
-            opts.add("seccomp=" + SECCOMP_PROFILE);
-        }
-        return opts;
-    }
-
-    private void deleteDirectory(Path directory) {
-        try {
-            Path realBase = directory.toRealPath();
-            Files.walkFileTree(directory, new SimpleFileVisitor<Path>() {
-                @Override
-                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-                    try {
-                        if (file.toRealPath().startsWith(realBase)) Files.deleteIfExists(file);
-                    } catch (Exception e) {
-                        logger.warn("Failed to delete: {}", file, e);
-                    }
-                    return FileVisitResult.CONTINUE;
-                }
-                @Override
-                public FileVisitResult postVisitDirectory(Path dir, IOException exc) {
-                    try { Files.deleteIfExists(dir); } catch (Exception e) { logger.warn("Failed to delete dir: {}", dir, e); }
-                    return FileVisitResult.CONTINUE;
-                }
-            });
-        } catch (Exception e) {
-            logger.warn("Failed to delete directory: {}", directory, e);
-        }
-    }
 }
