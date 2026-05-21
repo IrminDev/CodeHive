@@ -13,6 +13,7 @@ import com.github.dockerjava.api.model.Frame;
 import com.github.dockerjava.api.model.HostConfig;
 import com.github.dockerjava.api.model.Mount;
 import com.github.dockerjava.api.model.MountType;
+import com.github.dockerjava.api.model.StreamType;
 import com.github.dockerjava.api.model.TmpfsOptions;
 import com.github.dockerjava.api.model.Ulimit;
 import com.github.dockerjava.api.model.Volume;
@@ -21,12 +22,14 @@ import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -42,6 +45,24 @@ public abstract class AbstractLanguageExecutor implements LanguageExecutor {
     protected abstract long pidsLimit();
 
     protected String[] compileCommand() {
+        return null;
+    }
+
+    protected abstract String sourceFileName();
+
+    protected abstract String tempDirPrefix();
+
+    protected abstract String runCommand();
+
+    protected String[] containerEnv() {
+        return null;
+    }
+
+    /**
+     * Classify a non-zero exit code that is not TLE (124) or MLE (137).).
+     * Return {@code null} to fall through to the default runtime-error verdict.
+     */
+    protected ExecutionResult classifyNonZeroExit(long exitCode, String stdout, String stderr, long executionTime) {
         return null;
     }
 
@@ -197,6 +218,136 @@ public abstract class AbstractLanguageExecutor implements LanguageExecutor {
             logger.error("Failed to get compile logs", e);
         }
         return baos.toString(StandardCharsets.UTF_8);
+    }
+
+    @Override
+    public ContainerSession prepare(InputStream sourceCode, Long timeLimitMs, Long memoryLimitMb) throws Exception {
+        timeLimitMs = timeLimitMs != null ? timeLimitMs : DEFAULT_TIME_LIMIT_MS;
+        memoryLimitMb = memoryLimitMb != null ? memoryLimitMb : DEFAULT_MEMORY_LIMIT_MB;
+
+        Path tempDir = Files.createTempDirectory(tempDirPrefix());
+        Files.setPosixFilePermissions(tempDir, PosixFilePermissions.fromString("rwxrwxrwx"));
+
+        Path sourceFile = tempDir.resolve(sourceFileName());
+        byte[] sourceBytes = sourceCode.readNBytes(SOURCE_SIZE_LIMIT_BYTES);
+        Files.write(sourceFile, sourceBytes);
+        Files.setPosixFilePermissions(sourceFile, PosixFilePermissions.fromString("r--r--r--"));
+
+        ExecutionResult compileResult = compile(tempDir);
+        if (compileResult != null) {
+            deleteDirectory(tempDir);
+            return ContainerSession.compilationError(compileResult.getCompilationError());
+        }
+
+        var containerCmd = dockerClient.createContainerCmd(dockerImage())
+                .withHostConfig(buildRunHostConfig(tempDir, memoryLimitMb))
+                .withWorkingDir("/workspace")
+                .withUser("nobody")
+                .withCmd("sh", "-c", "sleep infinity");
+
+        String[] env = containerEnv();
+        if (env != null) {
+            containerCmd.withEnv(env);
+        }
+
+        CreateContainerResponse container = containerCmd.exec();
+        String containerId = container.getId();
+        dockerClient.startContainerCmd(containerId).exec();
+
+        return new ContainerSession(containerId, tempDir, timeLimitMs, memoryLimitMb);
+    }
+
+    @Override
+    public ExecutionResult runTestCase(ContainerSession session, InputStream testInput) throws Exception {
+        Path inputFile = session.getTempDir().resolve("input.txt");
+
+        if (testInput != null) {
+            byte[] inputBytes = testInput.readNBytes(INPUT_SIZE_LIMIT_BYTES);
+            Files.write(inputFile, inputBytes);
+            Files.setPosixFilePermissions(inputFile, PosixFilePermissions.fromString("r--r--r--"));
+        } else {
+            Files.deleteIfExists(inputFile);
+        }
+
+        boolean hasInput = Files.exists(inputFile);
+        double timeLimitSec = session.getTimeLimitMs() / 1000.0;
+        String timeoutCmd = String.format("timeout --kill-after=2s %.3fs %s", timeLimitSec, runCommand());
+        String cmd = hasInput ? timeoutCmd + " < input.txt" : timeoutCmd;
+
+        String execId = dockerClient.execCreateCmd(session.getContainerId())
+                .withAttachStdout(true)
+                .withAttachStderr(true)
+                .withWorkingDir("/workspace")
+                .withUser("nobody")
+                .withCmd("sh", "-c", cmd)
+                .exec()
+                .getId();
+
+        ByteArrayOutputStream stdoutBaos = new ByteArrayOutputStream();
+        ByteArrayOutputStream stderrBaos = new ByteArrayOutputStream();
+        int[] sharedBytes = { 0 };
+        boolean[] truncated = { false };
+
+        long startTime = System.currentTimeMillis();
+
+        dockerClient.execStartCmd(execId)
+                .exec(new ResultCallback.Adapter<Frame>() {
+                    @Override
+                    public void onNext(Frame frame) {
+                        byte[] payload = frame.getPayload();
+                        if (payload == null)
+                            return;
+                        synchronized (sharedBytes) {
+                            int remaining = OUTPUT_LIMIT_BYTES - sharedBytes[0];
+                            if (remaining <= 0) {
+                                truncated[0] = true;
+                                return;
+                            }
+                            int toWrite = Math.min(payload.length, remaining);
+                            try {
+                                if (frame.getStreamType() == StreamType.STDOUT) {
+                                    stdoutBaos.write(payload, 0, toWrite);
+                                } else {
+                                    stderrBaos.write(payload, 0, toWrite);
+                                }
+                            } catch (Exception ignored) {
+                            }
+                            sharedBytes[0] += toWrite;
+                            if (toWrite < payload.length)
+                                truncated[0] = true;
+                        }
+                    }
+                })
+                .awaitCompletion(session.getTimeLimitMs() + 5000, TimeUnit.MILLISECONDS);
+
+        long executionTime = System.currentTimeMillis() - startTime;
+
+        Long exitCode = dockerClient.inspectExecCmd(execId).exec().getExitCodeLong();
+        if (exitCode == null)
+            exitCode = -1L;
+
+        String stdout = stdoutBaos.toString(StandardCharsets.UTF_8);
+        String stderr = stderrBaos.toString(StandardCharsets.UTF_8);
+
+        cleanupBetweenRuns(session);
+
+        if (exitCode == 124L) {
+            return ExecutionResult.timeLimitExceeded(session.getTimeLimitMs());
+        }
+        if (exitCode == 137L) {
+            return ExecutionResult.memoryLimitExceeded(session.getMemoryLimitMb() * 1024L);
+        }
+        if (truncated[0]) {
+            return ExecutionResult.outputLimitExceeded(
+                    stdout + "\n[Output truncated: exceeded 4 MB limit]", executionTime);
+        }
+        if (exitCode != 0) {
+            ExecutionResult special = classifyNonZeroExit(exitCode, stdout, stderr, executionTime);
+            if (special != null)
+                return special;
+            return ExecutionResult.runtimeError(stderr, exitCode.intValue(), executionTime);
+        }
+        return ExecutionResult.success(stdout, executionTime, 0L);
     }
 
     /**
