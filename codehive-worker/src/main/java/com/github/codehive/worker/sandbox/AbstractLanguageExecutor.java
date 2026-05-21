@@ -2,8 +2,11 @@ package com.github.codehive.worker.sandbox;
 
 import static com.github.codehive.worker.sandbox.SandboxConstants.*;
 
+import com.github.codehive.worker.model.dto.ExecutionResult;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.async.ResultCallback;
+import com.github.dockerjava.api.command.CreateContainerResponse;
+import com.github.dockerjava.api.command.WaitContainerResultCallback;
 import com.github.dockerjava.api.model.Bind;
 import com.github.dockerjava.api.model.Capability;
 import com.github.dockerjava.api.model.Frame;
@@ -16,7 +19,9 @@ import com.github.dockerjava.api.model.Volume;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -35,6 +40,10 @@ public abstract class AbstractLanguageExecutor implements LanguageExecutor {
 
     /** PID limit for containers (64 for JVM languages, 32 for native). */
     protected abstract long pidsLimit();
+
+    protected String[] compileCommand() {
+        return null;
+    }
 
     protected AbstractLanguageExecutor(DockerClient dockerClient) {
         this.dockerClient = dockerClient;
@@ -106,6 +115,88 @@ public abstract class AbstractLanguageExecutor implements LanguageExecutor {
                                         new TmpfsOptions().withSizeBytes(RUN_TMPFS_RUN_BYTES).withMode(0755))))
                 .withUlimits(new Ulimit[] { new Ulimit("fsize", COMPILE_ULIMIT_FSIZE, COMPILE_ULIMIT_FSIZE) })
                 .withSecurityOpts(buildSecurityOpts());
+    }
+
+    /**
+     * Run the compilation step inside a short-lived container.
+     * Uses {@link #dockerImage()} and {@link #compileCommand()} to determine
+     * the image and command. Returns {@code null} on success, or an
+     * {@code ExecutionResult} with the compilation error on failure.
+     * If {@link #compileCommand()} returns {@code null}, compilation is skipped.
+     */
+    protected ExecutionResult compile(Path workDir) {
+        String[] cmd = compileCommand();
+        if (cmd == null) {
+            return null;
+        }
+        String containerId = null;
+        try {
+            CreateContainerResponse container = dockerClient.createContainerCmd(dockerImage())
+                    .withHostConfig(buildCompileHostConfig(workDir))
+                    .withWorkingDir("/workspace")
+                    .withUser("nobody")
+                    .withCmd(cmd)
+                    .exec();
+
+            containerId = container.getId();
+            dockerClient.startContainerCmd(containerId).exec();
+
+            int exitCode = dockerClient.waitContainerCmd(containerId)
+                    .exec(new WaitContainerResultCallback())
+                    .awaitStatusCode(30, TimeUnit.SECONDS);
+
+            if (exitCode != 0) {
+                String stderr = getContainerLogsCompile(containerId);
+                return ExecutionResult.compilationError(stderr);
+            }
+
+            return null;
+        } catch (Exception e) {
+            logger.error("Compilation error", e);
+            return ExecutionResult.compilationError("Compilation failed: " + e.getMessage());
+        } finally {
+            if (containerId != null) {
+                try {
+                    dockerClient.removeContainerCmd(containerId).withForce(true).exec();
+                } catch (Exception e) {
+                    logger.warn("Failed to remove compile container", e);
+                }
+            }
+        }
+    }
+
+    /**
+     * Retrieve stderr logs from the compilation container, capped at
+     * {@link SandboxConstants#COMPILE_STDERR_LIMIT_BYTES}.
+     */
+    protected String getContainerLogsCompile(String containerId) {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        int[] bytesWritten = { 0 };
+        try {
+            dockerClient.logContainerCmd(containerId)
+                    .withStdOut(false)
+                    .withStdErr(true)
+                    .exec(new ResultCallback.Adapter<Frame>() {
+                        @Override
+                        public void onNext(Frame frame) {
+                            byte[] payload = frame.getPayload();
+                            if (payload == null)
+                                return;
+                            int remaining = COMPILE_STDERR_LIMIT_BYTES - bytesWritten[0];
+                            if (remaining <= 0)
+                                return;
+                            int toWrite = Math.min(payload.length, remaining);
+                            try {
+                                baos.write(payload, 0, toWrite);
+                            } catch (Exception ignored) {
+                            }
+                            bytesWritten[0] += toWrite;
+                        }
+                    }).awaitCompletion(5, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            logger.error("Failed to get compile logs", e);
+        }
+        return baos.toString(StandardCharsets.UTF_8);
     }
 
     /**

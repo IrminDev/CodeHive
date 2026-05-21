@@ -8,7 +8,6 @@ import com.github.codehive.worker.sandbox.ContainerSession;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.async.ResultCallback;
 import com.github.dockerjava.api.command.CreateContainerResponse;
-import com.github.dockerjava.api.command.WaitContainerResultCallback;
 import com.github.dockerjava.api.model.Frame;
 import com.github.dockerjava.api.model.StreamType;
 import org.springframework.stereotype.Component;
@@ -38,6 +37,11 @@ public class CExecutor extends AbstractLanguageExecutor {
     @Override
     protected long pidsLimit() {
         return PIDS_LIMIT;
+    }
+
+    @Override
+    protected String[] compileCommand() {
+        return new String[]{"gcc", "-std=c23", "-o", "program", "main.c", "-lm"};
     }
 
     @Override
@@ -155,70 +159,6 @@ public class CExecutor extends AbstractLanguageExecutor {
             return ExecutionResult.runtimeError(stderr, exitCode.intValue(), executionTime);
         }
         return ExecutionResult.success(stdout, executionTime, 0L);
-    }
-
-
-
-    private ExecutionResult compile(Path workDir) {
-        String containerId = null;
-        try {
-            CreateContainerResponse container = dockerClient.createContainerCmd(GCC_IMAGE)
-                    .withHostConfig(buildCompileHostConfig(workDir))
-                    .withWorkingDir("/workspace")
-                    .withUser("nobody")
-                    .withCmd("gcc", "-o", "program", "main.c", "-lm")
-                    .exec();
-
-            containerId = container.getId();
-            dockerClient.startContainerCmd(containerId).exec();
-
-            int exitCode = dockerClient.waitContainerCmd(containerId)
-                    .exec(new WaitContainerResultCallback())
-                    .awaitStatusCode(30, TimeUnit.SECONDS);
-
-            if (exitCode != 0) {
-                String stderr = getContainerLogsCompile(containerId);
-                return ExecutionResult.compilationError(stderr);
-            }
-
-            return null;
-        } catch (Exception e) {
-            logger.error("Compilation error", e);
-            return ExecutionResult.compilationError("Compilation failed: " + e.getMessage());
-        } finally {
-            if (containerId != null) {
-                try {
-                    dockerClient.removeContainerCmd(containerId).withForce(true).exec();
-                } catch (Exception e) {
-                    logger.warn("Failed to remove compile container", e);
-                }
-            }
-        }
-    }
-
-    private String getContainerLogsCompile(String containerId) {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        int[] bytesWritten = {0};
-        try {
-            dockerClient.logContainerCmd(containerId)
-                .withStdOut(false)
-                .withStdErr(true)
-                .exec(new ResultCallback.Adapter<Frame>() {
-                    @Override
-                    public void onNext(Frame frame) {
-                        byte[] payload = frame.getPayload();
-                        if (payload == null) return;
-                        int remaining = COMPILE_STDERR_LIMIT_BYTES - bytesWritten[0];
-                        if (remaining <= 0) return;
-                        int toWrite = Math.min(payload.length, remaining);
-                        try { baos.write(payload, 0, toWrite); } catch (Exception ignored) {}
-                        bytesWritten[0] += toWrite;
-                    }
-                }).awaitCompletion(5, TimeUnit.SECONDS);
-        } catch (Exception e) {
-            logger.error("Failed to get compile logs", e);
-        }
-        return baos.toString(StandardCharsets.UTF_8);
     }
 
 }

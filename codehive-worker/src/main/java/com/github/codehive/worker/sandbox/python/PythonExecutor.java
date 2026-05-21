@@ -22,7 +22,7 @@ import java.util.concurrent.TimeUnit;
 
 @Component("PYTHON")
 public class PythonExecutor extends AbstractLanguageExecutor {
-    private static final String PYTHON_IMAGE = "python:3.11-slim";
+    private static final String PYTHON_IMAGE = "python:3.13-slim";
     private static final long PIDS_LIMIT = 64L;
 
     public PythonExecutor(DockerClient dockerClient) {
