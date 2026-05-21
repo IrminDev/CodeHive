@@ -4,7 +4,15 @@ import static com.github.codehive.worker.sandbox.SandboxConstants.*;
 
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.async.ResultCallback;
+import com.github.dockerjava.api.model.Bind;
+import com.github.dockerjava.api.model.Capability;
 import com.github.dockerjava.api.model.Frame;
+import com.github.dockerjava.api.model.HostConfig;
+import com.github.dockerjava.api.model.Mount;
+import com.github.dockerjava.api.model.MountType;
+import com.github.dockerjava.api.model.TmpfsOptions;
+import com.github.dockerjava.api.model.Ulimit;
+import com.github.dockerjava.api.model.Volume;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,6 +32,9 @@ public abstract class AbstractLanguageExecutor implements LanguageExecutor {
     protected final DockerClient dockerClient;
 
     protected abstract String dockerImage();
+
+    /** PID limit for containers (64 for JVM languages, 32 for native). */
+    protected abstract long pidsLimit();
 
     protected AbstractLanguageExecutor(DockerClient dockerClient) {
         this.dockerClient = dockerClient;
@@ -48,6 +59,53 @@ public abstract class AbstractLanguageExecutor implements LanguageExecutor {
                 logger.error("Image pull interrupted", ex);
             }
         }
+    }
+
+    /**
+     * Build a hardened HostConfig for execution containers.
+     */
+    protected HostConfig buildRunHostConfig(Path tempDir, long memoryLimitMb) {
+        return HostConfig.newHostConfig()
+                .withBinds(new Bind(tempDir.toString(), new Volume("/workspace")))
+                .withMemory(memoryLimitMb * 1024 * 1024)
+                .withMemorySwap(memoryLimitMb * 1024 * 1024)
+                .withCpuQuota(CPU_QUOTA)
+                .withNetworkMode("none")
+                .withPidsLimit(pidsLimit())
+                .withCapDrop(Capability.ALL)
+                .withReadonlyRootfs(true)
+                .withMounts(List.of(
+                        new Mount().withType(MountType.TMPFS).withTarget("/tmp")
+                                .withTmpfsOptions(new TmpfsOptions().withSizeBytes(RUN_TMPFS_BYTES).withMode(01777)),
+                        new Mount().withType(MountType.TMPFS).withTarget("/run")
+                                .withTmpfsOptions(
+                                        new TmpfsOptions().withSizeBytes(RUN_TMPFS_RUN_BYTES).withMode(0755))))
+                .withUlimits(new Ulimit[] { new Ulimit("fsize", RUN_ULIMIT_FSIZE, RUN_ULIMIT_FSIZE) })
+                .withSecurityOpts(buildSecurityOpts());
+    }
+
+    /**
+     * Build a hardened HostConfig for compilation containers.
+     */
+    protected HostConfig buildCompileHostConfig(Path workDir) {
+        return HostConfig.newHostConfig()
+                .withBinds(new Bind(workDir.toString(), new Volume("/workspace")))
+                .withMemory(COMPILE_MEMORY_BYTES)
+                .withMemorySwap(COMPILE_MEMORY_BYTES)
+                .withCpuQuota(CPU_QUOTA)
+                .withNetworkMode("none")
+                .withPidsLimit(pidsLimit())
+                .withCapDrop(Capability.ALL)
+                .withReadonlyRootfs(true)
+                .withMounts(List.of(
+                        new Mount().withType(MountType.TMPFS).withTarget("/tmp")
+                                .withTmpfsOptions(
+                                        new TmpfsOptions().withSizeBytes(COMPILE_TMPFS_BYTES).withMode(01777)),
+                        new Mount().withType(MountType.TMPFS).withTarget("/run")
+                                .withTmpfsOptions(
+                                        new TmpfsOptions().withSizeBytes(RUN_TMPFS_RUN_BYTES).withMode(0755))))
+                .withUlimits(new Ulimit[] { new Ulimit("fsize", COMPILE_ULIMIT_FSIZE, COMPILE_ULIMIT_FSIZE) })
+                .withSecurityOpts(buildSecurityOpts());
     }
 
     /**

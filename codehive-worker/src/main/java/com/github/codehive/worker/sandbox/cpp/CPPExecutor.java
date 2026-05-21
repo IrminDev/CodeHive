@@ -9,16 +9,8 @@ import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.async.ResultCallback;
 import com.github.dockerjava.api.command.CreateContainerResponse;
 import com.github.dockerjava.api.command.WaitContainerResultCallback;
-import com.github.dockerjava.api.model.Bind;
-import com.github.dockerjava.api.model.Capability;
 import com.github.dockerjava.api.model.Frame;
-import com.github.dockerjava.api.model.HostConfig;
-import com.github.dockerjava.api.model.Mount;
-import com.github.dockerjava.api.model.MountType;
 import com.github.dockerjava.api.model.StreamType;
-import com.github.dockerjava.api.model.TmpfsOptions;
-import com.github.dockerjava.api.model.Ulimit;
-import com.github.dockerjava.api.model.Volume;
 import org.springframework.stereotype.Component;
 
 import java.io.ByteArrayOutputStream;
@@ -27,7 +19,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 @Component("CPP")
@@ -42,6 +33,11 @@ public class CPPExecutor extends AbstractLanguageExecutor {
     @Override
     protected String dockerImage() {
         return GCC_IMAGE;
+    }
+
+    @Override
+    protected long pidsLimit() {
+        return PIDS_LIMIT;
     }
 
     @Override
@@ -65,26 +61,8 @@ public class CPPExecutor extends AbstractLanguageExecutor {
         }
 
         // Start long-running execution container
-        HostConfig hostConfig = HostConfig.newHostConfig()
-                .withBinds(new Bind(tempDir.toString(), new Volume("/workspace")))
-                .withMemory(memoryLimitMb * 1024 * 1024)
-                .withMemorySwap(memoryLimitMb * 1024 * 1024)
-                .withCpuQuota(CPU_QUOTA)
-                .withNetworkMode("none")
-                .withPidsLimit(PIDS_LIMIT)
-                .withCapDrop(Capability.ALL)
-                .withReadonlyRootfs(true)
-                .withMounts(List.of(
-                    new Mount().withType(MountType.TMPFS).withTarget("/tmp")
-                        .withTmpfsOptions(new TmpfsOptions().withSizeBytes(RUN_TMPFS_BYTES).withMode(01777)),
-                    new Mount().withType(MountType.TMPFS).withTarget("/run")
-                        .withTmpfsOptions(new TmpfsOptions().withSizeBytes(RUN_TMPFS_RUN_BYTES).withMode(0755))
-                ))
-                .withUlimits(new Ulimit[]{new Ulimit("fsize", RUN_ULIMIT_FSIZE, RUN_ULIMIT_FSIZE)})
-                .withSecurityOpts(buildSecurityOpts());
-
         CreateContainerResponse container = dockerClient.createContainerCmd(GCC_IMAGE)
-                .withHostConfig(hostConfig)
+                .withHostConfig(buildRunHostConfig(tempDir, memoryLimitMb))
                 .withWorkingDir("/workspace")
                 .withUser("nobody")
                 .withCmd("sh", "-c", "sleep infinity")
@@ -184,26 +162,8 @@ public class CPPExecutor extends AbstractLanguageExecutor {
     private ExecutionResult compile(Path workDir) {
         String containerId = null;
         try {
-            HostConfig hostConfig = HostConfig.newHostConfig()
-                    .withBinds(new Bind(workDir.toString(), new Volume("/workspace")))
-                    .withMemory(COMPILE_MEMORY_BYTES)
-                    .withMemorySwap(COMPILE_MEMORY_BYTES)
-                    .withCpuQuota(CPU_QUOTA)
-                    .withNetworkMode("none")
-                    .withPidsLimit(PIDS_LIMIT)
-                    .withCapDrop(Capability.ALL)
-                    .withReadonlyRootfs(true)
-                    .withMounts(List.of(
-                        new Mount().withType(MountType.TMPFS).withTarget("/tmp")
-                            .withTmpfsOptions(new TmpfsOptions().withSizeBytes(COMPILE_TMPFS_BYTES).withMode(01777)),
-                        new Mount().withType(MountType.TMPFS).withTarget("/run")
-                            .withTmpfsOptions(new TmpfsOptions().withSizeBytes(RUN_TMPFS_RUN_BYTES).withMode(0755))
-                    ))
-                    .withUlimits(new Ulimit[]{new Ulimit("fsize", COMPILE_ULIMIT_FSIZE, COMPILE_ULIMIT_FSIZE)})
-                    .withSecurityOpts(buildSecurityOpts());
-
             CreateContainerResponse container = dockerClient.createContainerCmd(GCC_IMAGE)
-                    .withHostConfig(hostConfig)
+                    .withHostConfig(buildCompileHostConfig(workDir))
                     .withWorkingDir("/workspace")
                     .withUser("nobody")
                     .withCmd("g++", "-o", "program", "main.cpp", "-std=c++17", "-lm")

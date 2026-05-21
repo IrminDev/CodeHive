@@ -8,16 +8,8 @@ import com.github.codehive.worker.sandbox.ContainerSession;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.async.ResultCallback;
 import com.github.dockerjava.api.command.CreateContainerResponse;
-import com.github.dockerjava.api.model.Bind;
-import com.github.dockerjava.api.model.Capability;
 import com.github.dockerjava.api.model.Frame;
-import com.github.dockerjava.api.model.HostConfig;
-import com.github.dockerjava.api.model.Mount;
-import com.github.dockerjava.api.model.MountType;
 import com.github.dockerjava.api.model.StreamType;
-import com.github.dockerjava.api.model.TmpfsOptions;
-import com.github.dockerjava.api.model.Ulimit;
-import com.github.dockerjava.api.model.Volume;
 import org.springframework.stereotype.Component;
 
 import java.io.ByteArrayOutputStream;
@@ -26,7 +18,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 @Component("PYTHON")
@@ -44,6 +35,11 @@ public class PythonExecutor extends AbstractLanguageExecutor {
     }
 
     @Override
+    protected long pidsLimit() {
+        return PIDS_LIMIT;
+    }
+
+    @Override
     public ContainerSession prepare(InputStream sourceCode, Long timeLimitMs, Long memoryLimitMb) throws Exception {
         timeLimitMs = timeLimitMs != null ? timeLimitMs : DEFAULT_TIME_LIMIT_MS;
         memoryLimitMb = memoryLimitMb != null ? memoryLimitMb : DEFAULT_MEMORY_LIMIT_MB;
@@ -56,26 +52,8 @@ public class PythonExecutor extends AbstractLanguageExecutor {
         Files.write(sourceFile, sourceBytes);
         Files.setPosixFilePermissions(sourceFile, PosixFilePermissions.fromString("r--r--r--"));
 
-        HostConfig hostConfig = HostConfig.newHostConfig()
-                .withBinds(new Bind(tempDir.toString(), new Volume("/workspace")))
-                .withMemory(memoryLimitMb * 1024 * 1024)
-                .withMemorySwap(memoryLimitMb * 1024 * 1024)
-                .withCpuQuota(CPU_QUOTA)
-                .withNetworkMode("none")
-                .withPidsLimit(PIDS_LIMIT)
-                .withCapDrop(Capability.ALL)
-                .withReadonlyRootfs(true)
-                .withMounts(List.of(
-                    new Mount().withType(MountType.TMPFS).withTarget("/tmp")
-                        .withTmpfsOptions(new TmpfsOptions().withSizeBytes(RUN_TMPFS_BYTES).withMode(01777)),
-                    new Mount().withType(MountType.TMPFS).withTarget("/run")
-                        .withTmpfsOptions(new TmpfsOptions().withSizeBytes(RUN_TMPFS_RUN_BYTES).withMode(0755))
-                ))
-                .withUlimits(new Ulimit[]{new Ulimit("fsize", RUN_ULIMIT_FSIZE, RUN_ULIMIT_FSIZE)})
-                .withSecurityOpts(buildSecurityOpts());
-
         CreateContainerResponse container = dockerClient.createContainerCmd(PYTHON_IMAGE)
-                .withHostConfig(hostConfig)
+                .withHostConfig(buildRunHostConfig(tempDir, memoryLimitMb))
                 .withWorkingDir("/workspace")
                 .withUser("nobody")
                 .withEnv("PYTHONDONTWRITEBYTECODE=1")
