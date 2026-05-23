@@ -1,0 +1,265 @@
+package com.github.codehive.controller;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.codehive.config.TestAsyncConfig;
+import com.github.codehive.messaging.producer.ExecutionRequestProducer;
+import com.github.codehive.model.dto.queue.ExecutionReport;
+import com.github.codehive.model.entity.Assignment;
+import com.github.codehive.model.entity.Execution;
+import com.github.codehive.model.enums.ComparatorType;
+import com.github.codehive.model.enums.ExecutionStatus;
+import com.github.codehive.model.enums.ExecutionType;
+import com.github.codehive.model.enums.Language;
+import com.github.codehive.model.enums.Role;
+import com.github.codehive.model.entity.User;
+import com.github.codehive.model.request.execution.ExecutionRequest;
+import com.github.codehive.repository.AssignmentRepository;
+import com.github.codehive.repository.ExecutionRepository;
+import com.github.codehive.model.entity.ReferenceSolution;
+import com.github.codehive.repository.ReferenceSolutionRepository;
+import com.github.codehive.repository.TestCaseRepository;
+import com.github.codehive.repository.UserRepository;
+import com.github.codehive.service.ObjectStorageService;
+import com.github.codehive.utils.JwtUtil;
+import java.io.ByteArrayInputStream;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
+
+@SpringBootTest
+@AutoConfigureMockMvc
+@Transactional
+@ActiveProfiles("test")
+@Import(TestAsyncConfig.class)
+@DisplayName("CheckExecutionController Integration")
+class CheckExecutionControllerIntegrationTest {
+
+    @Autowired private MockMvc mockMvc;
+    @Autowired private ObjectMapper objectMapper;
+    @Autowired private AssignmentRepository assignmentRepository;
+    @Autowired private ExecutionRepository executionRepository;
+    @Autowired private ReferenceSolutionRepository referenceSolutionRepository;
+    @Autowired private TestCaseRepository testCaseRepository;
+    @Autowired private UserRepository userRepository;
+    @Autowired private PasswordEncoder passwordEncoder;
+    @Autowired private JwtUtil jwtUtil;
+
+    @MockitoBean private ObjectStorageService objectStorageService;
+    @MockitoBean private ExecutionRequestProducer executionRequestProducer;
+
+    private Assignment assignment;
+    private String studentToken;
+
+    @BeforeEach
+    void setUp() throws Exception {
+        userRepository.deleteAll();
+        userRepository.flush();
+
+        User student = new User();
+        student.setEmail("student@test.com");
+        student.setPassword(passwordEncoder.encode("Pass123!"));
+        student.setName("Student");
+        student.setLastName("Last");
+        student.setEnrollmentNumber("STU-001");
+        student.setRole(Role.STUDENT);
+        student.setIsActive(true);
+        userRepository.save(student);
+        studentToken = jwtUtil.generateToken(Map.of("role", "STUDENT"), "student@test.com");
+
+        assignment = new Assignment("Sum Two Numbers", "Add a+b", 5000L, 256L, ComparatorType.EXACT_MATCH);
+        assignment.setAllowedLanguages(List.of(Language.JAVA, Language.PYTHON));
+        assignment.setIsActive(true);
+        assignmentRepository.saveAndFlush(assignment);
+
+        ReferenceSolution ref = new ReferenceSolution(assignment, Language.PYTHON);
+        referenceSolutionRepository.saveAndFlush(ref);
+
+        doNothing().when(objectStorageService).upload(anyString(), anyString());
+        doNothing().when(executionRequestProducer).sendExecutionRequest(any());
+    }
+
+    // ── SUBMIT ───────────────────────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("POST /api/execution/check")
+    class SubmitExecution {
+
+        @Test
+        @DisplayName("returns 202 with execution ID for valid PRACTICE request")
+        void acceptsValidRequest() throws Exception {
+            ExecutionRequest req = new ExecutionRequest(
+                    "print(int(input()))", Language.PYTHON,
+                    null, assignment.getId(),
+                    List.of("3 5"), ExecutionType.PRACTICE
+            );
+
+            mockMvc.perform(post("/api/execution/check")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(req))
+                            .header("Authorization", "Bearer " + studentToken))
+                    .andExpect(status().isAccepted())
+                    .andExpect(jsonPath("$.data.id").exists())
+                    .andExpect(jsonPath("$.data.status").value("PENDING"));
+        }
+
+        @Test
+        @DisplayName("returns 400 when code is blank")
+        void rejectsBlankCode() throws Exception {
+            ExecutionRequest req = new ExecutionRequest(
+                    "", Language.PYTHON,
+                    null, assignment.getId(),
+                    List.of("3 5"), ExecutionType.PRACTICE
+            );
+
+            mockMvc.perform(post("/api/execution/check")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(req))
+                            .header("Authorization", "Bearer " + studentToken))
+                    .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        @DisplayName("returns 400 when language is missing")
+        void rejectsMissingLanguage() throws Exception {
+            String body = """
+                    {"code":"print(1)","executionType":"PRACTICE","assignmentId":"%s"}
+                    """.formatted(assignment.getId());
+
+            mockMvc.perform(post("/api/execution/check")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(body)
+                            .header("Authorization", "Bearer " + studentToken))
+                    .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        @DisplayName("returns 404 when assignment does not exist")
+        void notFoundAssignment() throws Exception {
+            ExecutionRequest req = new ExecutionRequest(
+                    "print(1)", Language.PYTHON,
+                    null, UUID.randomUUID(),
+                    List.of("1"), ExecutionType.PRACTICE
+            );
+
+            mockMvc.perform(post("/api/execution/check")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(req))
+                            .header("Authorization", "Bearer " + studentToken))
+                    .andExpect(status().isNotFound());
+        }
+    }
+
+    // ── GET STATUS ───────────────────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("GET /api/execution/check/{id}")
+    class GetExecution {
+
+        @Test
+        @DisplayName("returns 200 with execution status")
+        void found() throws Exception {
+            Execution exec = new Execution(ExecutionType.PRACTICE);
+            exec.setStatus(ExecutionStatus.PENDING);
+            executionRepository.saveAndFlush(exec);
+
+            mockMvc.perform(get("/api/execution/check/{id}", exec.getId())
+                            .header("Authorization", "Bearer " + studentToken))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.id").value(exec.getId().toString()))
+                    .andExpect(jsonPath("$.data.status").value("PENDING"));
+        }
+
+        @Test
+        @DisplayName("returns 404 for non-existent execution ID")
+        void notFound() throws Exception {
+            mockMvc.perform(get("/api/execution/check/{id}", UUID.randomUUID())
+                            .header("Authorization", "Bearer " + studentToken))
+                    .andExpect(status().isNotFound());
+        }
+    }
+
+    // ── GET REPORT ───────────────────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("GET /api/execution/check/{id}/report")
+    class GetReport {
+
+        @Test
+        @DisplayName("returns 200 with parsed report from object storage")
+        void returnsReport() throws Exception {
+            Execution exec = new Execution(ExecutionType.PRACTICE);
+            exec.setStatus(ExecutionStatus.AC);
+            executionRepository.saveAndFlush(exec);
+
+            String reportJson = """
+                    {
+                      "executionId":"%s",
+                      "overallStatus":"AC",
+                      "testCaseResults":[],
+                      "totalTests":1,
+                      "passedTests":1,
+                      "failedTests":0,
+                      "totalExecutionTimeMs":120,
+                      "maxExecutionTimeMs":120,
+                      "maxMemoryUsedMb":10,
+                      "compilationError":null
+                    }
+                    """.formatted(exec.getId());
+
+            when(objectStorageService.download(anyString()))
+                    .thenReturn(new ByteArrayInputStream(reportJson.getBytes()));
+
+            mockMvc.perform(get("/api/execution/check/{id}/report", exec.getId())
+                            .header("Authorization", "Bearer " + studentToken))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.overallStatus").value("AC"))
+                    .andExpect(jsonPath("$.data.passedTests").value(1));
+        }
+
+        @Test
+        @DisplayName("returns 404 when report not found for non-existent execution")
+        void notFoundExecution() throws Exception {
+            mockMvc.perform(get("/api/execution/check/{id}/report", UUID.randomUUID())
+                            .header("Authorization", "Bearer " + studentToken))
+                    .andExpect(status().isNotFound());
+        }
+
+        @Test
+        @DisplayName("returns 404 when execution is PENDING and report not uploaded yet")
+        void reportNotYetAvailable() throws Exception {
+            Execution exec = new Execution(ExecutionType.PRACTICE);
+            exec.setStatus(ExecutionStatus.PENDING);
+            executionRepository.saveAndFlush(exec);
+
+            when(objectStorageService.download(anyString()))
+                    .thenThrow(new RuntimeException("object not found"));
+
+            mockMvc.perform(get("/api/execution/check/{id}/report", exec.getId())
+                            .header("Authorization", "Bearer " + studentToken))
+                    .andExpect(status().isNotFound());
+        }
+    }
+}
