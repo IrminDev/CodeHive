@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.13-slim
 
 RUN pip uninstall -y pip setuptools wheel 2>/dev/null || true \
     && find /usr/local/bin -name "pip*" -delete 2>/dev/null || true \
