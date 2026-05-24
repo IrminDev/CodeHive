@@ -36,5 +36,26 @@ dependencies {
 }
 
 tasks.withType<Test> {
-    useJUnitPlatform()
+    useJUnitPlatform {
+        val tags = System.getProperty("tags")
+        if (tags != null) includeTags(tags)
+    }
+    testLogging {
+        events("passed", "skipped", "failed")
+        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+        showCauses = true
+        showStackTraces = true
+    }
+}
+
+tasks.register<Test>("securityTest") {
+    description = "Run sandbox security integration tests (requires Docker)"
+    group = "verification"
+    useJUnitPlatform { includeTags("security") }
+    testLogging {
+        events("passed", "skipped", "failed")
+        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+        showCauses = true
+        showStackTraces = true
+    }
 }

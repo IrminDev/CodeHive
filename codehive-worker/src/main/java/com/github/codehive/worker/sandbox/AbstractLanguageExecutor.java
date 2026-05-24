@@ -369,15 +369,15 @@ public abstract class AbstractLanguageExecutor implements LanguageExecutor {
 
         cleanupBetweenRuns(session);
 
+        if (truncated[0]) {
+            return ExecutionResult.outputLimitExceeded(
+                    stdout + "\n[Output truncated: exceeded 4 MB limit]", executionTime);
+        }
         if (exitCode == 124L) {
             return ExecutionResult.timeLimitExceeded(session.getTimeLimitMs());
         }
         if (exitCode == 137L) {
             return ExecutionResult.memoryLimitExceeded(session.getMemoryLimitMb());
-        }
-        if (truncated[0]) {
-            return ExecutionResult.outputLimitExceeded(
-                    stdout + "\n[Output truncated: exceeded 4 MB limit]", executionTime);
         }
         if (exitCode != 0) {
             ExecutionResult special = classifyNonZeroExit(exitCode, stdout, stderr, executionTime);
