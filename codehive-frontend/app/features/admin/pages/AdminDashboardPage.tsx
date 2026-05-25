@@ -1,103 +1,186 @@
-import { useTheme } from "~/core/providers/ThemeProvider";
+import { useEffect, useState } from "react";
+import { useAuth } from "~/core/providers/AuthProvider";
+import { AppHeader } from "~/shared/components/AppHeader";
+
+const NAV_CARDS = [
+  {
+    title: "Create User",
+    description: "Register a single user with a temporary password sent by email.",
+    href: "/admin/create-user",
+    gradient: "from-azure to-french",
+    icon: (
+      <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+      </svg>
+    ),
+  },
+  {
+    title: "Bulk Registration",
+    description: "Upload a CSV file to register up to 1500 users at once.",
+    href: "/admin/csv-upload",
+    gradient: "from-french to-imperial",
+    icon: (
+      <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+      </svg>
+    ),
+  },
+];
+
+const STATS = [
+  {
+    label: "Total Users",
+    value: "—",
+    gradient: "from-azure to-french",
+    icon: (
+      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+      </svg>
+    ),
+  },
+  {
+    label: "Active Courses",
+    value: "—",
+    gradient: "from-yellow to-gold",
+    textDark: true,
+    icon: (
+      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+      </svg>
+    ),
+  },
+  {
+    label: "Pending Invitations",
+    value: "—",
+    gradient: "from-french to-azure",
+    icon: (
+      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+      </svg>
+    ),
+  },
+];
 
 export function AdminDashboardPage() {
-  const { theme, toggleTheme } = useTheme();
+  const { user } = useAuth();
+  const [isVisible, setIsVisible] = useState(false);
 
-  const navCards = [
-    {
-      title: "Create User",
-      description: "Register a single user with a temporary password sent by email.",
-      href: "/admin/create-user",
-      icon: (
-        <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-        </svg>
-      ),
-    },
-    {
-      title: "Bulk Registration",
-      description: "Upload a CSV file to register up to 1500 users at once.",
-      href: "/admin/csv-upload",
-      icon: (
-        <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-        </svg>
-      ),
-    },
-  ];
+  useEffect(() => {
+    setIsVisible(true);
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-dark-bg transition-colors duration-300">
-      {/* Top bar */}
-      <header className="bg-white dark:bg-dark-surface border-b border-gray-200 dark:border-gray-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
-          <h1 className="text-lg font-semibold text-gray-900 dark:text-white">Admin Dashboard</h1>
-          <div className="flex items-center gap-3">
-            <a
-              href="/"
-              className="text-sm text-gray-500 dark:text-gray-400 hover:text-azure dark:hover:text-yellow transition-colors"
-            >
-              Back to site
-            </a>
-            <button
-              onClick={toggleTheme}
-              className="p-2 rounded-full bg-gray-100 dark:bg-dark-card hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200"
-              aria-label="Toggle theme"
-            >
-              {theme === "light" ? (
-                <svg className="w-5 h-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                </svg>
-              ) : (
-                <svg className="w-5 h-5 text-yellow" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                </svg>
-              )}
-            </button>
+      {/* Background orbs */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-0 right-1/4 w-96 h-96 bg-azure/5 dark:bg-azure/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-1/4 left-1/4 w-96 h-96 bg-yellow/5 dark:bg-yellow/10 rounded-full blur-3xl" />
+      </div>
+
+      <AppHeader badge="Admin" logoLinkTo="/" />
+
+      <main className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        {/* Page header */}
+        <div
+          className={`mb-10 transition-all duration-700 ${
+            isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
+          }`}
+        >
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-azure/10 dark:bg-yellow/10 border border-azure/20 dark:border-yellow/20 mb-4">
+            <span className="w-2 h-2 rounded-full bg-azure dark:bg-yellow animate-pulse" />
+            <span className="text-sm font-medium text-azure dark:text-yellow">Admin Panel</span>
+          </div>
+          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-2">
+            Welcome back,{" "}
+            <span className="gradient-text">{user?.name?.split(" ")[0] || "Admin"}</span>
+          </h1>
+          <p className="text-lg text-gray-600 dark:text-gray-400">
+            Manage users and monitor platform activity from here.
+          </p>
+        </div>
+
+        {/* Action cards */}
+        <div
+          className={`mb-10 transition-all duration-700 delay-100 ${
+            isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
+          }`}
+        >
+          <div className="flex items-center gap-2 mb-5">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-azure/10 dark:bg-yellow/10 border border-azure/20 dark:border-yellow/20">
+              <span className="text-xs font-medium text-azure dark:text-yellow">Quick Actions</span>
+            </div>
+          </div>
+
+          <div className="grid sm:grid-cols-2 gap-5">
+            {NAV_CARDS.map((card) => (
+              <a
+                key={card.title}
+                href={card.href}
+                className="group relative bg-white dark:bg-dark-card rounded-2xl p-6 lg:p-8
+                           border border-gray-200 dark:border-gray-700/50
+                           hover:border-azure/50 dark:hover:border-yellow/50
+                           transition-all duration-500 hover:shadow-xl hover:shadow-azure/5 dark:hover:shadow-yellow/5
+                           hover:-translate-y-1"
+              >
+                <div
+                  className={`inline-flex items-center justify-center w-14 h-14 rounded-xl
+                              bg-gradient-to-br ${card.gradient} text-white mb-5
+                              group-hover:scale-110 transition-transform duration-300`}
+                >
+                  {card.icon}
+                </div>
+
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+                  {card.title}
+                </h3>
+                <p className="text-gray-600 dark:text-gray-400 leading-relaxed text-sm">
+                  {card.description}
+                </p>
+
+                <div className="mt-5 flex items-center text-azure dark:text-yellow font-medium text-sm
+                                opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  Go to {card.title}
+                  <svg className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
+              </a>
+            ))}
           </div>
         </div>
-      </header>
 
-      {/* Content */}
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Welcome, Admin</h2>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">Manage users and platform settings.</p>
-        </div>
+        {/* Stats */}
+        <div
+          className={`transition-all duration-700 delay-200 ${
+            isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
+          }`}
+        >
+          <div className="flex items-center gap-2 mb-5">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-azure/10 dark:bg-yellow/10 border border-azure/20 dark:border-yellow/20">
+              <span className="text-xs font-medium text-azure dark:text-yellow">Overview</span>
+            </div>
+          </div>
 
-        {/* Navigation Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-          {navCards.map((card) => (
-            <a
-              key={card.title}
-              href={card.href}
-              className="group bg-white dark:bg-dark-surface rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 hover:shadow-md hover:border-azure dark:hover:border-yellow transition-all duration-200"
-            >
-              <div className="text-azure dark:text-yellow mb-4">{card.icon}</div>
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white group-hover:text-azure dark:group-hover:text-yellow transition-colors">
-                {card.title}
-              </h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{card.description}</p>
-            </a>
-          ))}
-        </div>
-
-        {/* Placeholder Stats */}
-        <div className="mt-10">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Overview</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="bg-white dark:bg-dark-surface rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
-              <p className="text-sm text-gray-500 dark:text-gray-400">Total Users</p>
-              <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">—</p>
-            </div>
-            <div className="bg-white dark:bg-dark-surface rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
-              <p className="text-sm text-gray-500 dark:text-gray-400">Active Courses</p>
-              <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">—</p>
-            </div>
-            <div className="bg-white dark:bg-dark-surface rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
-              <p className="text-sm text-gray-500 dark:text-gray-400">Pending Invitations</p>
-              <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">—</p>
-            </div>
+          <div className="grid sm:grid-cols-3 gap-5">
+            {STATS.map((stat) => (
+              <div
+                key={stat.label}
+                className="bg-white dark:bg-dark-card rounded-2xl p-6
+                           border border-gray-200 dark:border-gray-700/50
+                           hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5"
+              >
+                <div
+                  className={`inline-flex items-center justify-center w-11 h-11 rounded-xl
+                              bg-gradient-to-br ${stat.gradient} ${stat.textDark ? "text-imperial" : "text-white"} mb-4`}
+                >
+                  {stat.icon}
+                </div>
+                <div className="text-3xl font-bold text-gray-900 dark:text-white mb-1">
+                  {stat.value}
+                </div>
+                <div className="text-sm text-gray-500 dark:text-gray-400">{stat.label}</div>
+              </div>
+            ))}
           </div>
         </div>
       </main>

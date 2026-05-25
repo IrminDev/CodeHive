@@ -1,0 +1,45 @@
+# ============================================================
+# STEP 4 — DEFINITIVE execution: Java AC solution
+#
+# Mode:    DEFINITIVE (official submission)
+# Language: JAVA
+# Verdict:  AC (Accepted) on all 5 assignment test cases
+#
+# In DEFINITIVE mode the worker fetches pre-generated expected
+# outputs from MinIO (stored during assignment creation) and
+# compares each one against the student's output.
+#
+# The assignment must be active (isActive=true) before
+# submitting in DEFINITIVE mode. Wait for the worker to
+# finish test-case generation after step 2.
+#
+# Set @token from 01_login.http response.
+# Set @assignmentId from 02_create_assignment.sh response.
+#
+# Compatible with: VS Code REST Client, IntelliJ HTTP Client
+# ============================================================
+
+@baseUrl      = http://localhost:8080
+@token        = <paste-token-here>
+@assignmentId = <paste-assignment-id-here>
+
+### Definitive submission — Java sliding-window O(n) solution
+POST {{baseUrl}}/api/execution/check
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "code": "import java.util.*;\npublic class Main {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        int n = sc.nextInt();\n        int[] nums = new int[n];\n        for (int i = 0; i < n; i++) nums[i] = sc.nextInt();\n        int k = sc.nextInt();\n        sc.close();\n        if (k > n || k <= 0) { System.out.println(0); return; }\n        long window = 0;\n        for (int i = 0; i < k; i++) window += nums[i];\n        long maxSum = window;\n        for (int i = k; i < n; i++) {\n            window += nums[i] - nums[i - k];\n            if (window > maxSum) maxSum = window;\n        }\n        System.out.println(maxSum);\n    }\n}",
+  "language": "JAVA",
+  "assignmentId": "{{assignmentId}}",
+  "executionType": "DEFINITIVE"
+}
+
+###
+# Expected result after polling 05_poll_execution.http:
+#   status: COMPLETED
+#   testCaseResults[0]: verdict=AC  input1  — n=5, expected 9
+#   testCaseResults[1]: verdict=AC  input2  — n=8, expected 11
+#   testCaseResults[2]: verdict=AC  input3  — all-negative, expected -3
+#   testCaseResults[3]: verdict=AC  input4  — single element, expected 7
+#   testCaseResults[4]: verdict=AC  input5  — n=10, expected 25

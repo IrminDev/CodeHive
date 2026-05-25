@@ -1,0 +1,19 @@
+# ============================================================
+# STEP 1 — Login and obtain a JWT token
+#
+# Copy the `token` field from the response body and set the
+# @token variable at the top of the other .http files.
+#
+# Compatible with: VS Code REST Client, IntelliJ HTTP Client
+# ============================================================
+
+@baseUrl = http://localhost:8080
+
+### Login as teacher / admin
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "identifier": "teacher@codehive.com",
+  "password": "your-password-here"
+}

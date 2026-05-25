@@ -13,7 +13,7 @@ export enum Scope {
 }
 
 export interface User {
-  id: number;
+  id: string;
   email: string;
   name: string;
   lastName: string;

@@ -11,8 +11,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.regex.Pattern;
 
+import io.jsonwebtoken.ExpiredJwtException;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
@@ -216,7 +218,21 @@ public class AuthService {
     }
 
     public UserDTO getUserByToken(String token) {
-        String email = jwtUtil.extractClaim(token, claims -> claims.getSubject());
+        try {
+            if (jwtUtil.isTokenExpired(token)) {
+                throw new IncorrectCredentialsException("Token has expired");
+            }
+            String email = jwtUtil.extractClaim(token, claims -> claims.getSubject());
+            User user = userRepository.findByEmail(email)
+                    .orElseThrow(() -> new IncorrectCredentialsException("User not found"));
+            return UserMapper.toDTO(user);
+        } catch (ExpiredJwtException e) {
+            throw new IncorrectCredentialsException("Token has expired");
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public UserDTO getUserByEmail(String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IncorrectCredentialsException("User not found"));
         return UserMapper.toDTO(user);
@@ -230,7 +246,7 @@ public class AuthService {
     }
 
     @Transactional
-    public void updatePassword(Long userId, com.github.codehive.model.request.auth.UpdatePasswordRequest request) {
+    public void updatePassword(UUID userId, com.github.codehive.model.request.auth.UpdatePasswordRequest request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IncorrectCredentialsException("User not found"));
 

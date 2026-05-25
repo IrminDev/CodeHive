@@ -55,6 +55,8 @@ public class SecurityConfig {
                 .requestMatchers("/ws/**").permitAll()
                 // Swagger/OpenAPI documentation
                 .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+                // Assignment upload restricted to teachers
+                .requestMatchers(HttpMethod.POST, "/api/assignments").hasAnyAuthority("TEACHER", "ADMIN")
                 // All other requests require authentication
                 .anyRequest().authenticated()
             )

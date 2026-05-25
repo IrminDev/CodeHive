@@ -2,28 +2,19 @@ import logo from "~/assets/logo.png";
 
 
 const footerLinks = {
-  Product: [
+  Platform: [
     { name: "Features", href: "#features" },
-    { name: "Pricing", href: "#pricing" },
-    { name: "Integrations", href: "#" },
-    { name: "Changelog", href: "#" },
+    { name: "How It Works", href: "#how-it-works" },
+    { name: "Meet the Team", href: "#creators" },
+    { name: "Contact", href: "#contact" },
   ],
-  Resources: [
-    { name: "Documentation", href: "#" },
-    { name: "Tutorials", href: "#" },
-    { name: "Blog", href: "#" },
-    { name: "Community", href: "#" },
-  ],
-  Company: [
-    { name: "About", href: "#" },
-    { name: "Careers", href: "#" },
-    { name: "Contact", href: "#" },
-    { name: "Press Kit", href: "#" },
+  Account: [
+    { name: "Sign In", href: "/login" },
+    { name: "Forgot Password", href: "/forgot-password" },
   ],
   Legal: [
-    { name: "Privacy", href: "#" },
-    { name: "Terms", href: "#" },
-    { name: "Security", href: "#" },
+    { name: "Privacy Policy", href: "#" },
+    { name: "Terms of Service", href: "#" },
   ],
 };
 
@@ -87,7 +78,7 @@ export function Footer() {
               Ready to transform your classroom?
             </h2>
             <p className="text-lg lg:text-xl text-white/80 max-w-2xl mx-auto mb-8">
-              Join thousands of educators who are already using CodeHive to teach programming more effectively.
+              Experience a modern platform designed for educators and students.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <a href="/login" className="btn-secondary inline-flex items-center justify-center gap-2 text-lg">
@@ -97,11 +88,11 @@ export function Footer() {
                 </svg>
               </a>
               <a
-                href="#"
-                className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold 
+                href="#contact"
+                className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold
                          text-white border-2 border-white/30 hover:bg-white/10 transition-all duration-300"
               >
-                Schedule Demo
+                Contact Us
               </a>
             </div>
           </div>

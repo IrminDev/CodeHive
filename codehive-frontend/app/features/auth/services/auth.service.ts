@@ -32,6 +32,10 @@ export const AuthService = {
     return authApi.getMe(getAuthToken());
   },
 
+  updatePassword(currentPassword: string, newPassword: string) {
+    return authApi.updatePassword(currentPassword, newPassword, getAuthToken());
+  },
+
   forgotPassword(request: ForgotPasswordRequest) {
     return authApi.forgotPassword(request);
   },

@@ -7,11 +7,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -57,12 +57,8 @@ public class AuthController {
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     @GetMapping("/me")
-    public ResponseEntity<SuccessResponse<UserDTO>> me(@RequestHeader(value = "Authorization", required = false) String authHeader) {
-        if (authHeader == null || !authHeader.startsWith("Bearer ") || authHeader.length() <= 7) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-        String token = authHeader.substring(7);
-        UserDTO userDTO = authService.getUserByToken(token);
+    public ResponseEntity<SuccessResponse<UserDTO>> me(Authentication authentication) {
+        UserDTO userDTO = authService.getUserByEmail(authentication.getName());
         SuccessResponse<UserDTO> response = new SuccessResponse<>("User info retrieved", userDTO);
         return ResponseEntity.ok(response);
     }
@@ -139,13 +135,9 @@ public class AuthController {
     })
     @PutMapping("/me/password")
     public ResponseEntity<SuccessResponse<Void>> updatePassword(
-            @RequestHeader(value = "Authorization") String authHeader,
+            Authentication authentication,
             @Valid @RequestBody UpdatePasswordRequest request) {
-        if (authHeader == null || !authHeader.startsWith("Bearer ") || authHeader.length() <= 7) {
-            throw new ValidationException("Invalid Authorization header format");
-        }
-        String token = authHeader.substring(7);
-        UserDTO userDTO = authService.getUserByToken(token);
+        UserDTO userDTO = authService.getUserByEmail(authentication.getName());
         authService.updatePassword(userDTO.getId(), request);
         return ResponseEntity.ok(new SuccessResponse<>("Password updated successfully", null));
     }

@@ -1,7 +1,5 @@
 package com.github.codehive.config;
 
-import java.util.List;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -25,7 +23,7 @@ public class AdminInitializer implements CommandLineRunner {
     @Value("${app.admin.email:admin@codehive.com}")
     private String adminEmail;
 
-    @Value("${app.admin.password}")
+    @Value("${app.admin.password:Admin@12345}")
     private String adminPassword;
 
     @Value("${app.admin.name:Super}")
@@ -49,22 +47,13 @@ public class AdminInitializer implements CommandLineRunner {
             return;
         }
 
-        User admin = new User();
-        admin.setEmail(adminEmail);
-        admin.setPassword(passwordEncoder.encode(adminPassword));
-        admin.setName(adminName);
-        admin.setLastName(adminLastName);
-        admin.setEnrollmentNumber(adminEnrollmentNumber);
-        admin.setRole(Role.ADMIN);
-        admin.setIsActive(true);
-        admin.setTemporaryPassword(false);
-        admin.setScopes(List.of(
-                Scope.SUPER_ADMIN,
-                Scope.MANAGE_USERS,
-                Scope.MANAGE_GROUPS,
-                Scope.CHECK_ANALYTICS,
-                Scope.CREATE_GROUP
-        ));
+        User admin = new User(adminName, adminLastName, adminEnrollmentNumber, adminEmail,
+                passwordEncoder.encode(adminPassword), Role.ADMIN);
+        admin.addScope(Scope.SUPER_ADMIN);
+        admin.addScope(Scope.MANAGE_USERS);
+        admin.addScope(Scope.MANAGE_GROUPS);
+        admin.addScope(Scope.CHECK_ANALYTICS);
+        admin.addScope(Scope.CREATE_GROUP);
 
         userRepository.save(admin);
         logger.info("Default super admin created: {}", adminEmail);

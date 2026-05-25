@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 
 import type { Role, Scope } from "~/shared/types/model/User";
 import { useAuth } from "~/core/providers/AuthProvider";
+import { getDashboardRoute } from "~/shared/lib/role-routing";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -74,13 +75,4 @@ export function ProtectedRoute({ children, roles, scopes }: ProtectedRouteProps)
   }
 
   return <>{children}</>;
-}
-
-function getDashboardRoute(role: string): string {
-  switch (role) {
-    case "ADMIN":
-      return "/admin";
-    default:
-      return "/dashboard";
-  }
 }

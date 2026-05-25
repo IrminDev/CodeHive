@@ -12,7 +12,7 @@ const steps = [
   {
     number: "02",
     title: "Design Challenges",
-    description: "Create coding problems with test cases, time limits, and hints. Support for 20+ languages.",
+    description: "Create coding problems with test cases, time limits, and hints. Support for multiple programming languages.",
     icon: (
       <svg className="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z" />
@@ -62,7 +62,7 @@ export function HowItWorks() {
             How <span className="gradient-text-gold">CodeHive</span> Works
           </h2>
           <p className="text-lg text-gray-600 dark:text-gray-400">
-            Get started in minutes and transform the way you teach programming.
+            Get started and change the way you create coding assignments.
           </p>
         </div>
 
@@ -117,7 +117,7 @@ export function HowItWorks() {
 
         {/* CTA */}
         <div className="text-center mt-16 lg:mt-24">
-          <a href="/signup" className="btn-primary inline-flex items-center gap-2 text-lg">
+          <a href="/login" className="btn-primary inline-flex items-center gap-2 text-lg">
             Get Started Now
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />

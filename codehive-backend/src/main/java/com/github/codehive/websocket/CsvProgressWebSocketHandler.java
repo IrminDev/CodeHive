@@ -9,6 +9,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
@@ -38,7 +39,7 @@ public class CsvProgressWebSocketHandler extends TextWebSocketHandler {
     }
 
     @Override
-    protected void handleTextMessage(WebSocketSession session, TextMessage message) {
+    protected void handleTextMessage(@NonNull WebSocketSession session, @NonNull TextMessage message) {
         String taskId = message.getPayload().trim();
         session.getAttributes().put(TASK_ID_ATTRIBUTE, taskId);
         taskSessions.put(taskId, session);
@@ -58,7 +59,7 @@ public class CsvProgressWebSocketHandler extends TextWebSocketHandler {
     }
 
     @Override
-    public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
+    public void afterConnectionClosed(@NonNull WebSocketSession session, @NonNull CloseStatus status) {
         String taskId = (String) session.getAttributes().get(TASK_ID_ATTRIBUTE);
         if (taskId != null) {
             taskSessions.remove(taskId);
