@@ -82,7 +82,7 @@ class AuthControllerIntegrationTest {
         testUser.setName("Existing");
         testUser.setLastName("User");
         testUser.setPassword(passwordEncoder.encode("password123"));
-        testUser.setEnrollmentNumber("ENR001");
+        testUser.setEnrollmentNumber("1994630001");
         testUser.setRole(Role.STUDENT);
         testUser.setIsActive(true);
         testUser.setTemporaryPassword(false);
@@ -94,7 +94,7 @@ class AuthControllerIntegrationTest {
         adminUser.setName("Admin");
         adminUser.setLastName("User");
         adminUser.setPassword(passwordEncoder.encode("admin123"));
-        adminUser.setEnrollmentNumber("ADM001");
+        adminUser.setEnrollmentNumber("1994630002");
         adminUser.setRole(Role.ADMIN);
         adminUser.setIsActive(true);
         adminUser.setTemporaryPassword(false);
@@ -139,7 +139,7 @@ class AuthControllerIntegrationTest {
         void login_WithValidCredentialsUsingEnrollmentNumber_ReturnsTokenAndUserData() throws Exception {
             // Given
             LoginRequest loginRequest = new LoginRequest();
-            loginRequest.setIdentifier("ENR001");
+            loginRequest.setIdentifier("1994630001");
             loginRequest.setPassword("password123");
 
             // When/Then
@@ -260,7 +260,7 @@ class AuthControllerIntegrationTest {
             signUpRequest.setName("New");
             signUpRequest.setFatherLastName("User");
             signUpRequest.setMotherLastName("Test");
-            signUpRequest.setEnrollmentNumber("ENR002");
+            signUpRequest.setEnrollmentNumber("2023630001");
             signUpRequest.setRole(Role.STUDENT);
 
             // When/Then
@@ -273,7 +273,7 @@ class AuthControllerIntegrationTest {
                     .andExpect(jsonPath("$.data.email").value("newuser@example.com"))
                     .andExpect(jsonPath("$.data.name").value("New"))
                     .andExpect(jsonPath("$.data.lastName").value("User Test"))
-                    .andExpect(jsonPath("$.data.enrollmentNumber").value("ENR002"))
+                    .andExpect(jsonPath("$.data.enrollmentNumber").value("2023630001"))
                     .andExpect(jsonPath("$.data.role").value("STUDENT"))
                     .andExpect(jsonPath("$.data.isActive").value(true))
                     .andExpect(jsonPath("$.data.temporaryPassword").value(true));
@@ -293,7 +293,7 @@ class AuthControllerIntegrationTest {
             signUpRequest.setName("New");
             signUpRequest.setFatherLastName("User");
             signUpRequest.setMotherLastName("Test");
-            signUpRequest.setEnrollmentNumber("ENR002");
+            signUpRequest.setEnrollmentNumber("2023630001");
             signUpRequest.setRole(Role.STUDENT);
 
             // When/Then
@@ -313,7 +313,7 @@ class AuthControllerIntegrationTest {
             signUpRequest.setName("New");
             signUpRequest.setFatherLastName("User");
             signUpRequest.setMotherLastName("Test");
-            signUpRequest.setEnrollmentNumber("ENR002");
+            signUpRequest.setEnrollmentNumber("2023630001");
             signUpRequest.setRole(Role.STUDENT);
 
             // When/Then
@@ -332,7 +332,7 @@ class AuthControllerIntegrationTest {
             signUpRequest.setName("Another");
             signUpRequest.setFatherLastName("User");
             signUpRequest.setMotherLastName("Test");
-            signUpRequest.setEnrollmentNumber("ENR999");
+            signUpRequest.setEnrollmentNumber("2020630999");
             signUpRequest.setRole(Role.STUDENT);
 
             // When/Then
@@ -353,7 +353,7 @@ class AuthControllerIntegrationTest {
             signUpRequest.setName("Another");
             signUpRequest.setFatherLastName("User");
             signUpRequest.setMotherLastName("Test");
-            signUpRequest.setEnrollmentNumber("ENR001");
+            signUpRequest.setEnrollmentNumber("1994630001");
             signUpRequest.setRole(Role.STUDENT);
 
             // When/Then
@@ -374,7 +374,7 @@ class AuthControllerIntegrationTest {
             signUpRequest.setName("Test");
             signUpRequest.setFatherLastName("User");
             signUpRequest.setMotherLastName("Test");
-            signUpRequest.setEnrollmentNumber("ENR003");
+            signUpRequest.setEnrollmentNumber("2021630003");
             signUpRequest.setRole(Role.STUDENT);
 
             // When/Then
@@ -428,7 +428,7 @@ class AuthControllerIntegrationTest {
             signUpRequest.setName("New");
             signUpRequest.setFatherLastName("User");
             signUpRequest.setMotherLastName("Test");
-            signUpRequest.setEnrollmentNumber("ENR003");
+            signUpRequest.setEnrollmentNumber("2021630003");
             signUpRequest.setRole(Role.STUDENT);
 
             // When
@@ -453,7 +453,7 @@ class AuthControllerIntegrationTest {
             signUpRequest.setName("Teacher");
             signUpRequest.setFatherLastName("Last");
             signUpRequest.setMotherLastName("Name");
-            signUpRequest.setEnrollmentNumber("T001");
+            signUpRequest.setEnrollmentNumber("2022630001");
             signUpRequest.setRole(Role.TEACHER);
 
             // When/Then
@@ -587,7 +587,7 @@ class AuthControllerIntegrationTest {
             signUpRequest.setName("New");
             signUpRequest.setFatherLastName("User");
             signUpRequest.setMotherLastName("Test");
-            signUpRequest.setEnrollmentNumber("ENR002");
+            signUpRequest.setEnrollmentNumber("2023630001");
             signUpRequest.setRole(Role.STUDENT);
 
             // When/Then
@@ -627,7 +627,7 @@ class AuthControllerIntegrationTest {
             signUpRequest.setName("New");
             signUpRequest.setFatherLastName("User");
             signUpRequest.setMotherLastName("Test");
-            signUpRequest.setEnrollmentNumber("ENR002");
+            signUpRequest.setEnrollmentNumber("2023630001");
             signUpRequest.setRole(Role.STUDENT);
 
             // When/Then
@@ -662,7 +662,7 @@ class AuthControllerIntegrationTest {
             signUpRequest.setName("New");
             signUpRequest.setFatherLastName("User");
             signUpRequest.setMotherLastName("Test");
-            signUpRequest.setEnrollmentNumber("ENR002");
+            signUpRequest.setEnrollmentNumber("2023630001");
             signUpRequest.setRole(Role.STUDENT);
 
             // When/Then
