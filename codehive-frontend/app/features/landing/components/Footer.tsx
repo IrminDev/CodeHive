@@ -5,7 +5,6 @@ const footerLinks = {
   Platform: [
     { name: "Features", href: "#features" },
     { name: "How It Works", href: "#how-it-works" },
-    { name: "Meet the Team", href: "#creators" },
     { name: "Contact", href: "#contact" },
   ],
   Account: [
@@ -63,7 +62,7 @@ const socialLinks = [
 
 export function Footer() {
   return (
-    <footer className="relative bg-gray-50 dark:bg-dark-surface border-t border-gray-200 dark:border-gray-800">
+    <footer id="contact" className="relative bg-gray-50 dark:bg-dark-surface border-t border-gray-200 dark:border-gray-800">
       {/* CTA Section */}
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-24">
         <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-imperial via-french to-azure p-8 lg:p-16 text-center">

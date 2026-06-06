@@ -38,158 +38,172 @@ export function RecoveryPasswordPage() {
   };
 
   const features = [
-    "Secure password reset link",
-    "Link expires in 24 hours",
-    "One-time use only",
+    {
+      icon: (
+        <svg className="w-5 h-5 text-yellow" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.5 10.5V6.75a4.5 4.5 0 119 0v3.75M3.75 21.75h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H3.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+        </svg>
+      ),
+      label: "Single-use reset link",
+      sub: "Invalidated after first use",
+    },
+    {
+      icon: (
+        <svg className="w-5 h-5 text-yellow" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      ),
+      label: "Expires in 24 hours",
+      sub: "Auto self-destructs for safety",
+    },
+    {
+      icon: (
+        <svg className="w-5 h-5 text-yellow" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+        </svg>
+      ),
+      label: "Signed & rate-limited",
+      sub: "JWT · 5 requests / 60s",
+    },
   ];
 
   return (
-    <div className="h-screen flex overflow-hidden">
+    <div className="h-screen flex overflow-hidden bg-gray-50 dark:bg-[#06091a]">
       {/* ── Left panel ── */}
       <div
-        className={`hidden lg:flex lg:w-1/2 relative overflow-hidden flex-col px-16 xl:px-24 py-10
-          bg-gradient-to-br from-[#1565C0] via-[#003F88] to-[#001840]
+        className={`hidden lg:flex lg:w-[52%] relative overflow-hidden flex-col px-14 xl:px-20 py-10
+          bg-gradient-to-br from-[#0d1a3a] via-[#071128] to-[#030a1c]
           ${mounted ? "animate-slide-in-left" : "opacity-0"}`}
       >
-        {/* Blobs */}
+        {/* Background */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-0 right-0 w-80 h-80 bg-[#0566d9]/20 rounded-full blur-[100px] -translate-y-1/3 translate-x-1/3" />
-          <div className="absolute bottom-0 left-0 w-64 h-64 bg-[#001840]/40 rounded-full blur-[80px] translate-y-1/3 -translate-x-1/3" />
-          <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:60px_60px]" />
+          {/* Hex grid */}
+          <svg className="absolute inset-0 w-full h-full" aria-hidden="true">
+            <defs>
+              <pattern
+                id="hex-pattern-recovery"
+                x="0"
+                y="0"
+                width="51.96"
+                height="90"
+                patternUnits="userSpaceOnUse"
+              >
+                <polygon
+                  points="25.98,0 51.96,15 51.96,45 25.98,60 0,45 0,15"
+                  fill="none"
+                  style={{ stroke: "var(--hex-grid-stroke)" }}
+                  strokeWidth="1"
+                />
+                <polygon
+                  points="0,45 25.98,60 25.98,90 0,105 -25.98,90 -25.98,60"
+                  fill="none"
+                  style={{ stroke: "var(--hex-grid-stroke)" }}
+                  strokeWidth="1"
+                />
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#hex-pattern-recovery)" />
+          </svg>
+          {/* Glow orbs */}
+          <div className="absolute top-0 right-0 w-96 h-96 bg-[#1557e0]/10 rounded-full blur-[120px] -translate-y-1/3 translate-x-1/4" />
+          <div className="absolute bottom-0 left-0 w-72 h-72 bg-[#fdc500]/5 rounded-full blur-[100px] translate-y-1/3 -translate-x-1/3" />
         </div>
 
-        {/* Logo – top */}
-        <a href="/" className="relative z-10 flex items-center gap-3 group mb-auto">
-          <img src={logo} alt="CodeHive" className="h-12 w-12 transition-transform group-hover:scale-110" />
-          <span className="text-2xl font-bold text-white">CodeHive</span>
+        {/* Logo */}
+        <a href="/" className="relative z-10 flex items-center gap-3 group">
+          <img src={logo} alt="CodeHive" className="h-10 w-10 transition-transform group-hover:scale-110" />
+          <span className="text-xl font-bold text-white tracking-tight">CodeHive</span>
         </a>
 
-        {/* Content – vertically centered */}
-        <div className="relative z-10 my-auto">
-          {isSubmitted ? (
-            <div className="space-y-10">
-              {/* Badge */}
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10">
-                <span className="w-2 h-2 rounded-full bg-[#adc6ff] animate-pulse" />
-                <span className="text-xs font-bold tracking-widest uppercase text-[#adc6ff]">Security Protocol</span>
-              </div>
+        {/* Main content */}
+        <div className="relative z-10 flex flex-col justify-center flex-1 space-y-10 max-w-xl">
+          {/* Badge */}
+          <div className="inline-flex w-fit items-center gap-1.5 px-3 py-1.5 rounded-full bg-yellow/10 border border-yellow/20">
+            <span className="w-1.5 h-1.5 rounded-full bg-yellow" />
+            <span className="text-yellow text-xs font-bold tracking-widest uppercase">Security Protocol</span>
+          </div>
 
-              <div className="space-y-5">
-                <h1 className="text-5xl font-bold text-white leading-tight">
-                  Check your <br />
-                  <span className="text-yellow">email!</span>
+          {/* Heading — changes on submit */}
+          <div className="space-y-4">
+            {isSubmitted ? (
+              <>
+                <h1 className="text-5xl xl:text-6xl font-bold text-white leading-[1.1] tracking-tight">
+                  Check your
+                  <br />
+                  <span className="text-yellow">inbox.</span>
                 </h1>
-                <p className="text-base text-white/70 leading-relaxed">
-                  We've dispatched an encrypted verification link to your registered inbox. Please complete the process to resume your engineering workspace.
+                <p className="text-white/50 text-sm leading-relaxed max-w-xs">
+                  We've dispatched an encrypted, single-use link to your
+                  registered address. Follow it to set a new password and
+                  resume your workspace.
                 </p>
-              </div>
-
-              <div className="space-y-6">
-                <div className="flex items-start gap-5">
-                  <div className="mt-1 flex-shrink-0 w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center">
-                    <svg className="w-5 h-5 text-[#adc6ff]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <h4 className="text-white font-semibold text-base">Link expires in 24 hours</h4>
-                    <p className="text-white/50 text-sm mt-1">For security reasons, this link will self-destruct after one day.</p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-5">
-                  <div className="mt-1 flex-shrink-0 w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center">
-                    <svg className="w-5 h-5 text-[#adc6ff]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
-                    </svg>
-                  </div>
-                  <div>
-                    <h4 className="text-white font-semibold text-base">Check your spam folder</h4>
-                    <p className="text-white/50 text-sm mt-1">If it's not in your inbox, our carrier pigeons might have taken a detour.</p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-5">
-                  <div className="mt-1 flex-shrink-0 w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center">
-                    <svg className="w-5 h-5 text-[#adc6ff]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M13.5 10.5V6.75a4.5 4.5 0 119 0v3.75M3.75 21.75h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H3.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <h4 className="text-white font-semibold text-base">One-time use only</h4>
-                    <p className="text-white/50 text-sm mt-1">The link is uniquely generated and can only be used to verify once.</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-12">
-              <div className="space-y-5">
-                <h1 className="text-5xl font-bold text-white leading-tight">
-                  Forgot your <br />
+              </>
+            ) : (
+              <>
+                <h1 className="text-5xl xl:text-6xl font-bold text-white leading-[1.1] tracking-tight">
+                  Forgot your
+                  <br />
                   <span className="text-yellow">password?</span>
                 </h1>
-                <p className="text-base text-white/70 leading-relaxed">
-                  No worries! It happens to the best of us. Enter your email and we'll
-                  send you instructions to reset your password.
+                <p className="text-white/50 text-sm leading-relaxed max-w-xs">
+                  It happens to the best of us. Enter your email or enrollment
+                  number and we'll send a secure link to reset it.
                 </p>
-              </div>
+              </>
+            )}
+          </div>
 
-              <ul className="space-y-6">
-                {features.map((feature) => (
-                  <li key={feature} className="flex items-center gap-5">
-                    <div className="flex-shrink-0 w-10 h-10 rounded-full bg-[#0566d9]/20 flex items-center justify-center">
-                      <svg className="w-5 h-5 text-[#adc6ff]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M5 13l4 4L19 7" />
-                      </svg>
-                    </div>
-                    <span className="text-white font-semibold text-lg">{feature}</span>
-                  </li>
-                ))}
-              </ul>
-
-              <div className="flex flex-col items-center justify-center mt-auto py-8">
-                <div className="relative w-48 h-48 flex items-center justify-center">
-                  <div className="absolute inset-0 bg-[#0566d9]/10 rounded-full blur-2xl" />
-                  <div className="relative w-40 h-40 bg-[#1a1a2a]/40 rounded-full border border-[#47464c]/20 flex items-center justify-center backdrop-blur-sm">
-                    <svg className="w-16 h-16 text-[#dac3a6]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
-                    </svg>
-                    <div className="absolute top-2 right-2 w-10 h-10 rounded-full bg-[#00c853] border-4 border-[#0d0d1e] flex items-center justify-center shadow-lg">
-                      <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
-                    </div>
-                  </div>
+          {/* Features */}
+          <div className="space-y-6">
+            {features.map((f) => (
+              <div key={f.label} className="flex items-center gap-4">
+                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-yellow/10 border border-yellow/20 flex items-center justify-center">
+                  {f.icon}
+                </div>
+                <div>
+                  <div className="text-white text-sm font-semibold leading-none">{f.label}</div>
+                  <div className="text-white/30 text-[11px] mt-1">{f.sub}</div>
                 </div>
               </div>
-            </div>
-          )}
+            ))}
+          </div>
         </div>
 
         {/* Bottom text */}
-        <p className="relative z-10 mt-auto text-center text-white/30 text-xs tracking-widest uppercase">
+        <p className="relative z-10 mt-auto text-white/20 text-xs tracking-widest uppercase">
           Your account security is our priority
         </p>
       </div>
 
       {/* ── Right panel ── */}
       <div
-        className={`w-full lg:w-1/2 flex flex-col bg-white dark:bg-[#0d0d1e]
+        className={`w-full lg:w-[48%] flex flex-col bg-white dark:bg-[#0b0f1f]
           transition-colors duration-300
           ${mounted ? "animate-slide-in-right" : "opacity-0"}`}
       >
         {/* Top bar */}
-        <div className="flex items-center justify-between p-6 lg:p-8">
+        <div className="flex items-center justify-between px-8 lg:px-12 py-6">
+          {/* Mobile logo */}
           <a href="/" className="flex items-center gap-3 group lg:hidden">
-            <img src={logo} alt="CodeHive" className="h-10 w-10 transition-transform group-hover:scale-110" />
-            <span className="text-xl font-bold gradient-text">CodeHive</span>
+            <img src={logo} alt="CodeHive" className="h-9 w-9 transition-transform group-hover:scale-110" />
+            <span className="text-lg font-bold text-gray-900 dark:text-white">CodeHive</span>
           </a>
-          <div className="ml-auto lg:ml-0">
+
+          <div className="flex items-center gap-3 ml-auto lg:ml-0 w-full justify-end">
+            <a
+              href="/login"
+              className="hidden lg:inline-flex items-center gap-1.5 text-sm text-gray-500 dark:text-white/40
+                         hover:text-gray-900 dark:hover:text-white transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+              Back to sign in
+            </a>
             <button
               onClick={toggleTheme}
-              className="p-2 rounded-full bg-gray-100 dark:bg-white/10 hover:bg-gray-200
-                       dark:hover:bg-white/20 transition-all duration-200 group"
+              className="p-2 rounded-full bg-gray-100 dark:bg-dark-card hover:bg-gray-200
+                         dark:hover:bg-gray-700 transition-all duration-200 group"
               aria-label="Toggle theme"
             >
               {theme === "light" ? (
@@ -205,59 +219,52 @@ export function RecoveryPasswordPage() {
           </div>
         </div>
 
-        {/* Form – centered vertically */}
-        <div className="flex-1 flex items-center px-8 md:px-16 xl:px-20">
-          <div className="w-full max-w-lg space-y-8">
+        {/* Form – centered */}
+        <div className="flex-1 flex items-center px-8 md:px-14 xl:px-16">
+          <div className="w-full max-w-md space-y-7">
             {!isSubmitted ? (
               <>
-                {/* Icon + heading */}
-                <div className="space-y-5">
-                  <div className="w-14 h-14 rounded-full bg-gray-100 dark:bg-[#292839] border border-gray-200 dark:border-[#47464c]/30 flex items-center justify-center">
-                    <svg
-                      className="w-7 h-7 text-gray-500 dark:text-[#dac3a6]"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
-                    </svg>
-                  </div>
-                  <div className="space-y-2">
-                    <h2 className="text-5xl font-bold text-gray-900 dark:text-white">
-                      Reset password
-                    </h2>
-                    <p className="text-base text-gray-500 dark:text-gray-400">
-                      Enter the email address associated with your account
-                    </p>
-                  </div>
+                {/* Terminal icon */}
+                <div className="w-12 h-12 rounded-xl bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/8 flex items-center justify-center">
+                  <span className="font-mono text-base font-bold text-gray-500 dark:text-white/50 select-none">
+                    &gt;_
+                  </span>
+                </div>
+
+                {/* Badge */}
+                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-yellow/10 border border-yellow/20">
+                  <span className="text-yellow text-xs font-bold tracking-widest uppercase">Reset Password</span>
+                </div>
+
+                {/* Heading */}
+                <div className="space-y-2">
+                  <h2 className="text-4xl xl:text-5xl font-bold text-gray-900 dark:text-white leading-tight">
+                    Let's get you{" "}
+                    <span className="text-[#4d9fff]">back in.</span>
+                  </h2>
+                  <p className="text-gray-500 dark:text-white/40 text-sm">
+                    Enter the email or enrollment number tied to your account and we'll send reset instructions.
+                  </p>
                 </div>
 
                 {/* Form */}
-                <form onSubmit={handleSubmit} className="space-y-5">
+                <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="space-y-1.5">
                     <label
                       htmlFor="identifier"
-                      className="block text-xs font-bold tracking-widest uppercase text-gray-500 dark:text-gray-500"
+                      className="block text-[10px] font-bold tracking-widest uppercase text-gray-400 dark:text-white/40"
                     >
-                      Email address
+                      Email or Enrollment #
                     </label>
                     <div className="relative group">
                       <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                         <svg
-                          className="w-5 h-5 text-gray-400 group-focus-within:text-azure dark:group-focus-within:text-[#6ba3f5] transition-colors"
+                          className="w-4 h-4 text-gray-300 dark:text-white/25 group-focus-within:text-azure dark:group-focus-within:text-[#4d9fff] transition-colors"
                           fill="none"
                           viewBox="0 0 24 24"
                           stroke="currentColor"
                         >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={1.5}
-                            d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-                          />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
                         </svg>
                       </div>
                       <input
@@ -265,46 +272,69 @@ export function RecoveryPasswordPage() {
                         type="text"
                         value={identifier}
                         onChange={(e) => setIdentifier(e.target.value)}
-                        placeholder="you@example.com"
+                        placeholder="l.hernandez@ipn.mx"
                         required
-                        className="w-full pl-12 pr-4 py-3.5 rounded-lg
-                                 border border-gray-200 dark:border-white/10
-                                 bg-white dark:bg-white/5
-                                 text-gray-900 dark:text-white text-base
-                                 placeholder:text-gray-400 dark:placeholder:text-gray-600
-                                 focus:outline-none focus:ring-2 focus:ring-azure dark:focus:ring-[#6ba3f5]
-                                 focus:border-transparent transition-all duration-200"
+                        className="w-full pl-11 pr-4 py-3 rounded-lg
+                                 border border-gray-200 dark:border-white/8
+                                 bg-white dark:bg-white/4
+                                 text-gray-900 dark:text-white text-sm
+                                 placeholder:text-gray-400 dark:placeholder:text-white/20
+                                 focus:outline-none focus:ring-1 focus:ring-azure dark:focus:ring-[#4d9fff]/60
+                                 focus:border-azure dark:focus:border-[#4d9fff]/40
+                                 transition-all duration-200"
                       />
                     </div>
                   </div>
 
+                  {/* Submit */}
                   <button
                     type="submit"
                     disabled={isLoading}
-                    className="w-full py-4 rounded-lg font-semibold text-base text-white
+                    className="w-full py-3.5 rounded-lg font-semibold text-sm text-white
                              bg-[#1557e0] hover:bg-[#1248c4] active:scale-[0.98]
-                             transition-all duration-200 shadow-lg shadow-blue-500/20
-                             disabled:opacity-70 disabled:cursor-not-allowed"
+                             transition-all duration-200 shadow-lg shadow-blue-900/30
+                             disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
                     {isLoading ? (
-                      <div className="flex items-center justify-center gap-2">
-                        <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <>
+                        <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                         </svg>
                         Sending...
-                      </div>
+                      </>
                     ) : (
-                      "Send reset link"
+                      <>
+                        Send reset link
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                        </svg>
+                      </>
                     )}
                   </button>
                 </form>
 
-                {/* Back to sign in */}
-                <div className="text-center">
+                {/* Security tip */}
+                <div className="relative rounded-xl overflow-hidden bg-yellow/5 border border-yellow/20 p-4">
+                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-yellow/60 rounded-l-xl" />
+                  <div className="pl-3 flex gap-3 items-start">
+                    <svg className="w-4 h-4 text-yellow flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <p className="text-xs text-gray-600 dark:text-white/40 leading-relaxed">
+                      <span className="font-semibold text-gray-800 dark:text-white/60">Security tip: </span>
+                      The link is sent only to your registered address and expires in{" "}
+                      <span className="font-semibold text-gray-900 dark:text-white/80">24 hours</span>.
+                      Open it in the same browser for best results.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Mobile back link */}
+                <div className="text-center lg:hidden">
                   <a
                     href="/login"
-                    className="inline-flex items-center gap-2 text-gray-500 dark:text-gray-400 hover:text-azure dark:hover:text-white transition-colors text-base"
+                    className="inline-flex items-center gap-2 text-sm text-gray-500 dark:text-white/40 hover:text-gray-900 dark:hover:text-white transition-colors"
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -312,88 +342,96 @@ export function RecoveryPasswordPage() {
                     Back to sign in
                   </a>
                 </div>
-
-                {/* Security tip */}
-                <div className="relative rounded-xl overflow-hidden bg-[#0566d9]/5 border border-[#0566d9]/30 p-5">
-                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#0566d9]" />
-                  <div className="pl-3 space-y-1">
-                    <p className="text-sm font-semibold text-gray-800 dark:text-[#f7dfc0]">Security tip:</p>
-                    <p className="text-sm text-gray-600 dark:text-[#c8c5cd] leading-relaxed">
-                      The reset link will be sent to your registered email address
-                      and will expire in{" "}
-                      <span className="font-semibold text-gray-900 dark:text-white">24 hours</span> for security purposes.
-                    </p>
-                  </div>
-                </div>
               </>
             ) : (
               /* ── Success state ── */
-              <div className="w-full max-w-lg">
-                <div className="bg-white dark:bg-[#1e1e2e] rounded-xl border border-gray-200 dark:border-white/10 shadow-2xl p-8 lg:p-10 space-y-8">
-                  {/* Header – centered */}
-                  <div className="text-center space-y-4">
-                    <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-green-500/10 border border-green-500/20">
-                      <svg className="w-10 h-10 text-green-400" viewBox="0 0 24 24" fill="currentColor">
-                        <path fillRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm13.36-1.814a.75.75 0 10-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 00-1.06 1.06l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z" clipRule="evenodd" />
+              <div className="space-y-5">
+                {/* Card */}
+                <div className="rounded-2xl bg-gray-50 dark:bg-[#0f1628] border border-gray-200 dark:border-white/8 p-7 space-y-5 shadow-xl">
+
+                  {/* Check icon — centered */}
+                  <div className="flex justify-center">
+                    <div className="w-14 h-14 rounded-full bg-green-500/15 border border-green-500/25 flex items-center justify-center">
+                      <svg className="w-7 h-7 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                       </svg>
                     </div>
-                    <div className="space-y-2">
-                      <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Email sent!</h2>
-                      <p className="text-base text-gray-500 dark:text-[#c8c5cd]">
-                        {isEnrollmentNumber
-                          ? "We've sent a reset link to the email associated with enrollment number"
-                          : "We've sent a password reset link to:"}
-                      </p>
-                      <span className="text-azure dark:text-[#adc6ff] font-semibold inline-block">{identifier}</span>
+                  </div>
+
+                  {/* Badge */}
+                  <div className="flex justify-center">
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-yellow/10 border border-yellow/20">
+                      <span className="text-yellow text-xs font-bold tracking-widest uppercase">Email Sent</span>
                     </div>
                   </div>
 
-                  {/* Callout box */}
-                  <div className="bg-gray-50 dark:bg-[#292839] border border-gray-100 dark:border-white/5 rounded-lg p-5 flex gap-4">
-                    <svg className="w-5 h-5 text-azure dark:text-[#adc6ff] flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
-                    </svg>
-                    <div className="space-y-1">
-                      <p className="text-sm font-semibold text-gray-900 dark:text-white">Important Instruction</p>
-                      <p className="text-sm text-gray-500 dark:text-[#c8c5cd] leading-relaxed">Ensure you use the link in the same browser session for optimal security synchronization.</p>
-                    </div>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="space-y-5">
-                    <button
-                      onClick={() => setIsSubmitted(false)}
-                      className="w-full py-4 rounded-lg font-semibold text-base text-white
-                               bg-[#0566d9] hover:bg-[#0566d9]/90 active:scale-[0.98]
-                               transition-all duration-200 flex items-center justify-center gap-2"
-                    >
-                      Send another link
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
-                      </svg>
-                    </button>
-                    <div className="text-center">
-                      <a href="/login" className="inline-flex items-center gap-2 text-sm text-gray-500 dark:text-[#c8c5cd] hover:text-azure dark:hover:text-white transition-colors">
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                        </svg>
-                        Back to sign in
-                      </a>
-                    </div>
-                  </div>
-
-                  {/* Footer */}
-                  <div className="pt-6 border-t border-gray-100 dark:border-white/10 text-center">
-                    <p className="text-sm text-gray-400 dark:text-[#c8c5cd]/60">
-                      Having trouble?{" "}
-                      <a href="#" className="text-azure dark:text-[#adc6ff] underline underline-offset-4 hover:opacity-80 transition-opacity">
-                        Contact Technical Support
-                      </a>
+                  {/* Heading + email */}
+                  <div className="text-center space-y-2">
+                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white leading-tight">
+                      Reset link on its way
+                    </h2>
+                    <p className="text-gray-500 dark:text-white/40 text-sm">
+                      We've sent a password reset link to
                     </p>
+                    {/* Email pill */}
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10">
+                      <svg className="w-3.5 h-3.5 text-[#4d9fff] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                      <span className="text-sm font-semibold text-[#4d9fff] font-mono">{identifier}</span>
+                    </div>
                   </div>
+
+                  {/* Important note */}
+                  <div className="flex gap-3 items-start rounded-xl bg-yellow/5 border border-yellow/15 p-4">
+                    <svg className="w-4 h-4 text-yellow flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <div className="space-y-0.5">
+                      <p className="text-xs font-semibold text-gray-800 dark:text-white/70">Important</p>
+                      <p className="text-xs text-gray-500 dark:text-white/30 leading-relaxed">
+                        Use the link in the same browser session. Don't get it?
+                        Check spam, or send a fresh one below.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Send another link button */}
+                  <button
+                    onClick={() => { setIsSubmitted(false); setIdentifier(""); }}
+                    className="w-full py-3.5 rounded-lg font-semibold text-sm text-white
+                             bg-[#1557e0] hover:bg-[#1248c4] active:scale-[0.98]
+                             transition-all duration-200 shadow-lg shadow-blue-900/30
+                             flex items-center justify-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                    </svg>
+                    Send another link
+                  </button>
                 </div>
+
+                {/* Having trouble — outside card */}
+                <p className="text-center text-sm text-gray-400 dark:text-white/25">
+                  Having trouble?{" "}
+                  <a href="#" className="text-yellow hover:text-yellow/80 underline underline-offset-2 transition-colors font-medium">
+                    Contact support
+                  </a>
+                </p>
               </div>
             )}
+          </div>
+        </div>
+
+        {/* Bottom bar */}
+        <div className="px-8 lg:px-12 py-5 flex items-center justify-between border-t border-gray-100 dark:border-white/5">
+          <span className="text-gray-300 dark:text-white/20 text-xs font-mono">codehive.mx · v1.4.0</span>
+          <div className="flex items-center gap-4">
+            {["Status", "Docs", "Help"].map((link) => (
+              <a key={link} href="#" className="text-xs text-gray-300 dark:text-white/20 hover:text-gray-600 dark:hover:text-white/50 transition-colors">
+                {link}
+              </a>
+            ))}
           </div>
         </div>
       </div>

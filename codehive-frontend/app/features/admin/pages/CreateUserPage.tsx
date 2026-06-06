@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { AuthService } from "~/features/auth/services/auth.service";
 import { Role } from "~/shared/types/model/User";
-import { AppHeader } from "~/shared/components/AppHeader";
+import { AdminLayout } from "../components/AdminLayout";
 
 const ROLE_OPTIONS = [
   { value: Role.STUDENT, label: "Student" },
@@ -51,14 +51,8 @@ export function CreateUserPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-dark-bg transition-colors duration-300">
-      {/* Background orb */}
-      <div className="fixed top-0 right-0 w-96 h-96 bg-azure/5 dark:bg-azure/10 rounded-full blur-3xl pointer-events-none" />
-
-      <AppHeader badge="Admin" logoLinkTo="/admin" />
-
-      {/* Content */}
-      <main className="relative max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+    <AdminLayout breadcrumb="Create user">
+      <main className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Page header */}
         <div className="mb-8">
           <a
@@ -251,6 +245,6 @@ export function CreateUserPage() {
           </form>
         </div>
       </main>
-    </div>
+    </AdminLayout>
   );
 }

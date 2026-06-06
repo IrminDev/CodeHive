@@ -4,6 +4,7 @@
 
 /* shadcn/ui CSS variable system for the practice workspace */
 :root {
+  --hex-grid-stroke: rgba(0, 80, 157, 0.05);
   --background: 0 0% 100%;
   --foreground: 222.2 84% 4.9%;
   --card: 0 0% 100%;
@@ -26,6 +27,7 @@
 }
 
 .dark {
+  --hex-grid-stroke: rgba(253, 197, 0, 0.04);
   --background: 222.2 84% 4.9%;
   --foreground: 210 40% 98%;
   --card: 222.2 84% 4.9%;
@@ -224,6 +226,15 @@ body {
 
 .animate-fade-scale {
   animation: smooth-fade-scale 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.animate-blink {
+  animation: blink 1s step-end infinite;
 }
 
 .animation-delay-100 {
