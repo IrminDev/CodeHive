@@ -3,6 +3,7 @@ package com.github.codehive.controller;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -12,6 +13,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.codehive.config.TestAsyncConfig;
 import com.github.codehive.messaging.producer.TestGenerationRequestProducer;
 import com.github.codehive.model.entity.Assignment;
+import com.github.codehive.model.entity.ClassGroup;
+import com.github.codehive.model.entity.AssignmentExample;
+import com.github.codehive.model.entity.ReferenceSolution;
+import com.github.codehive.model.entity.TestCase;
+import com.github.codehive.model.enums.AssignmentValidationStatus;
 import com.github.codehive.model.enums.ComparatorType;
 import com.github.codehive.model.enums.Language;
 import com.github.codehive.model.enums.Role;
@@ -19,9 +25,13 @@ import com.github.codehive.model.entity.User;
 import com.github.codehive.model.request.assignment.CreateAssignmentRequest;
 import com.github.codehive.repository.AssignmentRepository;
 import com.github.codehive.repository.UserRepository;
+import com.github.codehive.repository.ClassGroupRepository;
+import com.github.codehive.repository.ReferenceSolutionRepository;
+import com.github.codehive.repository.TestCaseRepository;
 import com.github.codehive.service.ObjectStorageService;
 import com.github.codehive.utils.JwtUtil;
 import java.util.List;
+import java.io.ByteArrayInputStream;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -52,6 +62,9 @@ class AssignmentControllerIntegrationTest {
     @Autowired private ObjectMapper objectMapper;
     @Autowired private AssignmentRepository assignmentRepository;
     @Autowired private UserRepository userRepository;
+    @Autowired private ClassGroupRepository groupRepository;
+    @Autowired private ReferenceSolutionRepository referenceSolutionRepository;
+    @Autowired private TestCaseRepository testCaseRepository;
     @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private JwtUtil jwtUtil;
 
@@ -60,13 +73,15 @@ class AssignmentControllerIntegrationTest {
 
     private String teacherToken;
     private String studentToken;
+    private User teacher;
+    private ClassGroup group;
 
     @BeforeEach
     void setUp() throws Exception {
         userRepository.deleteAll();
         userRepository.flush();
 
-        User teacher = new User();
+        teacher = new User();
         teacher.setEmail("teacher@test.com");
         teacher.setPassword(passwordEncoder.encode("Pass123!"));
         teacher.setName("Teacher");
@@ -74,7 +89,7 @@ class AssignmentControllerIntegrationTest {
         teacher.setEnrollmentNumber("TEACHER-001");
         teacher.setRole(Role.TEACHER);
         teacher.setIsActive(true);
-        userRepository.save(teacher);
+        teacher = userRepository.save(teacher);
         teacherToken = jwtUtil.generateToken(Map.of("role", "TEACHER"), "teacher@test.com");
 
         User student = new User();
@@ -87,6 +102,8 @@ class AssignmentControllerIntegrationTest {
         student.setIsActive(true);
         userRepository.save(student);
         studentToken = jwtUtil.generateToken(Map.of("role", "STUDENT"), "student@test.com");
+
+        group = groupRepository.save(new ClassGroup("Algorithms", "Core exercises", teacher, "GROUP123"));
 
         doNothing().when(objectStorageService).upload(anyString(), anyString());
         doNothing().when(testGenerationRequestProducer).sendTestGenerationRequest(any());
@@ -102,7 +119,8 @@ class AssignmentControllerIntegrationTest {
         @DisplayName("returns 200 with empty page when no assignments exist")
         void emptyList() throws Exception {
             mockMvc.perform(get("/api/assignments")
-                            .header("Authorization", "Bearer " + studentToken))
+                            .param("groupId", group.getId().toString())
+                            .header("Authorization", "Bearer " + teacherToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.data.content").isArray())
                     .andExpect(jsonPath("$.data.totalElements").value(0));
@@ -115,7 +133,8 @@ class AssignmentControllerIntegrationTest {
             saveAssignment("Beta");
 
             mockMvc.perform(get("/api/assignments")
-                            .header("Authorization", "Bearer " + studentToken))
+                            .param("groupId", group.getId().toString())
+                            .header("Authorization", "Bearer " + teacherToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.data.totalElements").value(2))
                     .andExpect(jsonPath("$.data.content[0].title").value("Beta"));
@@ -129,7 +148,8 @@ class AssignmentControllerIntegrationTest {
             saveAssignment("C");
 
             mockMvc.perform(get("/api/assignments").param("page", "1").param("size", "2")
-                            .header("Authorization", "Bearer " + studentToken))
+                            .param("groupId", group.getId().toString())
+                            .header("Authorization", "Bearer " + teacherToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.data.content.length()").value(1))
                     .andExpect(jsonPath("$.data.totalPages").value(2));
@@ -148,7 +168,7 @@ class AssignmentControllerIntegrationTest {
             Assignment a = saveAssignment("FindMe");
 
             mockMvc.perform(get("/api/assignments/{id}", a.getId())
-                            .header("Authorization", "Bearer " + studentToken))
+                            .header("Authorization", "Bearer " + teacherToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.data.title").value("FindMe"));
         }
@@ -157,7 +177,7 @@ class AssignmentControllerIntegrationTest {
         @DisplayName("returns 404 for non-existent ID")
         void notFound() throws Exception {
             mockMvc.perform(get("/api/assignments/{id}", UUID.randomUUID())
-                            .header("Authorization", "Bearer " + studentToken))
+                            .header("Authorization", "Bearer " + teacherToken))
                     .andExpect(status().isNotFound());
         }
     }
@@ -220,12 +240,38 @@ class AssignmentControllerIntegrationTest {
         }
     }
 
+    @Test
+    @DisplayName("clones metadata, examples, reference source, and test inputs into another owned group")
+    void cloneAssignment() throws Exception {
+        Assignment source = saveAssignment("Clone me");
+        source.addExample(new AssignmentExample(source, 1, "1 2", "3", "Add both values"));
+        source = assignmentRepository.saveAndFlush(source);
+        referenceSolutionRepository.saveAndFlush(new ReferenceSolution(source, Language.JAVA));
+        testCaseRepository.saveAndFlush(new TestCase(source, 1, false));
+        ClassGroup target = groupRepository.save(new ClassGroup("Advanced", "", teacher, "TARGET12"));
+        when(objectStorageService.download(anyString()))
+                .thenAnswer(invocation -> new ByteArrayInputStream("content".getBytes()));
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .post("/api/assignments/{id}/clone", source.getId())
+                        .header("Authorization", "Bearer " + teacherToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"targetGroupId\":\"" + target.getId() + "\"}"))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.data.groupId").value(target.getId().toString()))
+                .andExpect(jsonPath("$.data.examples[0].explanation").value("Add both values"))
+                .andExpect(jsonPath("$.data.validationStatus").value("PROCESSING"));
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     private Assignment saveAssignment(String title) {
         Assignment a = new Assignment(title, "desc", 5000L, 256L, ComparatorType.EXACT_MATCH);
         a.setAllowedLanguages(List.of(Language.JAVA));
         a.setIsActive(true);
+        a.setGroup(group);
+        a.setAuthor(teacher);
+        a.setValidationStatus(AssignmentValidationStatus.READY);
         return assignmentRepository.saveAndFlush(a);
     }
 
@@ -238,6 +284,7 @@ class AssignmentControllerIntegrationTest {
         req.setComparatorType(ComparatorType.EXACT_MATCH);
         req.setAllowedLanguages(List.of(Language.JAVA));
         req.setReferenceLanguage(Language.JAVA);
+        req.setGroupId(group.getId());
 
         return new MockMultipartFile(
                 "metadata", "", MediaType.APPLICATION_JSON_VALUE,

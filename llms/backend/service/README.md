@@ -56,10 +56,26 @@ Execution model:
 
 ## AssignmentService
 Responsibilities:
+- Enforce group ownership and read access through active enrollment.
 - Create Assignment, ReferenceSolution, and TestCase entities in one transaction.
+- Persist ordered instructional examples separately from executable test cases.
+- Validate launch/due/close ordering and clone complete assignments into another owned active group.
 - Upload reference solution and test case inputs to MinIO via ObjectStorageService.
 - Publish TestGenerationJob to `codehive_test_generation_queue`.
-- Assignment is created with `isActive = false`; activated only after worker confirms output generation.
+- Assignment is logically active on creation and has validationStatus PROCESSING until the worker reports READY or FAILED.
+
+## GroupService
+Responsibilities:
+- Create teacher-owned groups with random, unique join codes.
+- Enroll only STUDENT users while retaining leave/removal history.
+- Enforce owner-only roster, archive, logical-delete, restore, update, and join-code rotation operations.
+- Treat archived groups as read-only and hide logically deleted groups from students.
+
+## Delivery validation
+- Execution identity always comes from the authenticated JWT principal; client requesterId is ignored.
+- Students require active enrollment and assignments must be launched, logically active, and READY.
+- Definitive deliveries are accepted repeatedly until closeDate and create immutable Submission rows.
+- Deliveries after dueDate are persisted with deliveredLate=true.
 
 Key dependencies:
 - AssignmentRepository, TestCaseRepository, ReferenceSolutionRepository

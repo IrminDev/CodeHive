@@ -1,7 +1,8 @@
 package com.github.codehive.model.request.assignment;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 import com.github.codehive.model.enums.ComparatorType;
 import com.github.codehive.model.enums.Language;
@@ -10,8 +11,12 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.Valid;
 
 public class CreateAssignmentRequest {
+
+    @NotNull(message = "Group ID is required")
+    private UUID groupId;
 
     @NotBlank(message = "Title is required")
     private String title;
@@ -40,7 +45,12 @@ public class CreateAssignmentRequest {
     @NotNull(message = "Reference language is required")
     private Language referenceLanguage;
 
-    private LocalDateTime dueDate;
+    private Instant launchDate;
+    private Instant dueDate;
+    private Instant closeDate;
+
+    @Valid
+    private List<AssignmentExampleRequest> examples;
 
     // Parallel list indicating whether each uploaded test case input is a sample.
     // If null or shorter than the number of uploaded files, remaining cases default to non-sample.
@@ -126,13 +136,22 @@ public class CreateAssignmentRequest {
         this.referenceLanguage = referenceLanguage;
     }
 
-    public LocalDateTime getDueDate() {
+    public UUID getGroupId() { return groupId; }
+    public void setGroupId(UUID groupId) { this.groupId = groupId; }
+    public Instant getLaunchDate() { return launchDate; }
+    public void setLaunchDate(Instant launchDate) { this.launchDate = launchDate; }
+    public Instant getDueDate() {
         return dueDate;
     }
 
-    public void setDueDate(LocalDateTime dueDate) {
+    public void setDueDate(Instant dueDate) {
         this.dueDate = dueDate;
     }
+
+    public Instant getCloseDate() { return closeDate; }
+    public void setCloseDate(Instant closeDate) { this.closeDate = closeDate; }
+    public List<AssignmentExampleRequest> getExamples() { return examples; }
+    public void setExamples(List<AssignmentExampleRequest> examples) { this.examples = examples; }
 
     public List<Boolean> getSampleFlags() {
         return sampleFlags;

@@ -4,6 +4,7 @@ import java.util.List;
 
 import com.github.codehive.model.dto.AssignmentDTO;
 import com.github.codehive.model.entity.Assignment;
+import com.github.codehive.model.dto.AssignmentExampleDTO;
 
 public class AssignmentMapper {
     public static AssignmentDTO toDTO(Assignment assignment) {
@@ -12,6 +13,8 @@ public class AssignmentMapper {
         }
         AssignmentDTO dto = new AssignmentDTO();
         dto.setId(assignment.getId());
+        dto.setGroupId(assignment.getGroup() != null ? assignment.getGroup().getId() : null);
+        dto.setAuthorId(assignment.getAuthor() != null ? assignment.getAuthor().getId() : null);
         dto.setTitle(assignment.getTitle());
         dto.setDescription(assignment.getDescription());
         dto.setConstraints(assignment.getConstraints());
@@ -23,8 +26,20 @@ public class AssignmentMapper {
         dto.setCreatedAt(assignment.getCreatedAt());
         dto.setUpdatedAt(assignment.getUpdatedAt());
         dto.setDueDate(assignment.getDueDate());
+        dto.setLaunchDate(assignment.getLaunchDate());
+        dto.setCloseDate(assignment.getCloseDate());
         dto.setAllowedLanguages(assignment.getAllowedLanguages());
         dto.setIsActive(assignment.getIsActive());
+        dto.setValidationStatus(assignment.getValidationStatus());
+        dto.setExamples(assignment.getExamples().stream().map(example -> {
+            AssignmentExampleDTO result = new AssignmentExampleDTO();
+            result.setId(example.getId());
+            result.setOrder(example.getOrder());
+            result.setInput(example.getInput());
+            result.setOutput(example.getOutput());
+            result.setExplanation(example.getExplanation());
+            return result;
+        }).toList());
         return dto;
     }
 
@@ -45,8 +60,11 @@ public class AssignmentMapper {
         assignment.setCreatedAt(dto.getCreatedAt());
         assignment.setUpdatedAt(dto.getUpdatedAt());
         assignment.setDueDate(dto.getDueDate());
+        assignment.setLaunchDate(dto.getLaunchDate());
+        assignment.setCloseDate(dto.getCloseDate());
         assignment.setAllowedLanguages(dto.getAllowedLanguages());
         assignment.setIsActive(dto.getIsActive());
+        assignment.setValidationStatus(dto.getValidationStatus());
         return assignment;
     }
 

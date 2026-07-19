@@ -14,8 +14,11 @@ import com.github.codehive.config.TestAsyncConfig;
 import com.github.codehive.messaging.producer.ExecutionRequestProducer;
 import com.github.codehive.model.dto.queue.ExecutionReport;
 import com.github.codehive.model.entity.Assignment;
+import com.github.codehive.model.entity.ClassGroup;
+import com.github.codehive.model.entity.GroupEnrollment;
 import com.github.codehive.model.entity.Execution;
 import com.github.codehive.model.enums.ComparatorType;
+import com.github.codehive.model.enums.AssignmentValidationStatus;
 import com.github.codehive.model.enums.ExecutionStatus;
 import com.github.codehive.model.enums.ExecutionType;
 import com.github.codehive.model.enums.Language;
@@ -28,9 +31,13 @@ import com.github.codehive.model.entity.ReferenceSolution;
 import com.github.codehive.repository.ReferenceSolutionRepository;
 import com.github.codehive.repository.TestCaseRepository;
 import com.github.codehive.repository.UserRepository;
+import com.github.codehive.repository.SubmissionRepository;
+import com.github.codehive.repository.ClassGroupRepository;
+import com.github.codehive.repository.GroupEnrollmentRepository;
 import com.github.codehive.service.ObjectStorageService;
 import com.github.codehive.utils.JwtUtil;
 import java.io.ByteArrayInputStream;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -64,6 +71,9 @@ class CheckExecutionControllerIntegrationTest {
     @Autowired private ReferenceSolutionRepository referenceSolutionRepository;
     @Autowired private TestCaseRepository testCaseRepository;
     @Autowired private UserRepository userRepository;
+    @Autowired private ClassGroupRepository groupRepository;
+    @Autowired private GroupEnrollmentRepository enrollmentRepository;
+    @Autowired private SubmissionRepository submissionRepository;
     @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private JwtUtil jwtUtil;
 
@@ -72,13 +82,14 @@ class CheckExecutionControllerIntegrationTest {
 
     private Assignment assignment;
     private String studentToken;
+    private User student;
 
     @BeforeEach
     void setUp() throws Exception {
         userRepository.deleteAll();
         userRepository.flush();
 
-        User student = new User();
+        student = new User();
         student.setEmail("student@test.com");
         student.setPassword(passwordEncoder.encode("Pass123!"));
         student.setName("Student");
@@ -86,12 +97,21 @@ class CheckExecutionControllerIntegrationTest {
         student.setEnrollmentNumber("STU-001");
         student.setRole(Role.STUDENT);
         student.setIsActive(true);
-        userRepository.save(student);
+        student = userRepository.save(student);
         studentToken = jwtUtil.generateToken(Map.of("role", "STUDENT"), "student@test.com");
+
+        User teacher = new User("Teacher", "Last", "TEA-001", "teacher@test.com",
+                passwordEncoder.encode("Pass123!"), Role.TEACHER);
+        teacher = userRepository.save(teacher);
+        ClassGroup group = groupRepository.save(new ClassGroup("Algorithms", "", teacher, "EXEC1234"));
+        enrollmentRepository.save(new GroupEnrollment(group, student));
 
         assignment = new Assignment("Sum Two Numbers", "Add a+b", 5000L, 256L, ComparatorType.EXACT_MATCH);
         assignment.setAllowedLanguages(List.of(Language.JAVA, Language.PYTHON));
         assignment.setIsActive(true);
+        assignment.setGroup(group);
+        assignment.setAuthor(teacher);
+        assignment.setValidationStatus(AssignmentValidationStatus.READY);
         assignmentRepository.saveAndFlush(assignment);
 
         ReferenceSolution ref = new ReferenceSolution(assignment, Language.PYTHON);
@@ -170,6 +190,45 @@ class CheckExecutionControllerIntegrationTest {
                             .header("Authorization", "Bearer " + studentToken))
                     .andExpect(status().isNotFound());
         }
+
+        @Test
+        @DisplayName("derives student identity from JWT and flags a late definitive delivery")
+        void definitiveSubmissionUsesAuthenticatedIdentity() throws Exception {
+            User otherStudent = userRepository.save(new User("Other", "Student", "STU-002",
+                    "other@test.com", passwordEncoder.encode("Pass123!"), Role.STUDENT));
+            assignment.setDueDate(Instant.now().minusSeconds(60));
+            assignmentRepository.saveAndFlush(assignment);
+
+            ExecutionRequest req = new ExecutionRequest("print(1)", Language.PYTHON,
+                    otherStudent.getId(), assignment.getId(), null, ExecutionType.DEFINITIVE);
+            mockMvc.perform(post("/api/execution/check")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(req))
+                            .header("Authorization", "Bearer " + studentToken))
+                    .andExpect(status().isAccepted());
+
+            var submissions = submissionRepository.findByAssignmentAndStudentOrderByCreatedAtDesc(assignment, student);
+            org.junit.jupiter.api.Assertions.assertEquals(1, submissions.size());
+            org.junit.jupiter.api.Assertions.assertTrue(submissions.get(0).getDeliveredLate());
+            org.junit.jupiter.api.Assertions.assertTrue(
+                    submissionRepository.findByAssignmentAndStudentOrderByCreatedAtDesc(assignment, otherStudent).isEmpty());
+        }
+
+        @Test
+        @DisplayName("rejects definitive deliveries at or after close date")
+        void rejectsClosedAssignment() throws Exception {
+            assignment.setCloseDate(Instant.now().minusSeconds(1));
+            assignmentRepository.saveAndFlush(assignment);
+            ExecutionRequest req = new ExecutionRequest("print(1)", Language.PYTHON,
+                    null, assignment.getId(), null, ExecutionType.DEFINITIVE);
+
+            mockMvc.perform(post("/api/execution/check")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(req))
+                            .header("Authorization", "Bearer " + studentToken))
+                    .andExpect(status().isBadRequest());
+            org.junit.jupiter.api.Assertions.assertEquals(0, submissionRepository.countByAssignmentId(assignment.getId()));
+        }
     }
 
     // ── GET STATUS ───────────────────────────────────────────────────────────
@@ -182,6 +241,7 @@ class CheckExecutionControllerIntegrationTest {
         @DisplayName("returns 200 with execution status")
         void found() throws Exception {
             Execution exec = new Execution(ExecutionType.PRACTICE);
+            exec.setUser(student);
             exec.setStatus(ExecutionStatus.PENDING);
             executionRepository.saveAndFlush(exec);
 
@@ -211,6 +271,7 @@ class CheckExecutionControllerIntegrationTest {
         @DisplayName("returns 200 with parsed report from object storage")
         void returnsReport() throws Exception {
             Execution exec = new Execution(ExecutionType.PRACTICE);
+            exec.setUser(student);
             exec.setStatus(ExecutionStatus.AC);
             executionRepository.saveAndFlush(exec);
 
@@ -251,6 +312,7 @@ class CheckExecutionControllerIntegrationTest {
         @DisplayName("returns 404 when execution is PENDING and report not uploaded yet")
         void reportNotYetAvailable() throws Exception {
             Execution exec = new Execution(ExecutionType.PRACTICE);
+            exec.setUser(student);
             exec.setStatus(ExecutionStatus.PENDING);
             executionRepository.saveAndFlush(exec);
 

@@ -31,17 +31,28 @@ File: model/entity/PasswordResetToken.java
 
 ### Assignment
 File: model/entity/Assignment.java
+- Belongs to one `ClassGroup` and records the teacher author.
 - title: length 200, non-null
 - description: TEXT, non-null
 - timeLimitMs, memoryLimitMb: non-null
 - comparatorType: enum string, non-null
-- isActive: defaults to false on creation; set to true after worker confirms test output generation
+- isActive: logical deletion flag; independent from worker validation and launch visibility
 - allowedLanguages, constraints, hints, tags: element collections in dedicated tables
-- dueDate: nullable
+- launchDate, dueDate, closeDate use absolute timestamps and satisfy launch <= due <= close when present
+- validationStatus: PROCESSING, READY, or FAILED
+- examples: ordered `AssignmentExample` entities with TEXT input, output, and explanation
+
+### ClassGroup and GroupEnrollment
+- `ClassGroup` has exactly one teacher owner, a unique case-insensitive join code, `archived`, and `isActive` flags.
+- Archived groups are read-only. `isActive=false` is logical deletion and preserves assignments for cloning.
+- `GroupEnrollment` is a history-preserving join entity with ACTIVE, LEFT, and REMOVED states.
+- The `(group_id, student_id)` pair is unique; rejoining reactivates the historical record.
 
 ### Submission
 File: model/entity/Submission.java
 - ManyToOne assignment (non-null)
+- ManyToOne student (non-null)
+- deliveredLate is fixed when a definitive delivery is created
 - language: enum string (non-null)
 - createdAt initialized in constructor
 
@@ -75,6 +86,7 @@ Request classes live under model/request grouped by domain:
 - assignment/CreateAssignmentRequest
 
 ### CreateAssignmentRequest fields
+- groupId, launchDate, dueDate, closeDate, examples
 - title, description, constraints, hints, tags
 - timeLimitMs (@Min 100), memoryLimitMb (@Min 16)
 - comparatorType, allowedLanguages, referenceLanguage

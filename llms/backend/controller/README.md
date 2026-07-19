@@ -8,6 +8,7 @@ Controller classes:
 - codehive-backend/src/main/java/com/github/codehive/controller/RecoveryPasswordController.java
 - codehive-backend/src/main/java/com/github/codehive/controller/CheckExecutionController.java
 - codehive-backend/src/main/java/com/github/codehive/controller/AssignmentController.java
+- codehive-backend/src/main/java/com/github/codehive/controller/GroupController.java
 
 ## Controller Responsibilities
 - Define API routes and HTTP semantics.
@@ -44,6 +45,14 @@ Error handling is centralized in:
 - Requires `@PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")`.
 - Returns 202 Accepted immediately (test output generation is async).
 - Request parts: `metadata` (JSON), `referenceSolution` (file), `testCaseInputs` (file list).
+- Listings require groupId and are ownership/enrollment aware.
+- `POST /api/assignments/{id}/clone` clones into another owned active group and queues output generation.
+- `DELETE /api/assignments/{id}` performs logical deletion.
+
+### GroupController
+- Teacher: create, update, list roster, remove students, archive/unarchive, logical delete/restore, and rotate join code.
+- Student: join by code and leave.
+- Both roles list and retrieve only accessible groups; join codes are never exposed to students.
 
 ## Cross-Cutting Concerns
 - OpenAPI annotations are used for API docs (Swagger at /swagger-ui.html).

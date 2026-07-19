@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.github.codehive.model.entity.Assignment;
 import com.github.codehive.model.entity.Submission;
+import com.github.codehive.model.entity.User;
 
 public interface SubmissionRepository extends JpaRepository<Submission, UUID> {
     List<Submission> findByAssignment(Assignment assignment);
@@ -21,4 +22,6 @@ public interface SubmissionRepository extends JpaRepository<Submission, UUID> {
     List<Submission> findByCreatedAtAfter(LocalDateTime date);
     
     long countByAssignmentId(UUID assignmentId);
+
+    List<Submission> findByAssignmentAndStudentOrderByCreatedAtDesc(Assignment assignment, User student);
 }

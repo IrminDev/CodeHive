@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 import com.github.codehive.model.dto.queue.TestGenerationResult;
 import com.github.codehive.model.entity.Assignment;
 import com.github.codehive.repository.AssignmentRepository;
+import com.github.codehive.model.enums.AssignmentValidationStatus;
 
 @Component
 public class TestGenerationResultListener {
@@ -32,11 +33,13 @@ public class TestGenerationResultListener {
         }
 
         if (result.isSuccess()) {
-            assignment.setIsActive(true);
+            assignment.setValidationStatus(AssignmentValidationStatus.READY);
             assignmentRepository.save(assignment);
-            logger.info("[WORKFLOW] Assignment activated after test generation - assignmentId={}, generatedOutputs={}",
+            logger.info("[WORKFLOW] Assignment validation completed - assignmentId={}, generatedOutputs={}",
                     assignment.getId(), result.getGeneratedCount());
         } else {
+            assignment.setValidationStatus(AssignmentValidationStatus.FAILED);
+            assignmentRepository.save(assignment);
             logger.error("[WORKFLOW] Test generation failed for assignmentId={}, error={}",
                     result.getAssignmentId(), result.getErrorMessage());
         }

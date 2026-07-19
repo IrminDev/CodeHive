@@ -1,6 +1,7 @@
 package com.github.codehive.service;
 
 import java.io.InputStream;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -16,6 +17,13 @@ import com.github.codehive.model.entity.Assignment;
 import com.github.codehive.model.entity.Execution;
 import com.github.codehive.model.entity.ReferenceSolution;
 import com.github.codehive.model.entity.User;
+import com.github.codehive.model.entity.Submission;
+import com.github.codehive.model.enums.AssignmentValidationStatus;
+import com.github.codehive.model.enums.EnrollmentStatus;
+import com.github.codehive.model.enums.Role;
+import com.github.codehive.model.enums.Language;
+import com.github.codehive.model.exception.ValidationException;
+import org.springframework.security.access.AccessDeniedException;
 import com.github.codehive.model.enums.ExecutionType;
 import com.github.codehive.model.exception.EntityNotFoundException;
 import com.github.codehive.model.mapper.ExecutionMapper;
@@ -25,6 +33,8 @@ import com.github.codehive.repository.ExecutionRepository;
 import com.github.codehive.repository.ReferenceSolutionRepository;
 import com.github.codehive.repository.TestCaseRepository;
 import com.github.codehive.repository.UserRepository;
+import com.github.codehive.repository.GroupEnrollmentRepository;
+import com.github.codehive.repository.SubmissionRepository;
 import com.github.codehive.utils.FileExtensionUtil;
 import com.github.codehive.utils.ObjectKeyBuilder;
 
@@ -39,6 +49,8 @@ public class ExecutionRequestService {
     private final ReferenceSolutionRepository referenceSolutionRepository;
     private final TestCaseRepository testCaseRepository;
     private final ObjectMapper objectMapper;
+    private final GroupEnrollmentRepository enrollmentRepository;
+    private final SubmissionRepository submissionRepository;
 
     public ExecutionRequestService(ExecutionRequestProducer executionRequestProducer,
                                    ExecutionRepository executionRepository,
@@ -47,7 +59,9 @@ public class ExecutionRequestService {
                                    AssignmentRepository assignmentRepository,
                                    ReferenceSolutionRepository referenceSolutionRepository,
                                    TestCaseRepository testCaseRepository,
-                                   ObjectMapper objectMapper) {
+                                   ObjectMapper objectMapper,
+                                   GroupEnrollmentRepository enrollmentRepository,
+                                   SubmissionRepository submissionRepository) {
         this.executionRequestProducer = executionRequestProducer;
         this.executionRepository = executionRepository;
         this.objectStorageService = objectStorageService;
@@ -56,21 +70,26 @@ public class ExecutionRequestService {
         this.referenceSolutionRepository = referenceSolutionRepository;
         this.testCaseRepository = testCaseRepository;
         this.objectMapper = objectMapper;
+        this.enrollmentRepository = enrollmentRepository;
+        this.submissionRepository = submissionRepository;
     }
 
     @Transactional
-    public ExecutionDTO requestExecution(ExecutionRequest request) {
+    public ExecutionDTO requestExecution(ExecutionRequest request, String authenticatedEmail) {
         Assignment assignment = assignmentRepository.findById(request.getAssignmentId())
                 .orElseThrow(() -> new EntityNotFoundException(
                         "Assignment not found with id: " + request.getAssignmentId()));
 
-        Execution execution = new Execution(request.getExecutionType());
+        User user = userRepository.findByEmail(authenticatedEmail)
+                .orElseThrow(() -> new EntityNotFoundException("Authenticated user not found"));
+        validateExecutionRequest(request, assignment, user);
 
-        if (request.getRequesterId() != null) {
-            User user = userRepository.findById(request.getRequesterId())
-                    .orElseThrow(() -> new EntityNotFoundException(
-                            "User not found with id: " + request.getRequesterId()));
-            execution.setUser(user);
+        Execution execution = new Execution(request.getExecutionType(), user);
+        if (request.getExecutionType() == ExecutionType.DEFINITIVE) {
+            boolean late = assignment.getDueDate() != null && Instant.now().isAfter(assignment.getDueDate());
+            Submission submission = submissionRepository.save(
+                    new Submission(assignment, user, request.getLanguage(), late));
+            execution.setSubmission(submission);
         }
 
         execution = executionRepository.save(execution);
@@ -91,17 +110,19 @@ public class ExecutionRequestService {
     }
 
     @Transactional(readOnly = true)
-    public ExecutionDTO getExecutionById(UUID id) {
+    public ExecutionDTO getExecutionById(UUID id, String authenticatedEmail) {
         Execution execution = executionRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Execution not found with id: " + id));
+        authorizeExecutionRead(execution, authenticatedEmail);
         return ExecutionMapper.toDTO(execution);
     }
 
     @Transactional(readOnly = true)
-    public ExecutionReport getExecutionReport(UUID id) {
+    public ExecutionReport getExecutionReport(UUID id, String authenticatedEmail) {
         Execution execution = executionRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Execution not found with id: " + id));
 
+        authorizeExecutionRead(execution, authenticatedEmail);
         String reportKey = ObjectKeyBuilder.executionReport(id);
         try {
             InputStream reportStream = objectStorageService.download(reportKey);
@@ -167,5 +188,54 @@ public class ExecutionRequestService {
                     "No reference solution found for assignment: " + assignment.getId());
         }
         return solutions.get(0);
+    }
+
+    private void validateExecutionRequest(ExecutionRequest request, Assignment assignment, User user) {
+        if (!Boolean.TRUE.equals(assignment.getIsActive())
+                || !Boolean.TRUE.equals(assignment.getGroup().getIsActive())) {
+            throw new EntityNotFoundException("Assignment not found: " + assignment.getId());
+        }
+        if (Boolean.TRUE.equals(assignment.getGroup().getArchived())) {
+            throw new ValidationException("Archived groups are read-only");
+        }
+        if (assignment.getValidationStatus() != AssignmentValidationStatus.READY) {
+            throw new ValidationException("Assignment test cases are not ready");
+        }
+        if (!assignment.getAllowedLanguages().contains(request.getLanguage())) {
+            throw new ValidationException("Language is not allowed for this assignment");
+        }
+
+        boolean owner = assignment.getGroup().getOwner().getId().equals(user.getId());
+        if (owner) {
+            if (request.getExecutionType() == ExecutionType.DEFINITIVE) {
+                throw new AccessDeniedException("Teachers cannot create student deliveries");
+            }
+            return;
+        }
+        if (user.getRole() != Role.STUDENT || !enrollmentRepository
+                .existsByGroupIdAndStudentIdAndStatus(assignment.getGroup().getId(), user.getId(),
+                        EnrollmentStatus.ACTIVE)) {
+            throw new AccessDeniedException("Active enrollment is required for this assignment");
+        }
+        Instant now = Instant.now();
+        if (assignment.getLaunchDate() != null && now.isBefore(assignment.getLaunchDate())) {
+            throw new EntityNotFoundException("Assignment is not available yet");
+        }
+        if (request.getExecutionType() == ExecutionType.DEFINITIVE
+                && assignment.getCloseDate() != null && !now.isBefore(assignment.getCloseDate())) {
+            throw new ValidationException("Assignment is closed and no longer accepts deliveries");
+        }
+        if (request.getExecutionType() == ExecutionType.PRACTICE
+                && (request.getTestCases() == null || request.getTestCases().isEmpty())) {
+            throw new ValidationException("Practice execution requires at least one test case");
+        }
+    }
+
+    private void authorizeExecutionRead(Execution execution, String authenticatedEmail) {
+        User user = userRepository.findByEmail(authenticatedEmail)
+                .orElseThrow(() -> new EntityNotFoundException("Authenticated user not found"));
+        if (execution.getUser() == null || !execution.getUser().getId().equals(user.getId())) {
+            throw new AccessDeniedException("You cannot access this execution");
+        }
     }
 }

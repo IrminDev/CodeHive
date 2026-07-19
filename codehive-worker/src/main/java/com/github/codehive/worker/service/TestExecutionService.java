@@ -78,9 +78,14 @@ public class TestExecutionService {
      */
     private void executeDefinitiveTests(ExecutionJob job, LanguageExecutor executor,
                                         ContainerSession session, ExecutionReport report) {
-        logger.info("Executing DEFINITIVE tests: {} test cases", job.getNumTests());
+        int numTests = Math.min(job.getNumTests() != null ? job.getNumTests() : 0,
+                com.github.codehive.worker.sandbox.SandboxConstants.MAX_TEST_CASES);
+        if (job.getNumTests() != null && job.getNumTests() > numTests) {
+            logger.warn("numTests {} exceeds cap {}; truncating", job.getNumTests(), numTests);
+        }
+        logger.info("Executing DEFINITIVE tests: {} test cases", numTests);
 
-        for (int i = 1; i <= job.getNumTests(); i++) {
+        for (int i = 1; i <= numTests; i++) {
             try {
                 String inputPath = job.getTestsPath() + "tc-" + i + "/tc-" + i + ".in";
                 String outputPath = job.getTestsPath() + "tc-" + i + "/tc-" + i + ".out";
@@ -138,7 +143,12 @@ public class TestExecutionService {
      */
     private void executePracticeTests(ExecutionJob job, LanguageExecutor executor,
                                       ContainerSession studentSession, ExecutionReport report) {
-        logger.info("Executing PRACTICE tests: {} test cases", job.getTestCases().size());
+        int numTestCases = Math.min(job.getTestCases().size(),
+                com.github.codehive.worker.sandbox.SandboxConstants.MAX_TEST_CASES);
+        if (job.getTestCases().size() > numTestCases) {
+            logger.warn("testCases {} exceeds cap {}; truncating", job.getTestCases().size(), numTestCases);
+        }
+        logger.info("Executing PRACTICE tests: {} test cases", numTestCases);
 
         LanguageExecutor referenceExecutor = executorFactory.getExecutor(job.getReferenceLanguage());
         ContainerSession referenceSession = null;
@@ -159,7 +169,7 @@ public class TestExecutionService {
                 return;
             }
 
-            for (int i = 0; i < job.getTestCases().size(); i++) {
+            for (int i = 0; i < numTestCases; i++) {
                 try {
                     String testInput = job.getTestCases().get(i);
                     int testNumber = i + 1;

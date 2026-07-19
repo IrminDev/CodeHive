@@ -216,6 +216,48 @@ class SandboxSecurityTest {
     }
 
     @Test
+    @DisplayName("memfd exec: fexecve an in-memory file → blocked (seccomp)")
+    void memfdExecIsBlocked() throws Exception {
+        // memfd_create + execveat is the classic bypass of `noexec` tmpfs:
+        // the payload never touches the filesystem. Seccomp must block memfd_create.
+        String code = """
+                import ctypes, os
+                libc = ctypes.CDLL(None, use_errno=True)
+                fd = libc.memfd_create(b'x', 0)
+                if fd < 0:
+                    print('memfd_blocked')
+                else:
+                    os.write(fd, open('/bin/sh', 'rb').read())
+                    try:
+                        os.execv('/proc/self/fd/%d' % fd, ['sh', '-c', 'echo pwned'])
+                    except OSError:
+                        print('exec_blocked')
+                """;
+
+        ExecutionResult result = run(code);
+
+        if (result.getStatus() == ExecutionStatus.AC) {
+            assertThat(result.getOutput())
+                    .as("memfd_create must be blocked so no in-memory exec is possible")
+                    .doesNotContain("pwned")
+                    .containsAnyOf("memfd_blocked", "exec_blocked");
+        } else {
+            assertThat(result.getStatus()).isEqualTo(ExecutionStatus.RTE);
+        }
+    }
+
+    @Test
+    @DisplayName("Limit clamp: absurd memory request is capped, not honoured")
+    void oversizedMemoryLimitIsClamped() throws Exception {
+        // Request 1 TB. If clamping failed, Docker would reject/OOM the host.
+        // With clamping the container is created at the ceiling and runs normally.
+        ExecutionResult result = run("print('ok')", 1000L, 1_000_000L);
+
+        assertThat(result.getStatus()).isEqualTo(ExecutionStatus.AC);
+        assertThat(result.getOutput()).contains("ok");
+    }
+
+    @Test
     @DisplayName("noexec /tmp: write ELF to /tmp and exec → blocked")
     void executableInTmpIsBlocked() throws Exception {
         // Copies /bin/sh into /tmp then tries to run it directly via execv.

@@ -1,11 +1,13 @@
 package com.github.codehive.model.entity;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
 import com.github.codehive.model.enums.ComparatorType;
+import com.github.codehive.model.enums.AssignmentValidationStatus;
 import com.github.codehive.model.enums.Language;
 
 import jakarta.persistence.CollectionTable;
@@ -18,6 +20,10 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.Table;
 
 @Entity
@@ -26,6 +32,14 @@ public class Assignment {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "group_id", nullable = false)
+    private ClassGroup group;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "author_id", nullable = false)
+    private User author;
     
     @Column(nullable = false, length = 200)
     private String title;
@@ -70,11 +84,21 @@ public class Assignment {
     @Column(nullable = false)
     private LocalDateTime updatedAt;
     
-    @Column(nullable = true)
-    private LocalDateTime dueDate;
+    private Instant launchDate;
+
+    private Instant dueDate;
+
+    private Instant closeDate;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 15)
+    private AssignmentValidationStatus validationStatus;
 
     @Column(nullable = false)
     private Boolean isActive;
+
+    @OneToMany(mappedBy = "assignment", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<AssignmentExample> examples = new ArrayList<>();
 
     public Assignment() {
         this.createdAt = LocalDateTime.now();
@@ -84,6 +108,7 @@ public class Assignment {
         this.tags = new ArrayList<>();
         this.allowedLanguages = new ArrayList<>();
         this.isActive = true;
+        this.validationStatus = AssignmentValidationStatus.PROCESSING;
     }
 
     public Assignment(String title, String description, Long timeLimitMs, Long memoryLimitMb, ComparatorType comparatorType) {
@@ -93,6 +118,28 @@ public class Assignment {
         this.timeLimitMs = timeLimitMs;
         this.memoryLimitMb = memoryLimitMb;
         this.comparatorType = comparatorType;
+    }
+
+    public ClassGroup getGroup() { return group; }
+    public void setGroup(ClassGroup group) { this.group = group; }
+    public User getAuthor() { return author; }
+    public void setAuthor(User author) { this.author = author; }
+    public Instant getLaunchDate() { return launchDate; }
+    public void setLaunchDate(Instant launchDate) { this.launchDate = launchDate; }
+    public Instant getCloseDate() { return closeDate; }
+    public void setCloseDate(Instant closeDate) { this.closeDate = closeDate; }
+    public AssignmentValidationStatus getValidationStatus() { return validationStatus; }
+    public void setValidationStatus(AssignmentValidationStatus validationStatus) { this.validationStatus = validationStatus; }
+    public List<AssignmentExample> getExamples() { return examples; }
+    public void setExamples(List<AssignmentExample> examples) {
+        this.examples.clear();
+        if (examples != null) {
+            examples.forEach(this::addExample);
+        }
+    }
+    public void addExample(AssignmentExample example) {
+        example.setAssignment(this);
+        this.examples.add(example);
     }
 
     public Boolean getIsActive() {
@@ -108,7 +155,7 @@ public class Assignment {
     }
 
     public void setAllowedLanguages(List<Language> allowedLanguages) {
-        this.allowedLanguages = allowedLanguages;
+        this.allowedLanguages = allowedLanguages == null ? new ArrayList<>() : new ArrayList<>(allowedLanguages);
     }
 
     public UUID getId() {
@@ -140,7 +187,7 @@ public class Assignment {
     }
 
     public void setConstraints(List<String> constraints) {
-        this.constraints = constraints;
+        this.constraints = constraints == null ? new ArrayList<>() : new ArrayList<>(constraints);
     }
 
     public List<String> getHints() {
@@ -148,7 +195,7 @@ public class Assignment {
     }
 
     public void setHints(List<String> hints) {
-        this.hints = hints;
+        this.hints = hints == null ? new ArrayList<>() : new ArrayList<>(hints);
     }
 
     public List<String> getTags() {
@@ -156,7 +203,7 @@ public class Assignment {
     }
 
     public void setTags(List<String> tags) {
-        this.tags = tags;
+        this.tags = tags == null ? new ArrayList<>() : new ArrayList<>(tags);
     }
 
     public Long getTimeLimitMs() {
@@ -199,11 +246,11 @@ public class Assignment {
         this.updatedAt = updatedAt;
     }
 
-    public LocalDateTime getDueDate() {
+    public Instant getDueDate() {
         return dueDate;
     }
 
-    public void setDueDate(LocalDateTime dueDate) {
+    public void setDueDate(Instant dueDate) {
         this.dueDate = dueDate;
     }
 }

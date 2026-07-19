@@ -20,26 +20,27 @@ Primary classes:
    - Part `referenceSolution`: source file.
    - Part `testCaseInputs`: list of test case input files.
 2. AssignmentService:
-   - Creates Assignment entity with `isActive = false`.
+   - Creates a logically active Assignment with validationStatus PROCESSING.
    - Creates ReferenceSolution entity.
    - Creates TestCase entities (order = upload position, isSample from sampleFlags).
    - Uploads reference solution to `test-suites/assignments/{id}/reference/Main.{ext}`.
    - Uploads each test case input to `test-suites/assignments/{id}/tc-{tcId}/tc{tcId}.in`.
    - Publishes TestGenerationJob to `codehive_test_generation_queue`.
 3. Worker generates expected outputs and publishes TestGenerationResult.
-4. TestGenerationResultListener sets `assignment.isActive = true` on success.
+4. TestGenerationResultListener sets validationStatus READY on success or FAILED on failure.
 
 The API returns 202 Accepted immediately — output generation is asynchronous.
 
 ## Request-to-Queue Flow (Student Execution)
 1. Client sends ExecutionRequest to `POST /api/execution/check`.
 2. Controller validates and delegates to ExecutionRequestService.
-3. Service loads Assignment to get real limits (timeLimitMs, memoryLimitMb, comparatorType).
-4. Service creates Execution entity with status PENDING.
-5. Source code is uploaded to MinIO via ObjectStorageService.
-6. Service builds ExecutionJob with assignment-driven values.
-7. Producer sends ExecutionJob to `codehive_queue`.
-8. API returns 202 Accepted with ExecutionDTO (for polling).
+3. Service derives the user from the authenticated principal and validates group enrollment, lifecycle, dates, language, and worker readiness.
+4. DEFINITIVE requests create an immutable Submission with a durable late flag.
+5. Service creates Execution entity with status PENDING.
+6. Source code is uploaded to MinIO via ObjectStorageService.
+7. Service builds ExecutionJob with assignment-driven values.
+8. Producer sends ExecutionJob to `codehive_queue`.
+9. API returns 202 Accepted with ExecutionDTO (for polling).
 
 ## Result Processing Flow (Student Execution)
 1. Worker publishes ExecutionReport.
@@ -88,11 +89,12 @@ File extension mapping resolved by FileExtensionUtil based on Language enum.
 
 ## Persistence Model
 Assignment entity fields:
+- group, author, ordered examples
 - title, description, constraints, hints, tags
 - allowedLanguages (element collection)
 - timeLimitMs, memoryLimitMb, comparatorType
-- dueDate, createdAt, updatedAt
-- isActive (false while generation in progress, true when ready)
+- launchDate, dueDate, closeDate, createdAt, updatedAt
+- isActive (logical deletion) and validationStatus (PROCESSING, READY, FAILED)
 
 Execution entity fields:
 - executionType, status (PENDING → final)

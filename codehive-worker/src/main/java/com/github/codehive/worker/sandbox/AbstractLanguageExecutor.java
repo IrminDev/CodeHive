@@ -145,7 +145,9 @@ public abstract class AbstractLanguageExecutor implements LanguageExecutor {
                 .withTmpFs(Map.of(
                         "/tmp", RUN_TMPFS_TMP,
                         "/run", RUN_TMPFS_RUN))
-                .withUlimits(new Ulimit[] { new Ulimit("fsize", RUN_ULIMIT_FSIZE, RUN_ULIMIT_FSIZE) })
+                .withUlimits(new Ulimit[] {
+                        new Ulimit("fsize", RUN_ULIMIT_FSIZE, RUN_ULIMIT_FSIZE),
+                        new Ulimit("nofile", RUN_ULIMIT_NOFILE, RUN_ULIMIT_NOFILE) })
                 .withSecurityOpts(buildSecurityOpts());
     }
 
@@ -166,7 +168,9 @@ public abstract class AbstractLanguageExecutor implements LanguageExecutor {
                 .withTmpFs(Map.of(
                         "/tmp", COMPILE_TMPFS_TMP,
                         "/run", COMPILE_TMPFS_RUN))
-                .withUlimits(new Ulimit[] { new Ulimit("fsize", COMPILE_ULIMIT_FSIZE, COMPILE_ULIMIT_FSIZE) })
+                .withUlimits(new Ulimit[] {
+                        new Ulimit("fsize", COMPILE_ULIMIT_FSIZE, COMPILE_ULIMIT_FSIZE),
+                        new Ulimit("nofile", COMPILE_ULIMIT_NOFILE, COMPILE_ULIMIT_NOFILE) })
                 .withSecurityOpts(buildSecurityOpts());
     }
 
@@ -260,6 +264,10 @@ public abstract class AbstractLanguageExecutor implements LanguageExecutor {
     public ContainerSession prepare(InputStream sourceCode, Long timeLimitMs, Long memoryLimitMb) throws Exception {
         timeLimitMs = timeLimitMs != null ? timeLimitMs : DEFAULT_TIME_LIMIT_MS;
         memoryLimitMb = memoryLimitMb != null ? memoryLimitMb : DEFAULT_MEMORY_LIMIT_MB;
+
+        // Clamp to hard bounds so a malformed/oversized job cannot exhaust the host.
+        timeLimitMs = clamp(timeLimitMs, MIN_TIME_LIMIT_MS, MAX_TIME_LIMIT_MS);
+        memoryLimitMb = clamp(memoryLimitMb, MIN_MEMORY_LIMIT_MB, MAX_MEMORY_LIMIT_MB);
 
         Path tempDir = Files.createTempDirectory(tempDirPrefix());
         Files.setPosixFilePermissions(tempDir, PosixFilePermissions.fromString("rwxrwxrwx"));

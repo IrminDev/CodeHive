@@ -80,6 +80,7 @@ Backend docs structure in llms/backend:
 - model: Data model and DTO conventions.
 - security: Security architecture and policies.
 - service: Service-layer behavior and orchestration rules.
+- groups: Group ownership, enrollment, assignment lifecycle, deliveries, and functional requirements.
 
 ## How To Navigate Backend Docs
 Read in this order:

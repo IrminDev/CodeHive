@@ -27,6 +27,10 @@ public class Submission {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "assignment_id", nullable = false)
     private Assignment assignment;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "student_id", nullable = false)
+    private User student;
     
     @Column(nullable = false, length = 20)
     @Enumerated(EnumType.STRING)
@@ -35,14 +39,24 @@ public class Submission {
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
+    @Column(nullable = false)
+    private Boolean deliveredLate;
+
     public Submission() {
         this.createdAt = LocalDateTime.now();
+        this.deliveredLate = false;
     }
 
     public Submission(Assignment assignment, Language language) {
         this();
         this.assignment = assignment;
         this.language = language;
+    }
+
+    public Submission(Assignment assignment, User student, Language language, Boolean deliveredLate) {
+        this(assignment, language);
+        this.student = student;
+        this.deliveredLate = deliveredLate;
     }
 
     public UUID getId() {
@@ -60,6 +74,11 @@ public class Submission {
     public void setAssignment(Assignment assignment) {
         this.assignment = assignment;
     }
+
+    public User getStudent() { return student; }
+    public void setStudent(User student) { this.student = student; }
+    public Boolean getDeliveredLate() { return deliveredLate; }
+    public void setDeliveredLate(Boolean deliveredLate) { this.deliveredLate = deliveredLate; }
 
     public Language getLanguage() {
         return language;
