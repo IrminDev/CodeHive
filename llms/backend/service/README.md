@@ -12,6 +12,7 @@ Service classes:
 - ExecutionResultService
 - ObjectStorageService
 - MailSenderService
+- AdminUserService
 
 ## Service Layer Role
 - Own business logic and workflows.
@@ -66,10 +67,17 @@ Responsibilities:
 
 ## GroupService
 Responsibilities:
-- Create teacher-owned groups with random, unique join codes.
+- Create scope-authorized groups with random, unique join codes.
 - Enroll only STUDENT users while retaining leave/removal history.
-- Enforce owner-only roster, archive, logical-delete, restore, update, and join-code rotation operations.
+- Enforce owner-only roster, archive, logical-delete, restore, update, and join-code rotation operations regardless of owner role.
 - Treat archived groups as read-only and hide logically deleted groups from students.
+
+## AdminUserService
+Responsibilities:
+- Paginated user lookup and profile updates.
+- Reversible account deactivation while preserving related academic data.
+- Target-role-specific authorization for user and admin management.
+- Guarded scope delegation, self-management prevention, and last-superadmin protection.
 
 ## Delivery validation
 - Execution identity always comes from the authenticated JWT principal; client requesterId is ignored.

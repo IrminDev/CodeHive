@@ -3,7 +3,9 @@ package com.github.codehive.model.entity;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.security.core.GrantedAuthority;
@@ -23,6 +25,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
 @Entity
@@ -184,9 +187,37 @@ public class User implements UserDetails {
         }
     }
 
+    public boolean hasScope(Scope scope) {
+        return scopes != null && scopes.contains(scope);
+    }
+
+    @PrePersist
+    void applyDefaultScopes() {
+        if (role == Role.TEACHER) {
+            addScope(Scope.CREATE_GROUP);
+        }
+    }
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of(new SimpleGrantedAuthority(role.name()));
+        Set<Scope> effectiveScopes = new LinkedHashSet<>();
+        if (scopes != null) effectiveScopes.addAll(scopes);
+        if (effectiveScopes.contains(Scope.SUPER_ADMIN)) {
+            effectiveScopes.addAll(List.of(Scope.values()));
+        }
+        if (effectiveScopes.contains(Scope.MANAGE_USERS)) {
+            effectiveScopes.add(Scope.VIEW_USERS);
+            effectiveScopes.add(Scope.CREATE_USERS);
+            effectiveScopes.add(Scope.UPDATE_USERS);
+            effectiveScopes.add(Scope.MANAGE_USER_STATUS);
+        }
+        List<GrantedAuthority> authorities = new ArrayList<>();
+        authorities.add(new SimpleGrantedAuthority(role.name()));
+        effectiveScopes.stream()
+                .map(Scope::name)
+                .map(SimpleGrantedAuthority::new)
+                .forEach(authorities::add);
+        return authorities;
     }
 
     @Override

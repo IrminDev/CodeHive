@@ -9,6 +9,7 @@ Controller classes:
 - codehive-backend/src/main/java/com/github/codehive/controller/CheckExecutionController.java
 - codehive-backend/src/main/java/com/github/codehive/controller/AssignmentController.java
 - codehive-backend/src/main/java/com/github/codehive/controller/GroupController.java
+- codehive-backend/src/main/java/com/github/codehive/controller/AdminUserController.java
 
 ## Controller Responsibilities
 - Define API routes and HTTP semantics.
@@ -50,9 +51,15 @@ Error handling is centralized in:
 - `DELETE /api/assignments/{id}` performs logical deletion.
 
 ### GroupController
-- Teacher: create, update, list roster, remove students, archive/unarchive, logical delete/restore, and rotate join code.
+- Any user with `CREATE_GROUP` can create a group; teachers receive the scope by default.
+- Owners can update, list roster, remove students, archive/unarchive, logical delete/restore, and rotate join code regardless of role.
 - Student: join by code and leave.
 - Both roles list and retrieve only accessible groups; join codes are never exposed to students.
+
+### AdminUserController
+- Lists and retrieves users with `VIEW_USERS`.
+- Updates profiles and account status with target-role-specific scopes.
+- Grants and revokes scopes with escalation and last-superadmin safeguards.
 
 ## Cross-Cutting Concerns
 - OpenAPI annotations are used for API docs (Swagger at /swagger-ui.html).

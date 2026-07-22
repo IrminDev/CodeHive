@@ -19,6 +19,7 @@ import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -26,6 +27,7 @@ import org.springframework.web.multipart.MultipartFile;
 import com.github.codehive.model.dto.UserDTO;
 import com.github.codehive.model.entity.User;
 import com.github.codehive.model.enums.Role;
+import com.github.codehive.model.enums.Scope;
 import com.github.codehive.model.exception.auth.AlreadyRegisteredEmailException;
 import com.github.codehive.model.exception.auth.AlreadyRegisteredEnrollmentNumberException;
 import com.github.codehive.model.exception.auth.IncorrectCredentialsException;
@@ -81,7 +83,8 @@ public class AuthService {
 
         User user = userOptional.orElseThrow(() -> new IncorrectCredentialsException("Invalid credentials"));
 
-        if (!passwordEncoder.matches(loginRequest.getPassword(), user.getPassword())) {
+        if (!Boolean.TRUE.equals(user.getIsActive())
+                || !passwordEncoder.matches(loginRequest.getPassword(), user.getPassword())) {
             throw new IncorrectCredentialsException("Invalid credentials");
         }
 
@@ -122,6 +125,19 @@ public class AuthService {
     }
 
     @Transactional
+    public UserDTO registerAuthorized(SignUpRequest request, String requesterEmail) {
+        User requester = userRepository.findByEmail(requesterEmail)
+                .orElseThrow(() -> new IncorrectCredentialsException("User not found"));
+        Scope required = request.getRole() == Role.ADMIN ? Scope.CREATE_ADMINS : Scope.CREATE_USERS;
+        boolean authorized = requester.getAuthorities().stream()
+                .anyMatch(authority -> authority.getAuthority().equals(required.name()));
+        if (requester.getRole() != Role.ADMIN || !authorized) {
+            throw new AccessDeniedException("Missing scope: " + required.name());
+        }
+        return register(request);
+    }
+
+    @Transactional
     public CsvBulkRegisterResponse registerFromCsv(MultipartFile file) throws IOException {
         List<String> errors = new ArrayList<>();
         int successCount = 0;
@@ -158,6 +174,10 @@ public class AuthService {
                     role = Role.valueOf(roleStr);
                 } catch (IllegalArgumentException e) {
                     errors.add("Row " + rowNumber + ": Invalid role '" + roleStr + "'. Must be STUDENT, TEACHER, or ADMIN");
+                    continue;
+                }
+                if (role == Role.ADMIN) {
+                    errors.add("Row " + rowNumber + ": Admin accounts cannot be created through CSV signup");
                     continue;
                 }
 

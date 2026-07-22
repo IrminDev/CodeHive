@@ -21,6 +21,8 @@ File: model/entity/User.java
 - Implements UserDetails for Spring Security integration.
 - createdAt defaults to LocalDateTime.now(); isActive defaults to true; temporaryPassword defaults to false.
 - scopes stored as element collection in user_scopes table.
+- persisted scopes become Spring Security authorities; `SUPER_ADMIN` expands to all scopes.
+- new teachers receive `CREATE_GROUP` before their first persistence.
 
 ### PasswordResetToken
 File: model/entity/PasswordResetToken.java

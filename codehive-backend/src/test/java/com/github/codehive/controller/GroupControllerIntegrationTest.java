@@ -5,6 +5,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 
 import java.util.Map;
 
@@ -25,6 +26,7 @@ import com.github.codehive.model.entity.ClassGroup;
 import com.github.codehive.model.entity.User;
 import com.github.codehive.model.enums.EnrollmentStatus;
 import com.github.codehive.model.enums.Role;
+import com.github.codehive.model.enums.Scope;
 import com.github.codehive.repository.ClassGroupRepository;
 import com.github.codehive.repository.GroupEnrollmentRepository;
 import com.github.codehive.repository.UserRepository;
@@ -69,6 +71,38 @@ class GroupControllerIntegrationTest {
                 .andExpect(jsonPath("$.data.ownerId").value(teacher.getId().toString()))
                 .andExpect(jsonPath("$.data.joinCode").isNotEmpty())
                 .andExpect(jsonPath("$.data.archived").value(false));
+    }
+
+    @Test
+    void scopedStudentCreatesAndManagesOwnedGroup() throws Exception {
+        student.addScope(Scope.CREATE_GROUP);
+        userRepository.saveAndFlush(student);
+
+        String response = mockMvc.perform(post("/api/groups")
+                        .header("Authorization", "Bearer " + studentToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Peer Study\",\"description\":\"Student owned\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.ownerId").value(student.getId().toString()))
+                .andReturn().getResponse().getContentAsString();
+        String groupId = objectMapper.readTree(response).path("data").path("id").asText();
+
+        mockMvc.perform(patch("/api/groups/{id}", groupId)
+                        .header("Authorization", "Bearer " + studentToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Peer Algorithms\",\"description\":\"Updated\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.name").value("Peer Algorithms"));
+    }
+
+    @Test
+    void studentOwnerCannotJoinOwnGroup() throws Exception {
+        ClassGroup group = groupRepository.save(new ClassGroup("Peer Study", "", student, "SELF1234"));
+        mockMvc.perform(post("/api/groups/join")
+                        .header("Authorization", "Bearer " + studentToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"joinCode\":\"SELF1234\"}"))
+                .andExpect(status().isBadRequest());
     }
 
     @Test

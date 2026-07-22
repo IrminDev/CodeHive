@@ -137,6 +137,9 @@ public class CsvRegistrationService {
         } catch (IllegalArgumentException e) {
             return "Row " + rowNumber + ": Invalid role '" + roleStr + "'. Must be STUDENT, TEACHER, or ADMIN";
         }
+        if (role == Role.ADMIN) {
+            return "Row " + rowNumber + ": Admin accounts cannot be created through CSV signup";
+        }
 
         List<String> rowErrors = new ArrayList<>();
         if (name.isEmpty()) rowErrors.add("name is empty");

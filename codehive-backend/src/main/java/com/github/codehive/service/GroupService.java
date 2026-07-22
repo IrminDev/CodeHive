@@ -3,6 +3,8 @@ package com.github.codehive.service;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.security.access.AccessDeniedException;
@@ -45,9 +47,6 @@ public class GroupService {
     @Transactional
     public GroupDTO create(CreateGroupRequest request, String email) {
         User owner = requireUser(email);
-        if (owner.getRole() != Role.TEACHER) {
-            throw new AccessDeniedException("Only teachers can own groups");
-        }
         ClassGroup group = groupRepository.save(new ClassGroup(
                 request.getName().trim(), request.getDescription(), owner, generateJoinCode()));
         return GroupMapper.toDTO(group, true);
@@ -56,19 +55,20 @@ public class GroupService {
     @Transactional(readOnly = true)
     public List<GroupDTO> listMine(String email, boolean includeDeleted) {
         User user = requireUser(email);
-        if (user.getRole() == Role.TEACHER) {
-            List<ClassGroup> groups = includeDeleted
-                    ? groupRepository.findByOwnerIdOrderByCreatedAtDesc(user.getId())
-                    : groupRepository.findByOwnerIdAndIsActiveTrueOrderByCreatedAtDesc(user.getId());
-            return groups.stream().map(group -> GroupMapper.toDTO(group, true)).toList();
-        }
+        Map<UUID, GroupDTO> groups = new LinkedHashMap<>();
+        List<ClassGroup> owned = includeDeleted
+                ? groupRepository.findByOwnerIdOrderByCreatedAtDesc(user.getId())
+                : groupRepository.findByOwnerIdAndIsActiveTrueOrderByCreatedAtDesc(user.getId());
+        owned.forEach(group -> groups.put(group.getId(), GroupMapper.toDTO(group, true)));
         if (user.getRole() == Role.STUDENT) {
-            return enrollmentRepository.findByStudentIdAndStatus(user.getId(), EnrollmentStatus.ACTIVE).stream()
+            enrollmentRepository.findByStudentIdAndStatus(user.getId(), EnrollmentStatus.ACTIVE).stream()
                     .map(GroupEnrollment::getGroup)
                     .filter(group -> Boolean.TRUE.equals(group.getIsActive()))
-                    .map(group -> GroupMapper.toDTO(group, false)).toList();
+                    .forEach(group -> groups.putIfAbsent(group.getId(), GroupMapper.toDTO(group, false)));
         }
-        throw new AccessDeniedException("Group administration requires a scope that is not defined yet");
+        return groups.values().stream()
+                .sorted((left, right) -> right.getCreatedAt().compareTo(left.getCreatedAt()))
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -103,6 +103,9 @@ public class GroupService {
         }
         ClassGroup group = groupRepository.findByJoinCodeIgnoreCase(joinCode.trim())
                 .orElseThrow(() -> new EntityNotFoundException("No active group uses that join code"));
+        if (group.getOwner().getId().equals(student.getId())) {
+            throw new ValidationException("Group owners cannot enroll in their own group");
+        }
         requireWritable(group);
         GroupEnrollment enrollment = enrollmentRepository.findByGroupIdAndStudentId(group.getId(), student.getId())
                 .map(existing -> {

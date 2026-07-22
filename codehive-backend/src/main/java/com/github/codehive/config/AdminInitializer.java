@@ -50,10 +50,6 @@ public class AdminInitializer implements CommandLineRunner {
         User admin = new User(adminName, adminLastName, adminEnrollmentNumber, adminEmail,
                 passwordEncoder.encode(adminPassword), Role.ADMIN);
         admin.addScope(Scope.SUPER_ADMIN);
-        admin.addScope(Scope.MANAGE_USERS);
-        admin.addScope(Scope.MANAGE_GROUPS);
-        admin.addScope(Scope.CHECK_ANALYTICS);
-        admin.addScope(Scope.CREATE_GROUP);
 
         userRepository.save(admin);
         logger.info("Default super admin created: {}", adminEmail);

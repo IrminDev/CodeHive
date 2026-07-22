@@ -26,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.codehive.model.entity.User;
 import com.github.codehive.model.enums.Role;
+import com.github.codehive.model.enums.Scope;
 import com.github.codehive.model.request.auth.LoginRequest;
 import com.github.codehive.model.request.auth.SignUpRequest;
 import com.github.codehive.model.request.auth.UpdatePasswordRequest;
@@ -98,6 +99,7 @@ class AuthControllerIntegrationTest {
         adminUser.setRole(Role.ADMIN);
         adminUser.setIsActive(true);
         adminUser.setTemporaryPassword(false);
+        adminUser.addScope(Scope.CREATE_USERS);
         adminUser = userRepository.save(adminUser);
 
         // Generate admin JWT token
@@ -462,7 +464,26 @@ class AuthControllerIntegrationTest {
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(signUpRequest)))
                     .andExpect(status().isCreated())
-                    .andExpect(jsonPath("$.data.role").value("TEACHER"));
+                    .andExpect(jsonPath("$.data.role").value("TEACHER"))
+                    .andExpect(jsonPath("$.data.scopes[0]").value("CREATE_GROUP"));
+        }
+
+        @Test
+        @DisplayName("CREATE_USERS does not permit creating admins")
+        void signup_AdminRoleWithoutCreateAdmins_ReturnsForbidden() throws Exception {
+            SignUpRequest signUpRequest = new SignUpRequest();
+            signUpRequest.setEmail("new-admin@example.com");
+            signUpRequest.setName("New");
+            signUpRequest.setFatherLastName("Admin");
+            signUpRequest.setMotherLastName("User");
+            signUpRequest.setEnrollmentNumber("2026630099");
+            signUpRequest.setRole(Role.ADMIN);
+
+            mockMvc.perform(post("/api/auth/signup")
+                            .header("Authorization", "Bearer " + adminToken)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(signUpRequest)))
+                    .andExpect(status().isForbidden());
         }
     }
 

@@ -22,8 +22,8 @@ Controller: codehive-backend/src/main/java/com/github/codehive/controller/AuthCo
 
 Service implementation: codehive-backend/src/main/java/com/github/codehive/service/AuthService.java
 
-## Registration Flow (Admin Only)
-1. Endpoint is protected with @PreAuthorize("hasAuthority('ADMIN')").
+## Registration Flow (Scoped Admin)
+1. The caller must have role `ADMIN`; creating students/teachers requires `CREATE_USERS`, while creating admins requires `CREATE_ADMINS`.
 2. Request is validated through SignUpRequest.
 3. Service checks duplicate email and enrollment number.
 4. Temporary password is generated and encoded.
@@ -39,7 +39,7 @@ Service implementation: codehive-backend/src/main/java/com/github/codehive/servi
 
 Important validation rules:
 - Exactly 6 columns expected per row.
-- Role must be STUDENT, TEACHER, or ADMIN.
+- Role must be STUDENT or TEACHER; admin creation is intentionally unavailable through CSV.
 - Required fields cannot be empty.
 - Email format must be valid.
 - Duplicate email/enrollment is blocked both in-file and in-database.
@@ -84,5 +84,6 @@ User storage model:
 
 ## Notes for Future Changes
 - If role/permission model expands, update JWT claims and authorities mapping.
+- Scopes are loaded from the database for each request and do not need to be embedded in JWT claims.
 - Keep LoginRequest backward compatible because frontend and clients depend on identifier semantics.
 - Bulk CSV should remain async to avoid request timeouts.

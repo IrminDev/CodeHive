@@ -7,7 +7,7 @@ Este documento define las restricciones, reglas de negocio y requisitos funciona
 ## Modelo de dominio
 
 ```text
-Profesor (User con rol TEACHER)
+Propietario (User autorizado con CREATE_GROUP)
  └─ Grupo (ClassGroup)
      ├─ Inscripciones de estudiantes (GroupEnrollment)
      └─ Tareas (Assignment)
@@ -21,22 +21,23 @@ Profesor (User con rol TEACHER)
 
 ### Grupos
 
-1. Un grupo tiene exactamente un propietario y este debe tener el rol `TEACHER`.
-2. Un profesor puede ser propietario de varios grupos.
+1. Un grupo tiene exactamente un propietario autenticado con el scope `CREATE_GROUP` al momento de crearlo.
+2. Cualquier propietario puede administrar varios grupos; los profesores reciben `CREATE_GROUP` por defecto y los estudiantes pueden recibirlo de un administrador.
 3. Un grupo contiene un código de unión aleatorio de ocho caracteres, en mayúsculas y con caracteres no ambiguos. El código debe ser único sin distinguir mayúsculas de minúsculas.
 4. Solo un usuario con rol `STUDENT` puede unirse mediante código. Un profesor no puede inscribirse en un grupo, ni siquiera en uno propio.
 5. Las inscripciones no se eliminan físicamente. La combinación `(grupo, estudiante)` es única y conserva el historial.
 6. Una inscripción puede estar en los estados `ACTIVE`, `LEFT` o `REMOVED`.
 7. Cuando un estudiante que salió o fue removido vuelve a unirse, se reactiva su misma inscripción y se actualiza su fecha de unión.
-8. Solo el profesor propietario puede actualizar un grupo, consultar su lista de estudiantes, remover estudiantes, archivar, desarchivar, eliminar lógicamente, restaurar o rotar el código de unión.
-9. El código de unión no se devuelve a estudiantes, solo al profesor propietario.
+8. Solo el propietario, independientemente de su rol, puede actualizar un grupo, consultar su lista de estudiantes, remover estudiantes, archivar, desarchivar, eliminar lógicamente, restaurar o rotar el código de unión.
+9. El código de unión se devuelve al propietario y nunca a usuarios que acceden únicamente mediante inscripción.
+10. Un estudiante propietario no puede inscribirse en su propio grupo.
 
 ### Ciclo de vida de grupos
 
 1. `isActive = true` significa que el grupo no está eliminado lógicamente.
 2. `isActive = false` significa eliminación lógica. El grupo se oculta a estudiantes y se conserva para que su propietario consulte y clone sus tareas históricas.
 3. `archived = true` significa que el grupo es de solo lectura. No permite uniones, modificaciones, creación de tareas ni nuevas ejecuciones o entregas.
-4. Restaurar un grupo eliminado lo deja archivado; el profesor debe desarchivarlo explícitamente antes de modificarlo o recibir actividad.
+4. Restaurar un grupo eliminado lo deja archivado; el propietario debe desarchivarlo explícitamente antes de modificarlo o recibir actividad.
 5. La eliminación lógica también archiva el grupo.
 
 ### Tareas y ejemplos
@@ -84,24 +85,24 @@ Profesor (User con rol TEACHER)
 
 **ID:** RF-GRU-001  
 **Título:** Crear grupo académico  
-**Descripción:** Permite a un profesor crear un grupo del que será el único propietario.  
-**Usuario involucrado:** Profesor.  
-**Precondiciones:** El usuario está autenticado, tiene rol `TEACHER` y proporciona un nombre válido.  
+**Descripción:** Permite a un usuario con `CREATE_GROUP` crear un grupo del que será el único propietario.
+**Usuario involucrado:** Usuario autorizado.
+**Precondiciones:** El usuario está autenticado, tiene `CREATE_GROUP` y proporciona un nombre válido.
 **Descripción del flujo principal:**
 
-1. El profesor solicita la creación e indica nombre y descripción opcional.
+1. El usuario solicita la creación e indica nombre y descripción opcional.
 2. El sistema valida los datos recibidos.
 3. El sistema genera un código de unión único.
-4. El sistema crea el grupo activo y no archivado, asignando al profesor autenticado como propietario.
+4. El sistema crea el grupo activo y no archivado, asignando al usuario autenticado como propietario.
 5. El sistema devuelve la información del grupo, incluido el código de unión.
 
 **Flujos alternativos:**
 
-1.1. Si el usuario no tiene rol `TEACHER`, el sistema deniega el acceso y finaliza el flujo.
+1.1. Si el usuario no tiene `CREATE_GROUP`, el sistema deniega el acceso y finaliza el flujo.
 2.1. Si el nombre no cumple las validaciones, el sistema muestra los errores y vuelve al paso 1 del flujo principal.
 3.1. Si existe una colisión de código, el sistema genera otro código y vuelve al paso 3 del flujo principal.
 
-**Postcondiciones:** Existe un grupo activo cuyo propietario es el profesor autenticado.
+**Postcondiciones:** Existe un grupo activo cuyo propietario es el usuario autenticado.
 
 ### RF-GRU-002
 
@@ -114,17 +115,17 @@ Profesor (User con rol TEACHER)
 
 1. El usuario solicita su lista de grupos o el detalle de un grupo.
 2. El sistema identifica el rol y la identidad del usuario autenticado.
-3. Si es profesor, el sistema obtiene sus grupos propios; si es estudiante, obtiene sus grupos con inscripción activa.
+3. El sistema combina los grupos propios del usuario con sus inscripciones activas, cuando tenga rol `STUDENT`, sin duplicados.
 4. El sistema verifica que el usuario tenga acceso al grupo solicitado, cuando aplique.
 5. El sistema devuelve los grupos o el detalle autorizado.
 
 **Flujos alternativos:**
 
-3.1. Si el profesor no solicita incluir eliminados, el sistema omite grupos con `isActive = false` y continúa en el paso 5.
+3.1. Si el propietario no solicita incluir eliminados, el sistema omite sus grupos con `isActive = false` y continúa en el paso 5.
 4.1. Si el usuario no es propietario ni tiene inscripción activa, el sistema deniega el acceso y finaliza el flujo.
 4.2. Si un estudiante intenta consultar un grupo eliminado, el sistema responde como recurso no encontrado y finaliza el flujo.
 
-**Postcondiciones:** No se modifica información; el usuario recibe únicamente datos autorizados. Los estudiantes no reciben el código de unión.
+**Postcondiciones:** No se modifica información; el usuario recibe únicamente datos autorizados. El código de unión solo se entrega al propietario.
 
 ### RF-GRU-003
 
@@ -146,6 +147,7 @@ Profesor (User con rol TEACHER)
 2.1. Si el código no existe, el sistema informa que no hay un grupo activo con ese código y vuelve al paso 1 del flujo principal.
 3.1. Si el grupo está archivado o eliminado, el sistema informa que no admite inscripciones y finaliza el flujo.
 4.1. Si el estudiante ya tiene una inscripción activa, el sistema muestra el error y finaliza el flujo.
+4.2. Si el estudiante es propietario del grupo, el sistema rechaza la inscripción y finaliza el flujo.
 1.1. Si el usuario es profesor u otro rol, el sistema deniega el acceso y finaliza el flujo.
 
 **Postcondiciones:** El estudiante queda con inscripción `ACTIVE` y puede consultar las tareas disponibles del grupo.
@@ -154,20 +156,20 @@ Profesor (User con rol TEACHER)
 
 **ID:** RF-GRU-004  
 **Título:** Administrar inscripción de un estudiante  
-**Descripción:** Permite a un estudiante salir de un grupo o al profesor propietario removerlo.  
-**Usuario involucrado:** Estudiante o profesor propietario.  
-**Precondiciones:** Existe una inscripción activa; el estudiante autenticado es el inscrito o el profesor autenticado es propietario del grupo.  
+**Descripción:** Permite a un estudiante salir de un grupo o al propietario removerlo.
+**Usuario involucrado:** Estudiante o propietario.
+**Precondiciones:** Existe una inscripción activa; el estudiante autenticado es el inscrito o el usuario autenticado es propietario del grupo.
 **Descripción del flujo principal:**
 
-1. El usuario solicita salir del grupo o el profesor solicita remover a un estudiante.
+1. El usuario solicita salir del grupo o el propietario solicita remover a un estudiante.
 2. El sistema verifica la propiedad o la identidad del estudiante, según la operación.
 3. El sistema localiza la inscripción activa.
-4. El sistema cambia el estado a `LEFT` cuando el estudiante sale, o a `REMOVED` cuando lo remueve el profesor, y registra la fecha de finalización.
+4. El sistema cambia el estado a `LEFT` cuando el estudiante sale, o a `REMOVED` cuando lo remueve el propietario, y registra la fecha de finalización.
 5. El sistema confirma la operación.
 
 **Flujos alternativos:**
 
-2.1. Si el profesor no es propietario, el sistema deniega el acceso y finaliza el flujo.
+2.1. Si el solicitante no es propietario, el sistema deniega el acceso y finaliza el flujo.
 3.1. Si no existe una inscripción activa, el sistema informa el error y finaliza el flujo.
 
 **Postcondiciones:** Se conserva el historial de inscripción y no se eliminan entregas previas del estudiante.
@@ -177,19 +179,19 @@ Profesor (User con rol TEACHER)
 **ID:** RF-GRU-005  
 **Título:** Administrar ciclo de vida y código de un grupo  
 **Descripción:** Permite al propietario actualizar, archivar, desarchivar, eliminar lógicamente, restaurar y rotar el código de su grupo.  
-**Usuario involucrado:** Profesor propietario.  
-**Precondiciones:** El profesor está autenticado y es propietario del grupo. Para actualizar o rotar código, el grupo está activo y no archivado.  
+**Usuario involucrado:** Propietario del grupo.
+**Precondiciones:** El usuario está autenticado y es propietario del grupo. Para actualizar o rotar código, el grupo está activo y no archivado.
 **Descripción del flujo principal:**
 
-1. El profesor selecciona una operación de administración del grupo.
-2. El sistema verifica que el profesor sea propietario.
+1. El propietario selecciona una operación de administración del grupo.
+2. El sistema verifica que el solicitante sea propietario.
 3. El sistema aplica la operación solicitada.
 4. Si la operación es rotar código, el sistema genera y asigna un código único nuevo.
 5. El sistema actualiza la fecha de modificación y devuelve el estado resultante.
 
 **Flujos alternativos:**
 
-2.1. Si el profesor no es propietario, el sistema deniega el acceso y finaliza el flujo.
+2.1. Si el solicitante no es propietario, el sistema deniega el acceso y finaliza el flujo.
 3.1. Si se intenta modificar o rotar el código de un grupo archivado, el sistema muestra el error y finaliza el flujo.
 3.2. Si se intenta modificar o rotar el código de un grupo eliminado, el sistema muestra el error y finaliza el flujo.
 4.1. Si el código generado ya existe, el sistema genera otro y vuelve al paso 4 del flujo principal.

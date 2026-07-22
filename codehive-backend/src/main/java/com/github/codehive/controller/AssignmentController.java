@@ -83,8 +83,8 @@ public class AssignmentController {
     @Operation(
         summary = "Create a new assignment",
         description = "Teacher uploads assignment metadata, a reference solution, and test case input files. " +
-                      "The assignment is created as inactive. The worker runs the reference solution against each " +
-                      "input to generate expected outputs, then activates the assignment."
+                      "The assignment is active with validation status PROCESSING while the worker generates expected outputs. " +
+                      "It becomes student-visible only after validation reaches READY and its launch date has arrived."
     )
     @ApiResponses(value = {
         @ApiResponse(
@@ -128,6 +128,13 @@ public class AssignmentController {
                 .body(new SuccessResponse<>("Assignment created. Test output generation in progress.", created));
     }
 
+    @Operation(summary = "Clone an assignment", description = "Clones an owned assignment into another owned, writable group and queues expected-output generation.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "202", description = "Assignment cloned and generation queued"),
+            @ApiResponse(responseCode = "400", description = "Invalid target group or dates", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "403", description = "Caller does not own the source or target group", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "Assignment or group not found", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
     @PostMapping("/{id}/clone")
     @PreAuthorize("hasAuthority('TEACHER')")
     public ResponseEntity<SuccessResponse<AssignmentDTO>> cloneAssignment(
@@ -138,6 +145,12 @@ public class AssignmentController {
                 "Assignment cloned. Test output generation in progress.", clone));
     }
 
+    @Operation(summary = "Delete an assignment", description = "Logically deletes an assignment owned by the caller's group.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Assignment deleted"),
+            @ApiResponse(responseCode = "403", description = "Caller does not own the assignment", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "Assignment not found", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAuthority('TEACHER')")
     public ResponseEntity<SuccessResponse<Void>> deleteAssignment(@PathVariable UUID id,
