@@ -1,6 +1,7 @@
 package com.github.codehive.worker.service;
 
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,11 +22,14 @@ public class TestGenerationService {
 
     private final LanguageExecutorFactory executorFactory;
     private final ObjectStorageService objectStorageService;
+    private final OutputComparatorService outputComparatorService;
 
     public TestGenerationService(LanguageExecutorFactory executorFactory,
-                                  ObjectStorageService objectStorageService) {
+                                  ObjectStorageService objectStorageService,
+                                  OutputComparatorService outputComparatorService) {
         this.executorFactory = executorFactory;
         this.objectStorageService = objectStorageService;
+        this.outputComparatorService = outputComparatorService;
     }
 
     public TestGenerationResult generateOutputs(TestGenerationJob job) {
@@ -43,7 +47,7 @@ public class TestGenerationService {
             if (session.isCompilationFailed()) {
                 logger.error("[WORKFLOW] Reference solution compilation failed - assignmentId={}",
                         job.getAssignmentId());
-                return new TestGenerationResult(job.getAssignmentId(), false, 0,
+                return result(job, false, 0,
                         "Reference solution compilation error: " + session.getCompilationError());
             }
 
@@ -56,9 +60,24 @@ public class TestGenerationService {
                     if (result.getStatus() != ExecutionStatus.AC) {
                         logger.error("[WORKFLOW] Reference solution failed on testCaseId={}, status={}",
                                 tc.getTestCaseId(), result.getStatus());
-                        return new TestGenerationResult(job.getAssignmentId(), false, generated,
+                        return result(job, false, generated,
                                 "Reference failed on testCaseId=" + tc.getTestCaseId()
                                         + " status=" + result.getStatus());
+                    }
+
+                    if (tc.getBaselineOutputPath() != null) {
+                        String baseline = new String(
+                                objectStorageService.download(tc.getBaselineOutputPath()).readAllBytes(),
+                                StandardCharsets.UTF_8);
+                        OutputComparatorService.ComparisonResult comparison =
+                                outputComparatorService.compareWithFeedback(
+                                        baseline,
+                                        result.getOutput() != null ? result.getOutput() : "",
+                                        job.getComparatorType());
+                        if (!comparison.matches()) {
+                            return result(job, false, generated,
+                                    "Reference output changed for testCaseId=" + tc.getTestCaseId());
+                        }
                     }
 
                     objectStorageService.upload(tc.getOutputPath(), result.getOutput() != null ? result.getOutput() : "");
@@ -69,22 +88,32 @@ public class TestGenerationService {
 
                 } catch (Exception e) {
                     logger.error("[WORKFLOW] Error generating output for testCaseId={}", tc.getTestCaseId(), e);
-                    return new TestGenerationResult(job.getAssignmentId(), false, generated,
+                    return result(job, false, generated,
                             "Error on testCaseId=" + tc.getTestCaseId() + ": " + e.getMessage());
                 }
             }
 
             logger.info("[WORKFLOW] Test output generation complete - assignmentId={}, generated={}",
                     job.getAssignmentId(), generated);
-            return new TestGenerationResult(job.getAssignmentId(), true, generated, null);
+            return result(job, true, generated, null);
 
         } catch (Exception e) {
             logger.error("[WORKFLOW] Failed to prepare reference session - assignmentId={}",
                     job.getAssignmentId(), e);
-            return new TestGenerationResult(job.getAssignmentId(), false, 0,
+            return result(job, false, 0,
                     "Failed to prepare reference session: " + e.getMessage());
         } finally {
             if (session != null) executor.cleanup(session);
         }
+    }
+
+    private TestGenerationResult result(TestGenerationJob job, boolean success, int generated,
+                                        String errorMessage) {
+        TestGenerationResult result = new TestGenerationResult(
+                job.getAssignmentId(), success, generated, errorMessage);
+        result.setAssignmentUpdateId(job.getAssignmentUpdateId());
+        result.setTestSuiteRevisionId(job.getTestSuiteRevisionId());
+        result.setReferenceSolutionRevisionId(job.getReferenceSolutionRevisionId());
+        return result;
     }
 }

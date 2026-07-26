@@ -26,6 +26,9 @@ import com.github.codehive.model.request.group.UpdateGroupRequest;
 import com.github.codehive.repository.ClassGroupRepository;
 import com.github.codehive.repository.GroupEnrollmentRepository;
 import com.github.codehive.repository.UserRepository;
+import com.github.codehive.notification.NotificationDomainEventPublisher;
+import com.github.codehive.notification.event.NotificationDomainEvent;
+import com.github.codehive.model.enums.NotificationType;
 
 @Service
 public class GroupService {
@@ -36,12 +39,15 @@ public class GroupService {
     private final ClassGroupRepository groupRepository;
     private final GroupEnrollmentRepository enrollmentRepository;
     private final UserRepository userRepository;
+    private final NotificationDomainEventPublisher notificationPublisher;
 
     public GroupService(ClassGroupRepository groupRepository, GroupEnrollmentRepository enrollmentRepository,
-                        UserRepository userRepository) {
+                        UserRepository userRepository,
+                        NotificationDomainEventPublisher notificationPublisher) {
         this.groupRepository = groupRepository;
         this.enrollmentRepository = enrollmentRepository;
         this.userRepository = userRepository;
+        this.notificationPublisher = notificationPublisher;
     }
 
     @Transactional
@@ -119,6 +125,9 @@ public class GroupService {
         enrollment.setJoinedAt(LocalDateTime.now());
         enrollment.setEndedAt(null);
         enrollmentRepository.save(enrollment);
+        notificationPublisher.publish(NotificationDomainEvent.of(
+                NotificationType.STUDENT_ENROLLED, student.getId(), student.getId(),
+                group.getId(), null, null));
         return GroupMapper.toDTO(group, false);
     }
 
@@ -131,12 +140,15 @@ public class GroupService {
 
     @Transactional
     public void removeStudent(UUID id, UUID studentId, String email) {
-        requireOwnedGroup(id, email);
+        ClassGroup group = requireOwnedGroup(id, email);
         GroupEnrollment enrollment = enrollmentRepository.findByGroupIdAndStudentId(id, studentId)
                 .filter(item -> item.getStatus() == EnrollmentStatus.ACTIVE)
                 .orElseThrow(() -> new EntityNotFoundException("Active enrollment not found"));
         enrollment.setStatus(EnrollmentStatus.REMOVED);
         enrollment.setEndedAt(LocalDateTime.now());
+        notificationPublisher.publish(NotificationDomainEvent.of(
+                NotificationType.REMOVED_FROM_GROUP, group.getOwner().getId(), studentId,
+                group.getId(), null, null));
     }
 
     @Transactional
@@ -147,6 +159,9 @@ public class GroupService {
                 .orElseThrow(() -> new EntityNotFoundException("Active enrollment not found"));
         enrollment.setStatus(EnrollmentStatus.LEFT);
         enrollment.setEndedAt(LocalDateTime.now());
+        notificationPublisher.publish(NotificationDomainEvent.of(
+                NotificationType.STUDENT_LEFT, student.getId(), student.getId(),
+                id, null, null));
     }
 
     @Transactional
@@ -155,6 +170,11 @@ public class GroupService {
         if (!Boolean.TRUE.equals(group.getIsActive())) throw new ValidationException("Deleted groups cannot be changed");
         group.setArchived(archived);
         touch(group);
+        if (archived) {
+            notificationPublisher.publish(NotificationDomainEvent.of(
+                    NotificationType.GROUP_ARCHIVED, group.getOwner().getId(), null,
+                    group.getId(), null, null));
+        }
         return GroupMapper.toDTO(group, true);
     }
 

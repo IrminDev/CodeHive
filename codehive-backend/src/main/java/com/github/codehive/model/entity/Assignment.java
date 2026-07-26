@@ -2,6 +2,7 @@ package com.github.codehive.model.entity;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -25,6 +26,7 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 
 @Entity
 @Table(name = "assignments")
@@ -96,6 +98,21 @@ public class Assignment {
 
     @Column(nullable = false)
     private Boolean isActive;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "active_test_suite_revision_id")
+    private TestSuiteRevision activeTestSuiteRevision;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "active_reference_solution_revision_id")
+    private ReferenceSolutionRevision activeReferenceSolutionRevision;
+
+    @Column(nullable = false, precision = 12, scale = 2)
+    private BigDecimal maxPoints = new BigDecimal("100.00");
+
+    @Version
+    @Column(nullable = false)
+    private Long version;
 
     @OneToMany(mappedBy = "assignment", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<AssignmentExample> examples = new ArrayList<>();
@@ -253,4 +270,13 @@ public class Assignment {
     public void setDueDate(Instant dueDate) {
         this.dueDate = dueDate;
     }
+
+    public TestSuiteRevision getActiveTestSuiteRevision() { return activeTestSuiteRevision; }
+    public void setActiveTestSuiteRevision(TestSuiteRevision revision) { this.activeTestSuiteRevision = revision; }
+    public ReferenceSolutionRevision getActiveReferenceSolutionRevision() { return activeReferenceSolutionRevision; }
+    public void setActiveReferenceSolutionRevision(ReferenceSolutionRevision revision) { this.activeReferenceSolutionRevision = revision; }
+    public BigDecimal getMaxPoints() { return maxPoints; }
+    public void setMaxPoints(BigDecimal maxPoints) { this.maxPoints = maxPoints; }
+    public Long getVersion() { return version; }
+    public void setVersion(Long version) { this.version = version; }
 }

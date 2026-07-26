@@ -81,6 +81,7 @@ Backend docs structure in llms/backend:
 - security: Security architecture and policies.
 - service: Service-layer behavior and orchestration rules.
 - groups: Group ownership, enrollment, assignment lifecycle, deliveries, and functional requirements.
+- notifications: Email preference, RabbitMQ delivery, templates, scheduling, and retry rules.
 
 ## How To Navigate Backend Docs
 Read in this order:

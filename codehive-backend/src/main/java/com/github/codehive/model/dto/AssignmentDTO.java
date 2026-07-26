@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+import java.math.BigDecimal;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.github.codehive.model.enums.ComparatorType;
@@ -33,6 +34,9 @@ public class AssignmentDTO {
     private AssignmentValidationStatus validationStatus;
     private List<AssignmentExampleDTO> examples;
     private List<SampleTestCaseDTO> sampleTestCases;
+    private BigDecimal maxPoints;
+    private UUID activeTestSuiteRevisionId;
+    private UUID activeReferenceSolutionRevisionId;
 
     public UUID getGroupId() { return groupId; }
     public void setGroupId(UUID groupId) { this.groupId = groupId; }
@@ -166,4 +170,11 @@ public class AssignmentDTO {
     public void setSampleTestCases(List<SampleTestCaseDTO> sampleTestCases) {
         this.sampleTestCases = sampleTestCases;
     }
+
+    public BigDecimal getMaxPoints() { return maxPoints; }
+    public void setMaxPoints(BigDecimal maxPoints) { this.maxPoints = maxPoints; }
+    public UUID getActiveTestSuiteRevisionId() { return activeTestSuiteRevisionId; }
+    public void setActiveTestSuiteRevisionId(UUID id) { this.activeTestSuiteRevisionId = id; }
+    public UUID getActiveReferenceSolutionRevisionId() { return activeReferenceSolutionRevisionId; }
+    public void setActiveReferenceSolutionRevisionId(UUID id) { this.activeReferenceSolutionRevisionId = id; }
 }

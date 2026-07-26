@@ -10,6 +10,7 @@ Controller classes:
 - codehive-backend/src/main/java/com/github/codehive/controller/AssignmentController.java
 - codehive-backend/src/main/java/com/github/codehive/controller/GroupController.java
 - codehive-backend/src/main/java/com/github/codehive/controller/AdminUserController.java
+- codehive-backend/src/main/java/com/github/codehive/controller/NotificationPreferenceController.java
 
 ## Controller Responsibilities
 - Define API routes and HTTP semantics.
@@ -60,6 +61,12 @@ Error handling is centralized in:
 - Lists and retrieves users with `VIEW_USERS`.
 - Updates profiles and account status with target-role-specific scopes.
 - Grants and revokes scopes with escalation and last-superadmin safeguards.
+
+### NotificationPreferenceController
+
+- Authenticated users can read, update, and reset their own email notification preferences.
+- The authenticated principal determines the target user; user IDs are not accepted from the request.
+- Test email requests are rate-limited.
 
 ## Cross-Cutting Concerns
 - OpenAPI annotations are used for API docs (Swagger at /swagger-ui.html).

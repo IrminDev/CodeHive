@@ -70,7 +70,18 @@ Propietario (User autorizado con CREATE_GROUP)
 6. Una ejecución `DEFINITIVE` crea una `Submission` inmutable asociada al estudiante autenticado.
 7. Se permiten múltiples entregas definitivas antes del cierre. La más reciente se obtiene por fecha de creación; si ocurre después de `dueDate`, se persiste con `deliveredLate = true`.
 8. En el instante de `closeDate` y después de él, no se acepta una nueva entrega definitiva.
-9. Solo quien inició una ejecución puede consultar su estado y su reporte. Las autorizaciones administrativas basadas en scopes se definirán posteriormente.
+9. Quien inició una ejecución puede consultar su estado y reporte; en una entrega definitiva también puede hacerlo el propietario del grupo.
+
+### Actualización, retiro y evaluación docente
+
+1. Una entrega actual debe retirarse explícitamente antes de entregar una nueva versión.
+2. El retiro solo se permite antes de `closeDate`; conserva código, resultados e historial.
+3. La retroalimentación pertenece a la combinación tarea-estudiante, admite múltiples comentarios y no se edita. El profesor puede eliminarla lógicamente y publicar otra.
+4. La calificación pertenece a la combinación tarea-estudiante, inicia como borrador y solo es visible al estudiante después de devolverla.
+5. Una nueva entrega, un cambio activo de casos de prueba o un cambio de `maxPoints` elimina la calificación actual y conserva el evento en el historial.
+6. Cambiar únicamente la solución de referencia exige validación contra los casos activos, pero no reejecuta entregas ni notifica estudiantes.
+7. Un cambio de casos de prueba se publica únicamente cuando la solución de referencia completa todos los casos correctamente; un fallo conserva intacta la revisión activa.
+8. Al publicar una revisión de casos, se reejecuta únicamente la entrega actual no retirada de cada estudiante.
 
 ### Clonación
 
@@ -425,8 +436,15 @@ Propietario (User autorizado con CREATE_GROUP)
 | Solicitar ejecución | `POST /api/execution/check` |
 | Consultar ejecución | `GET /api/execution/check/{id}` |
 | Consultar reporte | `GET /api/execution/check/{id}/report` |
+| Actualizar tarea | `PATCH /api/assignments/{id}` |
+| Consultar actualización | `GET /api/assignments/updates/{updateId}` |
+| Retirar entrega | `POST /api/submissions/{submissionId}/withdraw` |
+| Consultar libro de entregas | `GET /api/assignments/{id}/student-work` |
+| Publicar/listar retroalimentación | `POST`, `GET /api/assignments/{id}/students/{studentId}/feedback` |
+| Eliminar retroalimentación | `DELETE /api/assignments/feedback/{feedbackId}` |
+| Guardar/devolver calificación | `PUT /api/assignments/{id}/students/{studentId}/grade`, `POST .../grade/return` |
 
 ## Pendiente de definir
 
 - Las excepciones de autorización para administradores se implementarán cuando estén definidos los scopes administrativos y sus acciones concretas.
-- La evaluación de cuál entrega debe considerarse para calificación final (por ejemplo, última, mejor o seleccionada por profesor) no forma parte de esta implementación. Actualmente se conserva cada entrega y la más reciente puede obtenerse por fecha de creación.
+- Los futuros permisos administrativos sobre entregas y calificaciones deben definirse mediante scopes concretos; actualmente solo el propietario del grupo puede evaluarlas.

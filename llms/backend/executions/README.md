@@ -31,6 +31,20 @@ Primary classes:
 
 The API returns 202 Accepted immediately — output generation is asynchronous.
 
+## Assignment Update Flow
+
+- Metadata-only changes apply immediately and notify active students when the
+  assignment was already published.
+- Reference-only changes are staged and run against the active tests. They are
+  activated only when every output remains comparator-equivalent; they do not
+  re-evaluate submissions or notify students.
+- Test changes create an inactive complete test-suite revision. The proposed
+  reference solution generates all expected outputs. Failure rejects the whole
+  update; success atomically promotes metadata/reference/tests, clears grades,
+  and re-evaluates each current non-withdrawn submission.
+- Worker results carry update and revision IDs. Stale or mismatched results
+  cannot activate a revision.
+
 ## Request-to-Queue Flow (Student Execution)
 1. Client sends ExecutionRequest to `POST /api/execution/check`.
 2. Controller validates and delegates to ExecutionRequestService.
@@ -49,7 +63,8 @@ The API returns 202 Accepted immediately — output generation is asynchronous.
 4. Status, timeMs, and memoryMb are updated in the executions table.
 5. Client retrieves updated status via `GET /api/execution/check/{id}`.
 6. Client retrieves the full per-test-case report via `GET /api/execution/check/{id}/report`.
-   - Fetches `report.json` from MinIO at `test-execution/execution-{id}/output/report.json`.
+   - Fetches `report.json` from MinIO at `executions/{id}/report.json` or the
+     corresponding practice-execution path.
    - Returns 404 with a clear message when execution is still PENDING.
    - Deserializes into `ExecutionReport` using Jackson ObjectMapper.
 
@@ -80,8 +95,8 @@ PRACTICE mode:
 
 DEFINITIVE mode:
 - No reference solution path needed (outputs already in MinIO).
-- numTests counted from TestCaseRepository.
-- testsPath from ObjectKeyBuilder.testsPath(assignmentId).
+- Carries ordered test-case UUIDs and complete input/expected-output/artifact
+  keys. The worker treats these paths as opaque.
 
 ## Storage Keys and Artifacts
 Object paths are generated through ObjectKeyBuilder (utils/ObjectKeyBuilder.java).

@@ -27,7 +27,9 @@ import com.github.codehive.model.entity.Assignment;
 import com.github.codehive.model.entity.AssignmentExample;
 import com.github.codehive.model.entity.ClassGroup;
 import com.github.codehive.model.entity.ReferenceSolution;
+import com.github.codehive.model.entity.ReferenceSolutionRevision;
 import com.github.codehive.model.entity.TestCase;
+import com.github.codehive.model.entity.TestSuiteRevision;
 import com.github.codehive.model.entity.User;
 import com.github.codehive.model.enums.AssignmentValidationStatus;
 import com.github.codehive.model.enums.EnrollmentStatus;
@@ -41,7 +43,9 @@ import com.github.codehive.model.request.assignment.CreateAssignmentRequest;
 import com.github.codehive.repository.AssignmentRepository;
 import com.github.codehive.repository.GroupEnrollmentRepository;
 import com.github.codehive.repository.ReferenceSolutionRepository;
+import com.github.codehive.repository.ReferenceSolutionRevisionRepository;
 import com.github.codehive.repository.TestCaseRepository;
+import com.github.codehive.repository.TestSuiteRevisionRepository;
 import com.github.codehive.repository.UserRepository;
 import com.github.codehive.utils.FileExtensionUtil;
 import com.github.codehive.utils.ObjectKeyBuilder;
@@ -53,6 +57,8 @@ public class AssignmentService {
     private final AssignmentRepository assignmentRepository;
     private final TestCaseRepository testCaseRepository;
     private final ReferenceSolutionRepository referenceSolutionRepository;
+    private final ReferenceSolutionRevisionRepository referenceSolutionRevisionRepository;
+    private final TestSuiteRevisionRepository testSuiteRevisionRepository;
     private final ObjectStorageService objectStorageService;
     private final TestGenerationRequestProducer testGenerationRequestProducer;
     private final UserRepository userRepository;
@@ -61,6 +67,8 @@ public class AssignmentService {
 
     public AssignmentService(AssignmentRepository assignmentRepository, TestCaseRepository testCaseRepository,
                              ReferenceSolutionRepository referenceSolutionRepository,
+                             ReferenceSolutionRevisionRepository referenceSolutionRevisionRepository,
+                             TestSuiteRevisionRepository testSuiteRevisionRepository,
                              ObjectStorageService objectStorageService,
                              TestGenerationRequestProducer testGenerationRequestProducer,
                              UserRepository userRepository, GroupEnrollmentRepository enrollmentRepository,
@@ -68,6 +76,8 @@ public class AssignmentService {
         this.assignmentRepository = assignmentRepository;
         this.testCaseRepository = testCaseRepository;
         this.referenceSolutionRepository = referenceSolutionRepository;
+        this.referenceSolutionRevisionRepository = referenceSolutionRevisionRepository;
+        this.testSuiteRevisionRepository = testSuiteRevisionRepository;
         this.objectStorageService = objectStorageService;
         this.testGenerationRequestProducer = testGenerationRequestProducer;
         this.userRepository = userRepository;
@@ -94,11 +104,18 @@ public class AssignmentService {
         authorizeRead(assignment, user);
         AssignmentDTO dto = AssignmentMapper.toDTO(assignment);
 
-        List<TestCase> samples = testCaseRepository.findByAssignmentIdAndIsSample(id, true).stream()
+        List<TestCase> sampleEntities = assignment.getActiveTestSuiteRevision() != null
+                ? testCaseRepository.findByTestSuiteRevisionIdAndIsSampleOrderByOrderAsc(
+                        assignment.getActiveTestSuiteRevision().getId(), true)
+                : testCaseRepository.findByAssignmentIdAndIsSample(id, true);
+        List<TestCase> samples = sampleEntities.stream()
                 .sorted(Comparator.comparing(TestCase::getOrder)).toList();
         List<SampleTestCaseDTO> sampleDTOs = new ArrayList<>();
         for (TestCase tc : samples) {
-            try (InputStream stream = objectStorageService.download(ObjectKeyBuilder.testCaseInput(id, tc.getId()))) {
+            String inputKey = tc.getTestSuiteRevision() != null
+                    ? ObjectKeyBuilder.testCaseInput(id, tc.getTestSuiteRevision().getId(), tc.getId())
+                    : ObjectKeyBuilder.testCaseInput(id, tc.getId());
+            try (InputStream stream = objectStorageService.download(inputKey)) {
                 sampleDTOs.add(new SampleTestCaseDTO(tc.getOrder(),
                         new String(stream.readAllBytes(), StandardCharsets.UTF_8)));
             } catch (Exception exception) {
@@ -125,12 +142,26 @@ public class AssignmentService {
 
         ReferenceSolution reference = referenceSolutionRepository.save(
                 new ReferenceSolution(assignment, request.getReferenceLanguage()));
+        ReferenceSolutionRevision referenceRevision = new ReferenceSolutionRevision();
+        referenceRevision.setAssignment(assignment);
+        referenceRevision.setLanguage(request.getReferenceLanguage());
+        referenceRevision.setObjectKey("pending");
+        referenceRevision = referenceSolutionRevisionRepository.save(referenceRevision);
         String extension = FileExtensionUtil.getFileExtensionByLanguage(reference.getLanguage());
-        String referencePath = ObjectKeyBuilder.referenceSolutionSourceCode(assignment.getId(), extension);
+        String referencePath = ObjectKeyBuilder.referenceSolutionSourceCode(
+                assignment.getId(), referenceRevision.getId(), extension);
+        referenceRevision.setObjectKey(referencePath);
         uploadMultipartFile(referencePath, referenceSolutionFile);
 
-        List<TestCaseInfo> testCaseInfos = persistTestCases(assignment, testCaseInputFiles, request.getSampleFlags());
-        publishGeneration(assignment, referencePath, reference.getLanguage(), testCaseInfos);
+        TestSuiteRevision testSuiteRevision = new TestSuiteRevision();
+        testSuiteRevision.setAssignment(assignment);
+        testSuiteRevision.setReferenceSolutionRevision(referenceRevision);
+        testSuiteRevision.setRevisionNumber(1);
+        testSuiteRevision = testSuiteRevisionRepository.save(testSuiteRevision);
+
+        List<TestCaseInfo> testCaseInfos = persistTestCases(
+                assignment, testSuiteRevision, testCaseInputFiles, request.getSampleFlags());
+        publishGeneration(assignment, testSuiteRevision, referenceRevision, testCaseInfos, null);
         return AssignmentMapper.toDTO(assignment);
     }
 
@@ -158,6 +189,7 @@ public class AssignmentService {
         clone.setLaunchDate(request.getLaunchDate());
         clone.setDueDate(request.getDueDate());
         clone.setCloseDate(request.getCloseDate());
+        clone.setMaxPoints(source.getMaxPoints());
         clone.setValidationStatus(AssignmentValidationStatus.PROCESSING);
         List<AssignmentExample> sourceExamples = source.getExamples().stream()
                 .sorted(Comparator.comparing(AssignmentExample::getOrder)).toList();
@@ -170,21 +202,47 @@ public class AssignmentService {
         ReferenceSolution sourceReference = referenceSolutionRepository.findByAssignmentId(sourceId).stream().findFirst()
                 .orElseThrow(() -> new EntityNotFoundException("Source assignment has no reference solution"));
         referenceSolutionRepository.save(new ReferenceSolution(clone, sourceReference.getLanguage()));
+        ReferenceSolutionRevision cloneReferenceRevision = new ReferenceSolutionRevision();
+        cloneReferenceRevision.setAssignment(clone);
+        cloneReferenceRevision.setLanguage(sourceReference.getLanguage());
+        cloneReferenceRevision.setObjectKey("pending");
+        cloneReferenceRevision = referenceSolutionRevisionRepository.save(cloneReferenceRevision);
         String extension = FileExtensionUtil.getFileExtensionByLanguage(sourceReference.getLanguage());
-        String sourceReferencePath = ObjectKeyBuilder.referenceSolutionSourceCode(sourceId, extension);
-        String cloneReferencePath = ObjectKeyBuilder.referenceSolutionSourceCode(clone.getId(), extension);
+        String sourceReferencePath = source.getActiveReferenceSolutionRevision() != null
+                ? source.getActiveReferenceSolutionRevision().getObjectKey()
+                : ObjectKeyBuilder.referenceSolutionSourceCode(sourceId, extension);
+        String cloneReferencePath = ObjectKeyBuilder.referenceSolutionSourceCode(
+                clone.getId(), cloneReferenceRevision.getId(), extension);
+        cloneReferenceRevision.setObjectKey(cloneReferencePath);
         copyTextObject(sourceReferencePath, cloneReferencePath);
 
+        TestSuiteRevision cloneTestSuiteRevision = new TestSuiteRevision();
+        cloneTestSuiteRevision.setAssignment(clone);
+        cloneTestSuiteRevision.setReferenceSolutionRevision(cloneReferenceRevision);
+        cloneTestSuiteRevision.setRevisionNumber(1);
+        cloneTestSuiteRevision = testSuiteRevisionRepository.save(cloneTestSuiteRevision);
+
         List<TestCaseInfo> infos = new ArrayList<>();
-        for (TestCase sourceCase : testCaseRepository.findByAssignmentIdOrderByOrderAsc(sourceId)) {
+        List<TestCase> sourceCases = source.getActiveTestSuiteRevision() != null
+                ? testCaseRepository.findByTestSuiteRevisionIdOrderByOrderAsc(
+                        source.getActiveTestSuiteRevision().getId())
+                : testCaseRepository.findByAssignmentIdOrderByOrderAsc(sourceId);
+        for (TestCase sourceCase : sourceCases) {
             TestCase clonedCase = testCaseRepository.save(
                     new TestCase(clone, sourceCase.getOrder(), sourceCase.getIsSample()));
-            String input = ObjectKeyBuilder.testCaseInput(clone.getId(), clonedCase.getId());
-            String output = ObjectKeyBuilder.testCaseOutput(clone.getId(), clonedCase.getId());
-            copyTextObject(ObjectKeyBuilder.testCaseInput(sourceId, sourceCase.getId()), input);
+            clonedCase.setTestSuiteRevision(cloneTestSuiteRevision);
+            String input = ObjectKeyBuilder.testCaseInput(
+                    clone.getId(), cloneTestSuiteRevision.getId(), clonedCase.getId());
+            String output = ObjectKeyBuilder.testCaseExpectedOutput(
+                    clone.getId(), cloneTestSuiteRevision.getId(), clonedCase.getId());
+            String sourceInput = sourceCase.getTestSuiteRevision() != null
+                    ? ObjectKeyBuilder.testCaseInput(
+                            sourceId, sourceCase.getTestSuiteRevision().getId(), sourceCase.getId())
+                    : ObjectKeyBuilder.testCaseInput(sourceId, sourceCase.getId());
+            copyTextObject(sourceInput, input);
             infos.add(new TestCaseInfo(clonedCase.getId(), input, output));
         }
-        publishGeneration(clone, cloneReferencePath, sourceReference.getLanguage(), infos);
+        publishGeneration(clone, cloneTestSuiteRevision, cloneReferenceRevision, infos, null);
         return AssignmentMapper.toDTO(clone);
     }
 
@@ -212,6 +270,8 @@ public class AssignmentService {
         assignment.setCloseDate(request.getCloseDate());
         assignment.setIsActive(true);
         assignment.setValidationStatus(AssignmentValidationStatus.PROCESSING);
+        assignment.setMaxPoints(request.getMaxPoints() != null
+                ? request.getMaxPoints() : new java.math.BigDecimal("100.00"));
         return assignment;
     }
 
@@ -224,26 +284,36 @@ public class AssignmentService {
         }
     }
 
-    private List<TestCaseInfo> persistTestCases(Assignment assignment, List<MultipartFile> files,
+    private List<TestCaseInfo> persistTestCases(Assignment assignment, TestSuiteRevision revision,
+                                                List<MultipartFile> files,
                                                 List<Boolean> sampleFlags) {
         List<TestCaseInfo> infos = new ArrayList<>();
         for (int index = 0; index < files.size(); index++) {
             boolean sample = sampleFlags != null && index < sampleFlags.size()
                     && Boolean.TRUE.equals(sampleFlags.get(index));
             TestCase testCase = testCaseRepository.save(new TestCase(assignment, index + 1, sample));
-            String inputPath = ObjectKeyBuilder.testCaseInput(assignment.getId(), testCase.getId());
-            String outputPath = ObjectKeyBuilder.testCaseOutput(assignment.getId(), testCase.getId());
+            testCase.setTestSuiteRevision(revision);
+            String inputPath = ObjectKeyBuilder.testCaseInput(
+                    assignment.getId(), revision.getId(), testCase.getId());
+            String outputPath = ObjectKeyBuilder.testCaseExpectedOutput(
+                    assignment.getId(), revision.getId(), testCase.getId());
             uploadMultipartFile(inputPath, files.get(index));
             infos.add(new TestCaseInfo(testCase.getId(), inputPath, outputPath));
         }
         return infos;
     }
 
-    private void publishGeneration(Assignment assignment, String referencePath,
-                                   com.github.codehive.model.enums.Language referenceLanguage,
-                                   List<TestCaseInfo> infos) {
-        testGenerationRequestProducer.sendTestGenerationRequest(new TestGenerationJob(assignment.getId(),
-                referencePath, referenceLanguage, infos, assignment.getTimeLimitMs(), assignment.getMemoryLimitMb()));
+    private void publishGeneration(Assignment assignment, TestSuiteRevision testSuiteRevision,
+                                   ReferenceSolutionRevision referenceRevision,
+                                   List<TestCaseInfo> infos, UUID assignmentUpdateId) {
+        TestGenerationJob job = new TestGenerationJob(assignment.getId(),
+                referenceRevision.getObjectKey(), referenceRevision.getLanguage(), infos,
+                assignment.getTimeLimitMs(), assignment.getMemoryLimitMb());
+        job.setAssignmentUpdateId(assignmentUpdateId);
+        job.setTestSuiteRevisionId(testSuiteRevision != null ? testSuiteRevision.getId() : null);
+        job.setReferenceSolutionRevisionId(referenceRevision.getId());
+        job.setComparatorType(assignment.getComparatorType());
+        testGenerationRequestProducer.sendTestGenerationRequest(job);
     }
 
     private void authorizeRead(Assignment assignment, User user) {

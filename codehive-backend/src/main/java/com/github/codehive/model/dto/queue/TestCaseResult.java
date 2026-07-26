@@ -1,8 +1,11 @@
 package com.github.codehive.model.dto.queue;
 
+import java.util.UUID;
+
 import com.github.codehive.model.enums.ExecutionStatus;
 
 public class TestCaseResult {
+    private UUID testCaseId;
     private int testCaseNumber;
     private ExecutionStatus status;
     private Long executionTimeMs;
@@ -21,6 +24,9 @@ public class TestCaseResult {
         this.executionTimeMs = executionTimeMs;
         this.memoryUsedMb = memoryUsedMb;
     }
+
+    public UUID getTestCaseId() { return testCaseId; }
+    public void setTestCaseId(UUID testCaseId) { this.testCaseId = testCaseId; }
 
     public int getTestCaseNumber() {
         return testCaseNumber;

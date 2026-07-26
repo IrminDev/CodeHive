@@ -137,6 +137,13 @@ npm run dev
 
 Available at: http://localhost:3000
 
+### Testing without the frontend
+
+Use the [manual API testing guide](docs/api-testing/README.md) to exercise the
+core workflow with Postman or another API client. It covers authentication,
+groups, assignment creation and updates, executions, withdrawal and
+resubmission, feedback, grades, and negative scenarios.
+
 ## API Reference
 
 ### Authentication

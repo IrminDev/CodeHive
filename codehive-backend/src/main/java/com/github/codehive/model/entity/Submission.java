@@ -4,6 +4,8 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 import com.github.codehive.model.enums.Language;
+import com.github.codehive.model.enums.SubmissionStatus;
+import java.time.Instant;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -41,6 +43,19 @@ public class Submission {
 
     @Column(nullable = false)
     private Boolean deliveredLate;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "student_work_id")
+    private StudentAssignmentWork studentWork;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private SubmissionStatus status = SubmissionStatus.SUBMITTED;
+
+    private Instant withdrawnAt;
+
+    @Column(length = 700)
+    private String sourceCodeKey;
 
     public Submission() {
         this.createdAt = LocalDateTime.now();
@@ -95,4 +110,13 @@ public class Submission {
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
     }
+
+    public StudentAssignmentWork getStudentWork() { return studentWork; }
+    public void setStudentWork(StudentAssignmentWork studentWork) { this.studentWork = studentWork; }
+    public SubmissionStatus getStatus() { return status; }
+    public void setStatus(SubmissionStatus status) { this.status = status; }
+    public Instant getWithdrawnAt() { return withdrawnAt; }
+    public void setWithdrawnAt(Instant withdrawnAt) { this.withdrawnAt = withdrawnAt; }
+    public String getSourceCodeKey() { return sourceCodeKey; }
+    public void setSourceCodeKey(String sourceCodeKey) { this.sourceCodeKey = sourceCodeKey; }
 }

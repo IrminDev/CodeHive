@@ -57,6 +57,27 @@ File: model/entity/Submission.java
 - deliveredLate is fixed when a definitive delivery is created
 - language: enum string (non-null)
 - createdAt initialized in constructor
+- Belongs to one `StudentAssignmentWork` aggregate.
+- Status is `SUBMITTED`, `WITHDRAWN`, or `SUPERSEDED`; withdrawal preserves history.
+- Source code has a permanent submission-scoped object key.
+
+### Student assignment work, feedback, and grade
+
+- `StudentAssignmentWork` is unique per `(assignment, student)` and selects the
+  current submission.
+- Feedback belongs to student work, not a submission. It can be published or
+  logically deleted, but never edited.
+- `AssignmentGrade` is a draft until returned. Grade history records updates,
+  returns, and clearing caused by resubmission, max-point changes, or test changes.
+- A new submission, a promoted test-suite revision, or a max-points change
+  clears the current grade while retaining its audit history.
+
+### Assignment revisions
+
+- Reference solutions and test suites are immutable revisions.
+- `Assignment` points to the active reference and test-suite revisions.
+- `AssignmentUpdate` stages a proposal until asynchronous validation succeeds.
+- `ReevaluationBatch` tracks fan-out executions for a promoted test revision.
 
 ### Execution
 File: model/entity/Execution.java
@@ -77,6 +98,13 @@ File: model/entity/ReferenceSolution.java
 - assignment relation required
 - language: enum required
 - one ReferenceSolution per assignment per language; stored in MinIO at ObjectKeyBuilder.referenceSolutionSourceCode
+
+### Notification preferences
+
+- `UserNotificationSettings` stores the global email switch, IANA timezone, and locale.
+- `UserNotificationPreference` stores sparse per-type overrides with a unique `(user_id, notification_type)` constraint.
+- `NotificationDispatchLog` stores deterministic keys only for scheduled notification deduplication; RabbitMQ stores pending work.
+- `NotificationType` declares the intended role, whether the type is a reminder, and its default lead time.
 
 ## Request Contract Structure
 Request classes live under model/request grouped by domain:

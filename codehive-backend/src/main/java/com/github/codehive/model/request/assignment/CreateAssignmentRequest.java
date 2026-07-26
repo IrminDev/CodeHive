@@ -3,6 +3,7 @@ package com.github.codehive.model.request.assignment;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import java.math.BigDecimal;
 
 import com.github.codehive.model.enums.ComparatorType;
 import com.github.codehive.model.enums.Language;
@@ -12,6 +13,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.DecimalMin;
 
 public class CreateAssignmentRequest {
 
@@ -55,6 +57,9 @@ public class CreateAssignmentRequest {
     // Parallel list indicating whether each uploaded test case input is a sample.
     // If null or shorter than the number of uploaded files, remaining cases default to non-sample.
     private List<Boolean> sampleFlags;
+
+    @DecimalMin(value = "0.01", message = "Max points must be greater than zero")
+    private BigDecimal maxPoints = new BigDecimal("100.00");
 
     public String getTitle() {
         return title;
@@ -160,4 +165,7 @@ public class CreateAssignmentRequest {
     public void setSampleFlags(List<Boolean> sampleFlags) {
         this.sampleFlags = sampleFlags;
     }
+
+    public BigDecimal getMaxPoints() { return maxPoints; }
+    public void setMaxPoints(BigDecimal maxPoints) { this.maxPoints = maxPoints; }
 }

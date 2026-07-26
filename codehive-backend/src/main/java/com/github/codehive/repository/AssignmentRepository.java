@@ -40,4 +40,22 @@ public interface AssignmentRepository extends JpaRepository<Assignment, UUID> {
     Page<Assignment> findStudentVisible(@Param("groupId") UUID groupId,
                                         @Param("status") AssignmentValidationStatus status,
                                         @Param("now") Instant now, Pageable pageable);
+
+    @Query("""
+            select a from Assignment a
+            where a.isActive = true and a.validationStatus = :status
+              and a.group.isActive = true and a.group.archived = false
+            """)
+    List<Assignment> findReadyActiveForNotifications(@Param("status") AssignmentValidationStatus status);
+
+    @Query("""
+            select a from Assignment a
+            where a.isActive = true and a.validationStatus = :status
+              and a.group.isActive = true and a.group.archived = false
+              and ((a.dueDate is not null and a.dueDate > :now and a.dueDate <= :maximum)
+                or (a.closeDate is not null and a.closeDate > :now and a.closeDate <= :maximum))
+            """)
+    List<Assignment> findReminderCandidates(@Param("status") AssignmentValidationStatus status,
+                                            @Param("now") Instant now,
+                                            @Param("maximum") Instant maximum);
 }

@@ -110,7 +110,8 @@ Key dependencies:
 - ObjectStorageService, ExecutionRequestProducer, UserRepository, ObjectMapper
 
 PRACTICE mode: uses inline testCases, resolves reference solution from DB.
-DEFINITIVE mode: numTests counted from TestCaseRepository, no reference solution needed at runtime.
+DEFINITIVE mode: ordered test cases and complete object keys come from the
+active test-suite revision; no reference solution is needed at runtime.
 
 ## ExecutionResultService
 Responsibilities:

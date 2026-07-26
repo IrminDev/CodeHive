@@ -22,6 +22,10 @@ public class TestCase {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "assignment_id", nullable = false)
     private Assignment assignment;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "test_suite_revision_id")
+    private TestSuiteRevision testSuiteRevision;
     
     @Column(nullable = false, name = "order_index")
     private Integer order;
@@ -55,6 +59,9 @@ public class TestCase {
     public void setAssignment(Assignment assignment) {
         this.assignment = assignment;
     }
+
+    public TestSuiteRevision getTestSuiteRevision() { return testSuiteRevision; }
+    public void setTestSuiteRevision(TestSuiteRevision revision) { this.testSuiteRevision = revision; }
 
     public Integer getOrder() {
         return order;

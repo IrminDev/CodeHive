@@ -31,6 +31,9 @@ All queues are durable. Jackson JSON message conversion is applied globally.
 Error path: if execution throws unexpectedly, listener builds a fallback ExecutionReport with `overallStatus = RTE` and still publishes it.
 
 Incoming payload: `model/dto/queue/ExecutionJob`
+- Contains an ordered list of opaque-path `ExecutionTestCaseInfo` entries.
+- Contains `reportPath`, optional `testSuiteRevisionId`, and execution trigger.
+- Does not contain a test-suite prefix or require worker-side path construction.
 
 ### Producer — ExecutionResultProducer
 Publishes ExecutionReport to `codehive_result_queue`.
@@ -49,12 +52,15 @@ Error path: uncaught exceptions produce a failed TestGenerationResult (success=f
 Incoming payload: `model/dto/queue/TestGenerationJob`
 - Contains `referenceSolutionPath`, `referenceLanguage`, `timeLimitMs`, `memoryLimitMb`
 - Contains `List<TestCaseInfo>` — each with `testCaseId`, `inputPath`, `outputPath`
+- Carries assignment-update, test-suite-revision, and reference-revision correlation IDs.
+- Reference compatibility jobs additionally carry `baselineOutputPath`.
 
 ### Producer — TestGenerationResultProducer
 Publishes TestGenerationResult to `codehive_test_generation_result_queue`.
 
 Outgoing payload: `model/dto/queue/TestGenerationResult`
 - `assignmentId`, `success`, `generatedCount`, `errorMessage`
+- Echoes all revision/update correlation IDs so the backend can reject stale results.
 
 ## Operational Notes
 - Backend and worker must share queue names and compatible DTO schemas — both projects maintain mirrored copies of queue DTOs.

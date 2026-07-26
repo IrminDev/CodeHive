@@ -31,6 +31,11 @@ public class AssignmentMapper {
         dto.setAllowedLanguages(assignment.getAllowedLanguages());
         dto.setIsActive(assignment.getIsActive());
         dto.setValidationStatus(assignment.getValidationStatus());
+        dto.setMaxPoints(assignment.getMaxPoints());
+        dto.setActiveTestSuiteRevisionId(assignment.getActiveTestSuiteRevision() != null
+                ? assignment.getActiveTestSuiteRevision().getId() : null);
+        dto.setActiveReferenceSolutionRevisionId(assignment.getActiveReferenceSolutionRevision() != null
+                ? assignment.getActiveReferenceSolutionRevision().getId() : null);
         dto.setExamples(assignment.getExamples().stream().map(example -> {
             AssignmentExampleDTO result = new AssignmentExampleDTO();
             result.setId(example.getId());
@@ -65,6 +70,7 @@ public class AssignmentMapper {
         assignment.setAllowedLanguages(dto.getAllowedLanguages());
         assignment.setIsActive(dto.getIsActive());
         assignment.setValidationStatus(dto.getValidationStatus());
+        assignment.setMaxPoints(dto.getMaxPoints());
         return assignment;
     }
 

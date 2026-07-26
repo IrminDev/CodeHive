@@ -36,6 +36,9 @@ public class TestGenerationRequestListener {
                     job.getAssignmentId(), e);
             result = new TestGenerationResult(job.getAssignmentId(), false, 0,
                     "Unexpected error: " + e.getMessage());
+            result.setAssignmentUpdateId(job.getAssignmentUpdateId());
+            result.setTestSuiteRevisionId(job.getTestSuiteRevisionId());
+            result.setReferenceSolutionRevisionId(job.getReferenceSolutionRevisionId());
         }
 
         testGenerationResultProducer.sendTestGenerationResult(result);

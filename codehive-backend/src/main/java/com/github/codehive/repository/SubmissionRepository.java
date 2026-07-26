@@ -24,4 +24,6 @@ public interface SubmissionRepository extends JpaRepository<Submission, UUID> {
     long countByAssignmentId(UUID assignmentId);
 
     List<Submission> findByAssignmentAndStudentOrderByCreatedAtDesc(Assignment assignment, User student);
+
+    boolean existsByAssignmentIdAndStudentId(UUID assignmentId, UUID studentId);
 }

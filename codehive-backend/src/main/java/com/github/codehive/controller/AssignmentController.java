@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -24,12 +25,16 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.github.codehive.model.dto.AssignmentDTO;
+import com.github.codehive.model.dto.AssignmentUpdateDTO;
 import com.github.codehive.model.request.assignment.CreateAssignmentRequest;
 import com.github.codehive.model.request.assignment.CloneAssignmentRequest;
+import com.github.codehive.model.request.assignment.UpdateAssignmentRequest;
 import com.github.codehive.model.response.ErrorResponse;
 import com.github.codehive.model.response.PageResponse;
 import com.github.codehive.model.response.SuccessResponse;
 import com.github.codehive.service.AssignmentService;
+import com.github.codehive.service.AssignmentUpdateService;
+import com.github.codehive.model.enums.AssignmentUpdateStatus;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -46,9 +51,46 @@ public class AssignmentController {
     private static final Logger logger = LoggerFactory.getLogger(AssignmentController.class);
 
     private final AssignmentService assignmentService;
+    private final AssignmentUpdateService assignmentUpdateService;
 
-    public AssignmentController(AssignmentService assignmentService) {
+    public AssignmentController(AssignmentService assignmentService,
+                                AssignmentUpdateService assignmentUpdateService) {
         this.assignmentService = assignmentService;
+        this.assignmentUpdateService = assignmentUpdateService;
+    }
+
+    @PatchMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAuthority('TEACHER')")
+    @Operation(summary = "Update assignment metadata, reference solution, or test suite")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Metadata updated immediately"),
+            @ApiResponse(responseCode = "202", description = "Reference or test changes queued for validation")
+    })
+    public ResponseEntity<SuccessResponse<AssignmentUpdateDTO>> updateAssignment(
+            @PathVariable UUID id,
+            @Valid @RequestPart("metadata") UpdateAssignmentRequest metadata,
+            @RequestPart(value = "referenceSolution", required = false) MultipartFile referenceSolution,
+            @RequestPart(value = "testCaseInputs", required = false) List<MultipartFile> testCaseInputs,
+            Authentication authentication) {
+        AssignmentUpdateDTO update = assignmentUpdateService.update(
+                id, metadata, referenceSolution, testCaseInputs, authentication.getName());
+        HttpStatus status = update.status() == AssignmentUpdateStatus.VALIDATING
+                ? HttpStatus.ACCEPTED : HttpStatus.OK;
+        return ResponseEntity.status(status).body(new SuccessResponse<>(
+                update.status() == AssignmentUpdateStatus.VALIDATING
+                        ? "Assignment update is being validated."
+                        : "Assignment updated successfully.",
+                update));
+    }
+
+    @GetMapping("/updates/{updateId}")
+    @PreAuthorize("hasAuthority('TEACHER')")
+    @Operation(summary = "Get staged assignment update status")
+    @ApiResponse(responseCode = "200", description = "Assignment update retrieved")
+    public ResponseEntity<SuccessResponse<AssignmentUpdateDTO>> getAssignmentUpdate(
+            @PathVariable UUID updateId, Authentication authentication) {
+        return ResponseEntity.ok(new SuccessResponse<>("Assignment update retrieved.",
+                assignmentUpdateService.get(updateId, authentication.getName())));
     }
 
     @Operation(summary = "List assignments (paginated)",

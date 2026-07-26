@@ -22,12 +22,16 @@ Primary classes:
 ### Execution Modes
 
 DEFINITIVE:
-- Uses `testsPath` and `numTests` from ExecutionJob.
+- Uses the ordered `testCases` entries from `ExecutionJob`.
 - For each test case:
-  - download input (`{testsPath}tc-{n}/tc-{n}.in`)
-  - download expected output (`{testsPath}tc-{n}/tc-{n}.out`)
+  - download the exact `inputPath`
+  - download the exact `expectedOutputPath`
   - execute submission with input
   - compare outputs via OutputComparatorService
+  - upload stdout/stderr to the exact paths supplied by the backend
+
+The worker never reconstructs MinIO keys. Definitive results retain both the
+stable test-case UUID and its display order.
 
 PRACTICE:
 - Uses inline `testCases` list from ExecutionJob.
@@ -48,6 +52,10 @@ Triggered by TestGenerationJob after a teacher creates an assignment.
 4. Return TestGenerationResult:
    - `success = true`, `generatedCount = N` if all outputs were produced.
    - `success = false` with error message and partial count on any failure.
+
+Reference-only assignment changes use compatibility validation. The candidate
+reference runs against every active input and its result is compared with the
+active expected output. Any observable difference rejects the candidate.
 
 ## Compilation Gate
 Both services perform a compile check before the main execution loop.
