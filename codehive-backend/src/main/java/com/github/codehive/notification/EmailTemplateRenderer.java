@@ -3,6 +3,7 @@ package com.github.codehive.notification;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.thymeleaf.TemplateEngine;
@@ -13,8 +14,9 @@ public class EmailTemplateRenderer {
     private final TemplateEngine templateEngine;
     private final String frontendUrl;
 
-    public EmailTemplateRenderer(TemplateEngine templateEngine,
-                                 @Value("${frontend.url}") String frontendUrl) {
+    public EmailTemplateRenderer(
+            @Qualifier("emailTemplateEngine") TemplateEngine templateEngine,
+            @Value("${frontend.url}") String frontendUrl) {
         this.templateEngine = templateEngine;
         this.frontendUrl = frontendUrl;
     }

@@ -2,7 +2,6 @@ package com.github.codehive.model.request.admin;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 public class UpdateUserRequest {
@@ -13,8 +12,7 @@ public class UpdateUserRequest {
     private String lastName;
 
     @NotBlank
-    @Pattern(regexp = "^(199[4-9]|[2-9]\\d{3})630\\d{3}$",
-            message = "Enrollment number must be 10 digits: year (>=1994), followed by 630, followed by any 3 digits")
+    @Size(max = 10, message = "Enrollment number must not exceed 10 characters")
     private String enrollmentNumber;
 
     @NotBlank @Email @Size(max = 100)

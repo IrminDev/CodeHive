@@ -455,7 +455,7 @@ class AuthControllerIntegrationTest {
             signUpRequest.setName("Teacher");
             signUpRequest.setFatherLastName("Last");
             signUpRequest.setMotherLastName("Name");
-            signUpRequest.setEnrollmentNumber("2022630001");
+            signUpRequest.setEnrollmentNumber("TEA-001");
             signUpRequest.setRole(Role.TEACHER);
 
             // When/Then
@@ -466,6 +466,27 @@ class AuthControllerIntegrationTest {
                     .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.data.role").value("TEACHER"))
                     .andExpect(jsonPath("$.data.scopes[0]").value("CREATE_GROUP"));
+        }
+
+        @Test
+        @DisplayName("Rejects a staff-style enrollment number for a student")
+        void signup_StudentWithStaffEnrollment_ReturnsBadRequest() throws Exception {
+            SignUpRequest signUpRequest = new SignUpRequest();
+            signUpRequest.setEmail("invalid-student@example.com");
+            signUpRequest.setName("Invalid");
+            signUpRequest.setFatherLastName("Student");
+            signUpRequest.setMotherLastName("Number");
+            signUpRequest.setEnrollmentNumber("STU-001");
+            signUpRequest.setRole(Role.STUDENT);
+
+            mockMvc.perform(post("/api/auth/signup")
+                            .header("Authorization", "Bearer " + adminToken)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(signUpRequest)))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.error").value("Validation error"))
+                    .andExpect(jsonPath("$.message").value(
+                            "Enrollment number must be 10 digits: year (>=1994), followed by 630, followed by any 3 digits"));
         }
 
         @Test
@@ -495,7 +516,7 @@ class AuthControllerIntegrationTest {
         @DisplayName("Returns 202 with taskId for valid CSV")
         void signupCsv_WithValidCsv_ReturnsAccepted() throws Exception {
             // Given
-            String csv = "STUDENT,Juan,Garcia,Lopez,20230001,juan@example.com\n"
+            String csv = "STUDENT,Juan,Garcia,Lopez,2023630001,juan@example.com\n"
                        + "TEACHER,Maria,Hernandez,Ruiz,T00001,maria@example.com\n";
             MockMultipartFile file = new MockMultipartFile("file", "users.csv", "text/csv",
                     csv.getBytes(StandardCharsets.UTF_8));
@@ -519,7 +540,7 @@ class AuthControllerIntegrationTest {
             claims.put("role", testUser.getRole().name());
             String studentToken = jwtUtil.generateToken(claims, testUser.getEmail());
 
-            String csv = "STUDENT,Juan,Garcia,Lopez,20230001,juan@example.com\n";
+            String csv = "STUDENT,Juan,Garcia,Lopez,2023630001,juan@example.com\n";
             MockMultipartFile file = new MockMultipartFile("file", "users.csv", "text/csv",
                     csv.getBytes(StandardCharsets.UTF_8));
 
@@ -534,7 +555,7 @@ class AuthControllerIntegrationTest {
         @DisplayName("Returns 403 when unauthenticated user uploads CSV")
         void signupCsv_WithoutAuthentication_ReturnsForbidden() throws Exception {
             // Given
-            String csv = "STUDENT,Juan,Garcia,Lopez,20230001,juan@example.com\n";
+            String csv = "STUDENT,Juan,Garcia,Lopez,2023630001,juan@example.com\n";
             MockMultipartFile file = new MockMultipartFile("file", "users.csv", "text/csv",
                     csv.getBytes(StandardCharsets.UTF_8));
 
@@ -548,8 +569,8 @@ class AuthControllerIntegrationTest {
         @DisplayName("Returns 202 and processes CSV with errors asynchronously")
         void signupCsv_WithMixedRows_ReturnsAccepted() throws Exception {
             // Given
-            String csv = "STUDENT,Juan,Garcia,Lopez,20230001,juan@example.com\n"
-                       + "INVALID,Bad,Data,Row,20230002,bad@example.com\n"
+            String csv = "STUDENT,Juan,Garcia,Lopez,2023630001,juan@example.com\n"
+                       + "INVALID,Bad,Data,Row,2023630002,bad@example.com\n"
                        + "TEACHER,Maria,Hernandez,Ruiz,T00001,maria@example.com\n";
             MockMultipartFile file = new MockMultipartFile("file", "users.csv", "text/csv",
                     csv.getBytes(StandardCharsets.UTF_8));
@@ -566,7 +587,7 @@ class AuthControllerIntegrationTest {
         @DisplayName("Returns 202 for CSV with existing email")
         void signupCsv_WithExistingEmail_ReturnsAccepted() throws Exception {
             // Given
-            String csv = "STUDENT,Existing,User,Test,20230099,existing@example.com\n";
+            String csv = "STUDENT,Existing,User,Test,2023630099,existing@example.com\n";
             MockMultipartFile file = new MockMultipartFile("file", "users.csv", "text/csv",
                     csv.getBytes(StandardCharsets.UTF_8));
 

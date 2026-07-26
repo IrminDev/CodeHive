@@ -1,0 +1,37 @@
+{
+  "groupId": "00000000-0000-0000-0000-000000000001",
+  "title": "Run-length encoding",
+  "description": "Compress a non-empty lowercase string by replacing each consecutive group with its character followed by the group length.",
+  "constraints": [
+    "The string contains only lowercase English letters.",
+    "The string length is between 1 and 100000."
+  ],
+  "hints": [
+    "Track the current character and the length of its consecutive group."
+  ],
+  "tags": [
+    "strings",
+    "iteration",
+    "encoding"
+  ],
+  "timeLimitMs": 1000,
+  "memoryLimitMb": 64,
+  "comparatorType": "EXACT_MATCH",
+  "allowedLanguages": [
+    "PYTHON"
+  ],
+  "referenceLanguage": "PYTHON",
+  "sampleFlags": [
+    true,
+    false,
+    false
+  ],
+  "maxPoints": 100,
+  "examples": [
+    {
+      "input": "aaabbccccd",
+      "output": "a3b2c4d1",
+      "explanation": "The consecutive groups have lengths 3, 2, 4, and 1."
+    }
+  ]
+}

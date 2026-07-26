@@ -6,11 +6,13 @@ import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.EntityGraph;
 
 import com.github.codehive.model.entity.User;
 import com.github.codehive.model.enums.Role;
 
 public interface UserRepository extends JpaRepository<User, UUID>, JpaSpecificationExecutor<User> {
+    @EntityGraph(attributePaths = "scopes")
     Optional<User> findByEmail(String email);
     
     Optional<User> findByEnrollmentNumber(String enrollmentNumber);

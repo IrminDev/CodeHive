@@ -25,6 +25,7 @@ import com.github.codehive.model.mapper.UserMapper;
 import com.github.codehive.model.request.admin.UpdateScopesRequest;
 import com.github.codehive.model.request.admin.UpdateUserRequest;
 import com.github.codehive.repository.UserRepository;
+import com.github.codehive.utils.EnrollmentNumberRules;
 
 @Service
 public class AdminUserService {
@@ -53,6 +54,7 @@ public class AdminUserService {
         User requester = requireRequester(requesterEmail);
         User target = requireUser(id);
         requireMutationPermission(requester, target, Scope.UPDATE_USERS, Scope.UPDATE_ADMINS);
+        EnrollmentNumberRules.validate(target.getRole(), request.getEnrollmentNumber());
 
         userRepository.findByEmail(request.getEmail()).filter(user -> !user.getId().equals(id))
                 .ifPresent(user -> { throw new AlreadyRegisteredEmailException("Email is already registered"); });

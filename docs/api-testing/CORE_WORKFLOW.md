@@ -61,7 +61,7 @@ Authorization: Bearer {{adminToken}}
   "name": "API Teacher",
   "fatherLastName": "Testing",
   "motherLastName": "Guide",
-  "enrollmentNumber": "2026630001",
+  "enrollmentNumber": "TEA-001",
   "email": "{{teacherEmail}}"
 }
 ```
@@ -459,4 +459,3 @@ Save the new `executionId` and `submissionId`. Poll until terminal.
 - Submission history contains both the withdrawn and current submissions.
 
 Continue with [assignment updates and evaluation](ASSIGNMENT_UPDATES_AND_EVALUATION.md).
-

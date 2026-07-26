@@ -1,15 +1,19 @@
 package com.github.codehive.service;
 
-import org.springframework.stereotype.Service;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.stereotype.Service;
 
 import com.github.codehive.notification.EmailTemplateRenderer;
 import com.github.codehive.notification.NotificationEmailContent;
 
 @Service
 public class MailSenderService{
+    private static final Logger LOGGER = LoggerFactory.getLogger(MailSenderService.class);
 
     @Value("${frontend.url}")
     private String frontendUrl;
@@ -33,15 +37,20 @@ public class MailSenderService{
         sendMimeMessage(to, subject, rendered);
     }
 
+    @Async("welcomeEmailExecutor")
     public void sendWelcomeEmail(String to, String name, String temporaryPassword) {
-        String subject = "Welcome to CodeHive";
-        EmailTemplateRenderer.RenderedEmail rendered = templateRenderer.render(
-                "welcome", java.util.Map.of(
-                        "name", name,
-                        "email", to,
-                        "temporaryPassword", temporaryPassword,
-                        "loginUrl", frontendUrl + "/login"));
-        sendMimeMessage(to, subject, rendered);
+        try {
+            String subject = "Welcome to CodeHive";
+            EmailTemplateRenderer.RenderedEmail rendered = templateRenderer.render(
+                    "welcome", java.util.Map.of(
+                            "name", name,
+                            "email", to,
+                            "temporaryPassword", temporaryPassword,
+                            "loginUrl", frontendUrl + "/login"));
+            sendMimeMessage(to, subject, rendered);
+        } catch (RuntimeException exception) {
+            LOGGER.error("Failed to send welcome email to {}", to, exception);
+        }
     }
 
     public void sendNotificationEmail(String to, NotificationEmailContent content) {
@@ -72,7 +81,8 @@ public class MailSenderService{
     private void sendMimeMessage(String to, String subject, EmailTemplateRenderer.RenderedEmail rendered) {
         try {
             jakarta.mail.internet.MimeMessage message = javaMailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, false, java.nio.charset.StandardCharsets.UTF_8.name());
+            MimeMessageHelper helper = new MimeMessageHelper(
+                    message, true, java.nio.charset.StandardCharsets.UTF_8.name());
             helper.setTo(to);
             helper.setSubject(subject);
             helper.setFrom(fromEmail);

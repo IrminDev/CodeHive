@@ -1,0 +1,38 @@
+{
+  "groupId": "00000000-0000-0000-0000-000000000001",
+  "title": "Matrix diagonal difference",
+  "description": "Given a square integer matrix, print the absolute difference between the sums of its primary and secondary diagonals.",
+  "constraints": [
+    "The first line contains N, where 1 <= N <= 500.",
+    "The next N lines each contain N integers.",
+    "Every matrix value is between -1000000 and 1000000."
+  ],
+  "hints": [
+    "For row i, the primary diagonal uses column i and the secondary diagonal uses column N - 1 - i."
+  ],
+  "tags": [
+    "matrices",
+    "loops",
+    "arithmetic"
+  ],
+  "timeLimitMs": 1000,
+  "memoryLimitMb": 64,
+  "comparatorType": "EXACT_MATCH",
+  "allowedLanguages": [
+    "C"
+  ],
+  "referenceLanguage": "C",
+  "sampleFlags": [
+    true,
+    false,
+    false
+  ],
+  "maxPoints": 100,
+  "examples": [
+    {
+      "input": "3\n11 2 4\n4 5 6\n10 8 -12",
+      "output": "15",
+      "explanation": "The primary sum is 4 and the secondary sum is 19, so the absolute difference is 15."
+    }
+  ]
+}

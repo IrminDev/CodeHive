@@ -132,12 +132,11 @@ export function CsvUploadPage() {
             <div className="bg-gray-50 dark:bg-dark-surface rounded-xl p-4 font-mono text-sm overflow-x-auto border border-gray-200 dark:border-gray-700/50">
               <p className="text-gray-400 dark:text-gray-500 mb-2"># role, name, fatherLastName, motherLastName, enrollmentNumber, email</p>
               <p className="text-gray-700 dark:text-gray-300">STUDENT,Juan,García,López,2021630001,juan@example.com</p>
-              <p className="text-gray-700 dark:text-gray-300">TEACHER,María,Hernández,Pérez,2021630002,maria@example.com</p>
+              <p className="text-gray-700 dark:text-gray-300">TEACHER,María,Hernández,Pérez,TEA-001,maria@example.com</p>
             </div>
             <p className="text-xs text-gray-400 dark:text-gray-500 mt-3">
               Valid roles: <span className="text-azure dark:text-yellow font-medium">STUDENT</span>,{" "}
-              <span className="text-azure dark:text-yellow font-medium">TEACHER</span>,{" "}
-              <span className="text-azure dark:text-yellow font-medium">ADMIN</span>. Maximum 1500 records per upload.
+              <span className="text-azure dark:text-yellow font-medium">TEACHER</span>. Maximum 1500 records per upload.
             </p>
           </div>
         </div>

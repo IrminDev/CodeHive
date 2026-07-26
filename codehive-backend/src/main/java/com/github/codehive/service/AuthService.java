@@ -37,6 +37,7 @@ import com.github.codehive.model.request.auth.SignUpRequest;
 import com.github.codehive.model.response.auth.AuthResponse;
 import com.github.codehive.model.response.auth.CsvBulkRegisterResponse;
 import com.github.codehive.repository.UserRepository;
+import com.github.codehive.utils.EnrollmentNumberRules;
 import com.github.codehive.utils.JwtUtil;
 import com.github.codehive.utils.PasswordGenerator;
 
@@ -97,6 +98,8 @@ public class AuthService {
     @Transactional
     public UserDTO register(SignUpRequest signUpRequest) throws AlreadyRegisteredEmailException,
             AlreadyRegisteredEnrollmentNumberException {
+        EnrollmentNumberRules.validate(
+                signUpRequest.getRole(), signUpRequest.getEnrollmentNumber());
         if (userRepository.findByEmail(signUpRequest.getEmail()).isPresent()) {
             throw new AlreadyRegisteredEmailException("Email is already registered");
         }
@@ -187,6 +190,10 @@ public class AuthService {
                 if (fatherLastName.isEmpty()) rowErrors.add("father last name is empty");
                 if (motherLastName.isEmpty()) rowErrors.add("mother last name is empty");
                 if (enrollmentNumber.isEmpty()) rowErrors.add("enrollment number is empty");
+                String enrollmentError = EnrollmentNumberRules.error(role, enrollmentNumber);
+                if (!enrollmentNumber.isEmpty() && enrollmentError != null) {
+                    rowErrors.add(enrollmentError);
+                }
                 if (email.isEmpty()) rowErrors.add("email is empty");
                 if (!email.isEmpty() && !EMAIL_PATTERN.matcher(email).matches()) rowErrors.add("email is invalid");
 

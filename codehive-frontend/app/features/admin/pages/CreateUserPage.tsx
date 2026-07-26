@@ -19,6 +19,7 @@ export function CreateUserPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const studentEnrollment = role === Role.STUDENT;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -191,7 +192,18 @@ export function CreateUserPage() {
                   type="text"
                   value={enrollmentNumber}
                   onChange={(e) => setEnrollmentNumber(e.target.value)}
-                  placeholder="2021630000"
+                  placeholder={studentEnrollment ? "2026630000" : "TEA-001"}
+                  pattern={
+                    studentEnrollment
+                      ? "(199[4-9]|[2-9][0-9]{3})630[0-9]{3}"
+                      : "[A-Za-z0-9._-]{1,10}"
+                  }
+                  maxLength={10}
+                  title={
+                    studentEnrollment
+                      ? "10 digits: year (>=1994), followed by 630, followed by any 3 digits"
+                      : "Up to 10 letters, digits, hyphens, periods, or underscores"
+                  }
                   required
                   className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700
                              bg-white dark:bg-dark-surface text-gray-900 dark:text-white
@@ -199,6 +211,11 @@ export function CreateUserPage() {
                              focus:outline-none focus:ring-2 focus:ring-azure dark:focus:ring-yellow
                              focus:border-transparent transition-all duration-200"
                 />
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  {studentEnrollment
+                    ? "Format: YYYY630XXX, with year 1994 or later."
+                    : "Up to 10 letters, digits, -, ., or _."}
+                </p>
               </div>
             </div>
 

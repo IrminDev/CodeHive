@@ -89,7 +89,7 @@ class AuthServiceTest {
         signUpRequest.setName("Jane");
         signUpRequest.setFatherLastName("Smith");
         signUpRequest.setMotherLastName("Doe");
-        signUpRequest.setEnrollmentNumber("ENR002");
+        signUpRequest.setEnrollmentNumber("2023630002");
         signUpRequest.setRole(Role.STUDENT);
     }
 
@@ -308,6 +308,7 @@ class AuthServiceTest {
         void register_SetsRoleFromRequest() {
             // Given
             signUpRequest.setRole(Role.TEACHER);
+            signUpRequest.setEnrollmentNumber("TEA-002");
             when(userRepository.findByEmail(signUpRequest.getEmail())).thenReturn(Optional.empty());
             when(userRepository.findByEnrollmentNumber(signUpRequest.getEnrollmentNumber())).thenReturn(Optional.empty());
             when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
@@ -472,7 +473,7 @@ class AuthServiceTest {
         @DisplayName("Processes valid CSV and registers all users")
         void registerFromCsv_WithValidCsv_RegistersAllUsers() throws IOException {
             // Given
-            String csv = "STUDENT,Juan,Garcia,Lopez,20230001,juan@example.com\n"
+            String csv = "STUDENT,Juan,Garcia,Lopez,2023630001,juan@example.com\n"
                        + "TEACHER,Maria,Hernandez,Ruiz,T00001,maria@example.com\n";
             MockMultipartFile file = new MockMultipartFile("file", "users.csv", "text/csv",
                     csv.getBytes(StandardCharsets.UTF_8));
@@ -519,7 +520,7 @@ class AuthServiceTest {
         @DisplayName("Reports error for invalid role")
         void registerFromCsv_WithInvalidRole_ReportsError() throws IOException {
             // Given
-            String csv = "INVALID_ROLE,Juan,Garcia,Lopez,20230001,juan@example.com\n";
+            String csv = "INVALID_ROLE,Juan,Garcia,Lopez,2023630001,juan@example.com\n";
             MockMultipartFile file = new MockMultipartFile("file", "users.csv", "text/csv",
                     csv.getBytes(StandardCharsets.UTF_8));
 
@@ -538,7 +539,7 @@ class AuthServiceTest {
         @DisplayName("Reports error for invalid email format")
         void registerFromCsv_WithInvalidEmail_ReportsError() throws IOException {
             // Given
-            String csv = "STUDENT,Juan,Garcia,Lopez,20230001,invalid-email\n";
+            String csv = "STUDENT,Juan,Garcia,Lopez,2023630001,invalid-email\n";
             MockMultipartFile file = new MockMultipartFile("file", "users.csv", "text/csv",
                     csv.getBytes(StandardCharsets.UTF_8));
 
@@ -557,13 +558,13 @@ class AuthServiceTest {
         @DisplayName("Reports error for duplicate emails within CSV")
         void registerFromCsv_WithDuplicateEmailsInCsv_ReportsError() throws IOException {
             // Given
-            String csv = "STUDENT,Juan,Garcia,Lopez,20230001,juan@example.com\n"
-                       + "STUDENT,Pedro,Martinez,Ruiz,20230002,juan@example.com\n";
+            String csv = "STUDENT,Juan,Garcia,Lopez,2023630001,juan@example.com\n"
+                       + "STUDENT,Pedro,Martinez,Ruiz,2023630002,juan@example.com\n";
             MockMultipartFile file = new MockMultipartFile("file", "users.csv", "text/csv",
                     csv.getBytes(StandardCharsets.UTF_8));
 
             when(userRepository.findByEmail("juan@example.com")).thenReturn(Optional.empty());
-            when(userRepository.findByEnrollmentNumber("20230001")).thenReturn(Optional.empty());
+            when(userRepository.findByEnrollmentNumber("2023630001")).thenReturn(Optional.empty());
             when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
             when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -580,13 +581,13 @@ class AuthServiceTest {
         @DisplayName("Reports error for duplicate enrollment numbers within CSV")
         void registerFromCsv_WithDuplicateEnrollmentsInCsv_ReportsError() throws IOException {
             // Given
-            String csv = "STUDENT,Juan,Garcia,Lopez,20230001,juan@example.com\n"
-                       + "STUDENT,Pedro,Martinez,Ruiz,20230001,pedro@example.com\n";
+            String csv = "STUDENT,Juan,Garcia,Lopez,2023630001,juan@example.com\n"
+                       + "STUDENT,Pedro,Martinez,Ruiz,2023630001,pedro@example.com\n";
             MockMultipartFile file = new MockMultipartFile("file", "users.csv", "text/csv",
                     csv.getBytes(StandardCharsets.UTF_8));
 
             when(userRepository.findByEmail(anyString())).thenReturn(Optional.empty());
-            when(userRepository.findByEnrollmentNumber("20230001")).thenReturn(Optional.empty());
+            when(userRepository.findByEnrollmentNumber("2023630001")).thenReturn(Optional.empty());
             when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
             when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -603,7 +604,7 @@ class AuthServiceTest {
         @DisplayName("Reports error when email already exists in database")
         void registerFromCsv_WithExistingEmailInDb_ReportsError() throws IOException {
             // Given
-            String csv = "STUDENT,Juan,Garcia,Lopez,20230001,existing@example.com\n";
+            String csv = "STUDENT,Juan,Garcia,Lopez,2023630001,existing@example.com\n";
             MockMultipartFile file = new MockMultipartFile("file", "users.csv", "text/csv",
                     csv.getBytes(StandardCharsets.UTF_8));
 
@@ -624,12 +625,12 @@ class AuthServiceTest {
         @DisplayName("Reports error when enrollment number already exists in database")
         void registerFromCsv_WithExistingEnrollmentInDb_ReportsError() throws IOException {
             // Given
-            String csv = "STUDENT,Juan,Garcia,Lopez,ENR001,juan@example.com\n";
+            String csv = "STUDENT,Juan,Garcia,Lopez,2023630098,juan@example.com\n";
             MockMultipartFile file = new MockMultipartFile("file", "users.csv", "text/csv",
                     csv.getBytes(StandardCharsets.UTF_8));
 
             when(userRepository.findByEmail("juan@example.com")).thenReturn(Optional.empty());
-            when(userRepository.findByEnrollmentNumber("ENR001")).thenReturn(Optional.of(testUser));
+            when(userRepository.findByEnrollmentNumber("2023630098")).thenReturn(Optional.of(testUser));
 
             // When
             CsvBulkRegisterResponse response = authService.registerFromCsv(file);
@@ -646,8 +647,8 @@ class AuthServiceTest {
         @DisplayName("Handles mix of valid and invalid rows")
         void registerFromCsv_WithMixedRows_ProcessesCorrectly() throws IOException {
             // Given
-            String csv = "STUDENT,Juan,Garcia,Lopez,20230001,juan@example.com\n"
-                       + "INVALID,Bad,Row,Data,20230002,bad@example.com\n"
+            String csv = "STUDENT,Juan,Garcia,Lopez,2023630001,juan@example.com\n"
+                       + "INVALID,Bad,Row,Data,2023630002,bad@example.com\n"
                        + "TEACHER,Maria,Hernandez,Ruiz,T00001,maria@example.com\n";
             MockMultipartFile file = new MockMultipartFile("file", "users.csv", "text/csv",
                     csv.getBytes(StandardCharsets.UTF_8));
@@ -674,12 +675,12 @@ class AuthServiceTest {
         @DisplayName("Sends welcome email for each successfully registered user from CSV")
         void registerFromCsv_SendsEmailForEachRegisteredUser() throws IOException {
             // Given
-            String csv = "STUDENT,Juan,Garcia,Lopez,20230001,juan@example.com\n";
+            String csv = "STUDENT,Juan,Garcia,Lopez,2023630001,juan@example.com\n";
             MockMultipartFile file = new MockMultipartFile("file", "users.csv", "text/csv",
                     csv.getBytes(StandardCharsets.UTF_8));
 
             when(userRepository.findByEmail("juan@example.com")).thenReturn(Optional.empty());
-            when(userRepository.findByEnrollmentNumber("20230001")).thenReturn(Optional.empty());
+            when(userRepository.findByEnrollmentNumber("2023630001")).thenReturn(Optional.empty());
             when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
             when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -694,7 +695,7 @@ class AuthServiceTest {
         @DisplayName("Reports error for empty required fields")
         void registerFromCsv_WithEmptyFields_ReportsError() throws IOException {
             // Given
-            String csv = "STUDENT,,Garcia,Lopez,20230001,juan@example.com\n";
+            String csv = "STUDENT,,Garcia,Lopez,2023630001,juan@example.com\n";
             MockMultipartFile file = new MockMultipartFile("file", "users.csv", "text/csv",
                     csv.getBytes(StandardCharsets.UTF_8));
 
@@ -731,12 +732,12 @@ class AuthServiceTest {
         @DisplayName("Role parsing is case-insensitive")
         void registerFromCsv_WithLowercaseRole_ParsesCorrectly() throws IOException {
             // Given
-            String csv = "student,Juan,Garcia,Lopez,20230001,juan@example.com\n";
+            String csv = "student,Juan,Garcia,Lopez,2023630001,juan@example.com\n";
             MockMultipartFile file = new MockMultipartFile("file", "users.csv", "text/csv",
                     csv.getBytes(StandardCharsets.UTF_8));
 
             when(userRepository.findByEmail("juan@example.com")).thenReturn(Optional.empty());
-            when(userRepository.findByEnrollmentNumber("20230001")).thenReturn(Optional.empty());
+            when(userRepository.findByEnrollmentNumber("2023630001")).thenReturn(Optional.empty());
             when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
             when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
                 User user = invocation.getArgument(0);

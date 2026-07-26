@@ -225,9 +225,14 @@ If an operation does not leave its pending state, check:
 
 ## 8. Test data and repeatability
 
+Ready-to-upload assignment fixtures for C, C++, Java, and Python are available
+in [`assignment-examples`](assignment-examples/README.md). Each fixture includes
+metadata, a reference solution, and ordered test input files.
+
 The examples use Python because the source and test fixtures are compact.
-Create unique user emails and enrollment numbers on every clean run. Enrollment
-numbers must match:
+Create unique user emails and enrollment numbers on every clean run.
+
+Student enrollment numbers must match:
 
 ```text
 year (1994 or later) + 630 + three digits
@@ -236,10 +241,12 @@ year (1994 or later) + 630 + three digits
 Examples:
 
 ```text
-2026630001
 2026630002
 ```
 
+Teacher and administrator enrollment numbers may contain up to 10 letters,
+digits, hyphens, periods, or underscores, for example `TEA-001` or
+`ADMIN_01`.
+
 When repeating only assignment scenarios, create a new group or use unique
 assignment titles. The APIs use UUIDs, so names do not identify resources.
-

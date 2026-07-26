@@ -129,11 +129,17 @@ All keys follow ObjectKeyBuilder conventions.
 ## MailSenderService
 Responsibilities:
 - Send password recovery emails with reset links.
-- Send welcome emails with temporary credentials.
+- Queue welcome emails with temporary credentials on a bounded async executor so
+  user creation and CSV processing do not wait for SMTP.
+- Log welcome-email delivery failures without rolling back the created account;
+  users can recover access through the forgot-password flow.
 
 Configuration-driven fields:
 - frontend.url
 - spring.mail.username
+- app.email.welcome.core-pool-size (default 2)
+- app.email.welcome.max-pool-size (default 4)
+- app.email.welcome.queue-capacity (default 5000)
 
 ## Transaction and Error Patterns
 - Write operations use @Transactional.
