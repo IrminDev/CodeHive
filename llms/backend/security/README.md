@@ -48,7 +48,10 @@ User-management scopes:
 - `VIEW_USERS`, `CREATE_USERS`, `UPDATE_USERS`, `MANAGE_USER_STATUS`
 - `CREATE_ADMINS`, `UPDATE_ADMINS`, `MANAGE_ADMIN_STATUS`
 - `MANAGE_SCOPES`, `SUPER_ADMIN`
-- Deprecated `MANAGE_USERS` remains a compatibility alias for the four non-admin user scopes.
+
+The former aggregate user-management scope has been removed. New development
+data must use the four explicit non-admin scopes; no runtime compatibility
+alias or data backfill is retained.
 
 ## Password and Identity Handling
 - Password hashing: BCryptPasswordEncoder.

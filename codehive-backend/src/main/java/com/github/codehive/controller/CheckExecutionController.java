@@ -16,8 +16,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.UUID;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -39,11 +37,6 @@ import org.springframework.security.core.Authentication;
     description = "Code execution and result checking APIs"
 )
 public class CheckExecutionController {
-
-    private static final Logger logger = LoggerFactory.getLogger(
-        CheckExecutionController.class
-    );
-
     private final ExecutionRequestService executionRequestService;
 
     public CheckExecutionController(

@@ -18,12 +18,13 @@ class UserAuthoritiesTest {
     }
 
     @Test
-    void legacyManageUsersExpandsToNonAdminUserScopes() {
+    void regularAdminReceivesOnlyExplicitlyAssignedScopes() {
         User user = new User("Admin", "User", "ADMIN-002", "admin@example.com", "encoded", Role.ADMIN);
-        user.addScope(Scope.MANAGE_USERS);
+        user.addScope(Scope.VIEW_USERS);
+        user.addScope(Scope.CREATE_USERS);
 
         assertThat(user.getAuthorities()).extracting("authority")
-                .contains("VIEW_USERS", "CREATE_USERS", "UPDATE_USERS", "MANAGE_USER_STATUS")
-                .doesNotContain("CREATE_ADMINS");
+                .contains("ADMIN", "VIEW_USERS", "CREATE_USERS")
+                .doesNotContain("UPDATE_USERS", "MANAGE_USER_STATUS", "CREATE_ADMINS");
     }
 }

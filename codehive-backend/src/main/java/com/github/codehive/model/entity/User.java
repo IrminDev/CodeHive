@@ -205,12 +205,6 @@ public class User implements UserDetails {
         if (effectiveScopes.contains(Scope.SUPER_ADMIN)) {
             effectiveScopes.addAll(List.of(Scope.values()));
         }
-        if (effectiveScopes.contains(Scope.MANAGE_USERS)) {
-            effectiveScopes.add(Scope.VIEW_USERS);
-            effectiveScopes.add(Scope.CREATE_USERS);
-            effectiveScopes.add(Scope.UPDATE_USERS);
-            effectiveScopes.add(Scope.MANAGE_USER_STATUS);
-        }
         List<GrantedAuthority> authorities = new ArrayList<>();
         authorities.add(new SimpleGrantedAuthority(role.name()));
         effectiveScopes.stream()
