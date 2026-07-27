@@ -1,0 +1,1 @@
+{"nodes": [{"id": "codehive_testing_files_requests_test_cases_input3_sliding_window_negative_input", "name": "All-negative sliding-window input", "file_type": "code", "source_file": "codehive-testing-files/requests/test_cases/input3.txt", "rationale": "All-negative fixture catches implementations that initialize the maximum sum to zero."}], "edges": [], "hyperedges": []}
