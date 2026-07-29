@@ -1,0 +1,54 @@
+{
+  "generated_at": "2026-07-29T04:15:18.567366+00:00",
+  "nodes": {
+    "codehive_backend_src_main_java_com_github_codehive_controller_groupcontroller_groupcontroller_students": {
+      "code_fingerprint": "376cbe534b1ca7fbf1d12e219e23fac2a6e3bd75e352b32f91686131f83254ae",
+      "label": ".students()",
+      "last": "2026-07-29T04:12:41.963176+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-29T04:12:41.963176+00:00",
+          "outcome": "useful",
+          "q": "Does the list of students in a same group is only visible for the teacher or other students can see it?"
+        }
+      ],
+      "score": 0.999958122,
+      "source_file": "codehive-backend/src/main/java/com/github/codehive/controller/GroupController.java",
+      "status": "tentative",
+      "uses": 1
+    },
+    "codehive_backend_src_main_java_com_github_codehive_service_groupservice_groupservice_liststudents": {
+      "code_fingerprint": "74123746d3a6fb8478f3bbcbc5a6727e0c68e27ebf198c1116187038c2ea5fe8",
+      "label": ".listStudents()",
+      "last": "2026-07-29T04:12:41.963176+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-29T04:12:41.963176+00:00",
+          "outcome": "useful",
+          "q": "Does the list of students in a same group is only visible for the teacher or other students can see it?"
+        }
+      ],
+      "score": 0.999958122,
+      "source_file": "codehive-backend/src/main/java/com/github/codehive/service/GroupService.java",
+      "status": "tentative",
+      "uses": 1
+    },
+    "codehive_backend_src_main_java_com_github_codehive_service_groupservice_groupservice_requireownedgroup": {
+      "code_fingerprint": "74123746d3a6fb8478f3bbcbc5a6727e0c68e27ebf198c1116187038c2ea5fe8",
+      "label": ".requireOwnedGroup()",
+      "last": "2026-07-29T04:12:41.963176+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-29T04:12:41.963176+00:00",
+          "outcome": "useful",
+          "q": "Does the list of students in a same group is only visible for the teacher or other students can see it?"
+        }
+      ],
+      "score": 0.999958122,
+      "source_file": "codehive-backend/src/main/java/com/github/codehive/service/GroupService.java",
+      "status": "tentative",
+      "uses": 1
+    }
+  },
+  "version": 1
+}
