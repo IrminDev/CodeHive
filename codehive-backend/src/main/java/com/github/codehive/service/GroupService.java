@@ -133,7 +133,7 @@ public class GroupService {
 
     @Transactional(readOnly = true)
     public List<EnrollmentDTO> listStudents(UUID id, String email) {
-        requireOwnedGroup(id, email);
+        requireStudentListAccess(id, email);
         return enrollmentRepository.findByGroupIdAndStatusOrderByJoinedAtAsc(id, EnrollmentStatus.ACTIVE)
                 .stream().map(GroupMapper::toDTO).toList();
     }
@@ -232,6 +232,22 @@ public class GroupService {
             throw new AccessDeniedException("Only the group owner can perform this action");
         }
         return group;
+    }
+
+    private void requireStudentListAccess(UUID id, String email) {
+        User user = requireUser(email);
+        ClassGroup group = requireGroup(id);
+        if (group.getOwner().getId().equals(user.getId())) return;
+
+        boolean activelyEnrolled = user.getRole() == Role.STUDENT
+                && enrollmentRepository.existsByGroupIdAndStudentIdAndStatus(
+                        id, user.getId(), EnrollmentStatus.ACTIVE);
+        if (!activelyEnrolled) {
+            throw new AccessDeniedException("You cannot view students in this group");
+        }
+        if (!Boolean.TRUE.equals(group.getIsActive())) {
+            throw new EntityNotFoundException("Group not found: " + id);
+        }
     }
 
     private ClassGroup requireGroup(UUID id) {

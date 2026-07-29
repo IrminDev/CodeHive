@@ -26,6 +26,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.github.codehive.model.dto.AssignmentDTO;
 import com.github.codehive.model.dto.AssignmentUpdateDTO;
+import com.github.codehive.model.dto.CloneAssignmentFormDTO;
 import com.github.codehive.model.request.assignment.CreateAssignmentRequest;
 import com.github.codehive.model.request.assignment.CloneAssignmentRequest;
 import com.github.codehive.model.request.assignment.UpdateAssignmentRequest;
@@ -170,7 +171,23 @@ public class AssignmentController {
                 .body(new SuccessResponse<>("Assignment created. Test output generation in progress.", created));
     }
 
-    @Operation(summary = "Clone an assignment", description = "Clones an owned assignment into another owned, writable group and queues expected-output generation.")
+    @Operation(summary = "Get assignment clone form",
+            description = "Returns every editable source field, reference solution, and test input. Scheduling dates are intentionally omitted.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Clone form retrieved"),
+            @ApiResponse(responseCode = "403", description = "Caller does not own the source assignment", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "Assignment not found", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    @GetMapping("/{id}/clone-form")
+    @PreAuthorize("hasAuthority('TEACHER')")
+    public ResponseEntity<SuccessResponse<CloneAssignmentFormDTO>> getCloneForm(
+            @PathVariable UUID id, Authentication authentication) {
+        return ResponseEntity.ok(new SuccessResponse<>("Assignment clone form retrieved.",
+                assignmentService.getCloneForm(id, authentication.getName())));
+    }
+
+    @Operation(summary = "Clone an assignment",
+            description = "Creates a clone from the teacher-edited form snapshot in another owned, active, writable group and queues expected-output generation.")
     @ApiResponses({
             @ApiResponse(responseCode = "202", description = "Assignment cloned and generation queued"),
             @ApiResponse(responseCode = "400", description = "Invalid target group or dates", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),

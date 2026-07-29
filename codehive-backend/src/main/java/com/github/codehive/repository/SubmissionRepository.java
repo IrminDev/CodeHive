@@ -5,6 +5,9 @@ import java.util.List;
 import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import com.github.codehive.model.entity.Assignment;
 import com.github.codehive.model.entity.Submission;
@@ -26,4 +29,25 @@ public interface SubmissionRepository extends JpaRepository<Submission, UUID> {
     List<Submission> findByAssignmentAndStudentOrderByCreatedAtDesc(Assignment assignment, User student);
 
     boolean existsByAssignmentIdAndStudentId(UUID assignmentId, UUID studentId);
+
+    @Modifying(flushAutomatically = true)
+    @Query("""
+            update Submission submission
+            set submission.deliveredLate = false
+            where submission.assignment.id = :assignmentId
+              and submission.deliveredLate = true
+              and submission.createdAt <= :newDueDate
+            """)
+    int markLateSubmissionsOnTimeThrough(
+            @Param("assignmentId") UUID assignmentId,
+            @Param("newDueDate") LocalDateTime newDueDate);
+
+    @Modifying(flushAutomatically = true)
+    @Query("""
+            update Submission submission
+            set submission.deliveredLate = false
+            where submission.assignment.id = :assignmentId
+              and submission.deliveredLate = true
+            """)
+    int markAllLateSubmissionsOnTime(@Param("assignmentId") UUID assignmentId);
 }

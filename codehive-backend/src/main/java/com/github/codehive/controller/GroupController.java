@@ -120,10 +120,10 @@ public class GroupController {
         return ResponseEntity.ok(new SuccessResponse<>("Left group successfully", null));
     }
 
-    @Operation(summary = "List enrolled students", description = "Returns active enrollments for a group owned by the caller.")
+    @Operation(summary = "List enrolled students", description = "Returns active enrollments to the group owner or an actively enrolled student. Assignment work and grades are not included.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Students retrieved"),
-            @ApiResponse(responseCode = "403", description = "Caller is not the owner", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+            @ApiResponse(responseCode = "403", description = "Caller is neither the owner nor an actively enrolled student", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     @GetMapping("/{id}/students")
     public ResponseEntity<SuccessResponse<List<EnrollmentDTO>>> students(@PathVariable UUID id,

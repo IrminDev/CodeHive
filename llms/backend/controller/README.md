@@ -44,11 +44,14 @@ Error handling is centralized in:
 
 ### AssignmentController
 - `POST /api/assignments` — multipart; creates assignment, uploads files, queues test generation.
-- Requires `@PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")`.
+- Requires `@PreAuthorize("hasAnyAuthority('TEACHER', 'ADMIN')")`.
 - Returns 202 Accepted immediately (test output generation is async).
 - Request parts: `metadata` (JSON), `referenceSolution` (file), `testCaseInputs` (file list).
 - Listings require groupId and are ownership/enrollment aware.
-- `POST /api/assignments/{id}/clone` clones into another owned active group and queues output generation.
+- `GET /api/assignments/{id}/clone-form` is teacher-owner-only and returns all editable
+  metadata, examples, reference source, and test inputs. Source dates are intentionally omitted.
+- `POST /api/assignments/{id}/clone` accepts the complete edited clone snapshot, creates it
+  in another owned active writable group, and queues output generation.
 - `DELETE /api/assignments/{id}` performs logical deletion.
 
 ### GroupController

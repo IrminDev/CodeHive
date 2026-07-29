@@ -10,6 +10,7 @@ import com.github.codehive.model.enums.TestSuiteUpdateMode;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.FutureOrPresent;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
 
@@ -27,8 +28,11 @@ public class UpdateAssignmentRequest {
     private ComparatorType comparatorType;
     private List<Language> allowedLanguages;
     private Language referenceLanguage;
+    @FutureOrPresent(message = "Launch date cannot be before the current time")
     private Instant launchDate;
+    @FutureOrPresent(message = "Due date cannot be before the current time")
     private Instant dueDate;
+    @FutureOrPresent(message = "Close date cannot be before the current time")
     private Instant closeDate;
     private Boolean clearLaunchDate;
     private Boolean clearDueDate;

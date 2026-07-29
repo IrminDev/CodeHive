@@ -60,7 +60,15 @@ Responsibilities:
 - Enforce group ownership and read access through active enrollment.
 - Create Assignment, ReferenceSolution, and TestCase entities in one transaction.
 - Persist ordered instructional examples separately from executable test cases.
-- Validate launch/due/close ordering and clone complete assignments into another owned active group.
+- Validate launch/due/close ordering.
+- Build owner-only clone-form snapshots from assignment metadata plus MinIO reference/test input content.
+- Create clones from the complete edited snapshot in another owned active writable group; clone dates
+  remain null unless the teacher explicitly supplies new values.
+- Reject explicitly supplied launch, due, or close dates before current time during create,
+  clone, and update flows; still enforce `launchDate <= dueDate <= closeDate`.
+- When due date is extended, change late submissions whose creation time now falls on or
+  before new deadline to on-time. Clearing due date changes every late submission to on-time.
+  Deadline shortening does not retroactively mark submissions late.
 - Upload reference solution and test case inputs to MinIO via ObjectStorageService.
 - Publish TestGenerationJob to `codehive_test_generation_queue`.
 - Assignment is logically active on creation and has validationStatus PROCESSING until the worker reports READY or FAILED.
@@ -83,7 +91,8 @@ Responsibilities:
 - Execution identity always comes from the authenticated JWT principal; client requesterId is ignored.
 - Students require active enrollment and assignments must be launched, logically active, and READY.
 - Definitive deliveries are accepted repeatedly until closeDate and create immutable Submission rows.
-- Deliveries after dueDate are persisted with deliveredLate=true.
+- Deliveries after dueDate are persisted with deliveredLate=true, subject to later
+  late-to-on-time reconciliation when teacher extends or clears due date.
 
 Key dependencies:
 - AssignmentRepository, TestCaseRepository, ReferenceSolutionRepository

@@ -1,8 +1,10 @@
 package com.github.codehive.controller;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
@@ -16,6 +18,7 @@ import com.github.codehive.model.entity.Assignment;
 import com.github.codehive.model.entity.ClassGroup;
 import com.github.codehive.model.entity.AssignmentExample;
 import com.github.codehive.model.entity.ReferenceSolution;
+import com.github.codehive.model.entity.Submission;
 import com.github.codehive.model.entity.TestCase;
 import com.github.codehive.model.enums.AssignmentValidationStatus;
 import com.github.codehive.model.enums.ComparatorType;
@@ -23,15 +26,20 @@ import com.github.codehive.model.enums.Language;
 import com.github.codehive.model.enums.Role;
 import com.github.codehive.model.entity.User;
 import com.github.codehive.model.request.assignment.CreateAssignmentRequest;
+import com.github.codehive.model.request.assignment.AssignmentExampleRequest;
+import com.github.codehive.model.request.assignment.CloneAssignmentRequest;
+import com.github.codehive.model.request.assignment.CloneTestCaseRequest;
 import com.github.codehive.repository.AssignmentRepository;
 import com.github.codehive.repository.UserRepository;
 import com.github.codehive.repository.ClassGroupRepository;
 import com.github.codehive.repository.ReferenceSolutionRepository;
+import com.github.codehive.repository.SubmissionRepository;
 import com.github.codehive.repository.TestCaseRepository;
 import com.github.codehive.service.ObjectStorageService;
 import com.github.codehive.utils.JwtUtil;
 import java.util.List;
 import java.io.ByteArrayInputStream;
+import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -49,6 +57,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
+import jakarta.persistence.EntityManager;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -64,7 +73,9 @@ class AssignmentControllerIntegrationTest {
     @Autowired private UserRepository userRepository;
     @Autowired private ClassGroupRepository groupRepository;
     @Autowired private ReferenceSolutionRepository referenceSolutionRepository;
+    @Autowired private SubmissionRepository submissionRepository;
     @Autowired private TestCaseRepository testCaseRepository;
+    @Autowired private EntityManager entityManager;
     @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private JwtUtil jwtUtil;
 
@@ -74,6 +85,7 @@ class AssignmentControllerIntegrationTest {
     private String teacherToken;
     private String studentToken;
     private User teacher;
+    private User student;
     private ClassGroup group;
 
     @BeforeEach
@@ -92,7 +104,7 @@ class AssignmentControllerIntegrationTest {
         teacher = userRepository.save(teacher);
         teacherToken = jwtUtil.generateToken(Map.of("role", "TEACHER"), "teacher@test.com");
 
-        User student = new User();
+        student = new User();
         student.setEmail("student@test.com");
         student.setPassword(passwordEncoder.encode("Pass123!"));
         student.setName("Student");
@@ -241,26 +253,127 @@ class AssignmentControllerIntegrationTest {
     }
 
     @Test
-    @DisplayName("clones metadata, examples, reference source, and test inputs into another owned group")
-    void cloneAssignment() throws Exception {
+    @DisplayName("extending due date updates qualifying late submissions to on time")
+    void extendingDueDateReconcilesLateSubmissions() throws Exception {
+        Assignment assignment = saveAssignment("Reschedule me");
+        Submission submission = new Submission(assignment, student, Language.JAVA, true);
+        submissionRepository.saveAndFlush(submission);
+        Instant newDueDate = Instant.now().plusSeconds(3600);
+        MockMultipartFile metadata = new MockMultipartFile(
+                "metadata", "", MediaType.APPLICATION_JSON_VALUE,
+                ("{\"dueDate\":\"" + newDueDate + "\"}").getBytes());
+
+        mockMvc.perform(multipart("/api/assignments/{id}", assignment.getId())
+                        .file(metadata)
+                        .with(request -> {
+                            request.setMethod("PATCH");
+                            return request;
+                        })
+                        .header("Authorization", "Bearer " + teacherToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("APPLIED"));
+
+        entityManager.clear();
+        assertThat(submissionRepository.findById(submission.getId()))
+                .get()
+                .extracting(Submission::getDeliveredLate)
+                .isEqualTo(false);
+    }
+
+    @Test
+    @DisplayName("rejects assignment date updates before current time")
+    void rejectsPastDateUpdate() throws Exception {
+        Assignment assignment = saveAssignment("Past dates");
+        Instant pastDueDate = Instant.now().minusSeconds(60);
+        MockMultipartFile metadata = new MockMultipartFile(
+                "metadata", "", MediaType.APPLICATION_JSON_VALUE,
+                ("{\"dueDate\":\"" + pastDueDate + "\"}").getBytes());
+
+        mockMvc.perform(multipart("/api/assignments/{id}", assignment.getId())
+                        .file(metadata)
+                        .with(request -> {
+                            request.setMethod("PATCH");
+                            return request;
+                        })
+                        .header("Authorization", "Bearer " + teacherToken))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("returns a complete owner-only clone form without inherited dates")
+    void getCloneForm() throws Exception {
         Assignment source = saveAssignment("Clone me");
         source.addExample(new AssignmentExample(source, 1, "1 2", "3", "Add both values"));
         source = assignmentRepository.saveAndFlush(source);
         referenceSolutionRepository.saveAndFlush(new ReferenceSolution(source, Language.JAVA));
         testCaseRepository.saveAndFlush(new TestCase(source, 1, false));
-        ClassGroup target = groupRepository.save(new ClassGroup("Advanced", "", teacher, "TARGET12"));
         when(objectStorageService.download(anyString()))
-                .thenAnswer(invocation -> new ByteArrayInputStream("content".getBytes()));
+                .thenAnswer(invocation -> new ByteArrayInputStream("source content".getBytes()));
+
+        mockMvc.perform(get("/api/assignments/{id}/clone-form", source.getId())
+                        .header("Authorization", "Bearer " + teacherToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.title").value("Clone me"))
+                .andExpect(jsonPath("$.data.referenceLanguage").value("JAVA"))
+                .andExpect(jsonPath("$.data.referenceSolution").value("source content"))
+                .andExpect(jsonPath("$.data.testCases[0].input").value("source content"))
+                .andExpect(jsonPath("$.data.examples[0].explanation").value("Add both values"))
+                .andExpect(jsonPath("$.data.launchDate").doesNotExist())
+                .andExpect(jsonPath("$.data.dueDate").doesNotExist())
+                .andExpect(jsonPath("$.data.closeDate").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("clones the edited form snapshot and leaves omitted dates empty")
+    void cloneAssignment() throws Exception {
+        Assignment source = saveAssignment("Clone me");
+        referenceSolutionRepository.saveAndFlush(new ReferenceSolution(source, Language.JAVA));
+        ClassGroup target = groupRepository.save(new ClassGroup("Advanced", "", teacher, "TARGET12"));
+
+        AssignmentExampleRequest example = new AssignmentExampleRequest();
+        example.setInput("4 5");
+        example.setOutput("9");
+        example.setExplanation("Edited example");
+        CloneTestCaseRequest testCase = new CloneTestCaseRequest();
+        testCase.setInput("10 20");
+        testCase.setSample(true);
+        CloneAssignmentRequest request = new CloneAssignmentRequest();
+        request.setTargetGroupId(target.getId());
+        request.setTitle("Edited clone");
+        request.setDescription("Edited description");
+        request.setConstraints(List.of("n > 0"));
+        request.setHints(List.of("Use addition"));
+        request.setTags(List.of("math"));
+        request.setTimeLimitMs(1200L);
+        request.setMemoryLimitMb(128L);
+        request.setComparatorType(ComparatorType.EXACT_MATCH);
+        request.setAllowedLanguages(List.of(Language.PYTHON));
+        request.setReferenceLanguage(Language.PYTHON);
+        request.setReferenceSolution("print(sum(map(int, input().split())))");
+        request.setTestCases(List.of(testCase));
+        request.setExamples(List.of(example));
 
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
                         .post("/api/assignments/{id}/clone", source.getId())
                         .header("Authorization", "Bearer " + teacherToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"targetGroupId\":\"" + target.getId() + "\"}"))
+                        .content(objectMapper.writeValueAsBytes(request)))
                 .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.data.groupId").value(target.getId().toString()))
-                .andExpect(jsonPath("$.data.examples[0].explanation").value("Add both values"))
+                .andExpect(jsonPath("$.data.title").value("Edited clone"))
+                .andExpect(jsonPath("$.data.allowedLanguages[0]").value("PYTHON"))
+                .andExpect(jsonPath("$.data.examples[0].explanation").value("Edited example"))
+                .andExpect(jsonPath("$.data.launchDate").doesNotExist())
+                .andExpect(jsonPath("$.data.dueDate").doesNotExist())
+                .andExpect(jsonPath("$.data.closeDate").doesNotExist())
                 .andExpect(jsonPath("$.data.validationStatus").value("PROCESSING"));
+
+        verify(objectStorageService).upload(
+                org.mockito.ArgumentMatchers.contains("/reference/Main.py"),
+                org.mockito.ArgumentMatchers.eq("print(sum(map(int, input().split())))"));
+        verify(objectStorageService).upload(
+                org.mockito.ArgumentMatchers.contains("/input.in"),
+                org.mockito.ArgumentMatchers.eq("10 20"));
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────

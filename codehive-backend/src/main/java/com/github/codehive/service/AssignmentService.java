@@ -20,6 +20,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.github.codehive.messaging.producer.TestGenerationRequestProducer;
 import com.github.codehive.model.dto.AssignmentDTO;
+import com.github.codehive.model.dto.AssignmentExampleDTO;
+import com.github.codehive.model.dto.CloneAssignmentFormDTO;
+import com.github.codehive.model.dto.CloneAssignmentTestCaseDTO;
 import com.github.codehive.model.dto.SampleTestCaseDTO;
 import com.github.codehive.model.dto.queue.TestCaseInfo;
 import com.github.codehive.model.dto.queue.TestGenerationJob;
@@ -39,6 +42,7 @@ import com.github.codehive.model.exception.ValidationException;
 import com.github.codehive.model.mapper.AssignmentMapper;
 import com.github.codehive.model.request.assignment.AssignmentExampleRequest;
 import com.github.codehive.model.request.assignment.CloneAssignmentRequest;
+import com.github.codehive.model.request.assignment.CloneTestCaseRequest;
 import com.github.codehive.model.request.assignment.CreateAssignmentRequest;
 import com.github.codehive.repository.AssignmentRepository;
 import com.github.codehive.repository.GroupEnrollmentRepository;
@@ -178,43 +182,34 @@ public class AssignmentService {
         }
         validateDates(request.getLaunchDate(), request.getDueDate(), request.getCloseDate());
 
-        Assignment clone = new Assignment(source.getTitle(), source.getDescription(), source.getTimeLimitMs(),
-                source.getMemoryLimitMb(), source.getComparatorType());
+        Assignment clone = new Assignment(request.getTitle(), request.getDescription(), request.getTimeLimitMs(),
+                request.getMemoryLimitMb(), request.getComparatorType());
         clone.setGroup(target);
         clone.setAuthor(teacher);
-        clone.setConstraints(new ArrayList<>(source.getConstraints()));
-        clone.setHints(new ArrayList<>(source.getHints()));
-        clone.setTags(new ArrayList<>(source.getTags()));
-        clone.setAllowedLanguages(new ArrayList<>(source.getAllowedLanguages()));
+        clone.setConstraints(request.getConstraints());
+        clone.setHints(request.getHints());
+        clone.setTags(request.getTags());
+        clone.setAllowedLanguages(request.getAllowedLanguages());
         clone.setLaunchDate(request.getLaunchDate());
         clone.setDueDate(request.getDueDate());
         clone.setCloseDate(request.getCloseDate());
-        clone.setMaxPoints(source.getMaxPoints());
+        clone.setMaxPoints(request.getMaxPoints() != null
+                ? request.getMaxPoints() : new java.math.BigDecimal("100.00"));
         clone.setValidationStatus(AssignmentValidationStatus.PROCESSING);
-        List<AssignmentExample> sourceExamples = source.getExamples().stream()
-                .sorted(Comparator.comparing(AssignmentExample::getOrder)).toList();
-        for (AssignmentExample example : sourceExamples) {
-            clone.addExample(new AssignmentExample(clone, example.getOrder(), example.getInput(),
-                    example.getOutput(), example.getExplanation()));
-        }
+        addExamples(clone, request.getExamples());
         clone = assignmentRepository.save(clone);
 
-        ReferenceSolution sourceReference = referenceSolutionRepository.findByAssignmentId(sourceId).stream().findFirst()
-                .orElseThrow(() -> new EntityNotFoundException("Source assignment has no reference solution"));
-        referenceSolutionRepository.save(new ReferenceSolution(clone, sourceReference.getLanguage()));
+        referenceSolutionRepository.save(new ReferenceSolution(clone, request.getReferenceLanguage()));
         ReferenceSolutionRevision cloneReferenceRevision = new ReferenceSolutionRevision();
         cloneReferenceRevision.setAssignment(clone);
-        cloneReferenceRevision.setLanguage(sourceReference.getLanguage());
+        cloneReferenceRevision.setLanguage(request.getReferenceLanguage());
         cloneReferenceRevision.setObjectKey("pending");
         cloneReferenceRevision = referenceSolutionRevisionRepository.save(cloneReferenceRevision);
-        String extension = FileExtensionUtil.getFileExtensionByLanguage(sourceReference.getLanguage());
-        String sourceReferencePath = source.getActiveReferenceSolutionRevision() != null
-                ? source.getActiveReferenceSolutionRevision().getObjectKey()
-                : ObjectKeyBuilder.referenceSolutionSourceCode(sourceId, extension);
+        String extension = FileExtensionUtil.getFileExtensionByLanguage(request.getReferenceLanguage());
         String cloneReferencePath = ObjectKeyBuilder.referenceSolutionSourceCode(
                 clone.getId(), cloneReferenceRevision.getId(), extension);
         cloneReferenceRevision.setObjectKey(cloneReferencePath);
-        copyTextObject(sourceReferencePath, cloneReferencePath);
+        uploadTextObject(cloneReferencePath, request.getReferenceSolution());
 
         TestSuiteRevision cloneTestSuiteRevision = new TestSuiteRevision();
         cloneTestSuiteRevision.setAssignment(clone);
@@ -223,27 +218,74 @@ public class AssignmentService {
         cloneTestSuiteRevision = testSuiteRevisionRepository.save(cloneTestSuiteRevision);
 
         List<TestCaseInfo> infos = new ArrayList<>();
-        List<TestCase> sourceCases = source.getActiveTestSuiteRevision() != null
-                ? testCaseRepository.findByTestSuiteRevisionIdOrderByOrderAsc(
-                        source.getActiveTestSuiteRevision().getId())
-                : testCaseRepository.findByAssignmentIdOrderByOrderAsc(sourceId);
-        for (TestCase sourceCase : sourceCases) {
+        for (int index = 0; index < request.getTestCases().size(); index++) {
+            CloneTestCaseRequest requestedCase = request.getTestCases().get(index);
             TestCase clonedCase = testCaseRepository.save(
-                    new TestCase(clone, sourceCase.getOrder(), sourceCase.getIsSample()));
+                    new TestCase(clone, index + 1, Boolean.TRUE.equals(requestedCase.getSample())));
             clonedCase.setTestSuiteRevision(cloneTestSuiteRevision);
             String input = ObjectKeyBuilder.testCaseInput(
                     clone.getId(), cloneTestSuiteRevision.getId(), clonedCase.getId());
             String output = ObjectKeyBuilder.testCaseExpectedOutput(
                     clone.getId(), cloneTestSuiteRevision.getId(), clonedCase.getId());
-            String sourceInput = sourceCase.getTestSuiteRevision() != null
-                    ? ObjectKeyBuilder.testCaseInput(
-                            sourceId, sourceCase.getTestSuiteRevision().getId(), sourceCase.getId())
-                    : ObjectKeyBuilder.testCaseInput(sourceId, sourceCase.getId());
-            copyTextObject(sourceInput, input);
+            uploadTextObject(input, requestedCase.getInput());
             infos.add(new TestCaseInfo(clonedCase.getId(), input, output));
         }
         publishGeneration(clone, cloneTestSuiteRevision, cloneReferenceRevision, infos, null);
         return AssignmentMapper.toDTO(clone);
+    }
+
+    @Transactional(readOnly = true)
+    public CloneAssignmentFormDTO getCloneForm(UUID sourceId, String email) {
+        User teacher = requireTeacher(email);
+        Assignment source = requireAssignment(sourceId);
+        if (!source.getGroup().getOwner().getId().equals(teacher.getId())) {
+            throw new AccessDeniedException("Only the source assignment owner can clone it");
+        }
+
+        ReferenceSolution sourceReference = referenceSolutionRepository.findByAssignmentId(sourceId).stream()
+                .findFirst()
+                .orElseThrow(() -> new EntityNotFoundException("Source assignment has no reference solution"));
+        ReferenceSolutionRevision activeReference = source.getActiveReferenceSolutionRevision();
+        var referenceLanguage = activeReference != null
+                ? activeReference.getLanguage() : sourceReference.getLanguage();
+        String referencePath = activeReference != null
+                ? activeReference.getObjectKey()
+                : ObjectKeyBuilder.referenceSolutionSourceCode(
+                        sourceId, FileExtensionUtil.getFileExtensionByLanguage(referenceLanguage));
+
+        List<TestCase> sourceCases = source.getActiveTestSuiteRevision() != null
+                ? testCaseRepository.findByTestSuiteRevisionIdOrderByOrderAsc(
+                        source.getActiveTestSuiteRevision().getId())
+                : testCaseRepository.findByAssignmentIdOrderByOrderAsc(sourceId);
+        List<CloneAssignmentTestCaseDTO> testCases = new ArrayList<>();
+        for (TestCase sourceCase : sourceCases) {
+            String inputPath = sourceCase.getTestSuiteRevision() != null
+                    ? ObjectKeyBuilder.testCaseInput(
+                            sourceId, sourceCase.getTestSuiteRevision().getId(), sourceCase.getId())
+                    : ObjectKeyBuilder.testCaseInput(sourceId, sourceCase.getId());
+            testCases.add(new CloneAssignmentTestCaseDTO(
+                    sourceCase.getOrder(), readTextObject(inputPath), sourceCase.getIsSample()));
+        }
+
+        List<AssignmentExampleDTO> examples = AssignmentMapper.toDTO(source).getExamples().stream()
+                .sorted(Comparator.comparing(AssignmentExampleDTO::getOrder))
+                .toList();
+        return new CloneAssignmentFormDTO(
+                source.getGroup().getId(),
+                source.getTitle(),
+                source.getDescription(),
+                source.getConstraints(),
+                source.getHints(),
+                source.getTags(),
+                source.getTimeLimitMs(),
+                source.getMemoryLimitMb(),
+                source.getComparatorType(),
+                source.getAllowedLanguages(),
+                referenceLanguage,
+                readTextObject(referencePath),
+                examples,
+                testCases,
+                source.getMaxPoints());
     }
 
     @Transactional
@@ -334,6 +376,16 @@ public class AssignmentService {
     }
 
     private void validateDates(Instant launch, Instant due, Instant close) {
+        Instant now = Instant.now();
+        if (launch != null && launch.isBefore(now)) {
+            throw new ValidationException("Launch date cannot be before the current time");
+        }
+        if (due != null && due.isBefore(now)) {
+            throw new ValidationException("Due date cannot be before the current time");
+        }
+        if (close != null && close.isBefore(now)) {
+            throw new ValidationException("Close date cannot be before the current time");
+        }
         if (launch != null && due != null && launch.isAfter(due)) {
             throw new ValidationException("Launch date must be before or equal to due date");
         }
@@ -371,11 +423,19 @@ public class AssignmentService {
         }
     }
 
-    private void copyTextObject(String source, String target) {
-        try (InputStream stream = objectStorageService.download(source)) {
-            objectStorageService.upload(target, new String(stream.readAllBytes(), StandardCharsets.UTF_8));
+    private String readTextObject(String path) {
+        try (InputStream stream = objectStorageService.download(path)) {
+            return new String(stream.readAllBytes(), StandardCharsets.UTF_8);
         } catch (Exception exception) {
-            throw new RuntimeException("Failed to clone object: " + source, exception);
+            throw new RuntimeException("Failed to read object from storage: " + path, exception);
+        }
+    }
+
+    private void uploadTextObject(String path, String content) {
+        try {
+            objectStorageService.upload(path, content);
+        } catch (Exception exception) {
+            throw new RuntimeException("Failed to upload object to storage: " + path, exception);
         }
     }
 }

@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -43,6 +44,7 @@ import com.github.codehive.model.request.assignment.UpdateAssignmentRequest;
 import com.github.codehive.repository.AssignmentRepository;
 import com.github.codehive.repository.AssignmentUpdateRepository;
 import com.github.codehive.repository.ReferenceSolutionRevisionRepository;
+import com.github.codehive.repository.SubmissionRepository;
 import com.github.codehive.repository.TestCaseRepository;
 import com.github.codehive.repository.TestSuiteRevisionRepository;
 import com.github.codehive.repository.UserRepository;
@@ -59,6 +61,7 @@ public class AssignmentUpdateService {
     private final ReferenceSolutionRevisionRepository referenceRevisionRepository;
     private final TestSuiteRevisionRepository testSuiteRevisionRepository;
     private final TestCaseRepository testCaseRepository;
+    private final SubmissionRepository submissionRepository;
     private final UserRepository userRepository;
     private final GroupService groupService;
     private final ObjectStorageService objectStorageService;
@@ -73,6 +76,7 @@ public class AssignmentUpdateService {
                                    ReferenceSolutionRevisionRepository referenceRevisionRepository,
                                    TestSuiteRevisionRepository testSuiteRevisionRepository,
                                    TestCaseRepository testCaseRepository,
+                                   SubmissionRepository submissionRepository,
                                    UserRepository userRepository,
                                    GroupService groupService,
                                    ObjectStorageService objectStorageService,
@@ -86,6 +90,7 @@ public class AssignmentUpdateService {
         this.referenceRevisionRepository = referenceRevisionRepository;
         this.testSuiteRevisionRepository = testSuiteRevisionRepository;
         this.testCaseRepository = testCaseRepository;
+        this.submissionRepository = submissionRepository;
         this.userRepository = userRepository;
         this.groupService = groupService;
         this.objectStorageService = objectStorageService;
@@ -121,6 +126,7 @@ public class AssignmentUpdateService {
             boolean maxPointsChanged = request.getMaxPoints() != null
                     && request.getMaxPoints().compareTo(assignment.getMaxPoints()) != 0;
             applyMetadata(assignment, request);
+            reconcileLateSubmissions(assignment, request);
             if (maxPointsChanged) {
                 int cleared = gradeService.clearAssignmentGrades(
                         assignment, GradeChangeReason.CLEARED_MAX_POINTS_CHANGED, teacher);
@@ -201,6 +207,14 @@ public class AssignmentUpdateService {
         }
 
         UpdateAssignmentRequest proposed = readMetadata(update.getProposedMetadataJson());
+        try {
+            validateProposedDates(assignment, proposed);
+        } catch (ValidationException exception) {
+            reject(update, exception.getMessage());
+            publishAssignmentEvent(NotificationType.ASSIGNMENT_VALIDATION_FAILED,
+                    assignment, update.getCreatedBy(), update.getCreatedBy().getId());
+            return;
+        }
         boolean wasStudentPublished = studentPublished(assignment);
         boolean datesChanged = datesChanged(assignment, proposed);
         boolean maxPointsChanged = proposed.getMaxPoints() != null
@@ -231,6 +245,7 @@ public class AssignmentUpdateService {
         }
 
         applyMetadata(assignment, proposed);
+        reconcileLateSubmissions(assignment, proposed);
         if (update.getKind() == AssignmentUpdateKind.REFERENCE_ONLY && maxPointsChanged) {
             int cleared = gradeService.clearAssignmentGrades(
                     assignment, GradeChangeReason.CLEARED_MAX_POINTS_CHANGED, update.getCreatedBy());
@@ -431,6 +446,9 @@ public class AssignmentUpdateService {
     }
 
     private void validateProposedDates(Assignment assignment, UpdateAssignmentRequest request) {
+        validateNotPast("Launch", request.getLaunchDate());
+        validateNotPast("Due", request.getDueDate());
+        validateNotPast("Close", request.getCloseDate());
         Instant launch = Boolean.TRUE.equals(request.getClearLaunchDate()) ? null
                 : request.getLaunchDate() != null ? request.getLaunchDate() : assignment.getLaunchDate();
         Instant due = Boolean.TRUE.equals(request.getClearDueDate()) ? null
@@ -441,6 +459,23 @@ public class AssignmentUpdateService {
                 || due != null && close != null && due.isAfter(close)
                 || launch != null && close != null && launch.isAfter(close)) {
             throw new ValidationException("Assignment dates must satisfy launchDate <= dueDate <= closeDate");
+        }
+    }
+
+    private void validateNotPast(String field, Instant value) {
+        if (value != null && value.isBefore(Instant.now())) {
+            throw new ValidationException(field + " date cannot be before the current time");
+        }
+    }
+
+    private void reconcileLateSubmissions(Assignment assignment, UpdateAssignmentRequest request) {
+        if (Boolean.TRUE.equals(request.getClearDueDate())) {
+            submissionRepository.markAllLateSubmissionsOnTime(assignment.getId());
+        } else if (request.getDueDate() != null) {
+            LocalDateTime newDueDate = LocalDateTime.ofInstant(
+                    request.getDueDate(), ZoneId.systemDefault());
+            submissionRepository.markLateSubmissionsOnTimeThrough(
+                    assignment.getId(), newDueDate);
         }
     }
 

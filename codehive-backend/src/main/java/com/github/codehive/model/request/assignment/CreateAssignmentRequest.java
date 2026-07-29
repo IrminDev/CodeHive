@@ -14,6 +14,7 @@ import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.FutureOrPresent;
 
 public class CreateAssignmentRequest {
 
@@ -47,8 +48,11 @@ public class CreateAssignmentRequest {
     @NotNull(message = "Reference language is required")
     private Language referenceLanguage;
 
+    @FutureOrPresent(message = "Launch date cannot be before the current time")
     private Instant launchDate;
+    @FutureOrPresent(message = "Due date cannot be before the current time")
     private Instant dueDate;
+    @FutureOrPresent(message = "Close date cannot be before the current time")
     private Instant closeDate;
 
     @Valid

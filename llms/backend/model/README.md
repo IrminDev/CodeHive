@@ -54,7 +54,10 @@ File: model/entity/Assignment.java
 File: model/entity/Submission.java
 - ManyToOne assignment (non-null)
 - ManyToOne student (non-null)
-- deliveredLate is fixed when a definitive delivery is created
+- `deliveredLate` is calculated when a definitive delivery is created.
+- Extending or clearing `dueDate` may reconcile `deliveredLate` from true to false when
+  historical submission time now falls within deadline. Deadline shortening never changes
+  an existing false flag to true.
 - language: enum string (non-null)
 - createdAt initialized in constructor
 - Belongs to one `StudentAssignmentWork` aggregate.

@@ -1,5 +1,7 @@
 package com.github.codehive.controller;
 
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -7,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 
+import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -23,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.codehive.model.entity.ClassGroup;
+import com.github.codehive.model.entity.GroupEnrollment;
 import com.github.codehive.model.entity.User;
 import com.github.codehive.model.enums.EnrollmentStatus;
 import com.github.codehive.model.enums.Role;
@@ -123,6 +127,38 @@ class GroupControllerIntegrationTest {
                         .header("Authorization", "Bearer " + teacherToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"joinCode\":\"JOIN1234\"}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void activeStudentCanListActiveGroupMembersButFormerStudentCannot() throws Exception {
+        ClassGroup group = groupRepository.save(new ClassGroup("Algorithms", "", teacher, "MEMBER12"));
+        User peer = userRepository.save(new User("Katherine", "Johnson", "STU-PEER",
+                "katherine@codehive.test", passwordEncoder.encode("Pass123!"), Role.STUDENT));
+        User formerStudent = userRepository.save(new User("Edsger", "Dijkstra", "STU-FORMER",
+                "edsger@codehive.test", passwordEncoder.encode("Pass123!"), Role.STUDENT));
+
+        GroupEnrollment formerEnrollment = new GroupEnrollment(group, formerStudent);
+        formerEnrollment.setStatus(EnrollmentStatus.LEFT);
+        enrollmentRepository.saveAll(List.of(
+                new GroupEnrollment(group, student),
+                new GroupEnrollment(group, peer),
+                formerEnrollment));
+
+        mockMvc.perform(get("/api/groups/{id}/students", group.getId())
+                        .header("Authorization", "Bearer " + studentToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data", hasSize(2)))
+                .andExpect(jsonPath("$.data[*].student.id", containsInAnyOrder(
+                        student.getId().toString(), peer.getId().toString())))
+                .andExpect(jsonPath("$.data[*].status", containsInAnyOrder("ACTIVE", "ACTIVE")))
+                .andExpect(jsonPath("$.data[*].assignments").doesNotExist())
+                .andExpect(jsonPath("$.data[*].grades").doesNotExist());
+
+        String formerStudentToken = jwtUtil.generateToken(
+                Map.of("role", "STUDENT"), formerStudent.getEmail());
+        mockMvc.perform(get("/api/groups/{id}/students", group.getId())
+                        .header("Authorization", "Bearer " + formerStudentToken))
                 .andExpect(status().isForbidden());
     }
 

@@ -1,10 +1,20 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { CodeEditor } from "~/shared/components/CodeEditor";
 import { DashboardLayout } from "~/shared/components/DashboardLayout";
 import { sileo } from "sileo";
-import { createAssignment } from "../api/assignment.api";
-import type { Language, ComparatorType } from "../api/assignment.api";
+import {
+  cloneAssignment,
+  createAssignment,
+  getActiveTeacherGroups,
+  getCloneAssignmentForm,
+} from "../api/assignment.api";
+import type {
+  AssignmentExample,
+  ComparatorType,
+  Language,
+  TeacherGroup,
+} from "../api/assignment.api";
 import { TEACHER_CREATE_NAV, TEACHER_CREATE_SIDEBAR_ITEMS } from "../config/dashboard.config";
 
 // ---------------------------------------------------------------------------
@@ -66,6 +76,19 @@ function textToFile(content: string, name: string): File {
 
 function codeToFile(code: string, language: Language, ext: string): File {
   return new File([code], `solution.${ext}`, { type: "text/plain" });
+}
+
+function toInstant(value: string): string | undefined {
+  return value ? new Date(value).toISOString() : undefined;
+}
+
+function nextAvailableDateTime(): string {
+  const value = new Date();
+  value.setMinutes(value.getMinutes() + 1, 0, 0);
+  const pad = (part: number) => String(part).padStart(2, "0");
+  return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}T${pad(
+    value.getHours()
+  )}:${pad(value.getMinutes())}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -364,10 +387,20 @@ function DynamicList({
 // Main page
 // ---------------------------------------------------------------------------
 
-export function CreateAssignmentPage() {
+export function CreateAssignmentPage({
+  mode = "create",
+  assignmentId,
+}: {
+  mode?: "create" | "clone";
+  assignmentId?: string;
+}) {
   const navigate = useNavigate();
+  const isClone = mode === "clone";
 
   // Basic info
+  const [sourceGroupId, setSourceGroupId] = useState("");
+  const [groups, setGroups] = useState<TeacherGroup[]>([]);
+  const [groupId, setGroupId] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [tags, setTags] = useState<string[]>([]);
@@ -380,7 +413,11 @@ export function CreateAssignmentPage() {
   const [timeLimitMs, setTimeLimitMs] = useState<number>(TIME_LIMIT.default);
   const [memoryLimitMb, setMemoryLimitMb] = useState<number>(MEMORY_LIMIT.default);
   const [comparatorType, setComparatorType] = useState<ComparatorType>("EXACT_MATCH");
+  const [maxPoints, setMaxPoints] = useState(100);
+  const [launchDate, setLaunchDate] = useState("");
   const [dueDate, setDueDate] = useState("");
+  const [closeDate, setCloseDate] = useState("");
+  const [examples, setExamples] = useState<AssignmentExample[]>([]);
 
   // Solution
   const [solutionMode, setSolutionMode] = useState<SolutionMode>("editor");
@@ -392,7 +429,76 @@ export function CreateAssignmentPage() {
     { id: uid(), mode: "text", text: "", file: null, isSample: false },
   ]);
 
+  const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        const [activeGroups, cloneForm] = await Promise.all([
+          getActiveTeacherGroups(),
+          isClone && assignmentId
+            ? getCloneAssignmentForm(assignmentId)
+            : Promise.resolve(null),
+        ]);
+        if (cancelled) return;
+        setGroups(activeGroups);
+        setSourceGroupId(cloneForm?.sourceGroupId ?? "");
+        setGroupId(
+          activeGroups.find((group) => group.id !== cloneForm?.sourceGroupId)?.id ?? ""
+        );
+        if (cloneForm) {
+          setTitle(cloneForm.title);
+          setDescription(cloneForm.description);
+          setTags(cloneForm.tags ?? []);
+          setConstraints(cloneForm.constraints ?? []);
+          setHints(cloneForm.hints ?? []);
+          setReferenceLanguage(cloneForm.referenceLanguage);
+          setAllowedLanguages(cloneForm.allowedLanguages);
+          setTimeLimitMs(cloneForm.timeLimitMs);
+          setMemoryLimitMb(cloneForm.memoryLimitMb);
+          setComparatorType(cloneForm.comparatorType);
+          setMaxPoints(cloneForm.maxPoints);
+          setExamples(
+            (cloneForm.examples ?? []).map(({ input, output, explanation }) => ({
+              input,
+              output,
+              explanation,
+            }))
+          );
+          setSolutionMode("editor");
+          setSolutionCode(cloneForm.referenceSolution);
+          setSolutionFile(null);
+          setTestCases(
+            cloneForm.testCases.map((testCase) => ({
+              id: uid(),
+              mode: "text" as const,
+              text: testCase.input,
+              file: null,
+              isSample: testCase.sample,
+            }))
+          );
+          // Clone scheduling never inherits source dates.
+          setLaunchDate("");
+          setDueDate("");
+          setCloseDate("");
+        }
+      } catch (error) {
+        if (!cancelled) {
+          sileo.error({
+            title: error instanceof Error ? error.message : "Failed to load assignment form.",
+          });
+        }
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    }
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [assignmentId, isClone]);
 
   // When reference language changes, update editor template only if not edited
   function handleRefLanguageChange(lang: Language) {
@@ -436,8 +542,38 @@ export function CreateAssignmentPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
+    if (!groupId) {
+      sileo.error({ title: "Select an active group." });
+      return;
+    }
+    const selectedDates = [
+      ["Launch", launchDate],
+      ["Due", dueDate],
+      ["Close", closeDate],
+    ] as const;
+    const now = Date.now();
+    const pastDate = selectedDates.find(([, value]) => value && new Date(value).getTime() < now);
+    if (pastDate) {
+      sileo.error({ title: `${pastDate[0]} date cannot be before the current time.` });
+      return;
+    }
+    const launchTime = launchDate ? new Date(launchDate).getTime() : null;
+    const dueTime = dueDate ? new Date(dueDate).getTime() : null;
+    const closeTime = closeDate ? new Date(closeDate).getTime() : null;
+    if (
+      (launchTime !== null && dueTime !== null && launchTime > dueTime) ||
+      (dueTime !== null && closeTime !== null && dueTime > closeTime) ||
+      (launchTime !== null && closeTime !== null && launchTime > closeTime)
+    ) {
+      sileo.error({ title: "Dates must satisfy launch date ≤ due date ≤ close date." });
+      return;
+    }
     if (allowedLanguages.length === 0) {
       sileo.error({ title: "Select at least one allowed language." });
+      return;
+    }
+    if (maxPoints <= 0) {
+      sileo.error({ title: "Maximum points must be greater than zero." });
       return;
     }
 
@@ -451,7 +587,7 @@ export function CreateAssignmentPage() {
       return;
     }
 
-    // Build the reference solution file
+    // Resolve source and test text once; create uses files, clone sends editable JSON.
     let resolvedSolution: File;
     if (solutionMode === "editor") {
       const langMeta = LANGUAGES.find((l) => l.value === referenceLanguage)!;
@@ -485,25 +621,50 @@ export function CreateAssignmentPage() {
 
     setIsSubmitting(true);
     try {
-      await createAssignment(
-        {
-          title: title.trim(),
-          description: description.trim(),
-          constraints: constraints.filter(Boolean),
-          hints: hints.filter(Boolean),
-          tags: tags.filter(Boolean),
-          timeLimitMs,
-          memoryLimitMb,
-          comparatorType,
-          allowedLanguages,
-          referenceLanguage,
-          dueDate: dueDate || undefined,
-          sampleFlags: testCases.map((tc) => tc.isSample),
-        },
-        resolvedSolution,
-        testCaseFiles
-      );
-      sileo.success({ title: "Assignment created! Test generation is in progress." });
+      const sharedMetadata = {
+        title: title.trim(),
+        description: description.trim(),
+        constraints: constraints.filter(Boolean),
+        hints: hints.filter(Boolean),
+        tags: tags.filter(Boolean),
+        timeLimitMs,
+        memoryLimitMb,
+        comparatorType,
+        allowedLanguages,
+        referenceLanguage,
+        launchDate: toInstant(launchDate),
+        dueDate: toInstant(dueDate),
+        closeDate: toInstant(closeDate),
+        examples,
+        maxPoints,
+      };
+      if (isClone) {
+        if (!assignmentId) throw new Error("Missing source assignment ID.");
+        await cloneAssignment(assignmentId, {
+          ...sharedMetadata,
+          targetGroupId: groupId,
+          referenceSolution: await resolvedSolution.text(),
+          testCases: await Promise.all(
+            testCaseFiles.map(async (file, index) => ({
+              input: await file.text(),
+              sample: testCases[index].isSample,
+            }))
+          ),
+        });
+      } else {
+        await createAssignment(
+          {
+            ...sharedMetadata,
+            groupId,
+            sampleFlags: testCases.map((tc) => tc.isSample),
+          },
+          resolvedSolution,
+          testCaseFiles
+        );
+      }
+      sileo.success({
+        title: `${isClone ? "Assignment cloned" : "Assignment created"}! Test generation is in progress.`,
+      });
       navigate("/teacher");
     } catch (err) {
       sileo.error({ title: err instanceof Error ? err.message : "Something went wrong." });
@@ -513,6 +674,21 @@ export function CreateAssignmentPage() {
   }
 
   const monacoLang = LANGUAGES.find((l) => l.value === referenceLanguage)?.monaco ?? "python";
+  const minimumDateTime = nextAvailableDateTime();
+
+  if (isLoading) {
+    return (
+      <DashboardLayout
+        logoLinkTo="/teacher"
+        navLinks={TEACHER_CREATE_NAV}
+        sidebarItems={TEACHER_CREATE_SIDEBAR_ITEMS}
+      >
+        <div className="py-20 text-center text-gray-500 dark:text-gray-400">
+          Loading assignment form…
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout
@@ -535,9 +711,13 @@ export function CreateAssignmentPage() {
         </button>
         <div>
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-azure/10 dark:bg-yellow/10 border border-azure/20 dark:border-yellow/20 mb-1">
-            <span className="text-xs font-medium text-azure dark:text-yellow">New Assignment</span>
+            <span className="text-xs font-medium text-azure dark:text-yellow">
+              {isClone ? "Clone Assignment" : "New Assignment"}
+            </span>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Create Assignment</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+            {isClone ? "Clone Assignment" : "Create Assignment"}
+          </h1>
         </div>
       </div>
 
@@ -547,6 +727,39 @@ export function CreateAssignmentPage() {
         {/* ----------------------------------------------------------------- */}
         <SectionCard title="Basic Information" badge="Required">
           <div className="space-y-5">
+            <div>
+              <FieldLabel htmlFor="groupId">Group</FieldLabel>
+              <select
+                id="groupId"
+                value={groupId}
+                onChange={(event) => setGroupId(event.target.value)}
+                required
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700
+                           bg-white dark:bg-dark-surface text-gray-900 dark:text-white
+                           focus:outline-none focus:ring-2 focus:ring-azure dark:focus:ring-yellow
+                           focus:border-transparent transition-all duration-200"
+              >
+                <option value="" disabled>
+                  {groups.length ? "Select an active group" : "No active groups available"}
+                </option>
+                {groups.map((group) => (
+                  <option
+                    key={group.id}
+                    value={group.id}
+                    disabled={isClone && group.id === sourceGroupId}
+                  >
+                    {group.name}
+                    {isClone && group.id === sourceGroupId ? " (source group)" : ""}
+                  </option>
+                ))}
+              </select>
+              {isClone && (
+                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                  Select another active group. Source group is shown for context.
+                </p>
+              )}
+            </div>
+
             <div>
               <FieldLabel htmlFor="title">Title</FieldLabel>
               <TextInput
@@ -656,14 +869,55 @@ export function CreateAssignmentPage() {
               />
             </div>
 
-            {/* Due date */}
-            <div className="sm:col-span-2">
+            <div>
+              <FieldLabel htmlFor="maxPoints">Maximum Points</FieldLabel>
+              <TextInput
+                id="maxPoints"
+                type="number"
+                value={maxPoints}
+                onChange={(value) => setMaxPoints(Number(value))}
+                required
+              />
+            </div>
+
+            <div>
+              <FieldLabel htmlFor="launchDate">Launch Date (optional)</FieldLabel>
+              <input
+                id="launchDate"
+                type="datetime-local"
+                value={launchDate}
+                min={minimumDateTime}
+                onChange={(e) => setLaunchDate(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700
+                           bg-white dark:bg-dark-surface text-gray-900 dark:text-white
+                           focus:outline-none focus:ring-2 focus:ring-azure dark:focus:ring-yellow
+                           focus:border-transparent transition-all duration-200"
+              />
+            </div>
+
+            <div>
               <FieldLabel htmlFor="dueDate">Due Date (optional)</FieldLabel>
               <input
                 id="dueDate"
                 type="datetime-local"
                 value={dueDate}
+                min={minimumDateTime}
                 onChange={(e) => setDueDate(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700
+                           bg-white dark:bg-dark-surface text-gray-900 dark:text-white
+                           focus:outline-none focus:ring-2 focus:ring-azure dark:focus:ring-yellow
+                           focus:border-transparent transition-all duration-200"
+              />
+            </div>
+
+            <div>
+              <FieldLabel htmlFor="closeDate">Close Date (optional)</FieldLabel>
+              <input
+                id="closeDate"
+                type="datetime-local"
+                value={closeDate}
+                min={minimumDateTime}
+                onChange={(e) => setCloseDate(e.target.value)}
                 className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700
                            bg-white dark:bg-dark-surface text-gray-900 dark:text-white
                            focus:outline-none focus:ring-2 focus:ring-azure dark:focus:ring-yellow
@@ -732,7 +986,79 @@ export function CreateAssignmentPage() {
         </SectionCard>
 
         {/* ----------------------------------------------------------------- */}
-        {/* Section 4 — Reference Solution */}
+        {/* Section 4 — Examples */}
+        {/* ----------------------------------------------------------------- */}
+        <SectionCard title="Examples" badge="Optional">
+          <div className="space-y-4">
+            {examples.map((example, index) => (
+              <div
+                key={index}
+                className="grid sm:grid-cols-2 gap-3 p-4 rounded-xl border border-gray-200 dark:border-gray-700/50"
+              >
+                <textarea
+                  value={example.input}
+                  onChange={(event) =>
+                    setExamples((items) =>
+                      items.map((item, itemIndex) =>
+                        itemIndex === index ? { ...item, input: event.target.value } : item
+                      )
+                    )
+                  }
+                  rows={3}
+                  placeholder="Example input"
+                  className="px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-dark-surface text-gray-900 dark:text-white font-mono text-sm"
+                />
+                <textarea
+                  value={example.output}
+                  onChange={(event) =>
+                    setExamples((items) =>
+                      items.map((item, itemIndex) =>
+                        itemIndex === index ? { ...item, output: event.target.value } : item
+                      )
+                    )
+                  }
+                  rows={3}
+                  placeholder="Example output"
+                  className="px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-dark-surface text-gray-900 dark:text-white font-mono text-sm"
+                />
+                <input
+                  value={example.explanation}
+                  onChange={(event) =>
+                    setExamples((items) =>
+                      items.map((item, itemIndex) =>
+                        itemIndex === index ? { ...item, explanation: event.target.value } : item
+                      )
+                    )
+                  }
+                  placeholder="Explanation"
+                  className="sm:col-span-2 px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-dark-surface text-gray-900 dark:text-white"
+                />
+                <button
+                  type="button"
+                  onClick={() => setExamples((items) => items.filter((_, itemIndex) => itemIndex !== index))}
+                  className="sm:col-span-2 justify-self-end text-sm text-red-500 hover:text-red-600"
+                >
+                  Remove example
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() =>
+                setExamples((items) => [
+                  ...items,
+                  { input: "", output: "", explanation: "" },
+                ])
+              }
+              className="text-sm text-azure dark:text-yellow font-medium hover:opacity-80"
+            >
+              + Add example
+            </button>
+          </div>
+        </SectionCard>
+
+        {/* ----------------------------------------------------------------- */}
+        {/* Section 5 — Reference Solution */}
         {/* ----------------------------------------------------------------- */}
         <SectionCard title="Reference Solution" badge="Required">
           <div className="flex gap-2 mb-5">
@@ -777,7 +1103,7 @@ export function CreateAssignmentPage() {
         </SectionCard>
 
         {/* ----------------------------------------------------------------- */}
-        {/* Section 5 — Test Cases */}
+        {/* Section 6 — Test Cases */}
         {/* ----------------------------------------------------------------- */}
         <SectionCard title="Test Cases" badge="Required">
           <div className="space-y-4">
@@ -901,14 +1227,14 @@ export function CreateAssignmentPage() {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                 </svg>
-                Creating…
+                {isClone ? "Cloning…" : "Creating…"}
               </>
             ) : (
               <>
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
-                Create Assignment
+                {isClone ? "Clone Assignment" : "Create Assignment"}
               </>
             )}
           </button>

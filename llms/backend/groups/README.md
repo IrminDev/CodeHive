@@ -28,7 +28,7 @@ Propietario (User autorizado con CREATE_GROUP)
 5. Las inscripciones no se eliminan físicamente. La combinación `(grupo, estudiante)` es única y conserva el historial.
 6. Una inscripción puede estar en los estados `ACTIVE`, `LEFT` o `REMOVED`.
 7. Cuando un estudiante que salió o fue removido vuelve a unirse, se reactiva su misma inscripción y se actualiza su fecha de unión.
-8. Solo el propietario, independientemente de su rol, puede actualizar un grupo, consultar su lista de estudiantes, remover estudiantes, archivar, desarchivar, eliminar lógicamente, restaurar o rotar el código de unión.
+8. El propietario y los estudiantes con una inscripción `ACTIVE` pueden consultar la lista de estudiantes activos del grupo. Solo el propietario, independientemente de su rol, puede actualizar el grupo, remover estudiantes, archivar, desarchivar, eliminar lógicamente, restaurar o rotar el código de unión. Consultar la lista no concede acceso a tareas, entregas, retroalimentación ni calificaciones de otros estudiantes.
 9. El código de unión se devuelve al propietario y nunca a usuarios que acceden únicamente mediante inscripción.
 10. Un estudiante propietario no puede inscribirse en su propio grupo.
 
@@ -68,7 +68,7 @@ Propietario (User autorizado con CREATE_GROUP)
 4. Un profesor propietario puede ejecutar pruebas de práctica, pero no puede crear entregas definitivas de estudiante.
 5. Una ejecución `PRACTICE` de estudiante requiere al menos un caso de prueba proporcionado por el cliente.
 6. Una ejecución `DEFINITIVE` crea una `Submission` inmutable asociada al estudiante autenticado.
-7. Se permiten múltiples entregas definitivas antes del cierre. La más reciente se obtiene por fecha de creación; si ocurre después de `dueDate`, se persiste con `deliveredLate = true`.
+7. Se permiten múltiples entregas definitivas antes del cierre. La más reciente se obtiene por fecha de creación; si ocurre después de `dueDate`, se persiste con `deliveredLate = true`. Si el profesor extiende o elimina `dueDate`, las entregas tardías que ahora quedan dentro del plazo se actualizan a `deliveredLate = false`.
 8. En el instante de `closeDate` y después de él, no se acepta una nueva entrega definitiva.
 9. Quien inició una ejecución puede consultar su estado y reporte; en una entrega definitiva también puede hacerlo el propietario del grupo.
 
