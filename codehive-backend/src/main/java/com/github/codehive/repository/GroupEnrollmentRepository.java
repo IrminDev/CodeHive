@@ -5,7 +5,10 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
+import com.github.codehive.model.dto.metrics.EnrollmentStatusCount;
 import com.github.codehive.model.entity.GroupEnrollment;
 import com.github.codehive.model.enums.EnrollmentStatus;
 
@@ -14,4 +17,13 @@ public interface GroupEnrollmentRepository extends JpaRepository<GroupEnrollment
     boolean existsByGroupIdAndStudentIdAndStatus(UUID groupId, UUID studentId, EnrollmentStatus status);
     List<GroupEnrollment> findByGroupIdAndStatusOrderByJoinedAtAsc(UUID groupId, EnrollmentStatus status);
     List<GroupEnrollment> findByStudentIdAndStatus(UUID studentId, EnrollmentStatus status);
+
+    @Query("""
+            select new com.github.codehive.model.dto.metrics.EnrollmentStatusCount(
+                enrollment.status, count(enrollment))
+            from GroupEnrollment enrollment
+            where enrollment.group.id = :groupId
+            group by enrollment.status
+            """)
+    List<EnrollmentStatusCount> countByGroupIdGroupedByStatus(@Param("groupId") UUID groupId);
 }
