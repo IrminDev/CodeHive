@@ -28,7 +28,7 @@ Propietario (User autorizado con CREATE_GROUP)
 5. Las inscripciones no se eliminan físicamente. La combinación `(grupo, estudiante)` es única y conserva el historial.
 6. Una inscripción puede estar en los estados `ACTIVE`, `LEFT` o `REMOVED`.
 7. Cuando un estudiante que salió o fue removido vuelve a unirse, se reactiva su misma inscripción y se actualiza su fecha de unión.
-8. El propietario y los estudiantes con una inscripción `ACTIVE` pueden consultar la lista de estudiantes activos del grupo. Solo el propietario, independientemente de su rol, puede actualizar el grupo, remover estudiantes, archivar, desarchivar, eliminar lógicamente, restaurar o rotar el código de unión. Consultar la lista no concede acceso a tareas, entregas, retroalimentación ni calificaciones de otros estudiantes.
+8. El propietario y los estudiantes con una inscripción `ACTIVE` pueden consultar la lista de estudiantes activos del grupo. Solo el propietario, independientemente de su rol, puede actualizar el grupo, remover estudiantes, archivar, desarchivar, eliminar lógicamente, restaurar o rotar el código de unión. Consultar la lista no concede acceso a tareas, entregas, retroalimentación ni calificaciones de otros estudiantes. La lista expone de cada estudiante únicamente su identificador, nombre completo y boleta; nunca correo, scopes ni banderas de cuenta.
 9. El código de unión se devuelve al propietario y nunca a usuarios que acceden únicamente mediante inscripción.
 10. Un estudiante propietario no puede inscribirse en su propio grupo.
 

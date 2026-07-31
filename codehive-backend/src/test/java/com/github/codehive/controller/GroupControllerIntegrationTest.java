@@ -153,7 +153,13 @@ class GroupControllerIntegrationTest {
                         student.getId().toString(), peer.getId().toString())))
                 .andExpect(jsonPath("$.data[*].status", containsInAnyOrder("ACTIVE", "ACTIVE")))
                 .andExpect(jsonPath("$.data[*].assignments").doesNotExist())
-                .andExpect(jsonPath("$.data[*].grades").doesNotExist());
+                .andExpect(jsonPath("$.data[*].grades").doesNotExist())
+                .andExpect(jsonPath("$.data[0].student.fullName").isNotEmpty())
+                .andExpect(jsonPath("$.data[0].student.enrollmentNumber").isNotEmpty())
+                .andExpect(jsonPath("$.data[*].student.email").doesNotExist())
+                .andExpect(jsonPath("$.data[*].student.scopes").doesNotExist())
+                .andExpect(jsonPath("$.data[*].student.isActive").doesNotExist())
+                .andExpect(jsonPath("$.data[*].student.temporaryPassword").doesNotExist());
 
         String formerStudentToken = jwtUtil.generateToken(
                 Map.of("role", "STUDENT"), formerStudent.getEmail());
