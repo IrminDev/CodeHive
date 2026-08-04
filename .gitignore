@@ -48,3 +48,6 @@ yarn-debug.log*
 yarn-error.log*
 
 .crush/
+
+# graphify: machine-local interpreter path, not portable across users/machines
+graphify-out/.graphify_python
