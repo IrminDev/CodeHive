@@ -302,6 +302,30 @@ class GroupControllerIntegrationTest {
     }
 
     @Test
+    void restoreRejectsAGroupThatIsNotDeleted() throws Exception {
+        ClassGroup group = groupRepository.save(new ClassGroup("Algorithms", "", teacher, "NOTDEL01"));
+
+        mockMvc.perform(post("/api/groups/{id}/restore", group.getId())
+                        .header("Authorization", "Bearer " + teacherToken))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void joiningADeletedGroupsCodeReturnsNotFoundInsteadOfRevealingItWasDeleted() throws Exception {
+        ClassGroup group = groupRepository.save(new ClassGroup("Algorithms", "", teacher, "DELCODE1"));
+
+        mockMvc.perform(delete("/api/groups/{id}", group.getId())
+                        .header("Authorization", "Bearer " + teacherToken))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/groups/join")
+                        .header("Authorization", "Bearer " + studentToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"joinCode\":\"DELCODE1\"}"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
     void archivedGroupRejectsChangesButStillAllowsRosterRemoval() throws Exception {
         ClassGroup group = groupRepository.save(new ClassGroup("Algorithms", "", teacher, "ARCHIVE1"));
         enrollmentRepository.save(new GroupEnrollment(group, student));

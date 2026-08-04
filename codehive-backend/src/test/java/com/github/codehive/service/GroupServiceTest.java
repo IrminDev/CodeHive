@@ -24,6 +24,7 @@ import com.github.codehive.model.entity.User;
 import com.github.codehive.model.enums.EnrollmentStatus;
 import com.github.codehive.model.enums.NotificationType;
 import com.github.codehive.model.enums.Role;
+import com.github.codehive.model.exception.EntityNotFoundException;
 import com.github.codehive.model.exception.ValidationException;
 import com.github.codehive.model.request.group.CreateGroupRequest;
 import com.github.codehive.notification.NotificationDomainEventPublisher;
@@ -129,6 +130,34 @@ class GroupServiceTest {
 
         assertThat(group.getIsActive()).isFalse();
         assertThat(group.getArchived()).isTrue();
+    }
+
+    @Test
+    void softDeletePublishesGroupArchivedSoEnrolledStudentsAreNotified() {
+        service.softDelete(GROUP_ID, OWNER_EMAIL);
+
+        ArgumentCaptor<NotificationDomainEvent> event =
+                ArgumentCaptor.forClass(NotificationDomainEvent.class);
+        verify(notificationPublisher).publish(event.capture());
+        assertThat(event.getValue().type()).isEqualTo(NotificationType.GROUP_ARCHIVED);
+        assertThat(event.getValue().groupId()).isEqualTo(GROUP_ID);
+    }
+
+    @Test
+    void restoreRejectsAGroupThatIsNotDeleted() {
+        assertThatThrownBy(() -> service.restore(GROUP_ID, OWNER_EMAIL))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("not deleted");
+    }
+
+    @Test
+    void joinRejectsADeletedGroupsCodeAsNotFoundWithoutRevealingItExisted() {
+        group.setIsActive(false);
+        when(groupRepository.findByJoinCodeIgnoreCase("CODE1234")).thenReturn(Optional.of(group));
+
+        assertThatThrownBy(() -> service.join("CODE1234", STUDENT_EMAIL))
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessageContaining("No active group uses that join code");
     }
 
     @Test

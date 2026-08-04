@@ -168,7 +168,11 @@ public class GroupController {
     }
 
     @Operation(summary = "Restore a group", description = "Restores a logically deleted group in archived state.")
-    @ApiResponses({@ApiResponse(responseCode = "200", description = "Group restored"), @ApiResponse(responseCode = "403", description = "Caller is not the owner")})
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Group restored"),
+            @ApiResponse(responseCode = "400", description = "Group is not deleted", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "403", description = "Caller is not the owner")
+    })
     @PostMapping("/{id}/restore")
     public ResponseEntity<SuccessResponse<GroupDTO>> restore(@PathVariable UUID id, Authentication authentication) {
         return stateResponse("Group restored as archived", groupService.restore(id, authentication.getName()));
