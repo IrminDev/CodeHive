@@ -47,7 +47,6 @@ public class AssignmentStudentWorkController {
     }
 
     @GetMapping("/{assignmentId}/student-work")
-    @PreAuthorize("hasAuthority('TEACHER')")
     @Operation(summary = "List assignment student work")
     @ApiResponse(responseCode = "200", description = "Student work retrieved")
     public ResponseEntity<SuccessResponse<List<StudentAssignmentWorkDTO>>> listStudentWork(
@@ -77,7 +76,6 @@ public class AssignmentStudentWorkController {
     }
 
     @PostMapping("/{assignmentId}/students/{studentId}/feedback")
-    @PreAuthorize("hasAuthority('TEACHER')")
     @Operation(summary = "Publish assignment feedback for a student")
     @ApiResponse(responseCode = "200", description = "Feedback published")
     public ResponseEntity<SuccessResponse<AssignmentFeedbackDTO>> createFeedback(
@@ -98,7 +96,6 @@ public class AssignmentStudentWorkController {
     }
 
     @DeleteMapping("/feedback/{feedbackId}")
-    @PreAuthorize("hasAuthority('TEACHER')")
     @Operation(summary = "Logically delete assignment feedback")
     @ApiResponse(responseCode = "200", description = "Feedback deleted")
     public ResponseEntity<SuccessResponse<Void>> deleteFeedback(
@@ -108,7 +105,6 @@ public class AssignmentStudentWorkController {
     }
 
     @PutMapping("/{assignmentId}/students/{studentId}/grade")
-    @PreAuthorize("hasAuthority('TEACHER')")
     @Operation(summary = "Create or replace a draft grade")
     @ApiResponse(responseCode = "200", description = "Draft grade saved")
     public ResponseEntity<SuccessResponse<AssignmentGradeDTO>> saveGrade(
@@ -119,7 +115,6 @@ public class AssignmentStudentWorkController {
     }
 
     @PostMapping("/{assignmentId}/students/{studentId}/grade/return")
-    @PreAuthorize("hasAuthority('TEACHER')")
     @Operation(summary = "Return a draft grade to the student")
     @ApiResponse(responseCode = "200", description = "Grade returned")
     public ResponseEntity<SuccessResponse<AssignmentGradeDTO>> returnGrade(

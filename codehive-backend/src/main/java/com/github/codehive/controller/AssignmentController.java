@@ -8,7 +8,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import java.util.UUID;
 
@@ -61,7 +60,6 @@ public class AssignmentController {
     }
 
     @PatchMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAuthority('TEACHER')")
     @Operation(summary = "Update assignment metadata, reference solution, or test suite")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Metadata updated immediately"),
@@ -85,7 +83,6 @@ public class AssignmentController {
     }
 
     @GetMapping("/updates/{updateId}")
-    @PreAuthorize("hasAuthority('TEACHER')")
     @Operation(summary = "Get staged assignment update status")
     @ApiResponse(responseCode = "200", description = "Assignment update retrieved")
     public ResponseEntity<SuccessResponse<AssignmentUpdateDTO>> getAssignmentUpdate(
@@ -142,11 +139,10 @@ public class AssignmentController {
         ),
         @ApiResponse(
             responseCode = "403",
-            description = "Forbidden — only TEACHER or ADMIN role allowed",
+            description = "Forbidden — caller does not own the target group",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class))
         )
     })
-    @PreAuthorize("hasAnyAuthority('TEACHER', 'ADMIN')")
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<SuccessResponse<AssignmentDTO>> createAssignment(
             @Valid @RequestPart("metadata") CreateAssignmentRequest metadata,
@@ -179,7 +175,6 @@ public class AssignmentController {
             @ApiResponse(responseCode = "404", description = "Assignment not found", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     @GetMapping("/{id}/clone-form")
-    @PreAuthorize("hasAuthority('TEACHER')")
     public ResponseEntity<SuccessResponse<CloneAssignmentFormDTO>> getCloneForm(
             @PathVariable UUID id, Authentication authentication) {
         return ResponseEntity.ok(new SuccessResponse<>("Assignment clone form retrieved.",
@@ -195,7 +190,6 @@ public class AssignmentController {
             @ApiResponse(responseCode = "404", description = "Assignment or group not found", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     @PostMapping("/{id}/clone")
-    @PreAuthorize("hasAuthority('TEACHER')")
     public ResponseEntity<SuccessResponse<AssignmentDTO>> cloneAssignment(
             @PathVariable UUID id, @Valid @RequestBody CloneAssignmentRequest request,
             Authentication authentication) {
@@ -211,7 +205,6 @@ public class AssignmentController {
             @ApiResponse(responseCode = "404", description = "Assignment not found", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAuthority('TEACHER')")
     public ResponseEntity<SuccessResponse<Void>> deleteAssignment(@PathVariable UUID id,
                                                                    Authentication authentication) {
         assignmentService.softDelete(id, authentication.getName());

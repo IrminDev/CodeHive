@@ -31,6 +31,7 @@ Propietario (User autorizado con CREATE_GROUP)
 8. El propietario y los estudiantes con una inscripción `ACTIVE` pueden consultar la lista de estudiantes activos del grupo. Solo el propietario, independientemente de su rol, puede actualizar el grupo, remover estudiantes, archivar, desarchivar, eliminar lógicamente, restaurar o rotar el código de unión. Consultar la lista no concede acceso a tareas, entregas, retroalimentación ni calificaciones de otros estudiantes. La lista expone de cada estudiante únicamente su identificador, nombre completo y boleta; nunca correo, scopes ni banderas de cuenta.
 9. El código de unión se devuelve al propietario y nunca a usuarios que acceden únicamente mediante inscripción.
 10. Un estudiante propietario no puede inscribirse en su propio grupo.
+11. El propietario de un grupo, independientemente de su rol, tiene sobre las tareas de ese grupo las mismas capacidades que un docente: crear, actualizar, clonar, eliminar tareas, calificar y dar retroalimentación. La autorización de `GroupController`, `GroupMetricsController`, `AssignmentController` y `AssignmentStudentWorkController` es uniforme y se basa exclusivamente en `group.owner.id == caller.id`, sin comprobaciones de rol adicionales. Las vistas de autoconsulta (`my-work`, `my-grade`) siguen reservadas al rol `STUDENT`, ya que un propietario no genera entregas propias.
 
 ### Ciclo de vida de grupos
 
@@ -452,3 +453,5 @@ Propietario (User autorizado con CREATE_GROUP)
 
 - Las excepciones de autorización para administradores se implementarán cuando estén definidos los scopes administrativos y sus acciones concretas.
 - Los futuros permisos administrativos sobre entregas y calificaciones deben definirse mediante scopes concretos; actualmente solo el propietario del grupo puede evaluarlas.
+- **Contradicción de autorización resuelta**: `GroupController`, `GroupMetricsController`, `AssignmentController` y `AssignmentStudentWorkController` autorizaban de forma inconsistente — los primeros por propiedad del grupo (regla 8/11), los segundos exigiendo además `hasAuthority('TEACHER')` (y `StudentWorkQueryService.get` decidía por `Role.TEACHER` en el propio servicio). Se ratificó extender la regla de propiedad a los cuatro controladores (regla 11): un alumno-propietario con `CREATE_GROUP` ahora puede crear tareas, calificar y dar retroalimentación en su propio grupo, igual que un docente. `PermissionMatrixIntegrationTest`
+  (`src/test/java/com/github/codehive/security/`) verifica la regla ratificada de forma automatizada.

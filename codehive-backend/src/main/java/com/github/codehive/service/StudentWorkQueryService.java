@@ -14,7 +14,6 @@ import com.github.codehive.model.entity.AssignmentGrade;
 import com.github.codehive.model.entity.StudentAssignmentWork;
 import com.github.codehive.model.entity.User;
 import com.github.codehive.model.enums.GradeStatus;
-import com.github.codehive.model.enums.Role;
 import com.github.codehive.model.exception.EntityNotFoundException;
 import com.github.codehive.model.mapper.SubmissionMapper;
 import com.github.codehive.repository.AssignmentGradeRepository;
@@ -54,14 +53,15 @@ public class StudentWorkQueryService {
     @Transactional(readOnly = true)
     public StudentAssignmentWorkDTO get(UUID assignmentId, UUID studentId, String email) {
         User caller = requireUser(email);
-        boolean teacherView = caller.getRole() == Role.TEACHER;
-        if (teacherView) requireOwnedAssignment(assignmentId, caller);
-        else if (!caller.getId().equals(studentId)) {
+        Assignment assignment = assignmentRepository.findById(assignmentId)
+                .orElseThrow(() -> new EntityNotFoundException("Assignment not found: " + assignmentId));
+        boolean ownerView = assignment.getGroup().getOwner().getId().equals(caller.getId());
+        if (!ownerView && !caller.getId().equals(studentId)) {
             throw new AccessDeniedException("Students can only view their own work");
         }
         StudentAssignmentWork work = workRepository.findByAssignmentIdAndStudentId(assignmentId, studentId)
                 .orElseThrow(() -> new EntityNotFoundException("Student assignment work not found"));
-        return toDTO(work, teacherView);
+        return toDTO(work, ownerView);
     }
 
     @Transactional(readOnly = true)
