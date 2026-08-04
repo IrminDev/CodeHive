@@ -17,7 +17,6 @@ import com.github.codehive.model.entity.StudentAssignmentWork;
 import com.github.codehive.model.entity.User;
 import com.github.codehive.model.enums.GradeChangeReason;
 import com.github.codehive.model.enums.GradeStatus;
-import com.github.codehive.model.enums.Role;
 import com.github.codehive.model.exception.EntityNotFoundException;
 import com.github.codehive.model.exception.ValidationException;
 import com.github.codehive.repository.AssignmentGradeHistoryRepository;
@@ -55,7 +54,7 @@ public class AssignmentGradeService {
     @Transactional
     public AssignmentGradeDTO saveDraft(UUID assignmentId, UUID studentId, BigDecimal value,
                                         String email) {
-        User teacher = requireTeacher(email);
+        User teacher = requireUser(email);
         Assignment assignment = requireOwnedAssignment(assignmentId, teacher);
         if (value.compareTo(assignment.getMaxPoints()) > 0) {
             throw new ValidationException("Grade cannot exceed assignment maxPoints");
@@ -79,7 +78,7 @@ public class AssignmentGradeService {
 
     @Transactional
     public AssignmentGradeDTO returnGrade(UUID assignmentId, UUID studentId, String email) {
-        User teacher = requireTeacher(email);
+        User teacher = requireUser(email);
         requireOwnedAssignment(assignmentId, teacher);
         StudentAssignmentWork work = requireWork(assignmentId, studentId);
         AssignmentGrade grade = gradeRepository.findByStudentWorkId(work.getId())
@@ -149,13 +148,9 @@ public class AssignmentGradeService {
                 .orElseThrow(() -> new EntityNotFoundException("Student assignment work not found"));
     }
 
-    private User requireTeacher(String email) {
-        User user = userRepository.findByEmail(email)
+    private User requireUser(String email) {
+        return userRepository.findByEmail(email)
                 .orElseThrow(() -> new EntityNotFoundException("Authenticated user not found"));
-        if (user.getRole() != Role.TEACHER) {
-            throw new AccessDeniedException("Only teachers can grade assignments");
-        }
-        return user;
     }
 
     private AssignmentGradeDTO toDTO(AssignmentGrade grade) {

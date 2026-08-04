@@ -32,7 +32,6 @@ import com.github.codehive.model.entity.User;
 import com.github.codehive.model.enums.AssignmentUpdateKind;
 import com.github.codehive.model.enums.AssignmentUpdateStatus;
 import com.github.codehive.model.enums.RevisionStatus;
-import com.github.codehive.model.enums.Role;
 import com.github.codehive.model.enums.TestGenerationMode;
 import com.github.codehive.model.enums.TestSuiteUpdateMode;
 import com.github.codehive.model.enums.GradeChangeReason;
@@ -106,7 +105,7 @@ public class AssignmentUpdateService {
                                       MultipartFile referenceSolution,
                                       List<MultipartFile> replacementTestCases,
                                       String email) {
-        User teacher = requireTeacher(email);
+        User teacher = requireUser(email);
         Assignment assignment = requireAssignment(assignmentId);
         groupService.requireOwnedWritableGroup(assignment.getGroup().getId(), teacher);
         if (updateRepository.existsByAssignmentIdAndStatus(
@@ -173,7 +172,7 @@ public class AssignmentUpdateService {
 
     @Transactional(readOnly = true)
     public AssignmentUpdateDTO get(UUID updateId, String email) {
-        User teacher = requireTeacher(email);
+        User teacher = requireUser(email);
         AssignmentUpdate update = updateRepository.findById(updateId)
                 .orElseThrow(() -> new EntityNotFoundException("Assignment update not found: " + updateId));
         if (!update.getAssignment().getGroup().getOwner().getId().equals(teacher.getId())) {
@@ -560,13 +559,9 @@ public class AssignmentUpdateService {
                 .orElseThrow(() -> new EntityNotFoundException("Assignment not found: " + id));
     }
 
-    private User requireTeacher(String email) {
-        User user = userRepository.findByEmail(email)
+    private User requireUser(String email) {
+        return userRepository.findByEmail(email)
                 .orElseThrow(() -> new EntityNotFoundException("Authenticated user not found"));
-        if (user.getRole() != Role.TEACHER) {
-            throw new AccessDeniedException("Only teachers can update assignments");
-        }
-        return user;
     }
 
     private AssignmentUpdateDTO toDTO(AssignmentUpdate update) {

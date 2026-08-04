@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import com.github.codehive.model.dto.metrics.SubmissionAttemptCount;
 import com.github.codehive.model.entity.Assignment;
 import com.github.codehive.model.entity.Submission;
 import com.github.codehive.model.entity.User;
@@ -50,4 +51,23 @@ public interface SubmissionRepository extends JpaRepository<Submission, UUID> {
               and submission.deliveredLate = true
             """)
     int markAllLateSubmissionsOnTime(@Param("assignmentId") UUID assignmentId);
+
+    @Query("""
+            select new com.github.codehive.model.dto.metrics.SubmissionAttemptCount(
+                submission.assignment.id, submission.student.id, count(submission))
+            from Submission submission
+            where submission.assignment.group.id = :groupId
+              and submission.assignment.isActive = true
+            group by submission.assignment.id, submission.student.id
+            """)
+    List<SubmissionAttemptCount> countAttemptsByGroupId(@Param("groupId") UUID groupId);
+
+    @Query("""
+            select new com.github.codehive.model.dto.metrics.SubmissionAttemptCount(
+                submission.assignment.id, submission.student.id, count(submission))
+            from Submission submission
+            where submission.assignment.id = :assignmentId
+            group by submission.assignment.id, submission.student.id
+            """)
+    List<SubmissionAttemptCount> countAttemptsByAssignmentId(@Param("assignmentId") UUID assignmentId);
 }

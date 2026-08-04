@@ -28,9 +28,10 @@ Propietario (User autorizado con CREATE_GROUP)
 5. Las inscripciones no se eliminan físicamente. La combinación `(grupo, estudiante)` es única y conserva el historial.
 6. Una inscripción puede estar en los estados `ACTIVE`, `LEFT` o `REMOVED`.
 7. Cuando un estudiante que salió o fue removido vuelve a unirse, se reactiva su misma inscripción y se actualiza su fecha de unión.
-8. El propietario y los estudiantes con una inscripción `ACTIVE` pueden consultar la lista de estudiantes activos del grupo. Solo el propietario, independientemente de su rol, puede actualizar el grupo, remover estudiantes, archivar, desarchivar, eliminar lógicamente, restaurar o rotar el código de unión. Consultar la lista no concede acceso a tareas, entregas, retroalimentación ni calificaciones de otros estudiantes.
+8. El propietario y los estudiantes con una inscripción `ACTIVE` pueden consultar la lista de estudiantes activos del grupo. Solo el propietario, independientemente de su rol, puede actualizar el grupo, remover estudiantes, archivar, desarchivar, eliminar lógicamente, restaurar o rotar el código de unión. Consultar la lista no concede acceso a tareas, entregas, retroalimentación ni calificaciones de otros estudiantes. La lista expone de cada estudiante únicamente su identificador, nombre completo y boleta; nunca correo, scopes ni banderas de cuenta.
 9. El código de unión se devuelve al propietario y nunca a usuarios que acceden únicamente mediante inscripción.
 10. Un estudiante propietario no puede inscribirse en su propio grupo.
+11. El propietario de un grupo, independientemente de su rol, tiene sobre las tareas de ese grupo las mismas capacidades que un docente: crear, actualizar, clonar, eliminar tareas, calificar y dar retroalimentación. La autorización de `GroupController`, `GroupMetricsController`, `AssignmentController` y `AssignmentStudentWorkController` es uniforme y se basa exclusivamente en `group.owner.id == caller.id`, sin comprobaciones de rol adicionales. Las vistas de autoconsulta (`my-work`, `my-grade`) siguen reservadas al rol `STUDENT`, ya que un propietario no genera entregas propias.
 
 ### Ciclo de vida de grupos
 
@@ -39,6 +40,9 @@ Propietario (User autorizado con CREATE_GROUP)
 3. `archived = true` significa que el grupo es de solo lectura. No permite uniones, modificaciones, creación de tareas ni nuevas ejecuciones o entregas.
 4. Restaurar un grupo eliminado lo deja archivado; el propietario debe desarchivarlo explícitamente antes de modificarlo o recibir actividad.
 5. La eliminación lógica también archiva el grupo.
+6. La eliminación lógica notifica a los estudiantes con inscripción activa (evento `GROUP_ARCHIVED`), igual que archivar el grupo explícitamente.
+7. Restaurar solo es válido sobre un grupo eliminado lógicamente (`isActive = false`). Intentar restaurar un grupo activo se rechaza.
+8. Un código de unión que pertenece a un grupo eliminado lógicamente se trata como si no existiera: el sistema no distingue "código inexistente" de "código de un grupo eliminado" para no revelar el historial del grupo a quien no es su propietario.
 
 ### Tareas y ejemplos
 
@@ -148,15 +152,15 @@ Propietario (User autorizado con CREATE_GROUP)
 **Descripción del flujo principal:**
 
 1. El estudiante envía el código de unión.
-2. El sistema localiza el grupo asociado al código sin distinguir mayúsculas o minúsculas.
-3. El sistema verifica que el grupo esté activo y no archivado.
+2. El sistema localiza un grupo activo asociado al código, sin distinguir mayúsculas o minúsculas.
+3. El sistema verifica que el grupo no esté archivado.
 4. El sistema crea una inscripción activa o reactiva la inscripción histórica del estudiante.
 5. El sistema devuelve la información del grupo sin revelar el código de unión.
 
 **Flujos alternativos:**
 
-2.1. Si el código no existe, el sistema informa que no hay un grupo activo con ese código y vuelve al paso 1 del flujo principal.
-3.1. Si el grupo está archivado o eliminado, el sistema informa que no admite inscripciones y finaliza el flujo.
+2.1. Si el código no existe o pertenece a un grupo eliminado lógicamente, el sistema informa que no hay un grupo activo con ese código y vuelve al paso 1 del flujo principal. Ambos casos producen la misma respuesta para no revelar que el grupo existió.
+3.1. Si el grupo está archivado, el sistema informa que no admite inscripciones y finaliza el flujo.
 4.1. Si el estudiante ya tiene una inscripción activa, el sistema muestra el error y finaliza el flujo.
 4.2. Si el estudiante es propietario del grupo, el sistema rechaza la inscripción y finaliza el flujo.
 1.1. Si el usuario es profesor u otro rol, el sistema deniega el acceso y finaliza el flujo.
@@ -205,9 +209,10 @@ Propietario (User autorizado con CREATE_GROUP)
 2.1. Si el solicitante no es propietario, el sistema deniega el acceso y finaliza el flujo.
 3.1. Si se intenta modificar o rotar el código de un grupo archivado, el sistema muestra el error y finaliza el flujo.
 3.2. Si se intenta modificar o rotar el código de un grupo eliminado, el sistema muestra el error y finaliza el flujo.
+3.3. Si se intenta restaurar un grupo que no está eliminado lógicamente, el sistema muestra el error y finaliza el flujo.
 4.1. Si el código generado ya existe, el sistema genera otro y vuelve al paso 4 del flujo principal.
 
-**Postcondiciones:** El grupo refleja la operación. Una eliminación lógica lo deja inactivo y archivado; una restauración lo deja activo pero archivado.
+**Postcondiciones:** El grupo refleja la operación. Una eliminación lógica lo deja inactivo y archivado, y notifica a los estudiantes con inscripción activa; una restauración solo procede sobre un grupo eliminado y lo deja activo pero archivado.
 
 ### RF-TAR-001
 
@@ -448,3 +453,5 @@ Propietario (User autorizado con CREATE_GROUP)
 
 - Las excepciones de autorización para administradores se implementarán cuando estén definidos los scopes administrativos y sus acciones concretas.
 - Los futuros permisos administrativos sobre entregas y calificaciones deben definirse mediante scopes concretos; actualmente solo el propietario del grupo puede evaluarlas.
+- **Contradicción de autorización resuelta**: `GroupController`, `GroupMetricsController`, `AssignmentController` y `AssignmentStudentWorkController` autorizaban de forma inconsistente — los primeros por propiedad del grupo (regla 8/11), los segundos exigiendo además `hasAuthority('TEACHER')` (y `StudentWorkQueryService.get` decidía por `Role.TEACHER` en el propio servicio). Se ratificó extender la regla de propiedad a los cuatro controladores (regla 11): un alumno-propietario con `CREATE_GROUP` ahora puede crear tareas, calificar y dar retroalimentación en su propio grupo, igual que un docente. `PermissionMatrixIntegrationTest`
+  (`src/test/java/com/github/codehive/security/`) verifica la regla ratificada de forma automatizada.

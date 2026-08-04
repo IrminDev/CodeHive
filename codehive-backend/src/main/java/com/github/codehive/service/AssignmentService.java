@@ -35,7 +35,6 @@ import com.github.codehive.model.entity.TestSuiteRevision;
 import com.github.codehive.model.entity.User;
 import com.github.codehive.model.enums.AssignmentValidationStatus;
 import com.github.codehive.model.enums.EnrollmentStatus;
-import com.github.codehive.model.enums.Role;
 import com.github.codehive.model.exception.EntityNotFoundException;
 import com.github.codehive.model.exception.ValidationException;
 import com.github.codehive.model.mapper.AssignmentMapper;
@@ -126,7 +125,7 @@ public class AssignmentService {
     @Transactional
     public AssignmentDTO createAssignment(CreateAssignmentRequest request, MultipartFile referenceSolutionFile,
                                           List<MultipartFile> testCaseInputFiles, String email) {
-        User author = requireTeacher(email);
+        User author = requireUser(email);
         ClassGroup group = groupService.requireOwnedWritableGroup(request.getGroupId(), author);
         validateDates(request.getLaunchDate(), request.getDueDate(), request.getCloseDate());
         if (testCaseInputFiles == null || testCaseInputFiles.isEmpty()) {
@@ -162,7 +161,7 @@ public class AssignmentService {
 
     @Transactional
     public AssignmentDTO cloneAssignment(UUID sourceId, CloneAssignmentRequest request, String email) {
-        User teacher = requireTeacher(email);
+        User teacher = requireUser(email);
         Assignment source = requireAssignment(sourceId);
         if (!source.getGroup().getOwner().getId().equals(teacher.getId())) {
             throw new AccessDeniedException("Only the source assignment owner can clone it");
@@ -226,7 +225,7 @@ public class AssignmentService {
 
     @Transactional(readOnly = true)
     public CloneAssignmentFormDTO getCloneForm(UUID sourceId, String email) {
-        User teacher = requireTeacher(email);
+        User teacher = requireUser(email);
         Assignment source = requireAssignment(sourceId);
         if (!source.getGroup().getOwner().getId().equals(teacher.getId())) {
             throw new AccessDeniedException("Only the source assignment owner can clone it");
@@ -275,7 +274,7 @@ public class AssignmentService {
 
     @Transactional
     public void softDelete(UUID id, String email) {
-        User teacher = requireTeacher(email);
+        User teacher = requireUser(email);
         Assignment assignment = requireAssignment(id);
         if (!assignment.getGroup().getOwner().getId().equals(teacher.getId())) {
             throw new AccessDeniedException("Only the group owner can delete this assignment");
@@ -399,12 +398,6 @@ public class AssignmentService {
     private User requireUser(String email) {
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new EntityNotFoundException("Authenticated user not found"));
-    }
-
-    private User requireTeacher(String email) {
-        User user = requireUser(email);
-        if (user.getRole() != Role.TEACHER) throw new AccessDeniedException("Only teachers can manage assignments");
-        return user;
     }
 
     private void uploadMultipartFile(String path, MultipartFile file) {

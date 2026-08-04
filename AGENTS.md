@@ -29,8 +29,11 @@ llms/
 │   ├── auth/
 │   ├── controller/
 │   ├── executions/
+│   ├── groups/
 │   ├── messaging/
+│   ├── metrics/
 │   ├── model/
+│   ├── notifications/
 │   ├── security/
 │   └── service/
 ├── frontend/
@@ -59,6 +62,9 @@ Open only the area needed for the current change.
 - Execution request/result orchestration in backend: llms/backend/executions/
 - Backend service-layer orchestration: llms/backend/service/
 - Backend security config and filters: llms/backend/security/
+- Groups, enrollments, assignment lifecycle, deliveries: llms/backend/groups/
+- Teacher performance metrics catalog and API contract: llms/backend/metrics/
+- Email notification rules, preferences, and delivery: llms/backend/notifications/
 
 - Frontend route mapping and route-level composition: llms/frontend/routes/
 - Frontend API clients and request/response handling: llms/frontend/services/

@@ -8,7 +8,7 @@ import com.github.codehive.model.enums.EnrollmentStatus;
 public class EnrollmentDTO {
     private UUID id;
     private UUID groupId;
-    private UserDTO student;
+    private EnrollmentStudentDTO student;
     private EnrollmentStatus status;
     private LocalDateTime joinedAt;
     private LocalDateTime endedAt;
@@ -17,8 +17,8 @@ public class EnrollmentDTO {
     public void setId(UUID id) { this.id = id; }
     public UUID getGroupId() { return groupId; }
     public void setGroupId(UUID groupId) { this.groupId = groupId; }
-    public UserDTO getStudent() { return student; }
-    public void setStudent(UserDTO student) { this.student = student; }
+    public EnrollmentStudentDTO getStudent() { return student; }
+    public void setStudent(EnrollmentStudentDTO student) { this.student = student; }
     public EnrollmentStatus getStatus() { return status; }
     public void setStatus(EnrollmentStatus status) { this.status = status; }
     public LocalDateTime getJoinedAt() { return joinedAt; }
