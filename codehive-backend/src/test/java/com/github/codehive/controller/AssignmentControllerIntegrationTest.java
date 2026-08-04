@@ -17,9 +17,10 @@ import com.github.codehive.messaging.producer.TestGenerationRequestProducer;
 import com.github.codehive.model.entity.Assignment;
 import com.github.codehive.model.entity.ClassGroup;
 import com.github.codehive.model.entity.AssignmentExample;
-import com.github.codehive.model.entity.ReferenceSolution;
+import com.github.codehive.model.entity.ReferenceSolutionRevision;
 import com.github.codehive.model.entity.Submission;
 import com.github.codehive.model.entity.TestCase;
+import com.github.codehive.model.entity.TestSuiteRevision;
 import com.github.codehive.model.enums.AssignmentValidationStatus;
 import com.github.codehive.model.enums.ComparatorType;
 import com.github.codehive.model.enums.Language;
@@ -32,9 +33,10 @@ import com.github.codehive.model.request.assignment.CloneTestCaseRequest;
 import com.github.codehive.repository.AssignmentRepository;
 import com.github.codehive.repository.UserRepository;
 import com.github.codehive.repository.ClassGroupRepository;
-import com.github.codehive.repository.ReferenceSolutionRepository;
+import com.github.codehive.repository.ReferenceSolutionRevisionRepository;
 import com.github.codehive.repository.SubmissionRepository;
 import com.github.codehive.repository.TestCaseRepository;
+import com.github.codehive.repository.TestSuiteRevisionRepository;
 import com.github.codehive.service.ObjectStorageService;
 import com.github.codehive.utils.JwtUtil;
 import java.util.List;
@@ -72,9 +74,10 @@ class AssignmentControllerIntegrationTest {
     @Autowired private AssignmentRepository assignmentRepository;
     @Autowired private UserRepository userRepository;
     @Autowired private ClassGroupRepository groupRepository;
-    @Autowired private ReferenceSolutionRepository referenceSolutionRepository;
+    @Autowired private ReferenceSolutionRevisionRepository referenceSolutionRevisionRepository;
     @Autowired private SubmissionRepository submissionRepository;
     @Autowired private TestCaseRepository testCaseRepository;
+    @Autowired private TestSuiteRevisionRepository testSuiteRevisionRepository;
     @Autowired private EntityManager entityManager;
     @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private JwtUtil jwtUtil;
@@ -305,8 +308,8 @@ class AssignmentControllerIntegrationTest {
         Assignment source = saveAssignment("Clone me");
         source.addExample(new AssignmentExample(source, 1, "1 2", "3", "Add both values"));
         source = assignmentRepository.saveAndFlush(source);
-        referenceSolutionRepository.saveAndFlush(new ReferenceSolution(source, Language.JAVA));
-        testCaseRepository.saveAndFlush(new TestCase(source, 1, false));
+        testCaseRepository.saveAndFlush(new TestCase(
+                source, source.getActiveTestSuiteRevision(), 1, false));
         when(objectStorageService.download(anyString()))
                 .thenAnswer(invocation -> new ByteArrayInputStream("source content".getBytes()));
 
@@ -327,7 +330,6 @@ class AssignmentControllerIntegrationTest {
     @DisplayName("clones the edited form snapshot and leaves omitted dates empty")
     void cloneAssignment() throws Exception {
         Assignment source = saveAssignment("Clone me");
-        referenceSolutionRepository.saveAndFlush(new ReferenceSolution(source, Language.JAVA));
         ClassGroup target = groupRepository.save(new ClassGroup("Advanced", "", teacher, "TARGET12"));
 
         AssignmentExampleRequest example = new AssignmentExampleRequest();
@@ -385,6 +387,20 @@ class AssignmentControllerIntegrationTest {
         a.setGroup(group);
         a.setAuthor(teacher);
         a.setValidationStatus(AssignmentValidationStatus.READY);
+        a = assignmentRepository.saveAndFlush(a);
+        ReferenceSolutionRevision referenceRevision = new ReferenceSolutionRevision();
+        referenceRevision.setAssignment(a);
+        referenceRevision.setLanguage(Language.JAVA);
+        referenceRevision.setObjectKey("assignments/" + a.getId()
+                + "/test-suite-revisions/reference/source/Main.java");
+        referenceRevision = referenceSolutionRevisionRepository.saveAndFlush(referenceRevision);
+        TestSuiteRevision testSuiteRevision = new TestSuiteRevision();
+        testSuiteRevision.setAssignment(a);
+        testSuiteRevision.setReferenceSolutionRevision(referenceRevision);
+        testSuiteRevision.setRevisionNumber(1);
+        testSuiteRevision = testSuiteRevisionRepository.saveAndFlush(testSuiteRevision);
+        a.setActiveReferenceSolutionRevision(referenceRevision);
+        a.setActiveTestSuiteRevision(testSuiteRevision);
         return assignmentRepository.saveAndFlush(a);
     }
 

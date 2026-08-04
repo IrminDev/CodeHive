@@ -6,18 +6,6 @@ public class ObjectKeyBuilder {
     private ObjectKeyBuilder() {
     }
 
-    public static String testCaseInput(UUID assignmentId, UUID testCaseId) {
-        return String.format("test-suites/assignments/%s/tc-%s/tc%s.in", assignmentId, testCaseId, testCaseId);
-    }
-
-    public static String testCaseOutput(UUID assignmentId, UUID testCaseId) {
-        return String.format("test-suites/assignments/%s/tc-%s/tc%s.out", assignmentId, testCaseId, testCaseId);
-    }
-
-    public static String testsPath(UUID assignmentId) {
-        return String.format("test-suites/assignments/%s/", assignmentId);
-    }
-
     public static String testSuitePath(UUID assignmentId, UUID revisionId) {
         return String.format("assignments/%s/test-suite-revisions/%s/", assignmentId, revisionId);
     }
@@ -45,10 +33,6 @@ public class ObjectKeyBuilder {
     public static String referenceValidationOutput(UUID assignmentId, UUID updateId, UUID testCaseId) {
         return String.format("assignment-update-validations/%s/%s/test-cases/%s/candidate.out",
                 assignmentId, updateId, testCaseId);
-    }
-
-    public static String referenceSolutionSourceCode(UUID assignmentId, String fileExtension) {
-        return String.format("test-suites/assignments/%s/reference/Main.%s", assignmentId, fileExtension);
     }
 
     public static String executionReport(UUID executionId) {

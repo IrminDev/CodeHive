@@ -58,7 +58,7 @@ Execution model:
 ## AssignmentService
 Responsibilities:
 - Enforce group ownership and read access through active enrollment.
-- Create Assignment, ReferenceSolution, and TestCase entities in one transaction.
+- Create Assignment, ReferenceSolutionRevision, TestSuiteRevision, and TestCase entities in one transaction.
 - Persist ordered instructional examples separately from executable test cases.
 - Validate launch/due/close ordering.
 - Build owner-only clone-form snapshots from assignment metadata plus MinIO reference/test input content.
@@ -95,7 +95,7 @@ Responsibilities:
   late-to-on-time reconciliation when teacher extends or clears due date.
 
 Key dependencies:
-- AssignmentRepository, TestCaseRepository, ReferenceSolutionRepository
+- AssignmentRepository, TestCaseRepository, ReferenceSolutionRevisionRepository
 - ObjectStorageService, TestGenerationRequestProducer
 
 Key detail: `sampleFlags` from the request is a parallel list to the uploaded files indicating which test cases are samples. Missing flags default to false.
@@ -103,7 +103,7 @@ Key detail: `sampleFlags` from the request is a parallel list to the uploaded fi
 ## ExecutionRequestService
 Responsibilities:
 - Load Assignment entity to get real time/memory limits, comparator, and test count.
-- Load ReferenceSolution to determine reference language and storage path.
+- Load active ReferenceSolutionRevision to determine reference language and storage path.
 - Create Execution entity.
 - Upload source code to MinIO.
 - Build and publish ExecutionJob to `codehive_queue`.
@@ -115,10 +115,10 @@ Key methods:
 - `getExecutionReport(UUID)` — downloads `report.json` from MinIO and deserializes via ObjectMapper; returns 404 if pending or not found
 
 Key dependencies:
-- ExecutionRepository, AssignmentRepository, ReferenceSolutionRepository, TestCaseRepository
+- ExecutionRepository, AssignmentRepository, TestCaseRepository
 - ObjectStorageService, ExecutionRequestProducer, UserRepository, ObjectMapper
 
-PRACTICE mode: uses inline testCases, resolves reference solution from DB.
+PRACTICE mode: uses inline testCases and active reference-solution revision.
 DEFINITIVE mode: ordered test cases and complete object keys come from the
 active test-suite revision; no reference solution is needed at runtime.
 

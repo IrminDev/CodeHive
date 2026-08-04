@@ -32,8 +32,6 @@ import com.github.codehive.model.entity.User;
 import com.github.codehive.model.request.execution.ExecutionRequest;
 import com.github.codehive.repository.AssignmentRepository;
 import com.github.codehive.repository.ExecutionRepository;
-import com.github.codehive.model.entity.ReferenceSolution;
-import com.github.codehive.repository.ReferenceSolutionRepository;
 import com.github.codehive.repository.ReferenceSolutionRevisionRepository;
 import com.github.codehive.repository.TestCaseRepository;
 import com.github.codehive.repository.TestSuiteRevisionRepository;
@@ -80,7 +78,6 @@ class CheckExecutionControllerIntegrationTest {
     @Autowired private ObjectMapper objectMapper;
     @Autowired private AssignmentRepository assignmentRepository;
     @Autowired private ExecutionRepository executionRepository;
-    @Autowired private ReferenceSolutionRepository referenceSolutionRepository;
     @Autowired private ReferenceSolutionRevisionRepository referenceSolutionRevisionRepository;
     @Autowired private TestCaseRepository testCaseRepository;
     @Autowired private TestSuiteRevisionRepository testSuiteRevisionRepository;
@@ -131,9 +128,6 @@ class CheckExecutionControllerIntegrationTest {
         assignment.setValidationStatus(AssignmentValidationStatus.READY);
         assignmentRepository.saveAndFlush(assignment);
 
-        ReferenceSolution ref = new ReferenceSolution(assignment, Language.PYTHON);
-        referenceSolutionRepository.saveAndFlush(ref);
-
         ReferenceSolutionRevision referenceRevision = new ReferenceSolutionRevision();
         referenceRevision.setAssignment(assignment);
         referenceRevision.setLanguage(Language.PYTHON);
@@ -149,8 +143,7 @@ class CheckExecutionControllerIntegrationTest {
         testSuiteRevision.setStatus(RevisionStatus.ACTIVE);
         testSuiteRevision = testSuiteRevisionRepository.saveAndFlush(testSuiteRevision);
 
-        TestCase testCase = new TestCase(assignment, 1, false);
-        testCase.setTestSuiteRevision(testSuiteRevision);
+        TestCase testCase = new TestCase(assignment, testSuiteRevision, 1, false);
         testCaseRepository.saveAndFlush(testCase);
 
         assignment.setActiveReferenceSolutionRevision(referenceRevision);
@@ -183,6 +176,23 @@ class CheckExecutionControllerIntegrationTest {
                     .andExpect(status().isAccepted())
                     .andExpect(jsonPath("$.data.id").exists())
                     .andExpect(jsonPath("$.data.status").value("PENDING"));
+        }
+
+        @Test
+        @DisplayName("rejects practice execution without an active reference revision")
+        void rejectsPracticeExecutionWithoutActiveReferenceRevision() throws Exception {
+            assignment.setActiveReferenceSolutionRevision(null);
+            assignmentRepository.saveAndFlush(assignment);
+            ExecutionRequest req = new ExecutionRequest(
+                    "print(int(input()))", Language.PYTHON,
+                    null, assignment.getId(), List.of("3 5"), ExecutionType.PRACTICE
+            );
+
+            mockMvc.perform(post("/api/execution/check")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(req))
+                            .header("Authorization", "Bearer " + studentToken))
+                    .andExpect(status().isNotFound());
         }
 
         @Test

@@ -13,7 +13,7 @@ Propietario (User autorizado con CREATE_GROUP)
      └─ Tareas (Assignment)
          ├─ Ejemplos públicos (AssignmentExample)
          ├─ Casos de prueba privados (TestCase)
-         ├─ Solución de referencia (ReferenceSolution)
+         ├─ Revisiones de solución de referencia (ReferenceSolutionRevision)
          └─ Entregas (Submission) → ejecuciones (Execution)
 ```
 

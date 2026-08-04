@@ -329,8 +329,7 @@ public class AssignmentUpdateService {
                 for (TestCase existing : testCaseRepository
                         .findByTestSuiteRevisionIdOrderByOrderAsc(active.getId())) {
                     TestCase copied = new TestCase(
-                            assignment, existing.getOrder(), existing.getIsSample());
-                    copied.setTestSuiteRevision(revision);
+                            assignment, revision, existing.getOrder(), existing.getIsSample());
                     copied = testCaseRepository.save(copied);
                     String input = ObjectKeyBuilder.testCaseInput(
                             assignment.getId(), revision.getId(), copied.getId());
@@ -346,8 +345,8 @@ public class AssignmentUpdateService {
         for (int index = 0; index < files.size(); index++) {
             boolean sample = sampleFlags != null && index < sampleFlags.size()
                     && Boolean.TRUE.equals(sampleFlags.get(index));
-            TestCase testCase = new TestCase(assignment, orderOffset + index + 1, sample);
-            testCase.setTestSuiteRevision(revision);
+            TestCase testCase = new TestCase(
+                    assignment, revision, orderOffset + index + 1, sample);
             testCase = testCaseRepository.save(testCase);
             String input = ObjectKeyBuilder.testCaseInput(
                     assignment.getId(), revision.getId(), testCase.getId());

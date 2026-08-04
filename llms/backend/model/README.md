@@ -92,15 +92,14 @@ File: model/entity/Execution.java
 
 ### TestCase
 File: model/entity/TestCase.java
-- assignment relation required
+- assignment and test-suite revision relations required
 - order stored as order_index, non-null; represents 1-based upload position
 - isSample defaults to false
 
-### ReferenceSolution
-File: model/entity/ReferenceSolution.java
-- assignment relation required
-- language: enum required
-- one ReferenceSolution per assignment per language; stored in MinIO at ObjectKeyBuilder.referenceSolutionSourceCode
+### Reference solution revisions
+- `ReferenceSolutionRevision` is immutable source metadata for an assignment revision.
+- It stores language, revision-scoped MinIO `objectKey`, status, and activation timestamps.
+- `Assignment.activeReferenceSolutionRevision` selects validated source used for practice execution.
 
 ### Notification preferences
 
@@ -148,7 +147,7 @@ Auth-specific responses:
 
 ## DTO and Mapper Layer
 Application DTOs:
-- UserDTO, ExecutionDTO, AssignmentDTO, SubmissionDTO, TestCaseDTO, ReferenceSolutionDTO
+- UserDTO, ExecutionDTO, AssignmentDTO, SubmissionDTO
 
 Queue DTOs (model/dto/queue):
 - ExecutionJob — student execution job sent to worker
@@ -158,7 +157,7 @@ Queue DTOs (model/dto/queue):
 - TestGenerationResult — outcome of output generation; drives assignment activation
 
 Mappers convert entity <-> DTO:
-- ExecutionMapper, UserMapper, AssignmentMapper, SubmissionMapper, TestCaseMapper, ReferenceSolutionMapper
+- ExecutionMapper, UserMapper, AssignmentMapper, SubmissionMapper
 
 ## Enum Strategy
 Enums are persisted and transferred as string values:
