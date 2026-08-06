@@ -1,340 +1,518 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
-import { DashboardLayout } from "~/features/dashboard/components/DashboardLayout";
+import {
+  Bell, BookOpen, ChevronRight, ClipboardList, Clock,
+  GraduationCap, HardDrive, Home, Moon, Plus, RefreshCw,
+  Search, Settings, Sun, Users,
+} from "lucide-react";
 import { useAuth } from "~/core/providers/AuthProvider";
+import { useTheme } from "~/core/providers/ThemeProvider";
 import { getGroups } from "~/features/dashboard/api/dashboard.api";
 import type { Group } from "~/features/dashboard/types/dashboard.types";
 import { listAssignments } from "../api/assignment.api";
-import type { Assignment } from "../types/assignment.types";
+import type { Assignment, Language } from "../types/assignment.types";
 
-const LANGUAGE_LABELS: Record<string, string> = {
-  PYTHON: "Python",
-  JAVA: "Java",
+const LANG_ABBR: Record<Language, string> = {
+  PYTHON: "PY",
+  JAVA: "JAVA",
   CPP: "C++",
   C: "C",
 };
 
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+type FilterTab = "all" | "pending" | "inprogress" | "done";
+
+function getGreeting(): string {
+  const h = new Date().getHours();
+  if (h < 12) return "Good morning";
+  if (h < 18) return "Good afternoon";
+  return "Good evening";
 }
+
+function getSemesterBadge(): string {
+  const now = new Date();
+  const month = now.getMonth();
+  const year = now.getFullYear();
+  const season = month < 5 ? "SPRING" : month < 8 ? "SUMMER" : "FALL";
+  const startOfYear = new Date(year, 0, 1);
+  const week = Math.ceil(((now.getTime() - startOfYear.getTime()) / 86400000 + 1) / 7);
+  return `${season} ${year} · WEEK ${week}`;
+}
+
+function formatDue(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+const MOCK_ASSIGNMENTS: Assignment[] = [
+  {
+    id: "mock-1", title: "Two-Sum & K-Sum variants", description: "",
+    constraints: [], hints: [], tags: ["array", "hash-table"],
+    timeLimitMs: 2000, memoryLimitMb: 256, comparatorType: "EXACT_MATCH",
+    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+    dueDate: new Date(Date.now() + 5 * 86400000).toISOString(),
+    allowedLanguages: ["PYTHON", "JAVA", "CPP"], isActive: true,
+  },
+  {
+    id: "mock-2", title: "Topological Sort — Course Scheduler", description: "",
+    constraints: [], hints: [], tags: ["graph", "BFS"],
+    timeLimitMs: 3000, memoryLimitMb: 512, comparatorType: "EXACT_MATCH",
+    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+    dueDate: new Date(Date.now() + 7 * 86400000).toISOString(),
+    allowedLanguages: ["PYTHON", "JAVA"], isActive: true,
+  },
+  {
+    id: "mock-3", title: "Memory-bound LRU Cache", description: "",
+    constraints: [], hints: [], tags: ["design", "hash-table"],
+    timeLimitMs: 1500, memoryLimitMb: 128, comparatorType: "EXACT_MATCH",
+    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+    dueDate: new Date(Date.now() + 12 * 86400000).toISOString(),
+    allowedLanguages: ["C", "CPP"], isActive: true,
+  },
+  {
+    id: "mock-4", title: "String tokenizer with backreferences", description: "",
+    constraints: [], hints: [], tags: ["string", "parsing"],
+    timeLimitMs: 2000, memoryLimitMb: 256, comparatorType: "EXACT_MATCH",
+    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+    dueDate: new Date(Date.now() + 15 * 86400000).toISOString(),
+    allowedLanguages: ["PYTHON"], isActive: true,
+  },
+];
+
+type SubmissionVerdict = "AC" | "WA" | "TLE" | "CE" | "RTE" | "MLE";
+
+interface RecentSubmission {
+  id: string;
+  title: string;
+  language: string;
+  verdict: SubmissionVerdict;
+  timeMs?: number;
+  detail?: string;
+  timeAgo: string;
+}
+
+const MOCK_SUBMISSIONS: RecentSubmission[] = [
+  { id: "s1", title: "Two-sum (hash map)", language: "python", verdict: "AC", timeMs: 14, timeAgo: "2m" },
+  { id: "s2", title: "Tree diameter — recursive", language: "java", verdict: "WA", timeMs: 180, timeAgo: "17m" },
+  { id: "s3", title: "Quicksort partitioning", language: "c++", verdict: "TLE", detail: "TLE@8/10", timeAgo: "1h" },
+  { id: "s4", title: "Bracket matching", language: "python", verdict: "CE", timeAgo: "3h" },
+  { id: "s5", title: "Reverse linked list", language: "c", verdict: "AC", timeMs: 6, timeAgo: "yesterday" },
+];
+
+const VERDICT_STYLES: Record<SubmissionVerdict, { bg: string; text: string }> = {
+  AC:  { bg: "bg-green-500/15",  text: "text-green-400" },
+  WA:  { bg: "bg-red-500/15",   text: "text-red-400" },
+  TLE: { bg: "bg-orange-500/15", text: "text-orange-400" },
+  CE:  { bg: "bg-yellow-500/15", text: "text-yellow-400" },
+  RTE: { bg: "bg-red-500/15",   text: "text-red-400" },
+  MLE: { bg: "bg-purple-500/15", text: "text-purple-400" },
+};
+
+const GROUP_BADGE_COLORS = [
+  { bg: "bg-azure", text: "text-white" },
+  { bg: "bg-french", text: "text-white" },
+  { bg: "bg-yellow", text: "text-dark-bg" },
+];
 
 export function StudentDashboardPage() {
   const { user } = useAuth();
+  const { theme, toggleTheme } = useTheme();
+
   const [groups, setGroups] = useState<Group[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [loadingGroups, setLoadingGroups] = useState(true);
   const [loadingAssignments, setLoadingAssignments] = useState(true);
-  const [isVisible, setIsVisible] = useState(false);
-  const [visibleCards, setVisibleCards] = useState<number[]>([]);
+  const [filterTab, setFilterTab] = useState<FilterTab>("all");
+  const [submissions] = useState<RecentSubmission[]>(
+    import.meta.env.DEV ? MOCK_SUBMISSIONS : []
+  );
 
   useEffect(() => {
-    setIsVisible(true);
     getGroups()
       .then(setGroups)
       .finally(() => setLoadingGroups(false));
-    listAssignments(0, 8)
-      .then((page) => setAssignments(page.content))
-      .catch(() => setAssignments([]))
+    listAssignments(0, 12)
+      .then((page) => {
+        if (import.meta.env.DEV && page.content.length === 0) {
+          setAssignments(MOCK_ASSIGNMENTS);
+        } else {
+          setAssignments(page.content);
+        }
+      })
+      .catch(() => {
+        if (import.meta.env.DEV) setAssignments(MOCK_ASSIGNMENTS);
+      })
       .finally(() => setLoadingAssignments(false));
   }, []);
 
-  useEffect(() => {
-    if (!loadingAssignments) {
-      assignments.forEach((_, i) => {
-        setTimeout(() => setVisibleCards((prev) => [...prev, i]), i * 80);
-      });
-    }
-  }, [loadingAssignments, assignments]);
-
   const totalPending = groups.reduce((acc, g) => acc + g.pendingPractices, 0);
+  const firstName = user?.name?.split(" ")[0] ?? "Student";
+
+  const filteredAssignments = useMemo(() => {
+    const now = new Date();
+    if (filterTab === "pending")
+      return assignments.filter((a) => a.isActive && (!a.dueDate || new Date(a.dueDate) > now));
+    if (filterTab === "done")
+      return assignments.filter((a) => !a.isActive || (!!a.dueDate && new Date(a.dueDate) < now));
+    return assignments;
+  }, [assignments, filterTab]);
 
   return (
-    <DashboardLayout>
-      {/* Ambient orbs */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
-        <div className="absolute top-20 -left-32 w-96 h-96 rounded-full blur-3xl bg-azure/10 dark:bg-azure/5 animate-float" />
-        <div className="absolute bottom-20 -right-32 w-96 h-96 rounded-full blur-3xl bg-yellow/10 dark:bg-yellow/5 animate-float" style={{ animationDelay: "3s" }} />
-      </div>
+    <div className="h-screen flex overflow-hidden bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100 font-sans">
 
-      {/* Welcome hero */}
-      <div
-        className={`mb-10 transition-all duration-700 ${
-          isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
-        }`}
-      >
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-azure/10 dark:bg-yellow/10 border border-azure/20 dark:border-yellow/20 mb-4">
-          <span className="w-2 h-2 rounded-full bg-azure dark:bg-yellow animate-pulse" />
-          <span className="text-sm font-medium text-azure dark:text-yellow">Student Portal</span>
+      {/* ── Icon Sidebar ── */}
+      <aside className="w-14 flex-shrink-0 flex flex-col items-center py-4 gap-1 bg-gray-50 dark:bg-dark-surface border-r border-gray-200 dark:border-gray-800/60">
+        {/* Logo */}
+        <Link to="/" className="mb-4 flex-shrink-0">
+          <div
+            style={{ clipPath: "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)" }}
+            className="w-9 h-9 bg-yellow flex items-center justify-center"
+          >
+            <span className="text-dark-bg font-bold text-sm leading-none">&lt;/&gt;</span>
+          </div>
+        </Link>
+
+        <nav className="flex flex-col items-center gap-1 flex-1 w-full px-2">
+          <SidebarIcon icon={<Home size={20} />} label="Dashboard" to="/dashboard" active />
+          <SidebarIcon icon={<Users size={20} />} label="Groups" to="/groups" />
+          <SidebarIcon icon={<BookOpen size={20} />} label="Courses" to="/courses" />
+          <SidebarIcon icon={<GraduationCap size={20} />} label="Grades" to="/grades" />
+          <SidebarIcon icon={<ClipboardList size={20} />} label="Assignments" to="/assignments" />
+        </nav>
+
+        <div className="flex flex-col items-center gap-2 w-full px-2">
+          <SidebarIcon icon={<Settings size={20} />} label="Settings" to="/settings" />
+          <div
+            title={user?.name}
+            className="w-9 h-9 rounded-full bg-azure dark:bg-azure flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+          >
+            {firstName.slice(0, 2).toUpperCase()}
+          </div>
         </div>
-        <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-2">
-          Welcome back,{" "}
-          <span className="gradient-text">{user?.name?.split(" ")[0] || "Student"}</span>!
-        </h1>
-        <p className="text-gray-600 dark:text-gray-400 text-lg">
-          {totalPending > 0
-            ? `You have ${totalPending} pending ${totalPending === 1 ? "practice" : "practices"} across your groups.`
-            : "You're all caught up. Keep it up!"}
-        </p>
-      </div>
+      </aside>
 
-      {/* Stats */}
-      <div
-        className={`grid grid-cols-2 sm:grid-cols-4 gap-4 mb-10 transition-all duration-700 delay-100 ${
-          isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
-        }`}
-      >
-        <StatCard
-          label="Pending"
-          value={totalPending}
-          icon={<ClipboardIcon />}
-          accent="from-azure to-french"
-        />
-        <StatCard
-          label="Groups"
-          value={groups.length}
-          icon={<GroupIcon />}
-          accent="from-french to-imperial"
-        />
-        <StatCard
-          label="In Progress"
-          value={groups.reduce((a, g) => a + g.inProgress, 0)}
-          icon={<CodeIcon />}
-          accent="from-azure to-french"
-        />
-        <StatCard
-          label="Assignments"
-          value={assignments.length}
-          icon={<AssignmentIcon />}
-          accent="from-yellow to-gold"
-        />
-      </div>
+      {/* ── Main area ── */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
 
-      {/* My Groups */}
-      <section
-        className={`mb-12 transition-all duration-700 delay-200 ${
-          isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
-        }`}
-      >
-        <div className="flex items-center gap-3 mb-6">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white">My Groups</h2>
-          <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-azure/10 dark:bg-yellow/10 text-azure dark:text-yellow border border-azure/20 dark:border-yellow/20">
-            {groups.length}
-          </span>
-        </div>
+        {/* ── Header ── */}
+        <header className="h-12 flex-shrink-0 flex items-center gap-4 px-5 bg-gray-50 dark:bg-dark-surface border-b border-gray-200 dark:border-gray-800/60">
+          {/* Breadcrumb */}
+          <div className="flex items-center gap-1.5 text-sm flex-shrink-0">
+            <span className="text-gray-400 dark:text-gray-500">Student</span>
+            <ChevronRight size={14} className="text-gray-300 dark:text-gray-600" />
+            <span className="text-gray-900 dark:text-gray-100 font-medium">Dashboard</span>
+          </div>
 
-        {loadingGroups ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-            {[0, 1, 2, 3].map((n) => (
-              <div
-                key={n}
-                className="h-56 rounded-2xl border border-gray-200 dark:border-gray-700/50 bg-white dark:bg-dark-card animate-pulse"
+          {/* Search */}
+          <div className="flex-1 max-w-sm mx-auto">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white dark:bg-dark-card border border-gray-200 dark:border-gray-700/60">
+              <Search size={13} className="text-gray-400 dark:text-gray-500 flex-shrink-0" />
+              <input
+                type="text"
+                placeholder="Search assignments, groups..."
+                className="flex-1 bg-transparent text-xs text-gray-700 dark:text-gray-300 placeholder:text-gray-400 dark:placeholder:text-gray-600 focus:outline-none"
               />
-            ))}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-            {groups.map((group) => (
-              <GroupCardStyled key={group.id} group={group} />
-            ))}
-          </div>
-        )}
-      </section>
-
-      {/* Available Assignments */}
-      <section
-        className={`transition-all duration-700 delay-300 ${
-          isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
-        }`}
-      >
-        <div className="flex items-center gap-3 mb-6">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white">Available Assignments</h2>
-          {!loadingAssignments && (
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-azure/10 dark:bg-yellow/10 text-azure dark:text-yellow border border-azure/20 dark:border-yellow/20">
-              {assignments.length}
-            </span>
-          )}
-        </div>
-
-        {loadingAssignments ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {[0, 1, 2].map((n) => (
-              <div
-                key={n}
-                className="h-44 rounded-2xl border border-gray-200 dark:border-gray-700/50 bg-white dark:bg-dark-card animate-pulse"
-              />
-            ))}
-          </div>
-        ) : assignments.length === 0 ? (
-          <div className="rounded-2xl border border-gray-200 dark:border-gray-700/50 bg-white dark:bg-dark-card p-12 text-center">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-gradient-to-br from-azure to-french text-white mb-4">
-              <AssignmentIcon />
+              <span className="text-[10px] text-gray-400 dark:text-gray-600 font-mono border border-gray-200 dark:border-gray-700 rounded px-1 flex-shrink-0">⌘K</span>
             </div>
-            <p className="text-gray-900 dark:text-white font-semibold mb-1">No assignments yet</p>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Your teacher will publish assignments here.</p>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {assignments.map((assignment, i) => (
-              <div
-                key={assignment.id}
-                className={`transition-all duration-500 ${
-                  visibleCards.includes(i) ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
-                }`}
-                style={{ transitionDelay: `${i * 80}ms` }}
-              >
-                <AssignmentCard assignment={assignment} />
+
+          {/* Right icons */}
+          <div className="flex items-center gap-3 ml-auto flex-shrink-0">
+            <button className="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">
+              <Bell size={18} />
+            </button>
+            <button
+              onClick={toggleTheme}
+              className="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+            >
+              {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
+          </div>
+        </header>
+
+        {/* ── Content ── */}
+        <div className="flex-1 flex overflow-hidden">
+
+          {/* ── Main column ── */}
+          <main className="flex-1 overflow-y-auto scrollbar-hide p-6 space-y-5 min-w-0">
+
+            {/* Greeting */}
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gray-100 dark:bg-dark-card border border-gray-200 dark:border-gray-700/60 text-xs font-medium text-gray-500 dark:text-gray-400 mb-3">
+                  <span className="w-1.5 h-1.5 rounded-full bg-yellow" />
+                  {getSemesterBadge()}
+                </div>
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-1.5">
+                  {getGreeting()},{" "}
+                  <span className="text-azure dark:text-azure">{firstName}</span>.
+                </h1>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  You have{" "}
+                  <span className="font-semibold text-gray-900 dark:text-white">
+                    {totalPending} pending {totalPending === 1 ? "practice" : "practices"}
+                  </span>{" "}
+                  across your groups.
+                </p>
               </div>
-            ))}
-          </div>
-        )}
-      </section>
-    </DashboardLayout>
+              <div className="flex items-center gap-2 flex-shrink-0 pt-1">
+                <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-400 dark:hover:border-gray-500 hover:text-gray-700 dark:hover:text-gray-200 transition-all">
+                  <RefreshCw size={13} />
+                  Sync
+                </button>
+                <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-azure text-white hover:bg-french transition-colors">
+                  <Plus size={13} />
+                  Join class
+                </button>
+              </div>
+            </div>
+
+            {/* Assignments panel */}
+            <div className="bg-white dark:bg-dark-surface border border-gray-200 dark:border-gray-800/60 rounded-2xl overflow-hidden">
+              {/* Panel header */}
+              <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100 dark:border-gray-800/60">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold text-gray-900 dark:text-white">Available assignments</span>
+                  <span className="px-2 py-0.5 rounded-md bg-gray-100 dark:bg-dark-card text-xs font-mono text-gray-500 dark:text-gray-400">
+                    {assignments.length}
+                  </span>
+                </div>
+                <div className="flex items-center gap-0.5">
+                  {(["all", "pending", "inprogress", "done"] as FilterTab[]).map((tab) => {
+                    const labels: Record<FilterTab, string> = {
+                      all: "All",
+                      pending: "Pending",
+                      inprogress: "In progress",
+                      done: "Done",
+                    };
+                    return (
+                      <button
+                        key={tab}
+                        onClick={() => setFilterTab(tab)}
+                        className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                          filterTab === tab
+                            ? "text-yellow"
+                            : "text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                        }`}
+                      >
+                        {labels[tab]}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Rows */}
+              {loadingAssignments ? (
+                <div className="p-4 space-y-2">
+                  {[0, 1, 2, 3].map((n) => (
+                    <div key={n} className="h-16 rounded-xl bg-gray-100 dark:bg-dark-card animate-pulse" />
+                  ))}
+                </div>
+              ) : filteredAssignments.length === 0 ? (
+                <div className="py-16 text-center text-sm text-gray-400 dark:text-gray-600">
+                  No assignments found.
+                </div>
+              ) : (
+                filteredAssignments.slice(0, 8).map((a, i) => (
+                  <AssignmentRow key={a.id} assignment={a} index={i} />
+                ))
+              )}
+
+              {/* Footer */}
+              {!loadingAssignments && assignments.length > 0 && (
+                <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100 dark:border-gray-800/60 text-xs text-gray-400 dark:text-gray-500">
+                  <span>Showing {Math.min(filteredAssignments.length, 8)} of {assignments.length}</span>
+                  <Link
+                    to="/assignments"
+                    className="flex items-center gap-0.5 text-yellow hover:text-gold transition-colors font-medium"
+                  >
+                    View all <ChevronRight size={13} />
+                  </Link>
+                </div>
+              )}
+            </div>
+          </main>
+
+          {/* ── Right sidebar ── */}
+          <aside className="w-72 flex-shrink-0 border-l border-gray-200 dark:border-gray-800/60 overflow-y-auto scrollbar-hide p-5 space-y-6 bg-white dark:bg-dark-bg">
+
+            {/* My groups */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm font-semibold text-gray-900 dark:text-white">My groups</span>
+                <button className="text-xs text-yellow hover:text-gold transition-colors font-medium">Manage</button>
+              </div>
+              <div className="space-y-0.5">
+                {loadingGroups ? (
+                  [0, 1, 2].map((n) => (
+                    <div key={n} className="h-14 rounded-xl bg-gray-100 dark:bg-dark-card animate-pulse mb-1" />
+                  ))
+                ) : groups.length === 0 ? (
+                  <p className="text-xs text-gray-400 dark:text-gray-600 py-4 text-center">No groups yet.</p>
+                ) : (
+                  groups.map((group, i) => (
+                    <GroupRow key={group.id} group={group} colorIndex={i} />
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Recent submissions */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm font-semibold text-gray-900 dark:text-white">Recent submissions</span>
+              </div>
+              {submissions.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-8 text-xs text-gray-400 dark:text-gray-600">
+                  No submissions yet.
+                </div>
+              ) : (
+                <div className="space-y-0.5">
+                  {submissions.map((s) => (
+                    <SubmissionRow key={s.id} submission={s} />
+                  ))}
+                </div>
+              )}
+            </div>
+          </aside>
+        </div>
+      </div>
+    </div>
   );
 }
 
-function StatCard({
-  label,
-  value,
-  icon,
-  accent,
+/* ── Sub-components ── */
+
+function SidebarIcon({
+  icon, label, to, active = false,
 }: {
-  label: string;
-  value: number;
   icon: React.ReactNode;
-  accent: string;
+  label: string;
+  to: string;
+  active?: boolean;
 }) {
   return (
-    <div className="bg-white dark:bg-dark-card rounded-2xl p-5 border border-gray-200 dark:border-gray-700/50 hover:border-azure/50 dark:hover:border-yellow/50 transition-all duration-300 hover:shadow-lg hover:shadow-azure/5 dark:hover:shadow-yellow/5 hover:-translate-y-0.5">
-      <div
-        className={`inline-flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br ${accent} text-white mb-3`}
-      >
-        {icon}
-      </div>
-      <p className="text-2xl font-bold text-gray-900 dark:text-white">{value}</p>
-      <p className="text-sm text-gray-500 dark:text-gray-400">{label}</p>
-    </div>
-  );
-}
-
-function GroupCardStyled({ group }: { group: Group }) {
-  return (
-    <div className="group bg-white dark:bg-dark-card rounded-2xl border border-gray-200 dark:border-gray-700/50 hover:border-azure/50 dark:hover:border-yellow/50 transition-all duration-500 hover:shadow-xl hover:shadow-azure/5 dark:hover:shadow-yellow/5 hover:-translate-y-1 overflow-hidden cursor-pointer flex flex-col">
-      <div className={`${group.colorClass} h-28 p-5 flex flex-col justify-end relative overflow-hidden`}>
-        <div className="absolute -top-8 -right-8 w-28 h-28 bg-white/10 rounded-full group-hover:scale-110 transition-transform duration-500" />
-        <h3 className="text-base font-bold text-white z-10 leading-tight">{group.name}</h3>
-        <p className="text-white/75 text-xs z-10 mt-0.5">{group.subject}</p>
-      </div>
-      <div className="p-4 flex flex-col gap-2.5 flex-1 text-sm">
-        <Row label="Pending" value={group.pendingPractices} highlight={group.pendingPractices > 0} />
-        <Row label="In Progress" value={group.inProgress} />
-        <div className="pt-3 mt-auto border-t border-gray-100 dark:border-gray-700/50">
-          <Row label="Next Deadline" value={group.nextDeadline} />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function Row({ label, value, highlight }: { label: string; value: string | number; highlight?: boolean }) {
-  return (
-    <div className="flex justify-between items-center">
-      <span className="text-gray-500 dark:text-gray-400">{label}</span>
-      <span className={`font-medium ${highlight ? "text-azure dark:text-yellow" : "text-gray-900 dark:text-white"}`}>
-        {value}
-      </span>
-    </div>
-  );
-}
-
-function AssignmentCard({ assignment }: { assignment: Assignment }) {
-  const isOverdue = assignment.dueDate && new Date(assignment.dueDate) < new Date();
-
-  return (
     <Link
-      to={`/assignment/${assignment.id}`}
-      className="block bg-white dark:bg-dark-card rounded-2xl p-6 border border-gray-200 dark:border-gray-700/50 hover:border-azure/50 dark:hover:border-yellow/50 transition-all duration-500 hover:shadow-xl hover:shadow-azure/5 dark:hover:shadow-yellow/5 hover:-translate-y-1 relative overflow-hidden group"
+      to={to}
+      title={label}
+      className={`w-10 h-10 flex items-center justify-center rounded-xl transition-colors ${
+        active
+          ? "text-yellow bg-yellow/10 dark:bg-yellow/10"
+          : "text-gray-400 dark:text-gray-600 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-dark-card"
+      }`}
     >
-      {/* Top accent bar */}
-      <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-azure to-french opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-
-      {/* Active badge */}
-      {assignment.isActive && (
-        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-azure/10 dark:bg-yellow/10 border border-azure/20 dark:border-yellow/20 mb-3">
-          <span className="w-1.5 h-1.5 rounded-full bg-azure dark:bg-yellow animate-pulse" />
-          <span className="text-xs font-medium text-azure dark:text-yellow">Active</span>
-        </div>
-      )}
-
-      <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-2 line-clamp-2 group-hover:text-azure dark:group-hover:text-yellow transition-colors">
-        {assignment.title}
-      </h3>
-
-      {assignment.description && (
-        <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2 mb-4">{assignment.description}</p>
-      )}
-
-      {/* Languages */}
-      {assignment.allowedLanguages?.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 mb-4">
-          {assignment.allowedLanguages.map((lang) => (
-            <span
-              key={lang}
-              className="px-2 py-0.5 rounded-md text-xs font-medium bg-gray-100 dark:bg-dark-surface text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700/50"
-            >
-              {LANGUAGE_LABELS[lang] ?? lang}
-            </span>
-          ))}
-        </div>
-      )}
-
-      {/* Footer */}
-      <div className="flex items-center justify-between text-xs text-gray-400 dark:text-gray-500 pt-3 border-t border-gray-100 dark:border-gray-700/50">
-        <span className="flex items-center gap-1">
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          {assignment.timeLimitMs ? `${assignment.timeLimitMs}ms` : "—"}
-        </span>
-        {assignment.dueDate && (
-          <span className={isOverdue ? "text-red-500 dark:text-red-400" : "text-gray-400 dark:text-gray-500"}>
-            Due {formatDate(assignment.dueDate)}
-          </span>
-        )}
-      </div>
+      {icon}
     </Link>
   );
 }
 
-// Inline icons
-function ClipboardIcon() {
+function AssignmentRow({ assignment, index }: { assignment: Assignment; index: number }) {
+  const isOverdue = !!assignment.dueDate && new Date(assignment.dueDate) < new Date();
+
   return (
-    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-    </svg>
+    <Link
+      to={`/assignment/${assignment.id}`}
+      className="flex items-center gap-4 px-5 py-3.5 border-b border-gray-100 dark:border-gray-800/40 hover:bg-gray-50 dark:hover:bg-dark-card/50 transition-colors group last:border-b-0"
+    >
+      {/* Hexagon number */}
+      <div className="relative w-9 h-9 flex-shrink-0 flex items-center justify-center">
+        <svg className="absolute inset-0 w-full h-full text-gray-300 dark:text-gray-700" viewBox="0 0 36 36" fill="none">
+          <polygon points="18,2 34,10 34,26 18,34 2,26 2,10" stroke="currentColor" strokeWidth="1.5" />
+        </svg>
+        <span className="text-[10px] font-bold font-mono text-gray-500 dark:text-gray-400 relative z-10">
+          {String(index + 1).padStart(2, "0")}
+        </span>
+      </div>
+
+      {/* Title + meta */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-0.5">
+          <span className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate group-hover:text-azure dark:group-hover:text-yellow transition-colors">
+            {assignment.title}
+          </span>
+          {assignment.isActive && !isOverdue && (
+            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-md bg-azure/10 text-azure border border-azure/20 flex-shrink-0 dark:bg-azure/10 dark:text-azure dark:border-azure/20">
+              active
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-3 text-[10px] text-gray-400 dark:text-gray-500 font-mono">
+          <span className="flex items-center gap-1">
+            <Clock size={10} />
+            {assignment.timeLimitMs}ms
+          </span>
+          <span className="flex items-center gap-1">
+            <HardDrive size={10} />
+            {assignment.memoryLimitMb}MB
+          </span>
+        </div>
+      </div>
+
+      {/* Language tags */}
+      <div className="flex items-center gap-1 flex-shrink-0">
+        {assignment.allowedLanguages.slice(0, 3).map((lang) => (
+          <span
+            key={lang}
+            className="px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-gray-100 dark:bg-dark-card border border-gray-200 dark:border-gray-700/60 text-gray-500 dark:text-gray-400"
+          >
+            {LANG_ABBR[lang] ?? lang}
+          </span>
+        ))}
+      </div>
+
+      {/* Due date */}
+      <div className="flex-shrink-0 w-20 text-right">
+        {assignment.dueDate ? (
+          <span className={`text-xs font-medium ${isOverdue ? "text-red-500 dark:text-red-400" : "text-gray-500 dark:text-gray-400"}`}>
+            Due {formatDue(assignment.dueDate)}
+          </span>
+        ) : (
+          <span className="text-xs text-gray-300 dark:text-gray-700">—</span>
+        )}
+      </div>
+
+      {/* Chevron */}
+      <ChevronRight size={16} className="text-gray-300 dark:text-gray-700 group-hover:text-gray-500 dark:group-hover:text-gray-400 transition-colors flex-shrink-0" />
+    </Link>
   );
 }
-function GroupIcon() {
+
+function SubmissionRow({ submission: s }: { submission: RecentSubmission }) {
+  const style = VERDICT_STYLES[s.verdict];
   return (
-    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-    </svg>
+    <div className="flex items-center gap-3 px-2 py-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-dark-card/60 transition-colors cursor-pointer group">
+      <div className={`w-9 h-9 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 ${style.bg} ${style.text}`}>
+        {s.verdict}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{s.title}</p>
+        <p className="text-[10px] text-gray-400 dark:text-gray-500 font-mono">
+          {s.language}{s.timeMs ? ` · ${s.timeMs}ms` : s.detail ? ` · ${s.detail}` : " · —"}
+        </p>
+      </div>
+      <span className="text-[10px] text-gray-400 dark:text-gray-600 flex-shrink-0">{s.timeAgo}</span>
+    </div>
   );
 }
-function CodeIcon() {
+
+function GroupRow({ group, colorIndex }: { group: Group; colorIndex: number }) {
+  const color = GROUP_BADGE_COLORS[colorIndex % GROUP_BADGE_COLORS.length];
+
   return (
-    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-    </svg>
-  );
-}
-function AssignmentIcon() {
-  return (
-    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-    </svg>
+    <div className="flex items-center gap-3 px-2 py-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-dark-card/60 transition-colors cursor-pointer group">
+      <div
+        className={`w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 ${color.bg} ${color.text}`}
+      >
+        {String(colorIndex + 1).padStart(3, "0")}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{group.name}</p>
+        <p className="text-[10px] text-gray-400 dark:text-gray-500">
+          {group.pendingPractices > 0
+            ? `${group.pendingPractices} pending`
+            : "All caught up"}
+        </p>
+      </div>
+      <ChevronRight size={15} className="text-gray-300 dark:text-gray-700 group-hover:text-gray-500 dark:group-hover:text-gray-400 transition-colors flex-shrink-0" />
+    </div>
   );
 }

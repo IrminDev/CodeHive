@@ -90,9 +90,9 @@
   --color-gold-light: #ffe866;
   
   /* Dark mode backgrounds */
-  --color-dark-bg: #0a0f1a;
-  --color-dark-surface: #111827;
-  --color-dark-card: #1a2234;
+  --color-dark-bg: #060c18;
+  --color-dark-surface: #0d1525;
+  --color-dark-card: #162033;
 }
 
 html {
@@ -103,6 +103,14 @@ html,
 body {
   @apply bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100;
   transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Hide scrollbar but keep scroll */
+.scrollbar-hide {
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
 }
 
 /* Custom scrollbar */

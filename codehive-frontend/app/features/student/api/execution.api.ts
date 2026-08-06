@@ -5,6 +5,7 @@ import type {
   ExecutionDTO,
   ExecutionReport,
   ExecutionRequest,
+  Submission,
 } from '../types/execution.types'
 
 type ApiResponse<T> = { data: T; message?: string }
@@ -49,4 +50,12 @@ export async function getExecutionReport(
     headers: authHeaders(),
   })
   return parseResponse<ExecutionReport>(res)
+}
+
+export async function listSubmissions(assignmentId: string): Promise<Submission[]> {
+  const res = await fetch(
+    `${API_BASE_URL}/api/submissions/assignment/${assignmentId}`,
+    { headers: authHeaders() },
+  )
+  return parseResponse<Submission[]>(res)
 }

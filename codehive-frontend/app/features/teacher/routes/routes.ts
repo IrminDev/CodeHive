@@ -3,4 +3,8 @@ import { route, type RouteConfig } from "@react-router/dev/routes";
 export const teacherRoutes = [
   route("teacher", "features/teacher/routes/teacher.tsx"),
   route("teacher/create-assignment", "features/teacher/routes/teacher.create-assignment.tsx"),
+  route("teacher/groups/create", "features/teacher/routes/teacher.create-group.tsx"),
+  route("teacher/groups", "features/teacher/routes/teacher.groups.tsx"),
+  route("teacher/groups/:groupId", "features/teacher/routes/teacher.groups.$groupId.tsx"),
+  route("teacher/assignments/:assignmentId/clone", "features/teacher/routes/teacher.assignments.$assignmentId.clone.tsx"),
 ] satisfies RouteConfig;

@@ -16,6 +16,7 @@ export interface Assignment {
   dueDate?: string;
   allowedLanguages: Language[];
   isActive: boolean;
+  examples?: Array<{ input: string; output: string; explanation?: string }>;
 }
 
 export interface AssignmentPage {

@@ -1,5 +1,4 @@
 import type { Route } from "./+types/dashboard";
-import { ProtectedRoute } from "~/core/components/ProtectedRoute";
 import { StudentDashboardPage } from "~/features/student/pages/StudentDashboardPage";
 
 export function meta({}: Route.MetaArgs) {
@@ -10,9 +9,5 @@ export function meta({}: Route.MetaArgs) {
 }
 
 export default function Dashboard() {
-  return (
-    <ProtectedRoute>
-      <StudentDashboardPage />
-    </ProtectedRoute>
-  );
+  return <StudentDashboardPage />;
 }
