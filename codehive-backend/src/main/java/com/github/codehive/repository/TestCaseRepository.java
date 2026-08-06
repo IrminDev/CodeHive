@@ -17,6 +17,13 @@ public interface TestCaseRepository extends JpaRepository<TestCase, UUID> {
 
     List<TestCase> findByAssignmentIdOrderByOrderAsc(UUID assignmentId);
 
+    List<TestCase> findByTestSuiteRevisionIdOrderByOrderAsc(UUID testSuiteRevisionId);
+
+    List<TestCase> findByTestSuiteRevisionIdAndIsSampleOrderByOrderAsc(
+            UUID testSuiteRevisionId, Boolean isSample);
+
+    long countByTestSuiteRevisionId(UUID testSuiteRevisionId);
+
     List<TestCase> findByAssignmentAndIsSample(Assignment assignment, Boolean isSample);
 
     List<TestCase> findByAssignmentIdAndIsSample(UUID assignmentId, Boolean isSample);

@@ -8,6 +8,9 @@ Controller classes:
 - codehive-backend/src/main/java/com/github/codehive/controller/RecoveryPasswordController.java
 - codehive-backend/src/main/java/com/github/codehive/controller/CheckExecutionController.java
 - codehive-backend/src/main/java/com/github/codehive/controller/AssignmentController.java
+- codehive-backend/src/main/java/com/github/codehive/controller/GroupController.java
+- codehive-backend/src/main/java/com/github/codehive/controller/AdminUserController.java
+- codehive-backend/src/main/java/com/github/codehive/controller/NotificationPreferenceController.java
 
 ## Controller Responsibilities
 - Define API routes and HTTP semantics.
@@ -41,9 +44,32 @@ Error handling is centralized in:
 
 ### AssignmentController
 - `POST /api/assignments` — multipart; creates assignment, uploads files, queues test generation.
-- Requires `@PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")`.
+- Requires `@PreAuthorize("hasAnyAuthority('TEACHER', 'ADMIN')")`.
 - Returns 202 Accepted immediately (test output generation is async).
 - Request parts: `metadata` (JSON), `referenceSolution` (file), `testCaseInputs` (file list).
+- Listings require groupId and are ownership/enrollment aware.
+- `GET /api/assignments/{id}/clone-form` is teacher-owner-only and returns all editable
+  metadata, examples, reference source, and test inputs. Source dates are intentionally omitted.
+- `POST /api/assignments/{id}/clone` accepts the complete edited clone snapshot, creates it
+  in another owned active writable group, and queues output generation.
+- `DELETE /api/assignments/{id}` performs logical deletion.
+
+### GroupController
+- Any user with `CREATE_GROUP` can create a group; teachers receive the scope by default.
+- Owners can update, list roster, remove students, archive/unarchive, logical delete/restore, and rotate join code regardless of role.
+- Student: join by code and leave.
+- Both roles list and retrieve only accessible groups; join codes are never exposed to students.
+
+### AdminUserController
+- Lists and retrieves users with `VIEW_USERS`.
+- Updates profiles and account status with target-role-specific scopes.
+- Grants and revokes scopes with escalation and last-superadmin safeguards.
+
+### NotificationPreferenceController
+
+- Authenticated users can read, update, and reset their own email notification preferences.
+- The authenticated principal determines the target user; user IDs are not accepted from the request.
+- Test email requests are rate-limited.
 
 ## Cross-Cutting Concerns
 - OpenAPI annotations are used for API docs (Swagger at /swagger-ui.html).

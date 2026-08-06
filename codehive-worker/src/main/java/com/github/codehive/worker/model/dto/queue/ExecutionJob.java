@@ -13,21 +13,23 @@ public class ExecutionJob {
     private String reference;
     private Language language;
     private ExecutionType executionType;
-    private List<String> testCases;
-    private String outputPath;
+    private List<ExecutionTestCaseInfo> testCases;
+    private String reportPath;
     private Long timeLimitMs;
     private Long memoryLimitMb;
-    private Integer numTests;
     private Language referenceLanguage;
-    private String testsPath;
     private ComparatorType comparatorType;
+    private UUID testSuiteRevisionId;
+    private String trigger;
 
     public ExecutionJob() {
     }
 
     public ExecutionJob(UUID id, String source, String reference, Language language,
-                       ExecutionType executionType, List<String> testCases,
-                       Long timeLimitMs, Long memoryLimitMb, ComparatorType comparatorType, String outputPath, Integer numTests, String testsPath, Language referenceLanguage) {
+                        ExecutionType executionType, List<ExecutionTestCaseInfo> testCases,
+                        Long timeLimitMs, Long memoryLimitMb, ComparatorType comparatorType,
+                        String reportPath, Language referenceLanguage,
+                        UUID testSuiteRevisionId, String trigger) {
         this.id = id;
         this.source = source;
         this.reference = reference;
@@ -37,10 +39,10 @@ public class ExecutionJob {
         this.timeLimitMs = timeLimitMs;
         this.memoryLimitMb = memoryLimitMb;
         this.comparatorType = comparatorType;
-        this.outputPath = outputPath;
-        this.numTests = numTests;
-        this.testsPath = testsPath;
+        this.reportPath = reportPath;
         this.referenceLanguage = referenceLanguage;
+        this.testSuiteRevisionId = testSuiteRevisionId;
+        this.trigger = trigger;
     }
 
     public Language getReferenceLanguage() {
@@ -51,27 +53,12 @@ public class ExecutionJob {
         this.referenceLanguage = referenceLanguage;
     }
 
-    public String getTestsPath() {
-        return testsPath;
+    public String getReportPath() {
+        return reportPath;
     }
 
-    public void setTestsPath(String testsPath) {
-        this.testsPath = testsPath;
-    }
-
-    public Integer getNumTests() {
-        return numTests;
-    }
-    public void setNumTests(Integer numTests) {
-        this.numTests = numTests;
-    }
-
-    public String getOutputPath() {
-        return outputPath;
-    }
-
-    public void setOutputPath(String outputPath) {
-        this.outputPath = outputPath;
+    public void setReportPath(String reportPath) {
+        this.reportPath = reportPath;
     }
 
     public UUID getId() {
@@ -114,11 +101,11 @@ public class ExecutionJob {
         this.executionType = executionType;
     }
 
-    public List<String> getTestCases() {
+    public List<ExecutionTestCaseInfo> getTestCases() {
         return testCases;
     }
 
-    public void setTestCases(List<String> testCases) {
+    public void setTestCases(List<ExecutionTestCaseInfo> testCases) {
         this.testCases = testCases;
     }
 
@@ -144,5 +131,21 @@ public class ExecutionJob {
 
     public void setComparatorType(ComparatorType comparatorType) {
         this.comparatorType = comparatorType;
+    }
+
+    public UUID getTestSuiteRevisionId() {
+        return testSuiteRevisionId;
+    }
+
+    public void setTestSuiteRevisionId(UUID testSuiteRevisionId) {
+        this.testSuiteRevisionId = testSuiteRevisionId;
+    }
+
+    public String getTrigger() {
+        return trigger;
+    }
+
+    public void setTrigger(String trigger) {
+        this.trigger = trigger;
     }
 }

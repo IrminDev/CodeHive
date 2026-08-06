@@ -15,6 +15,10 @@ Current route map:
 - /admin -> app/routes/admin.tsx
 - /admin/create-user -> app/routes/admin.create-user.tsx
 - /admin/csv-upload -> app/routes/admin.csv-upload.tsx
+- /teacher -> features/teacher/routes/teacher.dashboard.tsx
+- /teacher/assignments -> features/teacher/routes/teacher.assignments.tsx
+- /teacher/create-assignment -> features/teacher/routes/teacher.create-assignment.tsx
+- /teacher/assignments/:assignmentId/clone -> features/teacher/routes/teacher.clone-assignment.tsx
 
 ## Route Module Pattern
 Each route module typically contains:
@@ -23,7 +27,7 @@ Each route module typically contains:
 
 Common composition strategy:
 - Public routes: render page directly, often wrapped with ThemeProvider.
-- Protected admin routes: ThemeProvider + ProtectedRoute + admin page.
+- Protected role routes: ProtectedRoute + feature page.
 
 ## Root and Layout
 Root file:
@@ -46,7 +50,7 @@ Routes map to page modules under app/pages:
 
 ## Guarding Strategy
 Role-sensitive routes rely on ProtectedRoute.
-- Current protected area is admin.
+- Admin, teacher, and student areas use role-specific guards.
 - Role checks occur client-side using /api/auth/me.
 
 ## Extension Guidance

@@ -165,14 +165,16 @@ All paths are produced by `utils/ObjectKeyBuilder`:
 
 | Method | Path pattern |
 |---|---|
-| `testCaseInput(assignmentId, testCaseId)` | `test-suites/assignments/{a}/tc-{t}/tc{t}.in` |
-| `testCaseOutput(assignmentId, testCaseId)` | `test-suites/assignments/{a}/tc-{t}/tc{t}.out` |
-| `testsPath(assignmentId)` | `test-suites/assignments/{a}/` |
-| `referenceSolutionSourceCode(assignmentId, ext)` | `test-suites/assignments/{a}/reference/Main.{ext}` |
-| `executionSourceCode(executionId, ext)` | `test-execution/execution-{e}/source.{ext}` |
-| `executionTestCaseOutput(executionId)` | `test-execution/execution-{e}/output/` |
-| `executionReport(executionId)` | `test-execution/execution-{e}/output/report.json` |
-| `submissionSourceCode(assignmentId, submissionId, ext)` | `submissions/assignments/{a}/submission-{s}/Main.{ext}` |
+| `testCaseInput(assignmentId, revisionId, testCaseId)` | `assignments/{a}/test-suite-revisions/{r}/test-cases/{t}/input.in` |
+| `testCaseExpectedOutput(assignmentId, revisionId, testCaseId)` | `assignments/{a}/test-suite-revisions/{r}/test-cases/{t}/expected.out` |
+| `referenceSolutionSourceCode(assignmentId, revisionId, ext)` | `assignments/{a}/test-suite-revisions/{r}/reference/Main.{ext}` |
+| `submissionSourceCode(assignmentId, submissionId, ext)` | `assignments/{a}/submissions/{s}/source/Main.{ext}` |
+| `executionReport(executionId)` | `executions/{e}/report.json` |
+| `executionTestCaseStdout(executionId, testCaseId)` | `executions/{e}/test-cases/{t}/stdout.txt` |
+| `executionTestCaseStderr(executionId, testCaseId)` | `executions/{e}/test-cases/{t}/stderr.txt` |
+| `practiceExecutionSourceCode(executionId, ext)` | `practice-executions/{e}/source/Main.{ext}` |
+
+Backend-produced queue payloads carry complete MinIO keys. The worker treats keys as opaque and must not reconstruct them from test indexes.
 
 ## Implemented Features
 - Authentication: login, signup (admin), CSV bulk signup with WebSocket progress
@@ -195,3 +197,16 @@ When working on a specific area, read docs in this order:
 
 Do not place deep implementation playbooks in this root AGENTS.md.
 Keep this file focused on repository-wide standards only.
+
+## graphify
+
+This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
+
+When the user types `/graphify`, use the installed graphify skill or instructions before doing anything else.
+
+Rules:
+- For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
+- Dirty graphify-out/ files are expected after hooks or incremental updates; dirty graph files are not a reason to skip graphify. Only skip graphify if the task is about stale or incorrect graph output, or the user explicitly says not to use it.
+- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
+- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
+- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).

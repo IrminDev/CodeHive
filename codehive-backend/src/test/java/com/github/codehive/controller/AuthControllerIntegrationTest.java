@@ -26,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.codehive.model.entity.User;
 import com.github.codehive.model.enums.Role;
+import com.github.codehive.model.enums.Scope;
 import com.github.codehive.model.request.auth.LoginRequest;
 import com.github.codehive.model.request.auth.SignUpRequest;
 import com.github.codehive.model.request.auth.UpdatePasswordRequest;
@@ -82,7 +83,7 @@ class AuthControllerIntegrationTest {
         testUser.setName("Existing");
         testUser.setLastName("User");
         testUser.setPassword(passwordEncoder.encode("password123"));
-        testUser.setEnrollmentNumber("ENR001");
+        testUser.setEnrollmentNumber("1994630001");
         testUser.setRole(Role.STUDENT);
         testUser.setIsActive(true);
         testUser.setTemporaryPassword(false);
@@ -94,10 +95,11 @@ class AuthControllerIntegrationTest {
         adminUser.setName("Admin");
         adminUser.setLastName("User");
         adminUser.setPassword(passwordEncoder.encode("admin123"));
-        adminUser.setEnrollmentNumber("ADM001");
+        adminUser.setEnrollmentNumber("1994630002");
         adminUser.setRole(Role.ADMIN);
         adminUser.setIsActive(true);
         adminUser.setTemporaryPassword(false);
+        adminUser.addScope(Scope.CREATE_USERS);
         adminUser = userRepository.save(adminUser);
 
         // Generate admin JWT token
@@ -139,7 +141,7 @@ class AuthControllerIntegrationTest {
         void login_WithValidCredentialsUsingEnrollmentNumber_ReturnsTokenAndUserData() throws Exception {
             // Given
             LoginRequest loginRequest = new LoginRequest();
-            loginRequest.setIdentifier("ENR001");
+            loginRequest.setIdentifier("1994630001");
             loginRequest.setPassword("password123");
 
             // When/Then
@@ -260,7 +262,7 @@ class AuthControllerIntegrationTest {
             signUpRequest.setName("New");
             signUpRequest.setFatherLastName("User");
             signUpRequest.setMotherLastName("Test");
-            signUpRequest.setEnrollmentNumber("ENR002");
+            signUpRequest.setEnrollmentNumber("2023630001");
             signUpRequest.setRole(Role.STUDENT);
 
             // When/Then
@@ -273,7 +275,7 @@ class AuthControllerIntegrationTest {
                     .andExpect(jsonPath("$.data.email").value("newuser@example.com"))
                     .andExpect(jsonPath("$.data.name").value("New"))
                     .andExpect(jsonPath("$.data.lastName").value("User Test"))
-                    .andExpect(jsonPath("$.data.enrollmentNumber").value("ENR002"))
+                    .andExpect(jsonPath("$.data.enrollmentNumber").value("2023630001"))
                     .andExpect(jsonPath("$.data.role").value("STUDENT"))
                     .andExpect(jsonPath("$.data.isActive").value(true))
                     .andExpect(jsonPath("$.data.temporaryPassword").value(true));
@@ -293,7 +295,7 @@ class AuthControllerIntegrationTest {
             signUpRequest.setName("New");
             signUpRequest.setFatherLastName("User");
             signUpRequest.setMotherLastName("Test");
-            signUpRequest.setEnrollmentNumber("ENR002");
+            signUpRequest.setEnrollmentNumber("2023630001");
             signUpRequest.setRole(Role.STUDENT);
 
             // When/Then
@@ -313,7 +315,7 @@ class AuthControllerIntegrationTest {
             signUpRequest.setName("New");
             signUpRequest.setFatherLastName("User");
             signUpRequest.setMotherLastName("Test");
-            signUpRequest.setEnrollmentNumber("ENR002");
+            signUpRequest.setEnrollmentNumber("2023630001");
             signUpRequest.setRole(Role.STUDENT);
 
             // When/Then
@@ -332,7 +334,7 @@ class AuthControllerIntegrationTest {
             signUpRequest.setName("Another");
             signUpRequest.setFatherLastName("User");
             signUpRequest.setMotherLastName("Test");
-            signUpRequest.setEnrollmentNumber("ENR999");
+            signUpRequest.setEnrollmentNumber("2020630999");
             signUpRequest.setRole(Role.STUDENT);
 
             // When/Then
@@ -353,7 +355,7 @@ class AuthControllerIntegrationTest {
             signUpRequest.setName("Another");
             signUpRequest.setFatherLastName("User");
             signUpRequest.setMotherLastName("Test");
-            signUpRequest.setEnrollmentNumber("ENR001");
+            signUpRequest.setEnrollmentNumber("1994630001");
             signUpRequest.setRole(Role.STUDENT);
 
             // When/Then
@@ -374,7 +376,7 @@ class AuthControllerIntegrationTest {
             signUpRequest.setName("Test");
             signUpRequest.setFatherLastName("User");
             signUpRequest.setMotherLastName("Test");
-            signUpRequest.setEnrollmentNumber("ENR003");
+            signUpRequest.setEnrollmentNumber("2021630003");
             signUpRequest.setRole(Role.STUDENT);
 
             // When/Then
@@ -428,7 +430,7 @@ class AuthControllerIntegrationTest {
             signUpRequest.setName("New");
             signUpRequest.setFatherLastName("User");
             signUpRequest.setMotherLastName("Test");
-            signUpRequest.setEnrollmentNumber("ENR003");
+            signUpRequest.setEnrollmentNumber("2021630003");
             signUpRequest.setRole(Role.STUDENT);
 
             // When
@@ -453,7 +455,7 @@ class AuthControllerIntegrationTest {
             signUpRequest.setName("Teacher");
             signUpRequest.setFatherLastName("Last");
             signUpRequest.setMotherLastName("Name");
-            signUpRequest.setEnrollmentNumber("T001");
+            signUpRequest.setEnrollmentNumber("TEA-001");
             signUpRequest.setRole(Role.TEACHER);
 
             // When/Then
@@ -462,7 +464,47 @@ class AuthControllerIntegrationTest {
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(signUpRequest)))
                     .andExpect(status().isCreated())
-                    .andExpect(jsonPath("$.data.role").value("TEACHER"));
+                    .andExpect(jsonPath("$.data.role").value("TEACHER"))
+                    .andExpect(jsonPath("$.data.scopes[0]").value("CREATE_GROUP"));
+        }
+
+        @Test
+        @DisplayName("Rejects a staff-style enrollment number for a student")
+        void signup_StudentWithStaffEnrollment_ReturnsBadRequest() throws Exception {
+            SignUpRequest signUpRequest = new SignUpRequest();
+            signUpRequest.setEmail("invalid-student@example.com");
+            signUpRequest.setName("Invalid");
+            signUpRequest.setFatherLastName("Student");
+            signUpRequest.setMotherLastName("Number");
+            signUpRequest.setEnrollmentNumber("STU-001");
+            signUpRequest.setRole(Role.STUDENT);
+
+            mockMvc.perform(post("/api/auth/signup")
+                            .header("Authorization", "Bearer " + adminToken)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(signUpRequest)))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.error").value("Validation error"))
+                    .andExpect(jsonPath("$.message").value(
+                            "Enrollment number must be 10 digits: year (>=1994), followed by 630, followed by any 3 digits"));
+        }
+
+        @Test
+        @DisplayName("CREATE_USERS does not permit creating admins")
+        void signup_AdminRoleWithoutCreateAdmins_ReturnsForbidden() throws Exception {
+            SignUpRequest signUpRequest = new SignUpRequest();
+            signUpRequest.setEmail("new-admin@example.com");
+            signUpRequest.setName("New");
+            signUpRequest.setFatherLastName("Admin");
+            signUpRequest.setMotherLastName("User");
+            signUpRequest.setEnrollmentNumber("2026630099");
+            signUpRequest.setRole(Role.ADMIN);
+
+            mockMvc.perform(post("/api/auth/signup")
+                            .header("Authorization", "Bearer " + adminToken)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(signUpRequest)))
+                    .andExpect(status().isForbidden());
         }
     }
 
@@ -474,7 +516,7 @@ class AuthControllerIntegrationTest {
         @DisplayName("Returns 202 with taskId for valid CSV")
         void signupCsv_WithValidCsv_ReturnsAccepted() throws Exception {
             // Given
-            String csv = "STUDENT,Juan,Garcia,Lopez,20230001,juan@example.com\n"
+            String csv = "STUDENT,Juan,Garcia,Lopez,2023630001,juan@example.com\n"
                        + "TEACHER,Maria,Hernandez,Ruiz,T00001,maria@example.com\n";
             MockMultipartFile file = new MockMultipartFile("file", "users.csv", "text/csv",
                     csv.getBytes(StandardCharsets.UTF_8));
@@ -498,7 +540,7 @@ class AuthControllerIntegrationTest {
             claims.put("role", testUser.getRole().name());
             String studentToken = jwtUtil.generateToken(claims, testUser.getEmail());
 
-            String csv = "STUDENT,Juan,Garcia,Lopez,20230001,juan@example.com\n";
+            String csv = "STUDENT,Juan,Garcia,Lopez,2023630001,juan@example.com\n";
             MockMultipartFile file = new MockMultipartFile("file", "users.csv", "text/csv",
                     csv.getBytes(StandardCharsets.UTF_8));
 
@@ -513,7 +555,7 @@ class AuthControllerIntegrationTest {
         @DisplayName("Returns 403 when unauthenticated user uploads CSV")
         void signupCsv_WithoutAuthentication_ReturnsForbidden() throws Exception {
             // Given
-            String csv = "STUDENT,Juan,Garcia,Lopez,20230001,juan@example.com\n";
+            String csv = "STUDENT,Juan,Garcia,Lopez,2023630001,juan@example.com\n";
             MockMultipartFile file = new MockMultipartFile("file", "users.csv", "text/csv",
                     csv.getBytes(StandardCharsets.UTF_8));
 
@@ -527,8 +569,8 @@ class AuthControllerIntegrationTest {
         @DisplayName("Returns 202 and processes CSV with errors asynchronously")
         void signupCsv_WithMixedRows_ReturnsAccepted() throws Exception {
             // Given
-            String csv = "STUDENT,Juan,Garcia,Lopez,20230001,juan@example.com\n"
-                       + "INVALID,Bad,Data,Row,20230002,bad@example.com\n"
+            String csv = "STUDENT,Juan,Garcia,Lopez,2023630001,juan@example.com\n"
+                       + "INVALID,Bad,Data,Row,2023630002,bad@example.com\n"
                        + "TEACHER,Maria,Hernandez,Ruiz,T00001,maria@example.com\n";
             MockMultipartFile file = new MockMultipartFile("file", "users.csv", "text/csv",
                     csv.getBytes(StandardCharsets.UTF_8));
@@ -545,7 +587,7 @@ class AuthControllerIntegrationTest {
         @DisplayName("Returns 202 for CSV with existing email")
         void signupCsv_WithExistingEmail_ReturnsAccepted() throws Exception {
             // Given
-            String csv = "STUDENT,Existing,User,Test,20230099,existing@example.com\n";
+            String csv = "STUDENT,Existing,User,Test,2023630099,existing@example.com\n";
             MockMultipartFile file = new MockMultipartFile("file", "users.csv", "text/csv",
                     csv.getBytes(StandardCharsets.UTF_8));
 
@@ -587,7 +629,7 @@ class AuthControllerIntegrationTest {
             signUpRequest.setName("New");
             signUpRequest.setFatherLastName("User");
             signUpRequest.setMotherLastName("Test");
-            signUpRequest.setEnrollmentNumber("ENR002");
+            signUpRequest.setEnrollmentNumber("2023630001");
             signUpRequest.setRole(Role.STUDENT);
 
             // When/Then
@@ -627,7 +669,7 @@ class AuthControllerIntegrationTest {
             signUpRequest.setName("New");
             signUpRequest.setFatherLastName("User");
             signUpRequest.setMotherLastName("Test");
-            signUpRequest.setEnrollmentNumber("ENR002");
+            signUpRequest.setEnrollmentNumber("2023630001");
             signUpRequest.setRole(Role.STUDENT);
 
             // When/Then
@@ -662,7 +704,7 @@ class AuthControllerIntegrationTest {
             signUpRequest.setName("New");
             signUpRequest.setFatherLastName("User");
             signUpRequest.setMotherLastName("Test");
-            signUpRequest.setEnrollmentNumber("ENR002");
+            signUpRequest.setEnrollmentNumber("2023630001");
             signUpRequest.setRole(Role.STUDENT);
 
             // When/Then

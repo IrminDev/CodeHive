@@ -1,7 +1,7 @@
 # Backend Messaging Implementation
 
 ## Scope
-This document covers backend message production/consumption for code execution and assignment creation workflows.
+This document covers backend message production/consumption for code execution, assignment creation, and email notification workflows.
 
 Key classes:
 - config/RabbitConfig.java
@@ -9,6 +9,8 @@ Key classes:
 - messaging/producer/TestGenerationRequestProducer.java
 - messaging/listener/ExecutionResultListener.java
 - messaging/listener/TestGenerationResultListener.java
+- messaging/producer/NotificationProducer.java
+- messaging/listener/NotificationEmailListener.java
 
 ## Queue Topology
 All queues are declared durable with Jackson JSON message conversion.
@@ -21,6 +23,11 @@ Configured in RabbitConfig via system properties (defaults shown):
 | `RESULT_QUEUE_NAME` | `codehive_result_queue` | worker → backend |
 | `TEST_GENERATION_QUEUE_NAME` | `codehive_test_generation_queue` | backend → worker |
 | `TEST_GENERATION_RESULT_QUEUE_NAME` | `codehive_test_generation_result_queue` | worker → backend |
+| `NOTIFICATION_EMAIL_QUEUE` | `codehive_notification_email_queue` | backend → backend SMTP consumer |
+| `NOTIFICATION_EMAIL_RETRY_QUEUE` | `codehive_notification_email_retry_queue` | delayed retry |
+| `NOTIFICATION_EMAIL_DLQ` | `codehive_notification_email_dlq` | exhausted or incompatible messages |
+
+Notification queues use durable direct exchanges and are described in `llms/backend/notifications/README.md`.
 
 ## Execution Flow (student submissions)
 

@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import com.github.codehive.model.exception.EntityNotFoundException;
+import com.github.codehive.model.exception.ArtifactExpiredException;
 import com.github.codehive.model.exception.ValidationException;
 import com.github.codehive.model.exception.auth.AlreadyRegisteredEmailException;
 import com.github.codehive.model.exception.auth.AlreadyRegisteredEnrollmentNumberException;
@@ -79,6 +80,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleEntityNotFound(EntityNotFoundException ex) {
         ErrorResponse errorResponse = new ErrorResponse(ex.getMessage(), "Resource not found");
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
+    }
+
+    @ExceptionHandler(ArtifactExpiredException.class)
+    public ResponseEntity<ErrorResponse> handleArtifactExpired(ArtifactExpiredException ex) {
+        ErrorResponse errorResponse = new ErrorResponse(ex.getMessage(), "Execution artifacts expired");
+        return ResponseEntity.status(HttpStatus.GONE).body(errorResponse);
     }
 
     @ExceptionHandler(TokenNotFoundException.class)

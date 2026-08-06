@@ -7,6 +7,7 @@ Service files:
 - app/services/AuthService.ts
 - app/services/RecoveryPasswordService.ts
 - app/services/index.ts
+- app/features/teacher/api/assignment.api.ts
 
 Base URL strategy:
 - Uses VITE_API_URL when provided.
@@ -42,6 +43,14 @@ Implemented methods:
 Behavior details:
 - Both methods post JSON payloads.
 - Non-2xx responses throw Error with API message fallback.
+
+## Teacher Assignment API
+
+- Lists active teacher groups and assignments per group.
+- Creates assignments with multipart metadata/reference/test files.
+- Loads an owner-only complete clone-form snapshot.
+- Submits a complete edited clone snapshot as JSON, including reference source and test inputs.
+- Converts backend wrapper responses to typed feature data and surfaces API messages on failure.
 
 ## Type Contracts
 Services consume and return typed contracts from app/types:

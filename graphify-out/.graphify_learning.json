@@ -1,0 +1,128 @@
+{
+  "generated_at": "2026-07-29T04:50:22.281197+00:00",
+  "nodes": {
+    "codehive_backend_src_main_java_com_github_codehive_controller_groupcontroller_groupcontroller_students": {
+      "code_fingerprint": "5087ef85a1b16098ed680daadaf1581fad33854ec9480aa2a21c4e080cb4d376",
+      "label": ".students()",
+      "last": "2026-07-29T04:19:22.505172+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-29T04:19:22.505172+00:00",
+          "outcome": "useful",
+          "q": "Modify this rule in order that other students within the same group can see the list of the other users in the group, they will be able to see only the list, they aren't supposed to see other things like their assignments, grades, etc, only the list of students enrolled in the same group"
+        },
+        {
+          "date": "2026-07-29T04:12:41.963176+00:00",
+          "outcome": "useful",
+          "q": "Does the list of students in a same group is only visible for the teacher or other students can see it?"
+        }
+      ],
+      "score": 1.998898519,
+      "source_file": "codehive-backend/src/main/java/com/github/codehive/controller/GroupController.java",
+      "status": "preferred",
+      "uses": 2
+    },
+    "codehive_backend_src_main_java_com_github_codehive_model_request_assignment_cloneassignmentrequest_cloneassignmentrequest": {
+      "code_fingerprint": "29d2fa138ad68d4d621132b7ea8c881e95cabb7f6fee81c5b5f583ce40b5e96a",
+      "label": "CloneAssignmentRequest",
+      "last": "2026-07-29T04:28:00.251566+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-29T04:28:00.251566+00:00",
+          "outcome": "useful",
+          "q": "When an assignment is cloned, what is expected to be done in the frontend? The teacher will only update the dates?"
+        }
+      ],
+      "score": 0.999641182,
+      "source_file": "codehive-backend/src/main/java/com/github/codehive/model/request/assignment/CloneAssignmentRequest.java",
+      "status": "tentative",
+      "uses": 1
+    },
+    "codehive_backend_src_main_java_com_github_codehive_service_assignmentservice_assignmentservice_publishgeneration": {
+      "code_fingerprint": "1df85985460518f7f70b8bacd82edaee2f89b5610c195d0bad21537670157529",
+      "label": ".publishGeneration()",
+      "last": "2026-07-29T04:28:00.251566+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-29T04:28:00.251566+00:00",
+          "outcome": "useful",
+          "q": "When an assignment is cloned, what is expected to be done in the frontend? The teacher will only update the dates?"
+        }
+      ],
+      "score": 0.999641182,
+      "source_file": "codehive-backend/src/main/java/com/github/codehive/service/AssignmentService.java",
+      "status": "tentative",
+      "uses": 1
+    },
+    "codehive_backend_src_main_java_com_github_codehive_service_groupservice_groupservice_liststudents": {
+      "code_fingerprint": "f7f83c3a9394f3959117bd5e6d70aec50edfc9f2b07499ec3b72b8f09f395750",
+      "label": ".listStudents()",
+      "last": "2026-07-29T04:19:22.505172+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-29T04:19:22.505172+00:00",
+          "outcome": "useful",
+          "q": "Modify this rule in order that other students within the same group can see the list of the other users in the group, they will be able to see only the list, they aren't supposed to see other things like their assignments, grades, etc, only the list of students enrolled in the same group"
+        },
+        {
+          "date": "2026-07-29T04:12:41.963176+00:00",
+          "outcome": "useful",
+          "q": "Does the list of students in a same group is only visible for the teacher or other students can see it?"
+        }
+      ],
+      "score": 1.998898519,
+      "source_file": "codehive-backend/src/main/java/com/github/codehive/service/GroupService.java",
+      "status": "preferred",
+      "uses": 2
+    },
+    "codehive_backend_src_main_java_com_github_codehive_service_groupservice_groupservice_requireownedgroup": {
+      "code_fingerprint": "f7f83c3a9394f3959117bd5e6d70aec50edfc9f2b07499ec3b72b8f09f395750",
+      "label": ".requireOwnedGroup()",
+      "last": "2026-07-29T04:12:41.963176+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-29T04:12:41.963176+00:00",
+          "outcome": "useful",
+          "q": "Does the list of students in a same group is only visible for the teacher or other students can see it?"
+        }
+      ],
+      "score": 0.999395733,
+      "source_file": "codehive-backend/src/main/java/com/github/codehive/service/GroupService.java",
+      "status": "tentative",
+      "uses": 1
+    },
+    "codehive_backend_src_main_java_com_github_codehive_service_groupservice_groupservice_requirestudentlistaccess": {
+      "code_fingerprint": "f7f83c3a9394f3959117bd5e6d70aec50edfc9f2b07499ec3b72b8f09f395750",
+      "label": ".requireStudentListAccess()",
+      "last": "2026-07-29T04:19:22.505172+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-29T04:19:22.505172+00:00",
+          "outcome": "useful",
+          "q": "Modify this rule in order that other students within the same group can see the list of the other users in the group, they will be able to see only the list, they aren't supposed to see other things like their assignments, grades, etc, only the list of students enrolled in the same group"
+        }
+      ],
+      "score": 0.999502786,
+      "source_file": "codehive-backend/src/main/java/com/github/codehive/service/GroupService.java",
+      "status": "tentative",
+      "uses": 1
+    },
+    "llms_backend_groups_readme_assignment_clone": {
+      "code_fingerprint": "45d5aa8141a26e625b81f3dc79a01d0937906acc59c72f1c018df8d266592464",
+      "label": "Assignment clone",
+      "last": "2026-07-29T04:28:00.251566+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-29T04:28:00.251566+00:00",
+          "outcome": "useful",
+          "q": "When an assignment is cloned, what is expected to be done in the frontend? The teacher will only update the dates?"
+        }
+      ],
+      "score": 0.999641182,
+      "source_file": "llms/backend/groups/README.md",
+      "status": "tentative",
+      "uses": 1
+    }
+  },
+  "version": 1
+}

@@ -1,13 +1,18 @@
 package com.github.codehive.worker.model.dto;
 
+import java.util.UUID;
+
 import com.github.codehive.worker.model.enums.ExecutionStatus;
 
 public class TestCaseResult {
+    private UUID testCaseId;
     private int testCaseNumber;
     private ExecutionStatus status;
     private Long executionTimeMs;
     private Long memoryUsedMb;
     private String feedback;
+    private String expectedOutput; // only set for PRACTICE WA
+    private String actualOutput;   // only set for PRACTICE WA
 
     public TestCaseResult() {
     }
@@ -19,6 +24,9 @@ public class TestCaseResult {
         this.executionTimeMs = executionTimeMs;
         this.memoryUsedMb = memoryUsedMb;
     }
+
+    public UUID getTestCaseId() { return testCaseId; }
+    public void setTestCaseId(UUID testCaseId) { this.testCaseId = testCaseId; }
 
     // Getters and setters
     public int getTestCaseNumber() {
@@ -59,5 +67,21 @@ public class TestCaseResult {
 
     public void setFeedback(String feedback) {
         this.feedback = feedback;
+    }
+
+    public String getExpectedOutput() {
+        return expectedOutput;
+    }
+
+    public void setExpectedOutput(String expectedOutput) {
+        this.expectedOutput = expectedOutput;
+    }
+
+    public String getActualOutput() {
+        return actualOutput;
+    }
+
+    public void setActualOutput(String actualOutput) {
+        this.actualOutput = actualOutput;
     }
 }
