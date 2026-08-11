@@ -6,6 +6,7 @@ import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
@@ -20,6 +21,14 @@ public class RateLimitAspect {
     private static final Logger logger = LoggerFactory.getLogger(RateLimitAspect.class);
     
     private final RateLimitService rateLimitService;
+
+    /**
+     * Whether to trust the {@code X-Forwarded-For} header for the client IP.
+     * Only enable when the app sits behind a trusted reverse proxy that sets it;
+     * otherwise the header is client-controlled and can be spoofed to bypass limits.
+     */
+    @Value("${ratelimit.trust-forwarded-for:false}")
+    private boolean trustForwardedFor;
 
     public RateLimitAspect(RateLimitService rateLimitService) {
         this.rateLimitService = rateLimitService;
@@ -46,13 +55,18 @@ public class RateLimitAspect {
     }
 
     /**
-     * Get unique key for client - uses IP address
-     * In production, you might want to use authenticated user ID if available
+     * Resolve the rate-limit key for the caller from its IP address.
+     * The client-supplied {@code X-Forwarded-For} header is only honored when
+     * {@code ratelimit.trust-forwarded-for} is enabled (i.e. behind a trusted
+     * proxy); otherwise it is ignored and the direct peer address is used, so
+     * the header cannot be spoofed to obtain a fresh bucket per request.
      */
-    private String getClientKey(HttpServletRequest request) {
-        String xForwardedFor = request.getHeader("X-Forwarded-For");
-        if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
-            return xForwardedFor.split(",")[0].trim();
+    String getClientKey(HttpServletRequest request) {
+        if (trustForwardedFor) {
+            String xForwardedFor = request.getHeader("X-Forwarded-For");
+            if (xForwardedFor != null && !xForwardedFor.isBlank()) {
+                return xForwardedFor.split(",")[0].trim();
+            }
         }
         return request.getRemoteAddr();
     }

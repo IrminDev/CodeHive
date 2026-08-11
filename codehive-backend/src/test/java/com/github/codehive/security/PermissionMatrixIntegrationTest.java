@@ -39,19 +39,22 @@ import com.github.codehive.messaging.producer.TestGenerationRequestProducer;
 import com.github.codehive.model.entity.Assignment;
 import com.github.codehive.model.entity.ClassGroup;
 import com.github.codehive.model.entity.GroupEnrollment;
-import com.github.codehive.model.entity.ReferenceSolution;
+import com.github.codehive.model.entity.ReferenceSolutionRevision;
 import com.github.codehive.model.entity.StudentAssignmentWork;
+import com.github.codehive.model.entity.TestSuiteRevision;
 import com.github.codehive.model.entity.User;
 import com.github.codehive.model.enums.ComparatorType;
 import com.github.codehive.model.enums.AssignmentValidationStatus;
 import com.github.codehive.model.enums.Language;
+import com.github.codehive.model.enums.RevisionStatus;
 import com.github.codehive.model.enums.Role;
 import com.github.codehive.model.enums.Scope;
 import com.github.codehive.repository.AssignmentRepository;
 import com.github.codehive.repository.ClassGroupRepository;
 import com.github.codehive.repository.GroupEnrollmentRepository;
-import com.github.codehive.repository.ReferenceSolutionRepository;
+import com.github.codehive.repository.ReferenceSolutionRevisionRepository;
 import com.github.codehive.repository.StudentAssignmentWorkRepository;
+import com.github.codehive.repository.TestSuiteRevisionRepository;
 import com.github.codehive.repository.UserRepository;
 import com.github.codehive.service.ObjectStorageService;
 import com.github.codehive.utils.JwtUtil;
@@ -77,7 +80,8 @@ class PermissionMatrixIntegrationTest {
     @Autowired private GroupEnrollmentRepository enrollmentRepository;
     @Autowired private AssignmentRepository assignmentRepository;
     @Autowired private StudentAssignmentWorkRepository workRepository;
-    @Autowired private ReferenceSolutionRepository referenceSolutionRepository;
+    @Autowired private ReferenceSolutionRevisionRepository referenceSolutionRevisionRepository;
+    @Autowired private TestSuiteRevisionRepository testSuiteRevisionRepository;
     @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private JwtUtil jwtUtil;
 
@@ -125,7 +129,24 @@ class PermissionMatrixIntegrationTest {
 
         teacherAssignment = saveAssignment(teacherGroup, teacher, "Teacher's assignment");
         studentOwnedAssignment = saveAssignment(studentOwnedGroup, studentOwner, "Student-owner's assignment");
-        referenceSolutionRepository.saveAndFlush(new ReferenceSolution(studentOwnedAssignment, Language.JAVA));
+        ReferenceSolutionRevision referenceRevision = new ReferenceSolutionRevision();
+        referenceRevision.setAssignment(studentOwnedAssignment);
+        referenceRevision.setLanguage(Language.JAVA);
+        referenceRevision.setStatus(RevisionStatus.ACTIVE);
+        referenceRevision.setObjectKey("assignments/" + studentOwnedAssignment.getId()
+                + "/test-suite-revisions/reference/source/Main.java");
+        referenceRevision = referenceSolutionRevisionRepository.saveAndFlush(referenceRevision);
+
+        TestSuiteRevision testSuiteRevision = new TestSuiteRevision();
+        testSuiteRevision.setAssignment(studentOwnedAssignment);
+        testSuiteRevision.setReferenceSolutionRevision(referenceRevision);
+        testSuiteRevision.setRevisionNumber(1);
+        testSuiteRevision.setStatus(RevisionStatus.ACTIVE);
+        testSuiteRevision = testSuiteRevisionRepository.saveAndFlush(testSuiteRevision);
+
+        studentOwnedAssignment.setActiveReferenceSolutionRevision(referenceRevision);
+        studentOwnedAssignment.setActiveTestSuiteRevision(testSuiteRevision);
+        assignmentRepository.saveAndFlush(studentOwnedAssignment);
 
         doNothing().when(objectStorageService).upload(anyString(), anyString());
         when(objectStorageService.download(anyString()))
