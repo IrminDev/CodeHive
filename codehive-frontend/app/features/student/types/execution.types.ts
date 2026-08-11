@@ -52,6 +52,19 @@ export type TestCaseResult = {
   actualOutput?: string
 }
 
+export type Submission = {
+  id: string;
+  submissionNumber: number;
+  assignmentId: string;
+  language: string;
+  status: ExecutionStatus;
+  passedTests: number;
+  totalTests: number;
+  createdAt: string;
+  isLate: boolean;
+  executionId?: string;
+}
+
 export type ExecutionReport = {
   executionId: string
   overallStatus: ExecutionStatus
