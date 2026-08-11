@@ -42,16 +42,21 @@ public class RateLimitAspect {
         ServletRequestAttributes requestAttributes = (ServletRequestAttributes) RequestContextHolder.currentRequestAttributes();
         HttpServletRequest request = requestAttributes.getRequest();
         
-        String key = getClientKey(request);
-        
-        boolean allowed = rateLimitService.tryConsume(key, rateLimit.limit(), rateLimit.duration());
-        
+        String bucketKey = bucketKey(signature, getClientKey(request));
+
+        boolean allowed = rateLimitService.tryConsume(bucketKey, rateLimit.limit(), rateLimit.duration());
+
         if (!allowed) {
-            logger.warn("Rate limit exceeded for key: {} on endpoint: {}", key, request.getRequestURI());
+            logger.warn("Rate limit exceeded for key: {} on endpoint: {}", bucketKey, request.getRequestURI());
             throw new RateLimitExceededException(rateLimit.message());
         }
 
         return joinPoint.proceed();
+    }
+
+    // Scope the bucket per endpoint so one endpoint's limit doesn't apply to the others.
+    static String bucketKey(MethodSignature signature, String clientKey) {
+        return signature.toLongString() + '|' + clientKey;
     }
 
     /**

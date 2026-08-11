@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import org.aspectj.lang.reflect.MethodSignature;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -66,5 +67,31 @@ class RateLimitAspectTest {
         when(request.getRemoteAddr()).thenReturn("10.0.0.5");
 
         assertThat(aspect.getClientKey(request)).isEqualTo("10.0.0.5");
+    }
+
+    @Test
+    @DisplayName("Different endpoints get distinct bucket keys for the same client")
+    void bucketKey_isDistinctPerEndpoint() {
+        MethodSignature login = mock(MethodSignature.class);
+        when(login.toLongString()).thenReturn("public void AuthController.login()");
+        MethodSignature execute = mock(MethodSignature.class);
+        when(execute.toLongString()).thenReturn("public void CheckExecutionController.submit()");
+
+        String loginKey = RateLimitAspect.bucketKey(login, "10.0.0.5");
+        String executeKey = RateLimitAspect.bucketKey(execute, "10.0.0.5");
+
+        assertThat(loginKey).isNotEqualTo(executeKey);
+        assertThat(loginKey).contains("10.0.0.5");
+        assertThat(executeKey).contains("10.0.0.5");
+    }
+
+    @Test
+    @DisplayName("Same endpoint and client share a bucket key")
+    void bucketKey_isSharedForSameEndpointAndClient() {
+        MethodSignature login = mock(MethodSignature.class);
+        when(login.toLongString()).thenReturn("public void AuthController.login()");
+
+        assertThat(RateLimitAspect.bucketKey(login, "10.0.0.5"))
+                .isEqualTo(RateLimitAspect.bucketKey(login, "10.0.0.5"));
     }
 }
