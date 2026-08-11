@@ -56,7 +56,8 @@ public class CsvRegistrationService {
 
     public String submitCsvJob(byte[] csvData) {
         String taskId = UUID.randomUUID().toString();
-        webSocketHandler.queueTask(taskId, () -> selfProvider.getObject().processAsync(csvData, taskId));
+        // Run the import now on the async executor; the websocket is only a progress channel.
+        selfProvider.getObject().processAsync(csvData, taskId);
         return taskId;
     }
 
