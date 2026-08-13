@@ -157,17 +157,17 @@ public class CsvRegistrationService {
         }
 
         if (!csvEmails.add(email)) {
-            return "Row " + rowNumber + ": Duplicate email '" + email + "' in CSV";
+            return "Row " + rowNumber + ": Duplicate email in CSV";
         }
         if (!csvEnrollments.add(enrollmentNumber)) {
-            return "Row " + rowNumber + ": Duplicate enrollment number '" + enrollmentNumber + "' in CSV";
+            return "Row " + rowNumber + ": Duplicate enrollment number in CSV";
         }
 
         if (userRepository.findByEmail(email).isPresent()) {
-            return "Row " + rowNumber + ": Email '" + email + "' is already registered";
+            return "Row " + rowNumber + ": Email is already registered";
         }
         if (userRepository.findByEnrollmentNumber(enrollmentNumber).isPresent()) {
-            return "Row " + rowNumber + ": Enrollment number '" + enrollmentNumber + "' is already registered";
+            return "Row " + rowNumber + ": Enrollment number is already registered";
         }
 
         String rawPassword = PasswordGenerator.generate();

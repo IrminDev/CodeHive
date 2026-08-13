@@ -1,17 +1,24 @@
 package com.github.codehive.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import java.util.Optional;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import com.github.codehive.model.entity.User;
+import com.github.codehive.model.response.auth.CsvProgressMessage;
 import com.github.codehive.repository.UserRepository;
 import com.github.codehive.websocket.CsvProgressWebSocketHandler;
 
@@ -49,5 +56,23 @@ class CsvRegistrationServiceTest {
         assertThat(taskId).isNotBlank();
         verify(self).processAsync(csvData, taskId);
         verifyNoInteractions(webSocketHandler);
+    }
+
+    @Test
+    @DisplayName("progress messages do not echo the email or enrollment number")
+    void progressMessages_doNotLeakPii() {
+        String email = "existing@test.com";
+        String enrollment = "2020630001";
+        when(userRepository.findByEmail(email)).thenReturn(Optional.of(mock(User.class)));
+        byte[] csvData = ("STUDENT,Ada,Lovelace,King," + enrollment + "," + email).getBytes();
+        String taskId = "task-1";
+
+        service.processAsync(csvData, taskId);
+
+        ArgumentCaptor<CsvProgressMessage> captor = ArgumentCaptor.forClass(CsvProgressMessage.class);
+        verify(webSocketHandler, atLeastOnce()).sendProgress(eq(taskId), captor.capture());
+        assertThat(captor.getAllValues()).anyMatch(m -> m.getMessage().contains("already registered"));
+        assertThat(captor.getAllValues())
+                .noneMatch(m -> m.getMessage().contains(email) || m.getMessage().contains(enrollment));
     }
 }
