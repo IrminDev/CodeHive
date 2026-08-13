@@ -2,6 +2,7 @@ package com.github.codehive.websocket;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.slf4j.Logger;
@@ -33,6 +34,14 @@ public class CsvProgressWebSocketHandler extends TextWebSocketHandler {
     @Override
     protected void handleTextMessage(@NonNull WebSocketSession session, @NonNull TextMessage message) {
         String taskId = message.getPayload().trim();
+        if (!isValidTaskId(taskId)) {
+            return;
+        }
+        // One subscription per session: drop the previous mapping so the map can't grow unbounded.
+        String previous = (String) session.getAttributes().get(TASK_ID_ATTRIBUTE);
+        if (previous != null && !previous.equals(taskId)) {
+            taskSessions.remove(previous, session);
+        }
         session.getAttributes().put(TASK_ID_ATTRIBUTE, taskId);
         taskSessions.put(taskId, session);
     }
@@ -41,7 +50,19 @@ public class CsvProgressWebSocketHandler extends TextWebSocketHandler {
     public void afterConnectionClosed(@NonNull WebSocketSession session, @NonNull CloseStatus status) {
         String taskId = (String) session.getAttributes().get(TASK_ID_ATTRIBUTE);
         if (taskId != null) {
-            taskSessions.remove(taskId);
+            taskSessions.remove(taskId, session);
+        }
+    }
+
+    private static boolean isValidTaskId(String value) {
+        if (value.length() != 36) {
+            return false;
+        }
+        try {
+            UUID.fromString(value);
+            return true;
+        } catch (IllegalArgumentException e) {
+            return false;
         }
     }
 
