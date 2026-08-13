@@ -130,6 +130,40 @@ class JwtUtilTest {
     }
 
     @Nested
+    @DisplayName("Secret Validation Tests")
+    class SecretValidationTests {
+
+        @Test
+        @DisplayName("Rejects a secret shorter than 256 bits")
+        void validateSecret_WithShortSecret_Throws() {
+            JwtUtil util = new JwtUtil();
+            ReflectionTestUtils.setField(util, "secret",
+                    Base64.getEncoder().encodeToString("short".getBytes(StandardCharsets.UTF_8)));
+
+            assertThatThrownBy(util::validateSecret).isInstanceOf(IllegalStateException.class);
+        }
+
+        @Test
+        @DisplayName("Rejects a blank secret")
+        void validateSecret_WithBlankSecret_Throws() {
+            JwtUtil util = new JwtUtil();
+            ReflectionTestUtils.setField(util, "secret", "");
+
+            assertThatThrownBy(util::validateSecret).isInstanceOf(IllegalStateException.class);
+        }
+
+        @Test
+        @DisplayName("Accepts a 256-bit or longer secret")
+        void validateSecret_WithStrongSecret_Passes() {
+            JwtUtil util = new JwtUtil();
+            ReflectionTestUtils.setField(util, "secret", Base64.getEncoder()
+                    .encodeToString("this-is-a-very-strong-secret-of-32b!!".getBytes(StandardCharsets.UTF_8)));
+
+            util.validateSecret();
+        }
+    }
+
+    @Nested
     @DisplayName("Token Version Tests")
     class TokenVersionTests {
 
