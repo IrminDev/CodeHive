@@ -77,6 +77,16 @@ class RecoveryPasswordControllerIntegrationTest {
         userRepository.save(testUser);
     }
 
+    private static String hashToken(String value) {
+        try {
+            byte[] hash = java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(value.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            return java.util.HexFormat.of().formatHex(hash);
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
     @Nested
     @DisplayName("POST /api/recovery-password/forgot")
     class ForgotPasswordEndpointTests {
@@ -229,7 +239,7 @@ class RecoveryPasswordControllerIntegrationTest {
             // Given - Create a valid password reset token
             String tokenValue = UUID.randomUUID().toString();
             PasswordResetToken token = new PasswordResetToken();
-            token.setToken(tokenValue);
+            token.setToken(hashToken(tokenValue));
             token.setUser(testUser);
             token.setExpiryDate(LocalDateTime.now().plusMinutes(15));
             token.setUsed(false);
@@ -258,7 +268,7 @@ class RecoveryPasswordControllerIntegrationTest {
             // Given
             String tokenValue = UUID.randomUUID().toString();
             PasswordResetToken token = new PasswordResetToken();
-            token.setToken(tokenValue);
+            token.setToken(hashToken(tokenValue));
             token.setUser(testUser);
             token.setExpiryDate(LocalDateTime.now().plusMinutes(15));
             token.setUsed(false);
@@ -275,7 +285,7 @@ class RecoveryPasswordControllerIntegrationTest {
                     .andExpect(status().isOk());
 
             // Then - verify token is marked as used
-            PasswordResetToken updatedToken = passwordResetTokenRepository.findByToken(tokenValue).orElseThrow();
+            PasswordResetToken updatedToken = passwordResetTokenRepository.findByToken(hashToken(tokenValue)).orElseThrow();
             assert updatedToken.getUsed();
         }
 
@@ -301,7 +311,7 @@ class RecoveryPasswordControllerIntegrationTest {
             // Given - Create an expired token
             String tokenValue = UUID.randomUUID().toString();
             PasswordResetToken token = new PasswordResetToken();
-            token.setToken(tokenValue);
+            token.setToken(hashToken(tokenValue));
             token.setUser(testUser);
             token.setExpiryDate(LocalDateTime.now().minusMinutes(1)); // Expired
             token.setUsed(false);
@@ -325,7 +335,7 @@ class RecoveryPasswordControllerIntegrationTest {
             // Given - Create a used token
             String tokenValue = UUID.randomUUID().toString();
             PasswordResetToken token = new PasswordResetToken();
-            token.setToken(tokenValue);
+            token.setToken(hashToken(tokenValue));
             token.setUser(testUser);
             token.setExpiryDate(LocalDateTime.now().plusMinutes(15));
             token.setUsed(true); // Already used
@@ -349,7 +359,7 @@ class RecoveryPasswordControllerIntegrationTest {
             // Given
             String tokenValue = UUID.randomUUID().toString();
             PasswordResetToken token = new PasswordResetToken();
-            token.setToken(tokenValue);
+            token.setToken(hashToken(tokenValue));
             token.setUser(testUser);
             token.setExpiryDate(LocalDateTime.now().plusMinutes(15));
             token.setUsed(false);
@@ -372,7 +382,7 @@ class RecoveryPasswordControllerIntegrationTest {
             // Given
             String tokenValue = UUID.randomUUID().toString();
             PasswordResetToken token = new PasswordResetToken();
-            token.setToken(tokenValue);
+            token.setToken(hashToken(tokenValue));
             token.setUser(testUser);
             token.setExpiryDate(LocalDateTime.now().plusMinutes(15));
             token.setUsed(false);
@@ -426,7 +436,7 @@ class RecoveryPasswordControllerIntegrationTest {
             // Given
             String tokenValue = UUID.randomUUID().toString();
             PasswordResetToken token = new PasswordResetToken();
-            token.setToken(tokenValue);
+            token.setToken(hashToken(tokenValue));
             token.setUser(testUser);
             token.setExpiryDate(LocalDateTime.now().plusMinutes(15));
             token.setUsed(false);
@@ -460,7 +470,7 @@ class RecoveryPasswordControllerIntegrationTest {
             // Given
             String tokenValue = UUID.randomUUID().toString();
             PasswordResetToken token = new PasswordResetToken();
-            token.setToken(tokenValue);
+            token.setToken(hashToken(tokenValue));
             token.setUser(testUser);
             token.setExpiryDate(LocalDateTime.now().plusMinutes(15));
             token.setUsed(false);
@@ -540,7 +550,7 @@ class RecoveryPasswordControllerIntegrationTest {
             // Given
             String tokenValue = UUID.randomUUID().toString();
             PasswordResetToken token = new PasswordResetToken();
-            token.setToken(tokenValue);
+            token.setToken(hashToken(tokenValue));
             token.setUser(testUser);
             token.setExpiryDate(LocalDateTime.now().plusMinutes(15));
             token.setUsed(false);

@@ -1,6 +1,10 @@
 package com.github.codehive.service;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
+import java.util.HexFormat;
 import java.util.UUID;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -54,13 +58,14 @@ public class RecoveryPasswordService {
                 passwordResetTokenRepository.save(oldToken);
             });
 
-            // Generate a random token and persist it
-            String token = UUID.randomUUID().toString();
-            PasswordResetToken passwordResetToken = new PasswordResetToken(token, LocalDateTime.now().plusMinutes(15), user);
+            // Generate a random token; persist only its hash so a DB leak can't be used to reset accounts.
+            String rawToken = UUID.randomUUID().toString();
+            PasswordResetToken passwordResetToken = new PasswordResetToken(
+                    hashToken(rawToken), LocalDateTime.now().plusMinutes(15), user);
             passwordResetTokenRepository.save(passwordResetToken);
 
-            // Send the password reset email containing the token to the user's email
-            mailSenderService.sendPasswordResetEmail(user.getEmail(), token);
+            // Send the raw token to the user's email; only the hash is stored server-side.
+            mailSenderService.sendPasswordResetEmail(user.getEmail(), rawToken);
         }
 
         return isEnrollmentNumber;
@@ -68,9 +73,9 @@ public class RecoveryPasswordService {
 
     @Transactional
     public void resetPassword(String token, String newPassword) {
-        // Find the token or throw if not found
+        // Find the token by its hash or throw if not found
         PasswordResetToken passwordResetToken = passwordResetTokenRepository
-                .findByToken(token)
+                .findByToken(hashToken(token))
                 .orElseThrow(() -> new com.github.codehive.model.exception.recovery.TokenNotFoundException(
                         "Invalid password reset token"));
 
@@ -95,5 +100,14 @@ public class RecoveryPasswordService {
         // Mark token as used
         passwordResetToken.setUsed(true);
         passwordResetTokenRepository.save(passwordResetToken);
+    }
+
+    private static String hashToken(String token) {
+        try {
+            byte[] hash = MessageDigest.getInstance("SHA-256").digest(token.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(hash);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 algorithm not available", e);
+        }
     }
 }
