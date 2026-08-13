@@ -29,12 +29,17 @@ public class MailSenderService{
         this.templateRenderer = templateRenderer;
     }
 
+    @Async("welcomeEmailExecutor")
     public void sendPasswordResetEmail(String to, String token) {
-        String subject = "Reset your CodeHive password";
-        String resetUrl = frontendUrl + "/reset-password?token=" + token;
-        EmailTemplateRenderer.RenderedEmail rendered = templateRenderer.render(
-                "password-reset", java.util.Map.of("resetUrl", resetUrl));
-        sendMimeMessage(to, subject, rendered);
+        try {
+            String subject = "Reset your CodeHive password";
+            String resetUrl = frontendUrl + "/reset-password?token=" + token;
+            EmailTemplateRenderer.RenderedEmail rendered = templateRenderer.render(
+                    "password-reset", java.util.Map.of("resetUrl", resetUrl));
+            sendMimeMessage(to, subject, rendered);
+        } catch (RuntimeException exception) {
+            LOGGER.error("Failed to send password reset email to {}", to, exception);
+        }
     }
 
     @Async("welcomeEmailExecutor")
