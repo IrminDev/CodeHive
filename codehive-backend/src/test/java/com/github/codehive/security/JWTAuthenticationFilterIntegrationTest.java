@@ -81,4 +81,19 @@ class JWTAuthenticationFilterIntegrationTest {
         mockMvc.perform(get("/api/auth/me").header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk());
     }
+
+    @Test
+    @DisplayName("Token issued before a password change is rejected after the version bump")
+    void tokenFromBeforePasswordChange_isRejectedAfterVersionBump() throws Exception {
+        String token = jwtUtil.generateToken(
+                java.util.Map.of("role", "STUDENT", "tokenVersion", user.getTokenVersion()), user.getEmail());
+        mockMvc.perform(get("/api/auth/me").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk());
+
+        user.setTokenVersion(user.getTokenVersion() + 1);
+        userRepository.saveAndFlush(user);
+
+        mockMvc.perform(get("/api/auth/me").header("Authorization", "Bearer " + token))
+                .andExpect(status().is4xxClientError());
+    }
 }

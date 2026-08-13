@@ -12,6 +12,8 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import org.hibernate.annotations.ColumnDefault;
+
 import com.github.codehive.model.enums.Role;
 import com.github.codehive.model.enums.Scope;
 
@@ -62,6 +64,11 @@ public class User implements UserDetails {
 
     @Column(nullable = false)
     private Boolean temporaryPassword;
+
+    // Bumped on every password change so previously issued JWTs stop authenticating.
+    @Column(nullable = false)
+    @ColumnDefault("0")
+    private int tokenVersion = 0;
 
     @ElementCollection(targetClass = Scope.class)
     @Enumerated(EnumType.STRING)
@@ -167,6 +174,14 @@ public class User implements UserDetails {
 
     public void setTemporaryPassword(Boolean temporaryPassword) {
         this.temporaryPassword = temporaryPassword;
+    }
+
+    public int getTokenVersion() {
+        return tokenVersion;
+    }
+
+    public void setTokenVersion(int tokenVersion) {
+        this.tokenVersion = tokenVersion;
     }
 
     public List<Scope> getScopes() {

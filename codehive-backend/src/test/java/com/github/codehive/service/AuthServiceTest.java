@@ -36,6 +36,7 @@ import com.github.codehive.model.exception.auth.AlreadyRegisteredEnrollmentNumbe
 import com.github.codehive.model.exception.auth.IncorrectCredentialsException;
 import com.github.codehive.model.request.auth.LoginRequest;
 import com.github.codehive.model.request.auth.SignUpRequest;
+import com.github.codehive.model.request.auth.UpdatePasswordRequest;
 import com.github.codehive.model.response.auth.AuthResponse;
 import com.github.codehive.model.response.auth.CsvBulkRegisterResponse;
 import com.github.codehive.repository.UserRepository;
@@ -91,6 +92,27 @@ class AuthServiceTest {
         signUpRequest.setMotherLastName("Doe");
         signUpRequest.setEnrollmentNumber("2023630002");
         signUpRequest.setRole(Role.STUDENT);
+    }
+
+    @Nested
+    @DisplayName("Update Password Tests")
+    class UpdatePasswordTests {
+
+        @Test
+        @DisplayName("Increments token version to invalidate previously issued JWTs")
+        void updatePassword_IncrementsTokenVersion() {
+            UpdatePasswordRequest request = new UpdatePasswordRequest();
+            request.setCurrentPassword("old-password");
+            request.setNewPassword("new-strong-password");
+            when(userRepository.findById(testUser.getId())).thenReturn(Optional.of(testUser));
+            when(passwordEncoder.matches("old-password", testUser.getPassword())).thenReturn(true);
+            when(passwordEncoder.encode("new-strong-password")).thenReturn("encoded-new");
+            int before = testUser.getTokenVersion();
+
+            authService.updatePassword(testUser.getId(), request);
+
+            assertThat(testUser.getTokenVersion()).isEqualTo(before + 1);
+        }
     }
 
     @Nested

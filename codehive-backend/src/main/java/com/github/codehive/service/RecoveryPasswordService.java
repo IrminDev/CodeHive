@@ -89,6 +89,7 @@ public class RecoveryPasswordService {
         // Update user password
         User user = passwordResetToken.getUser();
         user.setPassword(passwordEncoder.encode(newPassword));
+        user.setTokenVersion(user.getTokenVersion() + 1);
         userRepository.save(user);
 
         // Mark token as used

@@ -130,6 +130,27 @@ class JwtUtilTest {
     }
 
     @Nested
+    @DisplayName("Token Version Tests")
+    class TokenVersionTests {
+
+        @Test
+        @DisplayName("Extracts the tokenVersion claim when present")
+        void extractTokenVersion_WithClaim_ReturnsValue() {
+            String token = jwtUtil.generateToken(new HashMap<>(Map.of("tokenVersion", 3)), "test@example.com");
+
+            assertThat(jwtUtil.extractTokenVersion(token)).isEqualTo(3);
+        }
+
+        @Test
+        @DisplayName("Defaults to zero when the tokenVersion claim is absent")
+        void extractTokenVersion_WithoutClaim_ReturnsZero() {
+            String token = jwtUtil.generateToken(new HashMap<>(), "test@example.com");
+
+            assertThat(jwtUtil.extractTokenVersion(token)).isZero();
+        }
+    }
+
+    @Nested
     @DisplayName("Claim Extraction Tests")
     class ClaimExtractionTests {
 

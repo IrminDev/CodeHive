@@ -269,6 +269,7 @@ public class AuthService {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", user.getId());
         claims.put("role", user.getRole().name());
+        claims.put("tokenVersion", user.getTokenVersion());
         return jwtUtil.generateToken(claims, user.getEmail());
     }
 
@@ -283,6 +284,7 @@ public class AuthService {
 
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         user.setTemporaryPassword(false);
+        user.setTokenVersion(user.getTokenVersion() + 1);
         userRepository.save(user);
     }
 }

@@ -13,6 +13,7 @@ import org.springframework.security.web.authentication.WebAuthenticationDetailsS
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import com.github.codehive.model.entity.User;
 import com.github.codehive.utils.JwtUtil;
 
 import io.jsonwebtoken.JwtException;
@@ -51,6 +52,9 @@ public class JWTAuthenticationFilter extends OncePerRequestFilter {
 
             UserDetails userDetails = userDetailsService.loadUserByUsername(email);
             if (!userDetails.isEnabled() || !jwtUtil.isTokenValid(token, email)) {
+                return;
+            }
+            if (userDetails instanceof User user && jwtUtil.extractTokenVersion(token) != user.getTokenVersion()) {
                 return;
             }
 

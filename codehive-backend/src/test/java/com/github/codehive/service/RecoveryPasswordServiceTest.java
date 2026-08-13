@@ -287,6 +287,19 @@ class RecoveryPasswordServiceTest {
         }
 
         @Test
+        @DisplayName("Increments token version to invalidate previously issued JWTs")
+        void resetPassword_IncrementsTokenVersion() {
+            String token = "valid-token-123";
+            when(passwordResetTokenRepository.findByToken(token)).thenReturn(Optional.of(validToken));
+            when(passwordEncoder.encode(anyString())).thenReturn("encodedNewPassword");
+            int before = testUser.getTokenVersion();
+
+            recoveryPasswordService.resetPassword(token, "newSecurePassword123");
+
+            assertThat(testUser.getTokenVersion()).isEqualTo(before + 1);
+        }
+
+        @Test
         @DisplayName("Throws exception when token not found")
         void resetPassword_WithNonExistentToken_ThrowsTokenNotFoundException() {
             // Given

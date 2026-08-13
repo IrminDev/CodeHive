@@ -62,6 +62,11 @@ public class JwtUtil {
         }
     }
 
+    public int extractTokenVersion(String token) {
+        Integer version = extractClaim(token, claims -> claims.get("tokenVersion", Integer.class));
+        return version == null ? 0 : version;
+    }
+
     public boolean isTokenValid(String token, String email){
         try {
             final String emailToken = extractClaim(token, Claims::getSubject);
