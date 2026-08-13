@@ -18,7 +18,13 @@ Current route map:
 - /teacher -> features/teacher/routes/teacher.dashboard.tsx
 - /teacher/assignments -> features/teacher/routes/teacher.assignments.tsx
 - /teacher/create-assignment -> features/teacher/routes/teacher.create-assignment.tsx
-- /teacher/assignments/:assignmentId/clone -> features/teacher/routes/teacher.clone-assignment.tsx
+- /teacher/assignments/:assignmentId/clone -> features/teacher/routes/teacher.assignments.$assignmentId.clone.tsx
+- /teacher/assignments/:assignmentId/edit -> features/teacher/routes/teacher.assignments.$assignmentId.edit.tsx
+- /teacher/groups -> features/teacher/routes/teacher.groups.tsx
+- /teacher/groups/create -> features/teacher/routes/teacher.create-group.tsx
+- /teacher/groups/:groupId -> features/teacher/routes/teacher.groups.$groupId.tsx
+- /teacher/grades -> features/teacher/routes/teacher.grades.tsx
+- /teacher/analytics -> features/teacher/routes/teacher.analytics.tsx
 
 ## Route Module Pattern
 Each route module typically contains:

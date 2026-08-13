@@ -1,4 +1,4 @@
-import type { Group } from "../types/dashboard.types";
+import type { DashboardGroup as Group } from "~/shared/types/model/DashboardGroup";
 import { API_BASE_URL } from "~/core/config/env";
 import { getAuthToken } from "~/core/storage/token.storage";
 

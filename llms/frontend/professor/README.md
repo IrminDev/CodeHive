@@ -6,6 +6,12 @@
 - `/teacher/assignments` — real assignment list filtered by active owned group.
 - `/teacher/create-assignment` — assignment form.
 - `/teacher/assignments/:assignmentId/clone` — editable clone form.
+- `/teacher/assignments/:assignmentId/edit` — metadata and schedule update form.
+- `/teacher/groups` — owned active, archived, and deleted groups.
+- `/teacher/groups/create` — group creation form.
+- `/teacher/groups/:groupId` — roster, lifecycle, assignments, join code, and metrics.
+- `/teacher/grades` — student work, draft/returned grades, and feedback.
+- `/teacher/analytics` — group overview, assignment details, and student metrics.
 
 All routes use `ProtectedRoute` with `Role.TEACHER`.
 
@@ -30,3 +36,12 @@ authoritative protection for create, clone, and update requests.
 
 `app/features/teacher/api/assignment.api.ts` owns teacher group, assignment list,
 create, clone-form, and clone requests.
+
+Other teacher API modules:
+
+- `group.api.ts` — owned group CRUD/lifecycle, roster, removal, and join-code rotation.
+- `student-work.api.ts` — student work, grades, and feedback.
+- `metrics.api.ts` — group/assignment/student performance aggregates.
+- `client.ts` — shared bearer-token and `SuccessResponse<T>` parsing.
+
+Typed contracts live under `app/features/teacher/types/` and mirror backend DTOs/enums.

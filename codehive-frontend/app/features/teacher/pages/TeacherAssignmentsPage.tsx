@@ -4,6 +4,7 @@ import { sileo } from "sileo";
 
 import { DashboardLayout } from "~/shared/components/DashboardLayout";
 import {
+  deleteAssignment,
   getActiveTeacherGroups,
   getTeacherAssignments,
 } from "../api/assignment.api";
@@ -18,6 +19,21 @@ export function TeacherAssignmentsPage() {
   const [groupId, setGroupId] = useState("");
   const [assignments, setAssignments] = useState<TeacherAssignment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  async function handleDelete(assignmentId: string) {
+    if (!window.confirm("Delete this assignment? Existing history remains stored.")) return;
+    setDeletingId(assignmentId);
+    try {
+      await deleteAssignment(assignmentId);
+      setAssignments((items) => items.filter((item) => item.id !== assignmentId));
+      sileo.success({ title: "Assignment deleted." });
+    } catch (error) {
+      sileo.error({ title: error instanceof Error ? error.message : "Failed to delete assignment." });
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -138,12 +154,33 @@ export function TeacherAssignmentsPage() {
                   )}
                 </div>
               </div>
-              <Link
-                to={`/teacher/assignments/${assignment.id}/clone`}
-                className="btn-outline inline-flex items-center justify-center"
-              >
-                Clone
-              </Link>
+              <div className="flex gap-2">
+                <Link
+                  to={`/teacher/assignments/${assignment.id}/edit`}
+                  className="btn-outline inline-flex items-center justify-center"
+                >
+                  Edit
+                </Link>
+                <Link
+                  to={`/teacher/grades?groupId=${assignment.groupId}&assignmentId=${assignment.id}`}
+                  className="btn-outline inline-flex items-center justify-center"
+                >
+                  Review
+                </Link>
+                <Link
+                  to={`/teacher/assignments/${assignment.id}/clone`}
+                  className="btn-outline inline-flex items-center justify-center"
+                >
+                  Clone
+                </Link>
+                <button
+                  disabled={deletingId === assignment.id}
+                  onClick={() => void handleDelete(assignment.id)}
+                  className="btn-outline text-red-500"
+                >
+                  {deletingId === assignment.id ? "Deleting…" : "Delete"}
+                </button>
+              </div>
             </div>
           ))
         )}

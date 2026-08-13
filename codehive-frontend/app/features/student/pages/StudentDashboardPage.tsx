@@ -8,7 +8,7 @@ import {
 import { useAuth } from "~/core/providers/AuthProvider";
 import { useTheme } from "~/core/providers/ThemeProvider";
 import { getGroups } from "~/features/dashboard/api/dashboard.api";
-import type { Group } from "~/features/dashboard/types/dashboard.types";
+import type { DashboardGroup as Group } from "~/shared/types/model/DashboardGroup";
 import { listAssignments } from "../api/assignment.api";
 import type { Assignment, Language } from "../types/assignment.types";
 

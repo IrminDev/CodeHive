@@ -9,12 +9,4 @@ export type ClassGroup = {
   memberCount?: number;
 };
 
-export interface Group {
-  id: string;
-  name: string;
-  subject: string;
-  colorClass: string;
-  pendingPractices: number;
-  inProgress: number;
-  nextDeadline: string;
-}
+export type { DashboardGroup as Group } from "~/shared/types/model/DashboardGroup";
