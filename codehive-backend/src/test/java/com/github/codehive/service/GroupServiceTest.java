@@ -175,9 +175,21 @@ class GroupServiceTest {
     }
 
     @Test
-    void removeStudentOnAnArchivedGroupIsCurrentlyAllowed() {
-        // Documents current behavior: roster management skips the read-only check.
+    void removeStudentRejectsArchivedAndDeletedGroups() {
         group.setArchived(true);
+        assertThatThrownBy(() -> service.removeStudent(GROUP_ID, STUDENT_ID, OWNER_EMAIL))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("archived");
+
+        group.setArchived(false);
+        group.setIsActive(false);
+        assertThatThrownBy(() -> service.removeStudent(GROUP_ID, STUDENT_ID, OWNER_EMAIL))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("deleted");
+    }
+
+    @Test
+    void removeStudentSucceedsOnActiveWritableGroup() {
         GroupEnrollment enrollment = new GroupEnrollment(group, student);
         when(enrollmentRepository.findByGroupIdAndStudentId(GROUP_ID, STUDENT_ID))
                 .thenReturn(Optional.of(enrollment));

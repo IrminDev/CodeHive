@@ -326,7 +326,7 @@ class GroupControllerIntegrationTest {
     }
 
     @Test
-    void archivedGroupRejectsChangesButStillAllowsRosterRemoval() throws Exception {
+    void archivedGroupRejectsChangesIncludingRosterRemoval() throws Exception {
         ClassGroup group = groupRepository.save(new ClassGroup("Algorithms", "", teacher, "ARCHIVE1"));
         enrollmentRepository.save(new GroupEnrollment(group, student));
 
@@ -343,11 +343,11 @@ class GroupControllerIntegrationTest {
                         .header("Authorization", "Bearer " + teacherToken))
                 .andExpect(status().isBadRequest());
 
-        // Documents current behavior: roster removal skips the read-only check.
+        // Roster removal is also blocked once the group is read-only.
         mockMvc.perform(delete("/api/groups/{id}/students/{studentId}", group.getId(), student.getId())
                         .header("Authorization", "Bearer " + teacherToken))
-                .andExpect(status().isOk());
+                .andExpect(status().isBadRequest());
         assert enrollmentRepository.findByGroupIdAndStudentId(group.getId(), student.getId())
-                .orElseThrow().getStatus() == EnrollmentStatus.REMOVED;
+                .orElseThrow().getStatus() == EnrollmentStatus.ACTIVE;
     }
 }
