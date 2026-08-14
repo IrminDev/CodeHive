@@ -176,8 +176,52 @@ class StudentMetricsControllerIntegrationTest {
     }
 
     @Test
+    void enrolledStudentGetsOwnAssignmentBreakdown() throws Exception {
+        mockMvc.perform(get("/api/groups/{id}/metrics/me/assignments", group.getId())
+                        .header("Authorization", "Bearer " + adaToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data", hasSize(1)))
+                .andExpect(jsonPath("$.data[0].assignmentId").value(assignment.getId().toString()))
+                .andExpect(jsonPath("$.data[0].workStatus").value("SUBMITTED"))
+                .andExpect(jsonPath("$.data[0].deliveredLate").value(false))
+                .andExpect(jsonPath("$.data[0].attempts").value(1))
+                .andExpect(jsonPath("$.data[0].verdict").value("AC"))
+                .andExpect(jsonPath("$.data[0].timeMs").value(320))
+                .andExpect(jsonPath("$.data[0].memoryMb").value(30))
+                .andExpect(jsonPath("$.data[0].grade.value").value(95.0))
+                .andExpect(jsonPath("$.data[0].grade.status").value("RETURNED"));
+    }
+
+    @Test
+    void nonSubmittingStudentAssignmentRowIsEmpty() throws Exception {
+        mockMvc.perform(get("/api/groups/{id}/metrics/me/assignments", group.getId())
+                        .header("Authorization", "Bearer " + konradToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data", hasSize(1)))
+                .andExpect(jsonPath("$.data[0].workStatus").value("NOT_SUBMITTED"))
+                .andExpect(jsonPath("$.data[0].currentSubmissionId").value(nullValue()))
+                .andExpect(jsonPath("$.data[0].verdict").value(nullValue()))
+                .andExpect(jsonPath("$.data[0].attempts").value(0))
+                .andExpect(jsonPath("$.data[0].grade").value(nullValue()));
+    }
+
+    @Test
+    void draftGradeIsHiddenFromAssignmentBreakdown() throws Exception {
+        grade.setStatus(GradeStatus.DRAFT);
+        gradeRepository.save(grade);
+
+        mockMvc.perform(get("/api/groups/{id}/metrics/me/assignments", group.getId())
+                        .header("Authorization", "Bearer " + adaToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].grade").value(nullValue()));
+    }
+
+    @Test
     void nonEnrolledStudentIsForbidden() throws Exception {
         mockMvc.perform(get("/api/groups/{id}/metrics/me", group.getId())
+                        .header("Authorization", "Bearer " + outsiderToken))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/groups/{id}/metrics/me/assignments", group.getId())
                         .header("Authorization", "Bearer " + outsiderToken))
                 .andExpect(status().isForbidden());
     }

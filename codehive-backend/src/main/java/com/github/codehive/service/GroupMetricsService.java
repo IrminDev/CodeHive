@@ -27,6 +27,7 @@ import com.github.codehive.model.dto.metrics.CurrentSubmissionRow;
 import com.github.codehive.model.dto.metrics.EnrollmentStatusCount;
 import com.github.codehive.model.dto.metrics.GroupMetricsOverviewDTO;
 import com.github.codehive.model.dto.metrics.StudentGradeRow;
+import com.github.codehive.model.dto.metrics.StudentAssignmentMetricsDTO;
 import com.github.codehive.model.dto.metrics.StudentMetricsDTO;
 import com.github.codehive.model.dto.metrics.SubmissionAttemptCount;
 import com.github.codehive.model.dto.metrics.SubmissionResultRow;
@@ -243,6 +244,53 @@ public class GroupMetricsService {
                 grades.size(),
                 attempts,
                 publishedIds.stream().filter(id -> !submittedAssignmentIds.contains(id)).toList());
+    }
+
+    /** Student-facing: the authenticated student's own row per published assignment of the group. */
+    @Transactional(readOnly = true)
+    public List<StudentAssignmentMetricsDTO> myAssignmentMetrics(UUID groupId, String email) {
+        StudentContext context = requireActiveEnrollment(groupId, email);
+        User student = context.student();
+        GroupSnapshot snapshot = loadGroupSnapshot(context.group());
+
+        Map<UUID, CurrentSubmissionRow> rowByAssignment = snapshot.currentRows().stream()
+                .filter(row -> row.studentId().equals(student.getId()))
+                .collect(Collectors.toMap(CurrentSubmissionRow::assignmentId, Function.identity(), (a, b) -> a));
+        Map<UUID, Long> attemptsByAssignment = snapshot.attempts().stream()
+                .filter(count -> count.studentId().equals(student.getId()))
+                .collect(Collectors.toMap(SubmissionAttemptCount::assignmentId,
+                        SubmissionAttemptCount::attempts, Long::sum));
+        // Only RETURNED grades are visible to the student; drafts stay hidden.
+        Map<UUID, StudentGradeRow> gradeByAssignment = snapshot.gradeRows().stream()
+                .filter(row -> row.studentId().equals(student.getId()))
+                .filter(row -> row.status() == GradeStatus.RETURNED)
+                .collect(Collectors.toMap(StudentGradeRow::assignmentId, Function.identity(), (a, b) -> a));
+
+        return publishedAssignments(snapshot.assignments(), Instant.now()).stream()
+                .map(assignment -> {
+                    CurrentSubmissionRow row = rowByAssignment.get(assignment.getId());
+                    SubmissionResultRow result = row != null
+                            ? snapshot.latestResultBySubmission().get(row.submissionId()) : null;
+                    StudentGradeRow grade = gradeByAssignment.get(assignment.getId());
+                    return new StudentAssignmentMetricsDTO(
+                            assignment.getId(),
+                            assignment.getTitle(),
+                            assignment.getDueDate(),
+                            assignment.getCloseDate(),
+                            assignment.getMaxPoints(),
+                            row != null ? row.workStatus() : StudentWorkStatus.NOT_SUBMITTED,
+                            row != null ? row.submissionId() : null,
+                            row != null ? row.deliveredLate() : null,
+                            attemptsByAssignment.getOrDefault(assignment.getId(), 0L),
+                            row != null ? (result != null ? result.status() : ExecutionStatus.PENDING) : null,
+                            result != null ? result.timeMs() : null,
+                            result != null ? result.memoryMb() : null,
+                            grade != null
+                                    ? new AssignmentMetricsDetailDTO.GradeSummary(
+                                            grade.value(), grade.maxPoints(), grade.status())
+                                    : null);
+                })
+                .toList();
     }
 
     @Transactional(readOnly = true)
