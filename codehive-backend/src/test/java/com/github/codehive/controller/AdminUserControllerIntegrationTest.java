@@ -101,6 +101,17 @@ class AdminUserControllerIntegrationTest {
                 .andExpect(status().isForbidden());
     }
 
+    @Test
+    void adminWithoutUpdateScopeCannotUpdateUser() throws Exception {
+        // The test admin holds MANAGE_USER_STATUS/MANAGE_SCOPES but not UPDATE_USERS/UPDATE_ADMINS.
+        mockMvc.perform(patch("/api/admin/users/{id}", student.getId())
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"New\",\"lastName\":\"Name\","
+                                + "\"enrollmentNumber\":\"2026630003\",\"email\":\"new@example.com\"}"))
+                .andExpect(status().isForbidden());
+    }
+
     private void assertThatUserIsInactive() {
         org.assertj.core.api.Assertions.assertThat(userRepository.findById(student.getId()).orElseThrow().getIsActive())
                 .isFalse();
