@@ -203,6 +203,48 @@ public class GroupMetricsService {
                 .toList();
     }
 
+    /** Student-facing: the authenticated student's own summary over the group's published assignments. */
+    @Transactional(readOnly = true)
+    public StudentMetricsDTO myGroupMetrics(UUID groupId, String email) {
+        StudentContext context = requireActiveEnrollment(groupId, email);
+        User student = context.student();
+        GroupSnapshot snapshot = loadGroupSnapshot(context.group());
+        List<UUID> publishedIds = publishedAssignments(snapshot.assignments(), Instant.now())
+                .stream().map(Assignment::getId).toList();
+
+        List<CurrentSubmissionRow> rows = snapshot.currentRows().stream()
+                .filter(row -> row.studentId().equals(student.getId()))
+                .filter(row -> publishedIds.contains(row.assignmentId()))
+                .toList();
+        Set<UUID> submittedAssignmentIds = rows.stream()
+                .map(CurrentSubmissionRow::assignmentId).collect(Collectors.toSet());
+        // Only RETURNED grades are visible to the student; drafts stay hidden.
+        List<StudentGradeRow> grades = snapshot.gradeRows().stream()
+                .filter(row -> row.studentId().equals(student.getId()))
+                .filter(row -> row.status() == GradeStatus.RETURNED)
+                .toList();
+        long attempts = snapshot.attempts().stream()
+                .filter(count -> count.studentId().equals(student.getId()))
+                .mapToLong(SubmissionAttemptCount::attempts).sum();
+        LocalDateTime joinedAt = snapshot.activeEnrollments().stream()
+                .filter(enrollment -> enrollment.getStudent().getId().equals(student.getId()))
+                .map(GroupEnrollment::getJoinedAt).findFirst().orElse(null);
+
+        return new StudentMetricsDTO(
+                student.getId(),
+                fullName(student),
+                student.getEnrollmentNumber(),
+                joinedAt,
+                publishedIds.size(),
+                rows.size(),
+                percent(rows.size(), publishedIds.size()),
+                rows.stream().filter(row -> Boolean.TRUE.equals(row.deliveredLate())).count(),
+                averageNormalizedScore(grades),
+                grades.size(),
+                attempts,
+                publishedIds.stream().filter(id -> !submittedAssignmentIds.contains(id)).toList());
+    }
+
     @Transactional(readOnly = true)
     public AssignmentMetricsDetailDTO assignmentDetail(UUID assignmentId, String email) {
         Assignment assignment = requireOwnedActiveAssignment(assignmentId, email);
@@ -418,6 +460,18 @@ public class GroupMetricsService {
         return group;
     }
 
+    private StudentContext requireActiveEnrollment(UUID groupId, String email) {
+        User student = requireUser(email);
+        ClassGroup group = groupRepository.findById(groupId)
+                .filter(found -> Boolean.TRUE.equals(found.getIsActive()))
+                .orElseThrow(() -> new EntityNotFoundException("Group not found: " + groupId));
+        if (!enrollmentRepository.existsByGroupIdAndStudentIdAndStatus(
+                groupId, student.getId(), EnrollmentStatus.ACTIVE)) {
+            throw new AccessDeniedException("Active enrollment is required to view these metrics");
+        }
+        return new StudentContext(group, student);
+    }
+
     private Assignment requireOwnedActiveAssignment(UUID assignmentId, String email) {
         User user = requireUser(email);
         Assignment assignment = assignmentRepository.findById(assignmentId)
@@ -486,6 +540,9 @@ public class GroupMetricsService {
     /** Submission timestamps are LocalDateTime written with the server zone. */
     private static Instant toInstant(LocalDateTime dateTime) {
         return dateTime.atZone(ZoneId.systemDefault()).toInstant();
+    }
+
+    private record StudentContext(ClassGroup group, User student) {
     }
 
     private record GroupSnapshot(
