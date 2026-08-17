@@ -311,6 +311,10 @@ export function CreateAssignmentPage() {
 
   // ── Test cases ──
   function addTestCase() {
+    if (testCases.length >= 50) {
+      sileo.error({ title: "An assignment can have at most 50 test cases." });
+      return;
+    }
     setTestCases((p) => [...p, { id: uid(), mode: "text", text: "", file: null, isSample: false }]);
   }
   function removeTestCase(id: string) {
@@ -611,13 +615,13 @@ export function CreateAssignmentPage() {
 
                   {/* Time limit */}
                   <SliderField
-                    label="Time limit" value={timeLimitMs} min={500} max={5000} step={100}
+                    label="Time limit" value={timeLimitMs} min={500} max={10000} step={100}
                     unit="ms" accent="yellow" onChange={setTimeLimitMs}
                   />
 
                   {/* Memory limit */}
                   <SliderField
-                    label="Memory limit" value={memoryLimitMb} min={64} max={512} step={32}
+                    label="Memory limit" value={memoryLimitMb} min={64} max={1000} step={8}
                     unit="MB" accent="red" onChange={setMemoryLimitMb}
                   />
 
@@ -762,7 +766,7 @@ export function CreateAssignmentPage() {
                       </div>
                     </div>
                   ))}
-                  <button type="button" onClick={addTestCase}
+                  <button type="button" onClick={addTestCase} disabled={testCases.length >= 50}
                     className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed
                                border-gray-700 text-gray-500 hover:border-azure/50 hover:text-azure
                                transition-all text-sm font-medium">

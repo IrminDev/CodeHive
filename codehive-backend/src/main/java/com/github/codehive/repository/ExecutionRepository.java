@@ -1,6 +1,7 @@
 package com.github.codehive.repository;
 
 import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -27,6 +28,24 @@ public interface ExecutionRepository extends JpaRepository<Execution, UUID> {
     List<Execution> findByCreatedAtBefore(LocalDateTime date);
     
     List<Execution> findByCreatedAtAfter(LocalDateTime date);
+
+    List<Execution> findByArtifactsExpireAtLessThanEqualAndArtifactsPurgedAtIsNull(Instant date);
+
+    List<Execution> findByStatusAndCreatedAtBefore(ExecutionStatus status, LocalDateTime date);
+
+    @Query("""
+            select execution from Execution execution
+            where execution.artifactsPurgedAt is null
+              and execution.assignment is not null
+              and execution.status <> com.github.codehive.model.enums.ExecutionStatus.PENDING
+              and ((execution.assignment.isActive = false
+                    and execution.assignment.deletedAt is not null
+                    and execution.assignment.deletedAt <= :cutoff)
+                or (execution.assignment.group.isActive = false
+                    and execution.assignment.group.deletedAt is not null
+                    and execution.assignment.group.deletedAt <= :cutoff))
+            """)
+    List<Execution> findSoftDeletedArtifactCleanupCandidates(@Param("cutoff") Instant cutoff);
     
     List<Execution> findBySubmissionIsNull();
     
@@ -35,6 +54,11 @@ public interface ExecutionRepository extends JpaRepository<Execution, UUID> {
     Optional<Execution> findTopBySubmissionIdOrderByCreatedAtDesc(UUID submissionId);
 
     boolean existsBySubmissionIdAndTestSuiteRevisionId(UUID submissionId, UUID testSuiteRevisionId);
+
+    boolean existsByTestSuiteRevisionIdAndStatus(UUID testSuiteRevisionId, ExecutionStatus status);
+
+    boolean existsByTestSuiteRevisionReferenceSolutionRevisionIdAndStatus(
+            UUID referenceSolutionRevisionId, ExecutionStatus status);
 
     /**
      * Non-outdated executions of the given submissions, newest first per creation

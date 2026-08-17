@@ -19,6 +19,8 @@ Primary classes:
    - Part `metadata`: JSON matching CreateAssignmentRequest.
    - Part `referenceSolution`: source file.
    - Part `testCaseInputs`: list of test case input files.
+   - Validation rejects more than 50 test inputs, a time limit outside 100–10,000 ms,
+     or a memory limit outside 16–1,000 MB.
 2. AssignmentService:
    - Creates a logically active Assignment with validationStatus PROCESSING.
    - Creates a PROCESSING ReferenceSolutionRevision and TestSuiteRevision.

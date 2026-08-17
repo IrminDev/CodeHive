@@ -184,6 +184,7 @@ public class GroupService {
         ClassGroup group = requireOwnedGroup(id, email);
         group.setIsActive(false);
         group.setArchived(true);
+        if (group.getDeletedAt() == null) group.setDeletedAt(java.time.Instant.now());
         touch(group);
         notificationPublisher.publish(NotificationDomainEvent.of(
                 NotificationType.GROUP_ARCHIVED, group.getOwner().getId(), null,
@@ -198,6 +199,7 @@ public class GroupService {
         }
         group.setIsActive(true);
         group.setArchived(true);
+        group.setDeletedAt(null);
         touch(group);
         return GroupMapper.toDTO(group, true);
     }

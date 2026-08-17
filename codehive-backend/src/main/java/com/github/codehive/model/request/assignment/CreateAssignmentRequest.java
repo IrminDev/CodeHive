@@ -9,6 +9,7 @@ import com.github.codehive.model.enums.ComparatorType;
 import com.github.codehive.model.enums.Language;
 
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -32,11 +33,13 @@ public class CreateAssignmentRequest {
     private List<String> tags;
 
     @NotNull(message = "Time limit is required")
-    @Min(value = 100, message = "Time limit must be at least 100ms")
+    @Min(value = AssignmentLimits.MIN_TIME_LIMIT_MS, message = "Time limit must be at least 100ms")
+    @Max(value = AssignmentLimits.MAX_TIME_LIMIT_MS, message = "Time limit must not exceed 10000ms")
     private Long timeLimitMs;
 
     @NotNull(message = "Memory limit is required")
-    @Min(value = 16, message = "Memory limit must be at least 16MB")
+    @Min(value = AssignmentLimits.MIN_MEMORY_LIMIT_MB, message = "Memory limit must be at least 16MB")
+    @Max(value = AssignmentLimits.MAX_MEMORY_LIMIT_MB, message = "Memory limit must not exceed 1000MB")
     private Long memoryLimitMb;
 
     @NotNull(message = "Comparator type is required")

@@ -1,6 +1,7 @@
 package com.github.codehive.model.entity;
 
 import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 import jakarta.persistence.Column;
@@ -40,6 +41,8 @@ public class ClassGroup {
     @Column(nullable = false)
     private Boolean isActive;
 
+    private Instant deletedAt;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -75,6 +78,8 @@ public class ClassGroup {
     public void setArchived(Boolean archived) { this.archived = archived; }
     public Boolean getIsActive() { return isActive; }
     public void setIsActive(Boolean isActive) { this.isActive = isActive; }
+    public Instant getDeletedAt() { return deletedAt; }
+    public void setDeletedAt(Instant deletedAt) { this.deletedAt = deletedAt; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }

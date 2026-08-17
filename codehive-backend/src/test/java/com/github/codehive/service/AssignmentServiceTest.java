@@ -80,6 +80,27 @@ class AssignmentServiceTest {
     }
 
     @Test
+    void createRejectsMoreThanFiftyTestCasesBeforePersistingOrPublishing() {
+        CreateAssignmentRequest request = new CreateAssignmentRequest();
+        request.setGroupId(GROUP_ID);
+        request.setTimeLimitMs(10_000L);
+        request.setMemoryLimitMb(1_000L);
+        when(userRepository.findByEmail(owner.getEmail())).thenReturn(Optional.of(owner));
+        when(groupService.requireOwnedWritableGroup(GROUP_ID, owner)).thenReturn(group);
+        org.springframework.web.multipart.MultipartFile testCase =
+                mock(org.springframework.web.multipart.MultipartFile.class);
+        List<org.springframework.web.multipart.MultipartFile> testCases =
+                java.util.Collections.nCopies(51, testCase);
+
+        assertThatThrownBy(() -> service.createAssignment(request, null, testCases, owner.getEmail()))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("At most 50 test cases are allowed");
+
+        verify(assignmentRepository, never()).save(org.mockito.ArgumentMatchers.any());
+        verify(generationProducer, never()).sendTestGenerationRequest(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
     void getAssignmentHidesReadyAssignmentFromStudentWithoutActiveEnrollment() {
         User student = user(STUDENT_ID, "student@example.com", Role.STUDENT);
         Assignment assignment = assignment();
@@ -106,6 +127,7 @@ class AssignmentServiceTest {
         service.softDelete(ASSIGNMENT_ID, owner.getEmail());
 
         assertThat(assignment.getIsActive()).isFalse();
+        assertThat(assignment.getDeletedAt()).isNotNull();
     }
 
     @Test

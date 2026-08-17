@@ -39,6 +39,7 @@ import com.github.codehive.model.enums.NotificationType;
 import com.github.codehive.model.exception.EntityNotFoundException;
 import com.github.codehive.model.exception.ValidationException;
 import com.github.codehive.model.request.assignment.AssignmentExampleRequest;
+import com.github.codehive.model.request.assignment.AssignmentLimits;
 import com.github.codehive.model.request.assignment.UpdateAssignmentRequest;
 import com.github.codehive.repository.AssignmentRepository;
 import com.github.codehive.repository.AssignmentUpdateRepository;
@@ -116,6 +117,7 @@ public class AssignmentUpdateService {
         boolean hasReference = referenceSolution != null && !referenceSolution.isEmpty();
         boolean hasTests = replacementTestCases != null && !replacementTestCases.isEmpty();
         validateProposedDates(assignment, request);
+        validateProposedLimits(assignment, request, replacementTestCases);
 
         AssignmentUpdate update = baseUpdate(assignment, teacher, request);
         if (!hasReference && !hasTests) {
@@ -457,6 +459,30 @@ public class AssignmentUpdateService {
                 || due != null && close != null && due.isAfter(close)
                 || launch != null && close != null && launch.isAfter(close)) {
             throw new ValidationException("Assignment dates must satisfy launchDate <= dueDate <= closeDate");
+        }
+    }
+
+    private void validateProposedLimits(Assignment assignment, UpdateAssignmentRequest request,
+                                        List<MultipartFile> replacementTestCases) {
+        Long timeLimitMs = request.getTimeLimitMs();
+        if (timeLimitMs != null && (timeLimitMs < AssignmentLimits.MIN_TIME_LIMIT_MS
+                || timeLimitMs > AssignmentLimits.MAX_TIME_LIMIT_MS)) {
+            throw new ValidationException("Time limit must be between 100 and 10000ms");
+        }
+        Long memoryLimitMb = request.getMemoryLimitMb();
+        if (memoryLimitMb != null && (memoryLimitMb < AssignmentLimits.MIN_MEMORY_LIMIT_MB
+                || memoryLimitMb > AssignmentLimits.MAX_MEMORY_LIMIT_MB)) {
+            throw new ValidationException("Memory limit must be between 16 and 1000MB");
+        }
+        if (replacementTestCases == null || replacementTestCases.isEmpty()) return;
+        int total = replacementTestCases.size();
+        if (request.getTestSuiteUpdateMode() == null
+                || request.getTestSuiteUpdateMode() == TestSuiteUpdateMode.APPEND) {
+            TestSuiteRevision active = assignment.getActiveTestSuiteRevision();
+            if (active != null) total += testCaseRepository.countByTestSuiteRevisionId(active.getId());
+        }
+        if (total > AssignmentLimits.MAX_TEST_CASES) {
+            throw new ValidationException("At most 50 test cases are allowed");
         }
     }
 

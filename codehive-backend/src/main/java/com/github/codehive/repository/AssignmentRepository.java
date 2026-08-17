@@ -60,4 +60,6 @@ public interface AssignmentRepository extends JpaRepository<Assignment, UUID> {
                                             @Param("maximum") Instant maximum);
 
     List<Assignment> findByGroupIdAndIsActiveTrueOrderByCreatedAtDesc(UUID groupId);
+
+    List<Assignment> findByIsActiveFalseAndDeletedAtIsNull();
 }

@@ -39,6 +39,7 @@ import com.github.codehive.model.exception.EntityNotFoundException;
 import com.github.codehive.model.exception.ValidationException;
 import com.github.codehive.model.mapper.AssignmentMapper;
 import com.github.codehive.model.request.assignment.AssignmentExampleRequest;
+import com.github.codehive.model.request.assignment.AssignmentLimits;
 import com.github.codehive.model.request.assignment.CloneAssignmentRequest;
 import com.github.codehive.model.request.assignment.CloneTestCaseRequest;
 import com.github.codehive.model.request.assignment.CreateAssignmentRequest;
@@ -131,6 +132,7 @@ public class AssignmentService {
         if (testCaseInputFiles == null || testCaseInputFiles.isEmpty()) {
             throw new ValidationException("At least one test case input is required");
         }
+        validateLimits(request.getTimeLimitMs(), request.getMemoryLimitMb(), testCaseInputFiles.size());
 
         Assignment assignment = baseAssignment(request, group, author);
         addExamples(assignment, request.getExamples());
@@ -171,6 +173,7 @@ public class AssignmentService {
             throw new ValidationException("Target group must be different from the source group");
         }
         validateDates(request.getLaunchDate(), request.getDueDate(), request.getCloseDate());
+        validateLimits(request.getTimeLimitMs(), request.getMemoryLimitMb(), request.getTestCases().size());
 
         Assignment clone = new Assignment(request.getTitle(), request.getDescription(), request.getTimeLimitMs(),
                 request.getMemoryLimitMb(), request.getComparatorType());
@@ -280,6 +283,7 @@ public class AssignmentService {
             throw new AccessDeniedException("Only the group owner can delete this assignment");
         }
         assignment.setIsActive(false);
+        if (assignment.getDeletedAt() == null) assignment.setDeletedAt(Instant.now());
     }
 
     private Assignment baseAssignment(CreateAssignmentRequest request, ClassGroup group, User author) {
@@ -387,6 +391,20 @@ public class AssignmentService {
         }
         if (launch != null && close != null && launch.isAfter(close)) {
             throw new ValidationException("Launch date must be before or equal to close date");
+        }
+    }
+
+    private void validateLimits(Long timeLimitMs, Long memoryLimitMb, int testCaseCount) {
+        if (timeLimitMs == null || timeLimitMs < AssignmentLimits.MIN_TIME_LIMIT_MS
+                || timeLimitMs > AssignmentLimits.MAX_TIME_LIMIT_MS) {
+            throw new ValidationException("Time limit must be between 100 and 10000ms");
+        }
+        if (memoryLimitMb == null || memoryLimitMb < AssignmentLimits.MIN_MEMORY_LIMIT_MB
+                || memoryLimitMb > AssignmentLimits.MAX_MEMORY_LIMIT_MB) {
+            throw new ValidationException("Memory limit must be between 16 and 1000MB");
+        }
+        if (testCaseCount > AssignmentLimits.MAX_TEST_CASES) {
+            throw new ValidationException("At most 50 test cases are allowed");
         }
     }
 

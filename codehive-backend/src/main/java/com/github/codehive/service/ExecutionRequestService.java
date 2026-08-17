@@ -109,6 +109,10 @@ public class ExecutionRequestService {
         validateExecutionRequest(request, assignment, user);
 
         Execution execution = new Execution(request.getExecutionType(), user);
+        execution.setAssignment(assignment);
+        execution.setArtifactsExpireAt(request.getExecutionType() == ExecutionType.PRACTICE
+                ? Instant.now().plus(24, java.time.temporal.ChronoUnit.HOURS)
+                : Instant.now().plus(90, java.time.temporal.ChronoUnit.DAYS));
         if (request.getExecutionType() == ExecutionType.DEFINITIVE) {
             StudentAssignmentWork work = studentWorkService.getOrCreate(assignment, user);
             if (work.getCurrentSubmission() != null
@@ -176,10 +180,10 @@ public class ExecutionRequestService {
                 .orElseThrow(() -> new EntityNotFoundException("Execution not found with id: " + id));
 
         authorizeExecutionRead(execution, authenticatedEmail);
-        if (execution.getArtifactsExpireAt() != null
-                && !Instant.now().isBefore(execution.getArtifactsExpireAt())) {
+        if (execution.getArtifactsPurgedAt() != null || (execution.getArtifactsExpireAt() != null
+                && !Instant.now().isBefore(execution.getArtifactsExpireAt()))) {
             throw new ArtifactExpiredException("Detailed artifacts for execution " + id
-                    + " expired after 180 days");
+                    + " expired and are no longer available");
         }
         String reportKey = execution.getExecutionType() == ExecutionType.PRACTICE
                 ? ObjectKeyBuilder.practiceExecutionReport(id)
@@ -215,8 +219,8 @@ public class ExecutionRequestService {
                         null,
                         request.getTestCases().get(index),
                         null,
-                        ObjectKeyBuilder.practiceExecutionTestCaseStdout(execution.getId(), order),
-                        ObjectKeyBuilder.practiceExecutionTestCaseStderr(execution.getId(), order)));
+                        null,
+                        null));
             }
             return new ExecutionJob(
                     execution.getId(),
@@ -271,8 +275,8 @@ public class ExecutionRequestService {
                 null,
                 ObjectKeyBuilder.testCaseExpectedOutput(
                         assignment.getId(), revision.getId(), testCase.getId()),
-                ObjectKeyBuilder.executionTestCaseStdout(execution.getId(), testCase.getId()),
-                ObjectKeyBuilder.executionTestCaseStderr(execution.getId(), testCase.getId()));
+                null,
+                null);
     }
 
     private void validateExecutionRequest(ExecutionRequest request, Assignment assignment, User user) {

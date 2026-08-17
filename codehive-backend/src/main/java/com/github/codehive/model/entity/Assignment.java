@@ -99,6 +99,8 @@ public class Assignment {
     @Column(nullable = false)
     private Boolean isActive;
 
+    private Instant deletedAt;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "active_test_suite_revision_id")
     private TestSuiteRevision activeTestSuiteRevision;
@@ -166,6 +168,9 @@ public class Assignment {
     public void setIsActive(Boolean isActive) {
         this.isActive = isActive;
     }
+
+    public Instant getDeletedAt() { return deletedAt; }
+    public void setDeletedAt(Instant deletedAt) { this.deletedAt = deletedAt; }
 
     public List<Language> getAllowedLanguages() {
         return allowedLanguages;

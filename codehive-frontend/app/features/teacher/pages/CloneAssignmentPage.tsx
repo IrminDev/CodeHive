@@ -100,6 +100,10 @@ export function CloneAssignmentPage() {
       sileo.error({ title: "Every test case needs input." });
       return;
     }
+    if (form.testCases.length > 50) {
+      sileo.error({ title: "An assignment can have at most 50 test cases." });
+      return;
+    }
     const launch = toInstant(launchDate);
     const due = toInstant(dueDate);
     const close = toInstant(closeDate);
@@ -194,8 +198,8 @@ export function CloneAssignmentPage() {
             <label className="grid gap-2 text-sm">Tags<input value={form.tags.join(", ")} onChange={(event) => patch("tags", csv(event.target.value))} className={fieldClass()} /></label>
           </div>
           <div className="grid md:grid-cols-4 gap-4">
-            <label className="grid gap-2 text-sm">Time limit (ms)<input type="number" min={100} required value={form.timeLimitMs} onChange={(event) => patch("timeLimitMs", Number(event.target.value))} className={fieldClass()} /></label>
-            <label className="grid gap-2 text-sm">Memory (MB)<input type="number" min={16} required value={form.memoryLimitMb} onChange={(event) => patch("memoryLimitMb", Number(event.target.value))} className={fieldClass()} /></label>
+            <label className="grid gap-2 text-sm">Time limit (ms)<input type="number" min={100} max={10000} required value={form.timeLimitMs} onChange={(event) => patch("timeLimitMs", Number(event.target.value))} className={fieldClass()} /></label>
+            <label className="grid gap-2 text-sm">Memory (MB)<input type="number" min={16} max={1000} required value={form.memoryLimitMb} onChange={(event) => patch("memoryLimitMb", Number(event.target.value))} className={fieldClass()} /></label>
             <label className="grid gap-2 text-sm">Max points<input type="number" min="0.01" step="0.01" required value={form.maxPoints} onChange={(event) => patch("maxPoints", Number(event.target.value))} className={fieldClass()} /></label>
             <label className="grid gap-2 text-sm">Comparator<select value={form.comparatorType} onChange={(event) => patch("comparatorType", event.target.value as ComparatorType)} className={fieldClass()}><option value="EXACT_MATCH">Exact match</option><option value="FLOATING_POINT">Floating point</option></select></label>
           </div>
@@ -214,7 +218,7 @@ export function CloneAssignmentPage() {
         </section>
 
         <section className="bg-white dark:bg-dark-card rounded-2xl border border-gray-200 dark:border-gray-700/40 p-6 grid gap-4">
-          <div className="flex items-center justify-between"><h2 className="font-semibold text-lg">Test cases</h2><button type="button" onClick={() => patch("testCases", [...form.testCases, { order: form.testCases.length + 1, input: "", sample: false }])} className="btn-outline inline-flex items-center gap-1"><Plus size={14} /> Add</button></div>
+          <div className="flex items-center justify-between"><h2 className="font-semibold text-lg">Test cases</h2><button type="button" disabled={form.testCases.length >= 50} onClick={() => patch("testCases", [...form.testCases, { order: form.testCases.length + 1, input: "", sample: false }])} className="btn-outline inline-flex items-center gap-1"><Plus size={14} /> Add</button></div>
           {form.testCases.map((testCase, index) => (
             <div key={`${testCase.order}-${index}`} className="grid gap-3 p-4 rounded-xl bg-gray-50 dark:bg-dark-surface">
               <div className="flex justify-between"><strong className="text-sm">Test {index + 1}</strong>{form.testCases.length > 1 && <button type="button" onClick={() => patch("testCases", form.testCases.filter((_, itemIndex) => itemIndex !== index))} className="text-red-500"><Trash2 size={15} /></button>}</div>

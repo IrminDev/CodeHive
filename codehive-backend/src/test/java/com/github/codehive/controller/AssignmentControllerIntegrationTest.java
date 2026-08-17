@@ -253,6 +253,25 @@ class AssignmentControllerIntegrationTest {
                             .header("Authorization", "Bearer " + teacherToken))
                     .andExpect(status().isBadRequest());
         }
+
+        @Test
+        @DisplayName("returns 400 when uploaded metadata exceeds execution limits")
+        void rejectsLimitsAboveBackendMaximum() throws Exception {
+            MockMultipartFile invalidMetadata = new MockMultipartFile(
+                    "metadata", "", MediaType.APPLICATION_JSON_VALUE,
+                    ("""
+                    {"groupId":"%s","title":"Too large","description":"Invalid limits", \
+                    "timeLimitMs":10001,"memoryLimitMb":1001,"comparatorType":"EXACT_MATCH", \
+                    "allowedLanguages":["JAVA"],"referenceLanguage":"JAVA"}
+                    """.formatted(group.getId())).getBytes());
+
+            mockMvc.perform(multipart("/api/assignments")
+                            .file(invalidMetadata)
+                            .file(referenceSolutionPart())
+                            .file(testCaseInputPart())
+                            .header("Authorization", "Bearer " + teacherToken))
+                    .andExpect(status().isBadRequest());
+        }
     }
 
     @Test

@@ -92,6 +92,7 @@ public class ReevaluationService {
             executionRepository.findTopBySubmissionIdOrderByCreatedAtDesc(submission.getId())
                     .ifPresent(previous -> previous.setIsOutdated(true));
             Execution execution = new Execution(ExecutionType.DEFINITIVE, work.getStudent());
+            execution.setAssignment(assignment);
             execution.setSubmission(submission);
             execution.setTestSuiteRevision(revision);
             execution.setTrigger(ExecutionTrigger.ASSIGNMENT_UPDATE);
@@ -155,7 +156,7 @@ public class ReevaluationService {
                 null,
                 ObjectKeyBuilder.testCaseExpectedOutput(
                         assignment.getId(), revision.getId(), testCase.getId()),
-                ObjectKeyBuilder.executionTestCaseStdout(execution.getId(), testCase.getId()),
-                ObjectKeyBuilder.executionTestCaseStderr(execution.getId(), testCase.getId()));
+                null,
+                null);
     }
 }

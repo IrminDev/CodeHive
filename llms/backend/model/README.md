@@ -120,10 +120,11 @@ Request classes live under model/request grouped by domain:
 ### CreateAssignmentRequest fields
 - groupId, launchDate, dueDate, closeDate, examples
 - title, description, constraints, hints, tags
-- timeLimitMs (@Min 100), memoryLimitMb (@Min 16)
+- timeLimitMs (100–10,000 ms), memoryLimitMb (16–1,000 MB)
 - comparatorType, allowedLanguages, referenceLanguage
 - dueDate (nullable)
 - sampleFlags: parallel list to uploaded files; true = sample test case
+- A task may include at most 50 test case inputs.
 
 Validation patterns:
 - @NotBlank for required strings
@@ -164,7 +165,7 @@ Enums are persisted and transferred as string values:
 - Role, Scope
 - Language (JAVA, PYTHON, C, CPP)
 - ExecutionType (PRACTICE, DEFINITIVE)
-- ExecutionStatus (AC, WA, CE, RTE, TLE, MLE, OLE, PENDING) — OLE = Output Limit Exceeded (> 4 MB combined stdout+stderr)
+- ExecutionStatus (AC, WA, CE, RTE, TLE, MLE, OLE, PENDING) — OLE = Output Limit Exceeded (> 8 MB combined stdout+stderr)
 - ComparatorType (EXACT_MATCH, FLOATING_POINT)
 
 ## Exception Model

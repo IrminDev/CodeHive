@@ -12,6 +12,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.FutureOrPresent;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Size;
 
 public class UpdateAssignmentRequest {
@@ -21,9 +22,11 @@ public class UpdateAssignmentRequest {
     private List<String> constraints;
     private List<String> hints;
     private List<String> tags;
-    @Min(100)
+    @Min(value = AssignmentLimits.MIN_TIME_LIMIT_MS, message = "Time limit must be at least 100ms")
+    @Max(value = AssignmentLimits.MAX_TIME_LIMIT_MS, message = "Time limit must not exceed 10000ms")
     private Long timeLimitMs;
-    @Min(16)
+    @Min(value = AssignmentLimits.MIN_MEMORY_LIMIT_MB, message = "Memory limit must be at least 16MB")
+    @Max(value = AssignmentLimits.MAX_MEMORY_LIMIT_MB, message = "Memory limit must not exceed 1000MB")
     private Long memoryLimitMb;
     private ComparatorType comparatorType;
     private List<Language> allowedLanguages;

@@ -5,6 +5,8 @@ import java.util.UUID;
 import com.github.codehive.worker.model.enums.ExecutionStatus;
 
 public class TestCaseResult {
+    private static final int MAX_PERSISTED_DIAGNOSTIC_CHARS = 8 * 1024;
+    private static final String TRUNCATION_SUFFIX = "\n[Output truncated for artifact retention]";
     private UUID testCaseId;
     private int testCaseNumber;
     private ExecutionStatus status;
@@ -74,7 +76,7 @@ public class TestCaseResult {
     }
 
     public void setExpectedOutput(String expectedOutput) {
-        this.expectedOutput = expectedOutput;
+        this.expectedOutput = truncateDiagnostic(expectedOutput);
     }
 
     public String getActualOutput() {
@@ -82,6 +84,12 @@ public class TestCaseResult {
     }
 
     public void setActualOutput(String actualOutput) {
-        this.actualOutput = actualOutput;
+        this.actualOutput = truncateDiagnostic(actualOutput);
+    }
+
+    private String truncateDiagnostic(String output) {
+        if (output == null || output.length() <= MAX_PERSISTED_DIAGNOSTIC_CHARS) return output;
+        int end = MAX_PERSISTED_DIAGNOSTIC_CHARS - TRUNCATION_SUFFIX.length();
+        return output.substring(0, end) + TRUNCATION_SUFFIX;
     }
 }
