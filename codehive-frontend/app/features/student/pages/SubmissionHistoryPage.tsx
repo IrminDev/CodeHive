@@ -24,12 +24,16 @@ function formatSubmittedAt(iso: string): string {
   });
 }
 
-function formatCountdown(dueDate: string): string {
-  const diff = new Date(dueDate).getTime() - Date.now();
+function formatCountdown(closeDate: string): string {
+  const diff = new Date(closeDate).getTime() - Date.now();
   if (diff <= 0) return "closed";
   const days = Math.floor(diff / 86400000);
   const hours = Math.floor((diff % 86400000) / 3600000);
   return days > 0 ? `${days}d ${String(hours).padStart(2, "0")}h` : `${hours}h`;
+}
+
+function formatDue(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 const VERDICT_STYLES: Record<string, { ring: string; text: string; bg: string }> = {
@@ -80,7 +84,9 @@ export function SubmissionHistoryPage() {
   }, [id]);
 
   const latest = submissions[0] ?? null;
-  const isClosed = assignment?.dueDate ? new Date(assignment.dueDate) < new Date() : false;
+  const now = new Date();
+  const isClosed = assignment?.closeDate ? new Date(assignment.closeDate) < now : false;
+  const isLate = !isClosed && !!assignment?.dueDate && new Date(assignment.dueDate) < now;
 
   return (
     <div className="h-screen flex overflow-hidden bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100 font-sans">
@@ -191,16 +197,24 @@ export function SubmissionHistoryPage() {
                 </div>
 
                 {/* Countdown */}
-                {assignment?.dueDate && (
-                  <div className="text-right flex-shrink-0">
-                    <p className="text-xs text-gray-400 dark:text-gray-500 mb-0.5">
-                      {isClosed ? "closed" : "closes in"}
+                <div className="text-right flex-shrink-0 space-y-1">
+                  {assignment?.closeDate && (
+                    <div>
+                      <p className="text-xs text-gray-400 dark:text-gray-500 mb-0.5">
+                        {isClosed ? "closed" : "closes in"}
+                      </p>
+                      <p className={`text-xl font-bold font-mono ${isClosed ? "text-red-400" : "text-yellow"}`}>
+                        {isClosed ? "—" : formatCountdown(assignment.closeDate)}
+                      </p>
+                    </div>
+                  )}
+                  {assignment?.dueDate && (
+                    <p className={`text-xs font-mono ${isLate ? "text-orange-400" : "text-gray-400 dark:text-gray-500"}`}>
+                      {isLate ? "late — " : "due "}
+                      {formatDue(assignment.dueDate)}
                     </p>
-                    <p className={`text-xl font-bold font-mono ${isClosed ? "text-red-400" : "text-yellow"}`}>
-                      {isClosed ? "—" : formatCountdown(assignment.dueDate)}
-                    </p>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
 
               {/* ── Latest submission card ── */}

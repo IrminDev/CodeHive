@@ -6,6 +6,8 @@ export interface SampleTestCase {
   input: string;
 }
 
+export type ValidationStatus = "PROCESSING" | "READY" | "FAILED";
+
 export interface Assignment {
   id: string;
   title: string;
@@ -18,9 +20,12 @@ export interface Assignment {
   comparatorType: ComparatorType;
   createdAt: string;
   updatedAt: string;
+  launchDate?: string;
   dueDate?: string;
+  closeDate?: string;
   allowedLanguages: Language[];
   isActive: boolean;
+  validationStatus?: ValidationStatus;
   examples?: Array<{ input: string; output: string; explanation?: string }>;
   sampleTestCases?: SampleTestCase[];
 }
