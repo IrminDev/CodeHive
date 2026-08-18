@@ -7,10 +7,10 @@ import {
 } from "lucide-react";
 import { useAuth } from "~/core/providers/AuthProvider";
 import { useTheme } from "~/core/providers/ThemeProvider";
-import { getGroups } from "~/features/dashboard/api/dashboard.api";
-import type { DashboardGroup as Group } from "~/shared/types/model/DashboardGroup";
+import { listMyGroups } from "../api/group.api";
 import { listAssignments } from "../api/assignment.api";
 import type { Assignment, Language } from "../types/assignment.types";
+import type { ClassGroup } from "../types/group.types";
 
 const LANG_ABBR: Record<Language, string> = {
   PYTHON: "PY",
@@ -116,7 +116,7 @@ export function StudentDashboardPage() {
   const { user } = useAuth();
   const { theme, toggleTheme } = useTheme();
 
-  const [groups, setGroups] = useState<Group[]>([]);
+  const [groups, setGroups] = useState<ClassGroup[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [loadingGroups, setLoadingGroups] = useState(true);
   const [loadingAssignments, setLoadingAssignments] = useState(true);
@@ -126,8 +126,9 @@ export function StudentDashboardPage() {
   );
 
   useEffect(() => {
-    getGroups()
+    listMyGroups()
       .then(setGroups)
+      .catch(() => { if (import.meta.env.DEV) setGroups([]); })
       .finally(() => setLoadingGroups(false));
     listAssignments(0, 12)
       .then((page) => {
@@ -143,15 +144,28 @@ export function StudentDashboardPage() {
       .finally(() => setLoadingAssignments(false));
   }, []);
 
-  const totalPending = groups.reduce((acc, g) => acc + g.pendingPractices, 0);
+  const totalPending = groups.filter((g) => g.isActive && !g.archived).length;
   const firstName = user?.name?.split(" ")[0] ?? "Student";
 
   const filteredAssignments = useMemo(() => {
     const now = new Date();
     if (filterTab === "pending")
       return assignments.filter((a) => a.isActive && (!a.dueDate || new Date(a.dueDate) > now));
+    if (filterTab === "inprogress")
+      return assignments.filter(
+        (a) =>
+          a.isActive &&
+          !!a.dueDate &&
+          new Date(a.dueDate) < now &&
+          (!a.closeDate || new Date(a.closeDate) > now),
+      );
     if (filterTab === "done")
-      return assignments.filter((a) => !a.isActive || (!!a.dueDate && new Date(a.dueDate) < now));
+      return assignments.filter(
+        (a) =>
+          !a.isActive ||
+          (!!a.closeDate && new Date(a.closeDate) < now) ||
+          (!a.closeDate && !!a.dueDate && new Date(a.dueDate) < now),
+      );
     return assignments;
   }, [assignments, filterTab]);
 
@@ -246,11 +260,11 @@ export function StudentDashboardPage() {
                   <span className="text-azure dark:text-azure">{firstName}</span>.
                 </h1>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  You have{" "}
+                  You are enrolled in{" "}
                   <span className="font-semibold text-gray-900 dark:text-white">
-                    {totalPending} pending {totalPending === 1 ? "practice" : "practices"}
-                  </span>{" "}
-                  across your groups.
+                    {totalPending} active {totalPending === 1 ? "group" : "groups"}
+                  </span>
+                  .
                 </p>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0 pt-1">
@@ -406,7 +420,20 @@ function SidebarIcon({
 }
 
 function AssignmentRow({ assignment, index }: { assignment: Assignment; index: number }) {
-  const isOverdue = !!assignment.dueDate && new Date(assignment.dueDate) < new Date();
+  const now = new Date();
+  const isPastClose = !!assignment.closeDate && new Date(assignment.closeDate) < now;
+  const isPastDue = !isPastClose && !!assignment.dueDate && new Date(assignment.dueDate) < now;
+  const isBeforeLaunch = !!assignment.launchDate && new Date(assignment.launchDate) > now;
+
+  const stateBadge = !assignment.isActive
+    ? null
+    : isPastClose
+    ? { label: "closed", className: "bg-red-500/10 text-red-400 border-red-500/20" }
+    : isPastDue
+    ? { label: "late", className: "bg-orange-500/10 text-orange-400 border-orange-500/20" }
+    : isBeforeLaunch
+    ? { label: "upcoming", className: "bg-gray-500/10 text-gray-400 border-gray-500/20" }
+    : { label: "open", className: "bg-green-500/10 text-green-400 border-green-500/20" };
 
   return (
     <Link
@@ -429,9 +456,9 @@ function AssignmentRow({ assignment, index }: { assignment: Assignment; index: n
           <span className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate group-hover:text-azure dark:group-hover:text-yellow transition-colors">
             {assignment.title}
           </span>
-          {assignment.isActive && !isOverdue && (
-            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-md bg-azure/10 text-azure border border-azure/20 flex-shrink-0 dark:bg-azure/10 dark:text-azure dark:border-azure/20">
-              active
+          {stateBadge && (
+            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-md border flex-shrink-0 ${stateBadge.className}`}>
+              {stateBadge.label}
             </span>
           )}
         </div>
@@ -462,7 +489,7 @@ function AssignmentRow({ assignment, index }: { assignment: Assignment; index: n
       {/* Due date */}
       <div className="flex-shrink-0 w-20 text-right">
         {assignment.dueDate ? (
-          <span className={`text-xs font-medium ${isOverdue ? "text-red-500 dark:text-red-400" : "text-gray-500 dark:text-gray-400"}`}>
+          <span className={`text-xs font-medium ${isPastDue ? "text-orange-400" : isPastClose ? "text-red-400" : "text-gray-500 dark:text-gray-400"}`}>
             Due {formatDue(assignment.dueDate)}
           </span>
         ) : (
@@ -494,7 +521,7 @@ function SubmissionRow({ submission: s }: { submission: RecentSubmission }) {
   );
 }
 
-function GroupRow({ group, colorIndex }: { group: Group; colorIndex: number }) {
+function GroupRow({ group, colorIndex }: { group: ClassGroup; colorIndex: number }) {
   const color = GROUP_BADGE_COLORS[colorIndex % GROUP_BADGE_COLORS.length];
 
   return (
@@ -507,9 +534,11 @@ function GroupRow({ group, colorIndex }: { group: Group; colorIndex: number }) {
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{group.name}</p>
         <p className="text-[10px] text-gray-400 dark:text-gray-500">
-          {group.pendingPractices > 0
-            ? `${group.pendingPractices} pending`
-            : "All caught up"}
+          {group.archived
+            ? "Read-only"
+            : group.memberCount != null
+            ? `${group.memberCount} members`
+            : group.schedule ?? "Active"}
         </p>
       </div>
       <ChevronRight size={15} className="text-gray-300 dark:text-gray-700 group-hover:text-gray-500 dark:group-hover:text-gray-400 transition-colors flex-shrink-0" />

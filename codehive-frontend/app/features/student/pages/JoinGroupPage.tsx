@@ -9,13 +9,6 @@ import { useTheme } from "~/core/providers/ThemeProvider";
 import { joinGroup, listMyGroups } from "../api/group.api";
 import type { ClassGroup } from "../types/group.types";
 
-/* ── Mock data (DEV) ── */
-
-const MOCK_GROUPS: ClassGroup[] = [
-  { id: "g1", name: "CS-201 Algorithms",    code: "ALGO2025", schedule: "M-W-F", status: "ACTIVE",    memberCount: 281 },
-  { id: "g2", name: "CS-310 Graph Theory",  code: "GRPH2025", schedule: "T-Th",  status: "ACTIVE",    memberCount: 310 },
-  { id: "g3", name: "CS-150 Intro to Python", code: "PY2025", schedule: undefined, status: "READ_ONLY", memberCount: 150 },
-];
 
 const BADGE_COLORS = [
   "bg-azure",

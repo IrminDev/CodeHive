@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { useNavigate, Link, useSearchParams } from "react-router";
+import { useRef, useState } from "react";
+import { useNavigate, Link } from "react-router";
 import {
   Home, BookOpen, Plus, GraduationCap, Users, Settings, Bell,
   Sun, Moon, ChevronRight, ArrowLeft, X, Check, Info, Clock, Database,

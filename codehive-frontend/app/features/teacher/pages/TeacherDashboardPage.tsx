@@ -30,6 +30,7 @@ function StatCard({ label, value, detail, icon: Icon }: {
 }
 
 export function TeacherDashboardPage() {
+  const { theme, toggleTheme } = useTheme();
   const { user } = useAuth();
   const [groups, setGroups] = useState<TeacherGroup[]>([]);
   const [assignments, setAssignments] = useState<TeacherAssignment[]>([]);
@@ -82,7 +83,25 @@ export function TeacherDashboardPage() {
           <Link to="/teacher/groups/create" className="btn-outline inline-flex items-center gap-2"><Plus size={15} /> Group</Link>
           <Link to="/teacher/create-assignment" className="btn-primary inline-flex items-center gap-2"><Plus size={15} /> Assignment</Link>
         </div>
-      </div>
+      </aside>
+
+      {/* ── Right side ── */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Header */}
+        <header className="h-12 bg-dark-surface flex items-center px-6 gap-3 flex-shrink-0">
+          <div className="flex items-center gap-1.5 text-sm text-gray-400 mr-auto">
+            <span>Teacher</span>
+            <ChevronRight size={14} className="text-gray-600" />
+            <span className="text-white font-medium">Overview</span>
+          </div>
+
+          <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-dark-card border border-gray-700/50 text-gray-400 w-72">
+            <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <span className="flex-1 text-xs">Search assignments, groups...</span>
+            <kbd className="text-xs bg-dark-surface px-1.5 py-0.5 rounded text-gray-500">⌘K</kbd>
+          </div>
 
       {loading ? <div className="py-20 text-center text-gray-500">Loading dashboard…</div> : <>
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">

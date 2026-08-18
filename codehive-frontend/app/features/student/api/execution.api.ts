@@ -1,12 +1,10 @@
-import { API_BASE_URL } from '~/core/config/env'
-import { getAuthToken } from '~/core/storage/token.storage'
-
+import { studentRequest, jsonBody } from "./client";
 import type {
   ExecutionDTO,
   ExecutionReport,
   ExecutionRequest,
   Submission,
-} from '../types/execution.types'
+} from "../types/execution.types";
 
 type ApiResponse<T> = { data: T; message?: string }
 
@@ -15,41 +13,23 @@ function authHeaders(): HeadersInit {
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
-async function parseResponse<T>(res: Response): Promise<T> {
-  const body = await res.json().catch(() => ({}))
-  if (!res.ok) {
-    throw new Error(
-      (body as { message?: string }).message ?? `HTTP ${res.status}`,
-    )
-  }
-  return (body as ApiResponse<T>).data
-}
-
-export async function submitExecution(
-  request: ExecutionRequest,
-): Promise<ExecutionDTO> {
-  const res = await fetch(`${API_BASE_URL}/api/execution/check`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...authHeaders() },
-    body: JSON.stringify(request),
-  })
-  return parseResponse<ExecutionDTO>(res)
+export async function submitExecution(request: ExecutionRequest): Promise<ExecutionDTO> {
+  return studentRequest<ExecutionDTO>("/api/execution/check", {
+    method: "POST",
+    ...jsonBody(request),
+  });
 }
 
 export async function getExecution(id: string): Promise<ExecutionDTO> {
-  const res = await fetch(`${API_BASE_URL}/api/execution/check/${id}`, {
-    headers: authHeaders(),
-  })
-  return parseResponse<ExecutionDTO>(res)
+  return studentRequest<ExecutionDTO>(`/api/execution/check/${id}`);
 }
 
-export async function getExecutionReport(
-  id: string,
-): Promise<ExecutionReport> {
-  const res = await fetch(`${API_BASE_URL}/api/execution/check/${id}/report`, {
-    headers: authHeaders(),
-  })
-  return parseResponse<ExecutionReport>(res)
+export async function getExecutionReport(id: string): Promise<ExecutionReport> {
+  return studentRequest<ExecutionReport>(`/api/execution/check/${id}/report`);
+}
+
+export async function listSubmissions(assignmentId: string): Promise<Submission[]> {
+  return studentRequest<Submission[]>(`/api/submissions/assignment/${assignmentId}`);
 }
 
 export async function listSubmissions(assignmentId: string): Promise<Submission[]> {
