@@ -19,7 +19,7 @@ import com.github.codehive.model.dto.queue.ExecutionReport;
 import com.github.codehive.model.dto.queue.ExecutionTestCaseInfo;
 import com.github.codehive.model.entity.Assignment;
 import com.github.codehive.model.entity.Execution;
-import com.github.codehive.model.entity.ReferenceSolution;
+import com.github.codehive.model.entity.ReferenceSolutionRevision;
 import com.github.codehive.model.entity.User;
 import com.github.codehive.model.entity.Submission;
 import com.github.codehive.model.entity.StudentAssignmentWork;
@@ -38,7 +38,6 @@ import com.github.codehive.model.mapper.ExecutionMapper;
 import com.github.codehive.model.request.execution.ExecutionRequest;
 import com.github.codehive.repository.AssignmentRepository;
 import com.github.codehive.repository.ExecutionRepository;
-import com.github.codehive.repository.ReferenceSolutionRepository;
 import com.github.codehive.repository.UserRepository;
 import com.github.codehive.repository.GroupEnrollmentRepository;
 import com.github.codehive.repository.SubmissionRepository;
@@ -62,7 +61,6 @@ public class ExecutionRequestService {
     private final ObjectStorageService objectStorageService;
     private final UserRepository userRepository;
     private final AssignmentRepository assignmentRepository;
-    private final ReferenceSolutionRepository referenceSolutionRepository;
     private final ObjectMapper objectMapper;
     private final GroupEnrollmentRepository enrollmentRepository;
     private final SubmissionRepository submissionRepository;
@@ -77,7 +75,6 @@ public class ExecutionRequestService {
                                    ObjectStorageService objectStorageService,
                                    UserRepository userRepository,
                                    AssignmentRepository assignmentRepository,
-                                   ReferenceSolutionRepository referenceSolutionRepository,
                                    ObjectMapper objectMapper,
                                    GroupEnrollmentRepository enrollmentRepository,
                                    SubmissionRepository submissionRepository,
@@ -91,7 +88,6 @@ public class ExecutionRequestService {
         this.objectStorageService = objectStorageService;
         this.userRepository = userRepository;
         this.assignmentRepository = assignmentRepository;
-        this.referenceSolutionRepository = referenceSolutionRepository;
         this.objectMapper = objectMapper;
         this.enrollmentRepository = enrollmentRepository;
         this.submissionRepository = submissionRepository;
@@ -113,6 +109,10 @@ public class ExecutionRequestService {
         validateExecutionRequest(request, assignment, user);
 
         Execution execution = new Execution(request.getExecutionType(), user);
+        execution.setAssignment(assignment);
+        execution.setArtifactsExpireAt(request.getExecutionType() == ExecutionType.PRACTICE
+                ? Instant.now().plus(24, java.time.temporal.ChronoUnit.HOURS)
+                : Instant.now().plus(90, java.time.temporal.ChronoUnit.DAYS));
         if (request.getExecutionType() == ExecutionType.DEFINITIVE) {
             StudentAssignmentWork work = studentWorkService.getOrCreate(assignment, user);
             if (work.getCurrentSubmission() != null
@@ -180,10 +180,10 @@ public class ExecutionRequestService {
                 .orElseThrow(() -> new EntityNotFoundException("Execution not found with id: " + id));
 
         authorizeExecutionRead(execution, authenticatedEmail);
-        if (execution.getArtifactsExpireAt() != null
-                && !Instant.now().isBefore(execution.getArtifactsExpireAt())) {
+        if (execution.getArtifactsPurgedAt() != null || (execution.getArtifactsExpireAt() != null
+                && !Instant.now().isBefore(execution.getArtifactsExpireAt()))) {
             throw new ArtifactExpiredException("Detailed artifacts for execution " + id
-                    + " expired after 180 days");
+                    + " expired and are no longer available");
         }
         String reportKey = execution.getExecutionType() == ExecutionType.PRACTICE
                 ? ObjectKeyBuilder.practiceExecutionReport(id)
@@ -202,17 +202,13 @@ public class ExecutionRequestService {
                                            Assignment assignment, String sourceKey) {
 
         if (request.getExecutionType() == ExecutionType.PRACTICE) {
-            ReferenceSolution referenceSolution = assignment.getActiveReferenceSolutionRevision() == null
-                    ? resolveReferenceSolution(assignment)
-                    : null;
-            Language referenceLanguage = assignment.getActiveReferenceSolutionRevision() != null
-                    ? assignment.getActiveReferenceSolutionRevision().getLanguage()
-                    : referenceSolution.getLanguage();
-            String refPath = assignment.getActiveReferenceSolutionRevision() != null
-                    ? assignment.getActiveReferenceSolutionRevision().getObjectKey()
-                    : ObjectKeyBuilder.referenceSolutionSourceCode(
-                            assignment.getId(),
-                            FileExtensionUtil.getFileExtensionByLanguage(referenceLanguage));
+            ReferenceSolutionRevision referenceRevision = assignment.getActiveReferenceSolutionRevision();
+            if (referenceRevision == null) {
+                throw new EntityNotFoundException(
+                        "Assignment has no active reference solution revision: " + assignment.getId());
+            }
+            Language referenceLanguage = referenceRevision.getLanguage();
+            String refPath = referenceRevision.getObjectKey();
 
             List<ExecutionTestCaseInfo> testCases = new java.util.ArrayList<>();
             for (int index = 0; index < request.getTestCases().size(); index++) {
@@ -223,8 +219,8 @@ public class ExecutionRequestService {
                         null,
                         request.getTestCases().get(index),
                         null,
-                        ObjectKeyBuilder.practiceExecutionTestCaseStdout(execution.getId(), order),
-                        ObjectKeyBuilder.practiceExecutionTestCaseStderr(execution.getId(), order)));
+                        null,
+                        null));
             }
             return new ExecutionJob(
                     execution.getId(),
@@ -279,17 +275,8 @@ public class ExecutionRequestService {
                 null,
                 ObjectKeyBuilder.testCaseExpectedOutput(
                         assignment.getId(), revision.getId(), testCase.getId()),
-                ObjectKeyBuilder.executionTestCaseStdout(execution.getId(), testCase.getId()),
-                ObjectKeyBuilder.executionTestCaseStderr(execution.getId(), testCase.getId()));
-    }
-
-    private ReferenceSolution resolveReferenceSolution(Assignment assignment) {
-        List<ReferenceSolution> solutions = referenceSolutionRepository.findByAssignmentId(assignment.getId());
-        if (solutions.isEmpty()) {
-            throw new EntityNotFoundException(
-                    "No reference solution found for assignment: " + assignment.getId());
-        }
-        return solutions.get(0);
+                null,
+                null);
     }
 
     private void validateExecutionRequest(ExecutionRequest request, Assignment assignment, User user) {

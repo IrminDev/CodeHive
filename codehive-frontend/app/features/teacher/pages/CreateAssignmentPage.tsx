@@ -9,8 +9,8 @@ import { CodeEditor } from "~/shared/components/CodeEditor";
 import { sileo } from "sileo";
 import { useTheme } from "~/core/providers/ThemeProvider";
 import { useAuth } from "~/core/providers/AuthProvider";
-import { createAssignment } from "../api/assignment.api";
-import type { Language, ComparatorType } from "../api/assignment.api";
+import { createAssignment, getActiveTeacherGroups } from "../api/assignment.api";
+import type { Language, ComparatorType, TeacherGroup } from "../api/assignment.api";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -31,13 +31,6 @@ const LANGUAGE_TEMPLATES: Record<Language, string> = {
 const EXT_TO_LANG: Record<string, Language> = {
   py: "PYTHON", java: "JAVA", cpp: "CPP", cc: "CPP", c: "C",
 };
-
-const MOCK_GROUPS = [
-  { id: "1", code: "CS-201", name: "Algorithms" },
-  { id: "2", code: "CS-310", name: "Graph Theory" },
-  { id: "3", code: "CS-410", name: "Systems Programming" },
-  { id: "4", code: "CS-150", name: "Intro to Python" },
-];
 
 type SolutionMode = "editor" | "file";
 type TestCaseMode = "text" | "file";
@@ -100,14 +93,14 @@ function FieldLabel({ children, htmlFor }: { children: React.ReactNode; htmlFor?
   );
 }
 
-function StyledInput({ id, value, onChange, placeholder, required, type = "text" }: {
+function StyledInput({ id, value, onChange, placeholder, required, type = "text", min, step }: {
   id?: string; value: string | number; onChange: (v: string) => void;
-  placeholder?: string; required?: boolean; type?: string;
+  placeholder?: string; required?: boolean; type?: string; min?: string; step?: string;
 }) {
   return (
     <input
       id={id} type={type} value={value} onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder} required={required}
+      placeholder={placeholder} required={required} min={min} step={step}
       className="w-full px-4 py-3 rounded-xl border border-gray-700/50 bg-dark-surface text-white
                  placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-azure
                  focus:border-transparent transition-all text-sm"
@@ -223,6 +216,7 @@ function UploadZone({ file, onFile, accept, hint }: {
 
 export function CreateAssignmentPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { theme, toggleTheme } = useTheme();
   const { user } = useAuth();
 
@@ -233,16 +227,28 @@ export function CreateAssignmentPage() {
   // ── Form state ──
   const [title, setTitle]             = useState("");
   const [description, setDescription] = useState("");
+  const [constraints, setConstraints] = useState("");
+  const [hints, setHints]             = useState("");
   const [tags, setTags]               = useState<string[]>([]);
   const [tagInput, setTagInput]       = useState("");
 
   const [referenceLanguage, setReferenceLanguage] = useState<Language>("PYTHON");
   const [groupId, setGroupId]                     = useState("");
+  const [groups, setGroups]                       = useState<TeacherGroup[]>([]);
+  const [groupsLoading, setGroupsLoading]         = useState(true);
   const [allowedLanguages, setAllowedLanguages]   = useState<Language[]>(["PYTHON", "JAVA", "CPP", "C"]);
   const [timeLimitMs, setTimeLimitMs]             = useState(2000);
   const [memoryLimitMb, setMemoryLimitMb]         = useState(256);
+  const [maxPoints, setMaxPoints]                 = useState(100);
   const [comparatorType, setComparatorType]       = useState<ComparatorType>("EXACT_MATCH");
+  const [launchDate, setLaunchDate]               = useState("");
   const [dueDate, setDueDate]                     = useState("");
+  const [closeDate, setCloseDate]                 = useState("");
+  const [minimumDate]                             = useState(() => {
+    const value = new Date();
+    value.setMinutes(value.getMinutes() - value.getTimezoneOffset() + 1, 0, 0);
+    return value.toISOString().slice(0, 16);
+  });
 
   const [solutionMode, setSolutionMode] = useState<SolutionMode>("editor");
   const [solutionCode, setSolutionCode] = useState(LANGUAGE_TEMPLATES["PYTHON"]);
@@ -253,6 +259,28 @@ export function CreateAssignmentPage() {
   ]);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void getActiveTeacherGroups()
+      .then((items) => {
+        if (cancelled) return;
+        setGroups(items);
+        const requestedGroup = searchParams.get("groupId");
+        setGroupId(
+          requestedGroup && items.some((group) => group.id === requestedGroup)
+            ? requestedGroup
+            : items[0]?.id ?? "",
+        );
+      })
+      .catch((error) => {
+        if (!cancelled) sileo.error({ title: error instanceof Error ? error.message : "Failed to load groups." });
+      })
+      .finally(() => {
+        if (!cancelled) setGroupsLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [searchParams]);
 
   // ── Tag helpers ──
   function addTag() {
@@ -283,6 +311,10 @@ export function CreateAssignmentPage() {
 
   // ── Test cases ──
   function addTestCase() {
+    if (testCases.length >= 50) {
+      sileo.error({ title: "An assignment can have at most 50 test cases." });
+      return;
+    }
     setTestCases((p) => [...p, { id: uid(), mode: "text", text: "", file: null, isSample: false }]);
   }
   function removeTestCase(id: string) {
@@ -297,6 +329,17 @@ export function CreateAssignmentPage() {
     e.preventDefault();
     if (allowedLanguages.length === 0) {
       sileo.error({ title: "Select at least one allowed language." });
+      return;
+    }
+    if (!groupId) {
+      sileo.error({ title: "Select an active group." });
+      return;
+    }
+    const launch = launchDate ? new Date(launchDate).toISOString() : undefined;
+    const due = dueDate ? new Date(dueDate).toISOString() : undefined;
+    const close = closeDate ? new Date(closeDate).toISOString() : undefined;
+    if ((launch && due && launch > due) || (due && close && due > close) || (launch && close && launch > close)) {
+      sileo.error({ title: "Dates must satisfy launch ≤ due ≤ close." });
       return;
     }
     let resolvedSolution: File;
@@ -322,18 +365,25 @@ export function CreateAssignmentPage() {
     try {
       await createAssignment(
         {
+          groupId,
           title: title.trim(), description: description.trim(),
-          constraints: [], hints: [], tags,
+          constraints: constraints.split("\n").map((item) => item.trim()).filter(Boolean),
+          hints: hints.split("\n").map((item) => item.trim()).filter(Boolean),
+          tags,
           timeLimitMs, memoryLimitMb, comparatorType,
           allowedLanguages, referenceLanguage,
-          dueDate: dueDate || undefined,
+          launchDate: launch,
+          dueDate: due,
+          closeDate: close,
+          examples: [],
+          maxPoints,
           sampleFlags: testCases.map((tc) => tc.isSample),
         },
         resolvedSolution,
         testCaseFiles
       );
       sileo.success({ title: "Assignment created! Test generation in progress." });
-      navigate("/teacher");
+      navigate("/teacher/assignments");
     } catch (err) {
       sileo.error({ title: err instanceof Error ? err.message : "Something went wrong." });
     } finally {
@@ -348,7 +398,7 @@ export function CreateAssignmentPage() {
   const hasTestCase   = testCases.some((tc) => tc.mode === "text" ? tc.text.trim().length > 0 : tc.file !== null);
   const hasDueDate    = dueDate.length > 0;
 
-  const selectedGroup = MOCK_GROUPS.find((g) => g.id === groupId);
+  const selectedGroup = groups.find((g) => g.id === groupId);
   const monacoLang    = LANGUAGES.find((l) => l.value === referenceLanguage)?.monaco ?? "python";
 
   const STEPS = ["Basics", "Config", "Solution", "Tests"];
@@ -506,6 +556,16 @@ export function CreateAssignmentPage() {
                       </button>
                     )}
                   </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <FieldLabel htmlFor="constraints">Constraints <span className="text-gray-600 font-normal">(one per line)</span></FieldLabel>
+                      <textarea id="constraints" rows={3} value={constraints} onChange={(event) => setConstraints(event.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-700/50 bg-dark-surface text-white text-sm resize-none" />
+                    </div>
+                    <div>
+                      <FieldLabel htmlFor="hints">Hints <span className="text-gray-600 font-normal">(one per line)</span></FieldLabel>
+                      <textarea id="hints" rows={3} value={hints} onChange={(event) => setHints(event.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-700/50 bg-dark-surface text-white text-sm resize-none" />
+                    </div>
+                  </div>
                 </div>
               </SectionCard>
 
@@ -531,9 +591,9 @@ export function CreateAssignmentPage() {
                     <FieldLabel htmlFor="group">Assign to group</FieldLabel>
                     <div className="relative">
                       <StyledSelect id="group" value={groupId} onChange={setGroupId}>
-                        <option value="">— Select group (optional)</option>
-                        {MOCK_GROUPS.map((g) => (
-                          <option key={g.id} value={g.id}>{g.code} · {g.name}</option>
+                        <option value="">{groupsLoading ? "Loading groups…" : "— Select group"}</option>
+                        {groups.map((g) => (
+                          <option key={g.id} value={g.id}>{g.name}</option>
                         ))}
                       </StyledSelect>
                       <ChevronRight size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 rotate-90 pointer-events-none" />
@@ -555,21 +615,42 @@ export function CreateAssignmentPage() {
 
                   {/* Time limit */}
                   <SliderField
-                    label="Time limit" value={timeLimitMs} min={500} max={5000} step={100}
+                    label="Time limit" value={timeLimitMs} min={500} max={10000} step={100}
                     unit="ms" accent="yellow" onChange={setTimeLimitMs}
                   />
 
                   {/* Memory limit */}
                   <SliderField
-                    label="Memory limit" value={memoryLimitMb} min={64} max={512} step={32}
+                    label="Memory limit" value={memoryLimitMb} min={64} max={1000} step={8}
                     unit="MB" accent="red" onChange={setMemoryLimitMb}
                   />
+
+                  <div>
+                    <FieldLabel htmlFor="maxPoints">Maximum points</FieldLabel>
+                    <StyledInput id="maxPoints" type="number" min="0.01" step="0.01" value={maxPoints} onChange={(value) => setMaxPoints(Number(value))} required />
+                  </div>
+
+                  {/* Launch date */}
+                  <div>
+                    <FieldLabel htmlFor="launchDate">Launch date <span className="text-gray-600 font-normal">(optional)</span></FieldLabel>
+                    <StyledInput
+                      id="launchDate" type="datetime-local" min={minimumDate} value={launchDate} onChange={setLaunchDate}
+                    />
+                  </div>
 
                   {/* Due date */}
                   <div>
                     <FieldLabel htmlFor="dueDate">Due date <span className="text-gray-600 font-normal">(optional)</span></FieldLabel>
                     <StyledInput
-                      id="dueDate" type="datetime-local" value={dueDate} onChange={setDueDate}
+                      id="dueDate" type="datetime-local" min={minimumDate} value={dueDate} onChange={setDueDate}
+                    />
+                  </div>
+
+                  {/* Close date */}
+                  <div>
+                    <FieldLabel htmlFor="closeDate">Close date <span className="text-gray-600 font-normal">(optional)</span></FieldLabel>
+                    <StyledInput
+                      id="closeDate" type="datetime-local" min={minimumDate} value={closeDate} onChange={setCloseDate}
                     />
                   </div>
                 </div>
@@ -685,7 +766,7 @@ export function CreateAssignmentPage() {
                       </div>
                     </div>
                   ))}
-                  <button type="button" onClick={addTestCase}
+                  <button type="button" onClick={addTestCase} disabled={testCases.length >= 50}
                     className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed
                                border-gray-700 text-gray-500 hover:border-azure/50 hover:text-azure
                                transition-all text-sm font-medium">
@@ -737,7 +818,7 @@ export function CreateAssignmentPage() {
                 </span>
                 {selectedGroup && (
                   <span className="px-2 py-0.5 rounded-full text-xs font-mono font-semibold bg-azure/15 text-azure">
-                    {selectedGroup.code}
+                    {selectedGroup.name}
                   </span>
                 )}
               </div>

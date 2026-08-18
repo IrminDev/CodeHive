@@ -19,13 +19,13 @@ public final class SandboxConstants {
     // Even though jobs arrive from the trusted backend, clamp untrusted-shaped
     // values so a malformed or malicious job cannot exhaust the host.
     public static final long MIN_TIME_LIMIT_MS = 100L;
-    public static final long MAX_TIME_LIMIT_MS = 30_000L;          // 30 s
+    public static final long MAX_TIME_LIMIT_MS = 10_000L;          // 10 s
     public static final long MIN_MEMORY_LIMIT_MB = 16L;
-    public static final long MAX_MEMORY_LIMIT_MB = 512L;           // 512 MB
-    public static final int MAX_TEST_CASES = 200;                  // per job
+    public static final long MAX_MEMORY_LIMIT_MB = 1_000L;         // 1000 MB
+    public static final int MAX_TEST_CASES = 50;                   // per job
 
     // --- Runtime limits ---
-    public static final int OUTPUT_LIMIT_BYTES = 4 * 1024 * 1024;       // 4 MB
+    public static final int OUTPUT_LIMIT_BYTES = 8 * 1024 * 1024;       // 8 MB
     public static final int SOURCE_SIZE_LIMIT_BYTES = 512 * 1024;        // 512 KB
     public static final int INPUT_SIZE_LIMIT_BYTES = 5 * 1024 * 1024;    // 5 MB
 

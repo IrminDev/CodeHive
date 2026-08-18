@@ -7,6 +7,7 @@ import com.github.codehive.model.enums.ExecutionStatus;
 import com.github.codehive.model.enums.ExecutionType;
 import com.github.codehive.model.enums.ExecutionTrigger;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -34,6 +35,10 @@ public class Execution {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = true)
     private User user; // User who initiated the execution
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "assignment_id", nullable = true)
+    private Assignment assignment;
     
     @Column(nullable = false, length = 20)
     @Enumerated(EnumType.STRING)
@@ -66,6 +71,8 @@ public class Execution {
     @Column(nullable = false)
     private Instant artifactsExpireAt;
 
+    private Instant artifactsPurgedAt;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "reevaluation_batch_id")
     private ReevaluationBatch reevaluationBatch;
@@ -75,7 +82,7 @@ public class Execution {
         this.isOutdated = false;
         this.status = ExecutionStatus.PENDING;
         this.trigger = ExecutionTrigger.INITIAL_SUBMISSION;
-        this.artifactsExpireAt = Instant.now().plus(java.time.temporal.ChronoUnit.DAYS.getDuration().multipliedBy(180));
+        this.artifactsExpireAt = Instant.now().plus(90, ChronoUnit.DAYS);
     }
 
     public Execution(Submission submission, ExecutionType executionType) {
@@ -120,6 +127,9 @@ public class Execution {
     public void setUser(User user) {
         this.user = user;
     }
+
+    public Assignment getAssignment() { return assignment; }
+    public void setAssignment(Assignment assignment) { this.assignment = assignment; }
 
     public ExecutionType getExecutionType() {
         return executionType;
@@ -175,6 +185,8 @@ public class Execution {
     public void setTrigger(ExecutionTrigger trigger) { this.trigger = trigger; }
     public Instant getArtifactsExpireAt() { return artifactsExpireAt; }
     public void setArtifactsExpireAt(Instant artifactsExpireAt) { this.artifactsExpireAt = artifactsExpireAt; }
+    public Instant getArtifactsPurgedAt() { return artifactsPurgedAt; }
+    public void setArtifactsPurgedAt(Instant artifactsPurgedAt) { this.artifactsPurgedAt = artifactsPurgedAt; }
     public ReevaluationBatch getReevaluationBatch() { return reevaluationBatch; }
     public void setReevaluationBatch(ReevaluationBatch batch) { this.reevaluationBatch = batch; }
 }

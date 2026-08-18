@@ -11,10 +11,12 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Optional;
+import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.codehive.messaging.producer.TestGenerationRequestProducer;
@@ -198,6 +200,30 @@ class AssignmentUpdateServiceTest {
                 ASSIGNMENT_ID, request, null, null, "teacher@test.com"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessage("Due date cannot be before the current time");
+    }
+
+    @Test
+    void rejectsTestSuiteUpdateWithMoreThanFiftyTestCases() {
+        UpdateFixture fixture = updateFixture();
+        List<MultipartFile> testCases = java.util.Collections.nCopies(51, mock(MultipartFile.class));
+
+        assertThatThrownBy(() -> fixture.service().update(
+                ASSIGNMENT_ID, new UpdateAssignmentRequest(), null, testCases, "teacher@test.com"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("At most 50 test cases are allowed");
+    }
+
+    @Test
+    void rejectsUpdatedLimitsAboveBackendMaximum() {
+        UpdateFixture fixture = updateFixture();
+        UpdateAssignmentRequest request = new UpdateAssignmentRequest();
+        request.setTimeLimitMs(10_001L);
+        request.setMemoryLimitMb(1_001L);
+
+        assertThatThrownBy(() -> fixture.service().update(
+                ASSIGNMENT_ID, request, null, null, "teacher@test.com"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("Time limit must be between 100 and 10000ms");
     }
 
     private UpdateFixture updateFixture() {

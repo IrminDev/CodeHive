@@ -1,341 +1,251 @@
-import { useState } from "react";
-import { useNavigate, useParams, Link } from "react-router";
-import {
-  Home, BookOpen, Plus, GraduationCap, Users, Settings,
-  Bell, Sun, Moon, ChevronRight, ArrowLeft, AlertTriangle,
-} from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router";
+import { ArrowLeft, Plus, Trash2 } from "lucide-react";
 import { sileo } from "sileo";
-import { useTheme } from "~/core/providers/ThemeProvider";
-import { useAuth } from "~/core/providers/AuthProvider";
 
-// ─── Mock data ────────────────────────────────────────────────────────────────
+import { DashboardLayout } from "~/shared/components/DashboardLayout";
+import {
+  cloneAssignment,
+  getActiveTeacherGroups,
+  getCloneAssignmentForm,
+} from "../api/assignment.api";
+import { TEACHER_NAV, TEACHER_SIDEBAR_ITEMS } from "../config/dashboard.config";
+import type {
+  AssignmentExample,
+  CloneAssignmentForm,
+  ComparatorType,
+  Language,
+} from "../types/assignment.types";
+import type { TeacherGroup } from "../types/group.types";
 
-const MOCK_ASSIGNMENTS: Record<string, {
-  name: string; groupLabel: string; status: string;
-  tests: number; memory: string; time: string; sourceGroupId: string;
-}> = {
-  "a2": {
-    name: "Topological Sort — Course Scheduler",
-    groupLabel: "CS-310 · Graph Theory",
-    status: "READY", tests: 8, memory: "512MB", time: "3000ms",
-    sourceGroupId: "2",
-  },
-  "a1": {
-    name: "Two-Sum & K-Sum variants",
-    groupLabel: "CS-201 · Algorithms",
-    status: "READY", tests: 6, memory: "256MB", time: "2000ms",
-    sourceGroupId: "1",
-  },
-};
+const LANGUAGES: Language[] = ["PYTHON", "JAVA", "CPP", "C"];
 
-interface CloneGroup {
-  id: string;
-  number: string;
-  label: string;
-  days?: string;
-  accentHex: string;
-  available: boolean;
-  reason?: string;
+function localDateTimeMinimum(): string {
+  const now = new Date();
+  now.setMinutes(now.getMinutes() - now.getTimezoneOffset() + 1, 0, 0);
+  return now.toISOString().slice(0, 16);
 }
 
-const CLONE_GROUPS: Record<string, CloneGroup[]> = {
-  "2": [
-    { id: "1", number: "201", label: "CS-201 Algorithms",        days: "M-W-F", accentHex: "#00509D", available: true  },
-    { id: "3", number: "410", label: "CS-410 Systems Programming",              accentHex: "#FDC500", available: true  },
-    { id: "2", number: "310", label: "CS-310 Graph Theory",       days: "T-Th", accentHex: "#003F88", available: false, reason: "source group" },
-    { id: "4", number: "150", label: "CS-150 Intro to Python",                  accentHex: "#4B5563", available: false, reason: "archived"      },
-  ],
-  "1": [
-    { id: "2", number: "310", label: "CS-310 Graph Theory",       days: "T-Th", accentHex: "#003F88", available: true  },
-    { id: "3", number: "410", label: "CS-410 Systems Programming",              accentHex: "#FDC500", available: true  },
-    { id: "1", number: "201", label: "CS-201 Algorithms",         days: "M-W-F", accentHex: "#00509D", available: false, reason: "source group" },
-    { id: "4", number: "150", label: "CS-150 Intro to Python",                  accentHex: "#4B5563", available: false, reason: "archived"      },
-  ],
-};
-
-// ─── Layout primitives ────────────────────────────────────────────────────────
-
-function SidebarIcon({ icon: Icon, to, active = false, label }: {
-  icon: LucideIcon; to: string; active?: boolean; label: string;
-}) {
-  return (
-    <Link to={to} title={label}
-      className={`w-9 h-9 flex items-center justify-center rounded-xl transition-colors ${
-        active ? "text-yellow bg-yellow/10" : "text-gray-500 hover:text-white hover:bg-white/5"
-      }`}
-    >
-      <Icon size={18} />
-    </Link>
-  );
+function toInstant(value: string): string | undefined {
+  return value ? new Date(value).toISOString() : undefined;
 }
 
-function HexIcon({ size = 16 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
-      <polygon points="12,2 22,7 22,17 12,22 2,17 2,7" />
-    </svg>
-  );
+function csv(value: string): string[] {
+  return value.split(",").map((item) => item.trim()).filter(Boolean);
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+function fieldClass(): string {
+  return "w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-dark-surface text-gray-900 dark:text-white";
+}
 
 export function CloneAssignmentPage() {
   const navigate = useNavigate();
-  const { assignmentId } = useParams<{ assignmentId: string }>();
-  const { theme, toggleTheme } = useTheme();
-  const { user } = useAuth();
+  const { assignmentId = "" } = useParams<{ assignmentId: string }>();
+  const [form, setForm] = useState<CloneAssignmentForm | null>(null);
+  const [groups, setGroups] = useState<TeacherGroup[]>([]);
+  const [targetGroupId, setTargetGroupId] = useState("");
+  const [launchDate, setLaunchDate] = useState("");
+  const [dueDate, setDueDate] = useState("");
+  const [closeDate, setCloseDate] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const minimumDate = useMemo(localDateTimeMinimum, []);
 
-  const initials = user?.name
-    ? user.name.split(" ").slice(0, 2).map((n: string) => n[0]).join("").toUpperCase()
-    : "MH";
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.all([
+      getCloneAssignmentForm(assignmentId),
+      getActiveTeacherGroups(),
+    ])
+      .then(([snapshot, activeGroups]) => {
+        if (cancelled) return;
+        setForm(snapshot);
+        setGroups(activeGroups);
+        setTargetGroupId(activeGroups.find((group) => group.id !== snapshot.sourceGroupId)?.id ?? "");
+      })
+      .catch((error) => {
+        if (!cancelled) sileo.error({ title: error instanceof Error ? error.message : "Failed to load clone form." });
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [assignmentId]);
 
-  const assignment = MOCK_ASSIGNMENTS[assignmentId ?? ""] ?? MOCK_ASSIGNMENTS["a2"];
-  const groups     = CLONE_GROUPS[assignment.sourceGroupId] ?? CLONE_GROUPS["2"];
-  const firstAvail = groups.find((g) => g.available)?.id ?? null;
+  function patch<K extends keyof CloneAssignmentForm>(key: K, value: CloneAssignmentForm[K]) {
+    setForm((current) => current ? { ...current, [key]: value } : current);
+  }
 
-  const [selectedGroup, setSelectedGroup] = useState<string | null>(firstAvail);
-  const [launchDate, setLaunchDate] = useState("2026-06-05");
-  const [dueDate, setDueDate]       = useState("2026-06-12");
-  const [closeDate, setCloseDate]   = useState("2026-06-14");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  function patchTestCase(index: number, next: Partial<CloneAssignmentForm["testCases"][number]>) {
+    if (!form) return;
+    patch("testCases", form.testCases.map((item, itemIndex) => itemIndex === index ? { ...item, ...next } : item));
+  }
 
-  async function handleClone(e: React.FormEvent) {
-    e.preventDefault();
-    if (!selectedGroup) {
+  function patchExample(index: number, next: Partial<AssignmentExample>) {
+    if (!form) return;
+    patch("examples", form.examples.map((item, itemIndex) => itemIndex === index ? { ...item, ...next } : item));
+  }
+
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
+    if (!form || !targetGroupId) {
       sileo.error({ title: "Select a destination group." });
       return;
     }
-    setIsSubmitting(true);
-    await new Promise((r) => setTimeout(r, 900));
-    sileo.success({ title: "Assignment cloned! Outputs are being regenerated." });
-    navigate("/teacher/assignments");
-    setIsSubmitting(false);
+    if (!form.allowedLanguages.length) {
+      sileo.error({ title: "Select at least one allowed language." });
+      return;
+    }
+    if (!form.testCases.length || form.testCases.some((testCase) => !testCase.input.trim())) {
+      sileo.error({ title: "Every test case needs input." });
+      return;
+    }
+    if (form.testCases.length > 50) {
+      sileo.error({ title: "An assignment can have at most 50 test cases." });
+      return;
+    }
+    const launch = toInstant(launchDate);
+    const due = toInstant(dueDate);
+    const close = toInstant(closeDate);
+    if ((launch && due && launch > due) || (due && close && due > close) || (launch && close && launch > close)) {
+      sileo.error({ title: "Dates must satisfy launch ≤ due ≤ close." });
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await cloneAssignment(assignmentId, {
+        targetGroupId,
+        title: form.title.trim(),
+        description: form.description.trim(),
+        constraints: form.constraints,
+        hints: form.hints,
+        tags: form.tags,
+        timeLimitMs: form.timeLimitMs,
+        memoryLimitMb: form.memoryLimitMb,
+        comparatorType: form.comparatorType,
+        allowedLanguages: form.allowedLanguages,
+        referenceLanguage: form.referenceLanguage,
+        referenceSolution: form.referenceSolution,
+        testCases: form.testCases.map(({ input, sample }) => ({ input, sample })),
+        examples: form.examples,
+        maxPoints: form.maxPoints,
+        launchDate: launch,
+        dueDate: due,
+        closeDate: close,
+      });
+      sileo.success({ title: "Assignment cloned. Test generation started." });
+      navigate("/teacher/assignments");
+    } catch (error) {
+      sileo.error({ title: error instanceof Error ? error.message : "Failed to clone assignment." });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  if (loading) {
+    return <div className="min-h-screen bg-gray-50 dark:bg-dark-bg grid place-items-center text-gray-500">Loading clone form…</div>;
+  }
+  if (!form) {
+    return <div className="min-h-screen bg-gray-50 dark:bg-dark-bg grid place-items-center text-gray-500">Clone form unavailable.</div>;
   }
 
   return (
-    <div className="h-screen flex overflow-hidden bg-dark-bg text-white">
-      {/* ── Sidebar ── */}
-      <aside className="w-14 bg-dark-surface flex flex-col items-center py-3 gap-1 flex-shrink-0">
-        <Link to="/teacher" className="mb-3">
-          <div
-            className="w-8 h-8 bg-yellow flex items-center justify-center text-imperial font-bold text-[10px]"
-            style={{ clipPath: "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)" }}
-          >
-            {"</>"}
-          </div>
-        </Link>
-        <nav className="flex flex-col items-center gap-1 flex-1">
-          <SidebarIcon icon={Home}          to="/teacher"                   label="Dashboard" />
-          <SidebarIcon icon={BookOpen}      to="/teacher/assignments"       active label="Assignments" />
-          <SidebarIcon icon={Plus}          to="/teacher/create-assignment" label="Create" />
-          <SidebarIcon icon={GraduationCap} to="/teacher/grades"           label="Grades" />
-          <SidebarIcon icon={Users}         to="/teacher/groups"           label="Groups" />
-        </nav>
-        <div className="flex flex-col items-center gap-2">
-          <button className="w-9 h-9 flex items-center justify-center rounded-xl text-gray-500 hover:text-white hover:bg-white/5 transition-colors">
-            <Settings size={16} />
+    <DashboardLayout logoLinkTo="/teacher" navLinks={TEACHER_NAV} sidebarItems={TEACHER_SIDEBAR_ITEMS}>
+      <form onSubmit={submit} className="max-w-4xl mx-auto space-y-6">
+        <div className="flex items-start gap-4">
+          <button type="button" onClick={() => navigate("/teacher/assignments")} className="btn-outline p-2.5" aria-label="Back">
+            <ArrowLeft size={16} />
           </button>
-          <div className="w-8 h-8 rounded-full bg-yellow flex items-center justify-center text-imperial text-xs font-bold">
-            {initials}
+          <div>
+            <p className="text-xs font-semibold tracking-widest text-azure dark:text-yellow uppercase">Reuse assignment</p>
+            <h1 className="text-3xl font-bold mt-1">Clone assignment</h1>
+            <p className="text-gray-500 mt-1">All fields are editable. Scheduling starts empty.</p>
           </div>
         </div>
-      </aside>
 
-      {/* ── Right side ── */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Header */}
-        <header className="h-12 bg-dark-surface flex items-center px-6 gap-3 flex-shrink-0">
-          <div className="flex items-center gap-1.5 text-sm text-gray-400 mr-auto">
-            <span>Teacher</span>
-            <ChevronRight size={14} className="text-gray-600" />
-            <Link to="/teacher/assignments" className="hover:text-white transition-colors">Assignments</Link>
-            <ChevronRight size={14} className="text-gray-600" />
-            <span className="text-white font-medium">Clone</span>
+        <section className="bg-white dark:bg-dark-card rounded-2xl border border-gray-200 dark:border-gray-700/40 p-6 grid gap-5">
+          <h2 className="font-semibold text-lg">Destination and schedule</h2>
+          <label className="grid gap-2 text-sm">Destination group
+            <select required value={targetGroupId} onChange={(event) => setTargetGroupId(event.target.value)} className={fieldClass()}>
+              <option value="">Select group</option>
+              {groups.map((group) => (
+                <option key={group.id} value={group.id} disabled={group.id === form.sourceGroupId}>
+                  {group.name}{group.id === form.sourceGroupId ? " (source group)" : ""}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="grid md:grid-cols-3 gap-4">
+            {[
+              ["Launch", launchDate, setLaunchDate],
+              ["Due", dueDate, setDueDate],
+              ["Close", closeDate, setCloseDate],
+            ].map(([label, value, setter]) => (
+              <label key={label as string} className="grid gap-2 text-sm">{label as string}
+                <input type="datetime-local" min={minimumDate} value={value as string} onChange={(event) => (setter as React.Dispatch<React.SetStateAction<string>>)(event.target.value)} className={fieldClass()} />
+              </label>
+            ))}
           </div>
-          <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-dark-card border border-gray-700/50 text-gray-400 w-72">
-            <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <span className="flex-1 text-xs">Search assignments, groups...</span>
-            <kbd className="text-xs bg-dark-surface px-1.5 py-0.5 rounded text-gray-500">⌘K</kbd>
+        </section>
+
+        <section className="bg-white dark:bg-dark-card rounded-2xl border border-gray-200 dark:border-gray-700/40 p-6 grid gap-5">
+          <h2 className="font-semibold text-lg">Assignment information</h2>
+          <label className="grid gap-2 text-sm">Title<input required value={form.title} onChange={(event) => patch("title", event.target.value)} className={fieldClass()} /></label>
+          <label className="grid gap-2 text-sm">Description<textarea required rows={5} value={form.description} onChange={(event) => patch("description", event.target.value)} className={fieldClass()} /></label>
+          <div className="grid md:grid-cols-3 gap-4">
+            <label className="grid gap-2 text-sm">Constraints<input value={form.constraints.join(", ")} onChange={(event) => patch("constraints", csv(event.target.value))} className={fieldClass()} /></label>
+            <label className="grid gap-2 text-sm">Hints<input value={form.hints.join(", ")} onChange={(event) => patch("hints", csv(event.target.value))} className={fieldClass()} /></label>
+            <label className="grid gap-2 text-sm">Tags<input value={form.tags.join(", ")} onChange={(event) => patch("tags", csv(event.target.value))} className={fieldClass()} /></label>
           </div>
-          <button className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors">
-            <Bell size={16} />
-          </button>
-          <button onClick={toggleTheme}
-            className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors">
-            {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
-          </button>
-        </header>
-
-        {/* Main */}
-        <form onSubmit={handleClone}
-          className="flex-1 overflow-y-auto scrollbar-hide px-8 py-7">
-          <div className="max-w-2xl mx-auto w-full">
-
-          {/* Page header */}
-          <div className="flex items-start gap-4 mb-8">
-            <button type="button" onClick={() => navigate(-1)}
-              className="w-9 h-9 flex items-center justify-center rounded-xl border border-gray-700/50
-                         text-gray-400 hover:text-white hover:border-gray-600 transition-all flex-shrink-0 mt-1">
-              <ArrowLeft size={16} />
-            </button>
-            <div>
-              <div className="inline-flex items-center px-4 py-1.5 rounded-full border border-yellow/20 bg-yellow/5 mb-2">
-                <span className="text-[10px] tracking-widest uppercase font-semibold text-yellow/60">
-                  Reuse Assignment
-                </span>
-              </div>
-              <h1 className="text-2xl font-bold text-white">Clone to another group</h1>
+          <div className="grid md:grid-cols-4 gap-4">
+            <label className="grid gap-2 text-sm">Time limit (ms)<input type="number" min={100} max={10000} required value={form.timeLimitMs} onChange={(event) => patch("timeLimitMs", Number(event.target.value))} className={fieldClass()} /></label>
+            <label className="grid gap-2 text-sm">Memory (MB)<input type="number" min={16} max={1000} required value={form.memoryLimitMb} onChange={(event) => patch("memoryLimitMb", Number(event.target.value))} className={fieldClass()} /></label>
+            <label className="grid gap-2 text-sm">Max points<input type="number" min="0.01" step="0.01" required value={form.maxPoints} onChange={(event) => patch("maxPoints", Number(event.target.value))} className={fieldClass()} /></label>
+            <label className="grid gap-2 text-sm">Comparator<select value={form.comparatorType} onChange={(event) => patch("comparatorType", event.target.value as ComparatorType)} className={fieldClass()}><option value="EXACT_MATCH">Exact match</option><option value="FLOATING_POINT">Floating point</option></select></label>
+          </div>
+          <div>
+            <p className="text-sm mb-2">Allowed languages</p>
+            <div className="flex flex-wrap gap-3">
+              {LANGUAGES.map((language) => <label key={language} className="inline-flex items-center gap-2 text-sm"><input type="checkbox" checked={form.allowedLanguages.includes(language)} onChange={() => patch("allowedLanguages", form.allowedLanguages.includes(language) ? form.allowedLanguages.filter((item) => item !== language) : [...form.allowedLanguages, language])} />{language}</label>)}
             </div>
           </div>
+          <label className="grid gap-2 text-sm">Reference language<select value={form.referenceLanguage} onChange={(event) => patch("referenceLanguage", event.target.value as Language)} className={fieldClass()}>{LANGUAGES.map((language) => <option key={language}>{language}</option>)}</select></label>
+        </section>
 
-          <div className="space-y-4">
-            {/* ── Source assignment ── */}
-            <div className="bg-dark-card rounded-2xl border border-gray-700/30 p-5">
-              <p className="text-[10px] font-semibold tracking-widest text-gray-600 uppercase mb-4">
-                Source Assignment
-              </p>
-              <div className="flex items-center gap-4">
-                <span className="text-gray-600 flex-shrink-0"><HexIcon size={20} /></span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-white mb-0.5">{assignment.name}</p>
-                  <p className="text-xs text-gray-500">
-                    {assignment.groupLabel} · {assignment.status} · {assignment.tests} tests · {assignment.memory} / {assignment.time}
-                  </p>
-                </div>
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-500/10 text-green-400 border border-green-500/20 flex-shrink-0">
-                  {assignment.status}
-                </span>
-              </div>
+        <section className="bg-white dark:bg-dark-card rounded-2xl border border-gray-200 dark:border-gray-700/40 p-6 grid gap-4">
+          <h2 className="font-semibold text-lg">Reference solution</h2>
+          <textarea required rows={16} value={form.referenceSolution} onChange={(event) => patch("referenceSolution", event.target.value)} className={`${fieldClass()} font-mono text-sm`} />
+        </section>
+
+        <section className="bg-white dark:bg-dark-card rounded-2xl border border-gray-200 dark:border-gray-700/40 p-6 grid gap-4">
+          <div className="flex items-center justify-between"><h2 className="font-semibold text-lg">Test cases</h2><button type="button" disabled={form.testCases.length >= 50} onClick={() => patch("testCases", [...form.testCases, { order: form.testCases.length + 1, input: "", sample: false }])} className="btn-outline inline-flex items-center gap-1"><Plus size={14} /> Add</button></div>
+          {form.testCases.map((testCase, index) => (
+            <div key={`${testCase.order}-${index}`} className="grid gap-3 p-4 rounded-xl bg-gray-50 dark:bg-dark-surface">
+              <div className="flex justify-between"><strong className="text-sm">Test {index + 1}</strong>{form.testCases.length > 1 && <button type="button" onClick={() => patch("testCases", form.testCases.filter((_, itemIndex) => itemIndex !== index))} className="text-red-500"><Trash2 size={15} /></button>}</div>
+              <textarea required rows={4} value={testCase.input} onChange={(event) => patchTestCase(index, { input: event.target.value })} className={`${fieldClass()} font-mono text-sm`} />
+              <label className="inline-flex items-center gap-2 text-sm"><input type="checkbox" checked={testCase.sample} onChange={(event) => patchTestCase(index, { sample: event.target.checked })} />Visible sample</label>
             </div>
+          ))}
+        </section>
 
-            {/* ── Choose destination group ── */}
-            <div className="bg-dark-card rounded-2xl border border-gray-700/30 p-5">
-              <p className="text-sm font-semibold text-white mb-1">Choose destination group</p>
-              <p className="text-xs text-gray-500 mb-5">
-                Must be active, not archived, and different from the source group.
-              </p>
-
-              <div className="divide-y divide-gray-700/30">
-                {groups.map((g) => (
-                  <label
-                    key={g.id}
-                    className={`flex items-center gap-4 py-4 first:pt-0 last:pb-0 transition-colors ${
-                      g.available ? "cursor-pointer hover:bg-white/[0.01]" : "cursor-not-allowed opacity-40"
-                    }`}
-                  >
-                    {/* Radio */}
-                    <div className="relative flex-shrink-0">
-                      <input
-                        type="radio"
-                        name="destGroup"
-                        value={g.id}
-                        disabled={!g.available}
-                        checked={selectedGroup === g.id}
-                        onChange={() => g.available && setSelectedGroup(g.id)}
-                        className="sr-only"
-                      />
-                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${
-                        selectedGroup === g.id && g.available
-                          ? "border-yellow bg-yellow/10"
-                          : "border-gray-600"
-                      }`}>
-                        {selectedGroup === g.id && g.available && (
-                          <div className="w-2 h-2 rounded-full bg-yellow" />
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Badge */}
-                    <div
-                      className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
-                      style={{ backgroundColor: g.accentHex }}
-                    >
-                      {g.number}
-                    </div>
-
-                    {/* Label */}
-                    <span className={`flex-1 text-sm font-medium ${g.available ? "text-white" : "text-gray-500"}`}>
-                      {g.label}{g.days ? ` · ${g.days}` : ""}
-                    </span>
-
-                    {/* Unavailable */}
-                    {!g.available && (
-                      <span className="text-xs font-mono text-gray-600 flex-shrink-0">unavailable</span>
-                    )}
-                  </label>
-                ))}
-              </div>
+        <section className="bg-white dark:bg-dark-card rounded-2xl border border-gray-200 dark:border-gray-700/40 p-6 grid gap-4">
+          <div className="flex items-center justify-between"><h2 className="font-semibold text-lg">Examples</h2><button type="button" onClick={() => patch("examples", [...form.examples, { input: "", output: "", explanation: "" }])} className="btn-outline inline-flex items-center gap-1"><Plus size={14} /> Add</button></div>
+          {form.examples.length === 0 && <p className="text-sm text-gray-500">No examples.</p>}
+          {form.examples.map((example, index) => (
+            <div key={index} className="grid md:grid-cols-2 gap-3 p-4 rounded-xl bg-gray-50 dark:bg-dark-surface">
+              <textarea rows={3} placeholder="Input" value={example.input} onChange={(event) => patchExample(index, { input: event.target.value })} className={fieldClass()} />
+              <textarea rows={3} placeholder="Output" value={example.output} onChange={(event) => patchExample(index, { output: event.target.value })} className={fieldClass()} />
+              <input placeholder="Explanation" value={example.explanation ?? ""} onChange={(event) => patchExample(index, { explanation: event.target.value })} className={`${fieldClass()} md:col-span-2`} />
+              <button type="button" onClick={() => patch("examples", form.examples.filter((_, itemIndex) => itemIndex !== index))} className="text-red-500 justify-self-start text-sm">Remove example</button>
             </div>
+          ))}
+        </section>
 
-            {/* ── New dates ── */}
-            <div className="bg-dark-card rounded-2xl border border-gray-700/30 p-5">
-              <p className="text-sm font-semibold text-white mb-0.5">
-                New dates{" "}
-                <span className="text-xs text-gray-500 font-normal">(optional — otherwise copied as-is)</span>
-              </p>
-              <div className="grid grid-cols-3 gap-4 mt-5">
-                {[
-                  { label: "LAUNCH", value: launchDate, onChange: setLaunchDate },
-                  { label: "DUE",    value: dueDate,    onChange: setDueDate    },
-                  { label: "CLOSE",  value: closeDate,  onChange: setCloseDate  },
-                ].map(({ label, value, onChange }) => (
-                  <div key={label}>
-                    <p className="text-[10px] font-semibold tracking-widest text-gray-500 uppercase mb-2">
-                      {label}
-                    </p>
-                    <input
-                      type="date"
-                      value={value}
-                      onChange={(e) => onChange(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl border border-gray-700/50 bg-dark-surface text-white text-sm
-                                 focus:outline-none focus:ring-2 focus:ring-azure focus:border-transparent
-                                 transition-all appearance-none"
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* ── Info note ── */}
-            <div className="flex gap-3 px-5 py-4 rounded-xl bg-dark-card border border-gray-700/30">
-              <AlertTriangle size={15} className="text-yellow flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-gray-400 leading-relaxed">
-                Copies metadata, languages, examples, reference solution and test inputs. Expected outputs are{" "}
-                <span className="font-semibold text-white">regenerated asynchronously</span>{" "}
-                — the clone starts in PROCESSING.
-              </p>
-            </div>
-
-            {/* ── Submit ── */}
-            <div className="flex justify-end gap-3 pb-8">
-              <button type="button" onClick={() => navigate(-1)}
-                className="px-5 py-2.5 rounded-xl border border-gray-700/50 text-gray-300
-                           hover:border-gray-600 hover:text-white transition-all text-sm font-medium">
-                Cancel
-              </button>
-              <button type="submit" disabled={isSubmitting || !selectedGroup}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-azure text-white text-sm
-                           font-medium hover:bg-french transition-all disabled:opacity-60 disabled:cursor-not-allowed">
-                {isSubmitting ? (
-                  <>
-                    <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
-                    </svg>
-                    Cloning…
-                  </>
-                ) : (
-                  "Clone assignment"
-                )}
-              </button>
-            </div>
-          </div>
-          </div>
-        </form>
-      </div>
-    </div>
+        <div className="flex justify-end gap-3 pb-8">
+          <button type="button" onClick={() => navigate("/teacher/assignments")} className="btn-outline">Cancel</button>
+          <button disabled={submitting || !targetGroupId} className="btn-primary">{submitting ? "Cloning…" : "Clone assignment"}</button>
+        </div>
+      </form>
+    </DashboardLayout>
   );
 }

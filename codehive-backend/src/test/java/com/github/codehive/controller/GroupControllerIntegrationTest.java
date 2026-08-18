@@ -153,7 +153,13 @@ class GroupControllerIntegrationTest {
                         student.getId().toString(), peer.getId().toString())))
                 .andExpect(jsonPath("$.data[*].status", containsInAnyOrder("ACTIVE", "ACTIVE")))
                 .andExpect(jsonPath("$.data[*].assignments").doesNotExist())
-                .andExpect(jsonPath("$.data[*].grades").doesNotExist());
+                .andExpect(jsonPath("$.data[*].grades").doesNotExist())
+                .andExpect(jsonPath("$.data[0].student.fullName").isNotEmpty())
+                .andExpect(jsonPath("$.data[0].student.enrollmentNumber").isNotEmpty())
+                .andExpect(jsonPath("$.data[*].student.email").doesNotExist())
+                .andExpect(jsonPath("$.data[*].student.scopes").doesNotExist())
+                .andExpect(jsonPath("$.data[*].student.isActive").doesNotExist())
+                .andExpect(jsonPath("$.data[*].student.temporaryPassword").doesNotExist());
 
         String formerStudentToken = jwtUtil.generateToken(
                 Map.of("role", "STUDENT"), formerStudent.getEmail());
@@ -182,5 +188,166 @@ class GroupControllerIntegrationTest {
                         .header("Authorization", "Bearer " + teacherToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[0].isActive").value(false));
+    }
+
+    @Test
+    void rejoinAfterLeavingReactivatesTheSameEnrollment() throws Exception {
+        ClassGroup group = groupRepository.save(new ClassGroup("Algorithms", "", teacher, "REJOIN12"));
+
+        mockMvc.perform(post("/api/groups/join")
+                        .header("Authorization", "Bearer " + studentToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"joinCode\":\"REJOIN12\"}"))
+                .andExpect(status().isOk());
+        GroupEnrollment original = enrollmentRepository
+                .findByGroupIdAndStudentId(group.getId(), student.getId()).orElseThrow();
+
+        mockMvc.perform(post("/api/groups/{id}/leave", group.getId())
+                        .header("Authorization", "Bearer " + studentToken))
+                .andExpect(status().isOk());
+        GroupEnrollment afterLeave = enrollmentRepository
+                .findByGroupIdAndStudentId(group.getId(), student.getId()).orElseThrow();
+        assert afterLeave.getStatus() == EnrollmentStatus.LEFT;
+        assert afterLeave.getEndedAt() != null;
+
+        mockMvc.perform(post("/api/groups/join")
+                        .header("Authorization", "Bearer " + studentToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"joinCode\":\"REJOIN12\"}"))
+                .andExpect(status().isOk());
+        GroupEnrollment reactivated = enrollmentRepository
+                .findByGroupIdAndStudentId(group.getId(), student.getId()).orElseThrow();
+        assert reactivated.getId().equals(original.getId());
+        assert reactivated.getStatus() == EnrollmentStatus.ACTIVE;
+        assert reactivated.getEndedAt() == null;
+    }
+
+    @Test
+    void removedStudentCanRejoinWithTheSameEnrollment() throws Exception {
+        ClassGroup group = groupRepository.save(new ClassGroup("Algorithms", "", teacher, "REMOVE12"));
+        GroupEnrollment enrollment = enrollmentRepository.save(new GroupEnrollment(group, student));
+
+        mockMvc.perform(delete("/api/groups/{id}/students/{studentId}", group.getId(), student.getId())
+                        .header("Authorization", "Bearer " + teacherToken))
+                .andExpect(status().isOk());
+        assert enrollmentRepository.findById(enrollment.getId()).orElseThrow()
+                .getStatus() == EnrollmentStatus.REMOVED;
+
+        mockMvc.perform(post("/api/groups/join")
+                        .header("Authorization", "Bearer " + studentToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"joinCode\":\"REMOVE12\"}"))
+                .andExpect(status().isOk());
+        GroupEnrollment reactivated = enrollmentRepository
+                .findByGroupIdAndStudentId(group.getId(), student.getId()).orElseThrow();
+        assert reactivated.getId().equals(enrollment.getId());
+        assert reactivated.getStatus() == EnrollmentStatus.ACTIVE;
+    }
+
+    @Test
+    void rotatedJoinCodeInvalidatesThePreviousOne() throws Exception {
+        groupRepository.save(new ClassGroup("Algorithms", "", teacher, "ROTATE12"));
+        ClassGroup group = groupRepository.findByJoinCodeIgnoreCase("ROTATE12").orElseThrow();
+
+        String response = mockMvc.perform(post("/api/groups/{id}/join-code/rotate", group.getId())
+                        .header("Authorization", "Bearer " + teacherToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.joinCode").isNotEmpty())
+                .andReturn().getResponse().getContentAsString();
+        String newCode = objectMapper.readTree(response).path("data").path("joinCode").asText();
+        assert !newCode.equalsIgnoreCase("ROTATE12");
+
+        mockMvc.perform(post("/api/groups/join")
+                        .header("Authorization", "Bearer " + studentToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"joinCode\":\"ROTATE12\"}"))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(post("/api/groups/join")
+                        .header("Authorization", "Bearer " + studentToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("joinCode", newCode))))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void restoredGroupStaysArchivedUntilExplicitUnarchive() throws Exception {
+        ClassGroup group = groupRepository.save(new ClassGroup("Algorithms", "", teacher, "RESTORE1"));
+
+        mockMvc.perform(delete("/api/groups/{id}", group.getId())
+                        .header("Authorization", "Bearer " + teacherToken))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/groups/{id}/restore", group.getId())
+                        .header("Authorization", "Bearer " + teacherToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.isActive").value(true))
+                .andExpect(jsonPath("$.data.archived").value(true));
+
+        mockMvc.perform(post("/api/groups/join")
+                        .header("Authorization", "Bearer " + studentToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"joinCode\":\"RESTORE1\"}"))
+                .andExpect(status().isBadRequest());
+
+        mockMvc.perform(post("/api/groups/{id}/unarchive", group.getId())
+                        .header("Authorization", "Bearer " + teacherToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.archived").value(false));
+
+        mockMvc.perform(post("/api/groups/join")
+                        .header("Authorization", "Bearer " + studentToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"joinCode\":\"RESTORE1\"}"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void restoreRejectsAGroupThatIsNotDeleted() throws Exception {
+        ClassGroup group = groupRepository.save(new ClassGroup("Algorithms", "", teacher, "NOTDEL01"));
+
+        mockMvc.perform(post("/api/groups/{id}/restore", group.getId())
+                        .header("Authorization", "Bearer " + teacherToken))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void joiningADeletedGroupsCodeReturnsNotFoundInsteadOfRevealingItWasDeleted() throws Exception {
+        ClassGroup group = groupRepository.save(new ClassGroup("Algorithms", "", teacher, "DELCODE1"));
+
+        mockMvc.perform(delete("/api/groups/{id}", group.getId())
+                        .header("Authorization", "Bearer " + teacherToken))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/groups/join")
+                        .header("Authorization", "Bearer " + studentToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"joinCode\":\"DELCODE1\"}"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void archivedGroupRejectsChangesButStillAllowsRosterRemoval() throws Exception {
+        ClassGroup group = groupRepository.save(new ClassGroup("Algorithms", "", teacher, "ARCHIVE1"));
+        enrollmentRepository.save(new GroupEnrollment(group, student));
+
+        mockMvc.perform(post("/api/groups/{id}/archive", group.getId())
+                        .header("Authorization", "Bearer " + teacherToken))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(patch("/api/groups/{id}", group.getId())
+                        .header("Authorization", "Bearer " + teacherToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Renamed\",\"description\":\"\"}"))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(post("/api/groups/{id}/join-code/rotate", group.getId())
+                        .header("Authorization", "Bearer " + teacherToken))
+                .andExpect(status().isBadRequest());
+
+        // Documents current behavior: roster removal skips the read-only check.
+        mockMvc.perform(delete("/api/groups/{id}/students/{studentId}", group.getId(), student.getId())
+                        .header("Authorization", "Bearer " + teacherToken))
+                .andExpect(status().isOk());
+        assert enrollmentRepository.findByGroupIdAndStudentId(group.getId(), student.getId())
+                .orElseThrow().getStatus() == EnrollmentStatus.REMOVED;
     }
 }

@@ -46,8 +46,9 @@ services:
       /bin/sh -c "
         mc alias set local http://minio:9000 ${MINIO_ACCESS_KEY} ${MINIO_SECRET_KEY};
         mc mb --ignore-existing local/${MINIO_BUCKET_NAME};
-        mc ilm rule add --prefix "executions/" --expire-days 180 local/${MINIO_BUCKET_NAME};
-        mc ilm rule add --prefix "practice-executions/" --expire-days 180 local/${MINIO_BUCKET_NAME};
+        mc ilm rule add --prefix "executions/" --expire-days 90 local/${MINIO_BUCKET_NAME};
+        mc ilm rule add --prefix "practice-executions/" --expire-days 1 local/${MINIO_BUCKET_NAME};
+        mc ilm rule add --prefix "assignment-update-validations/" --expire-days 1 local/${MINIO_BUCKET_NAME};
         exit 0;
       "
 

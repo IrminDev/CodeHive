@@ -23,8 +23,8 @@ public class TestCase {
     @JoinColumn(name = "assignment_id", nullable = false)
     private Assignment assignment;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "test_suite_revision_id")
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "test_suite_revision_id", nullable = false)
     private TestSuiteRevision testSuiteRevision;
     
     @Column(nullable = false, name = "order_index")
@@ -37,9 +37,11 @@ public class TestCase {
         this.isSample = false;
     }
 
-    public TestCase(Assignment assignment, Integer order, Boolean isSample) {
+    public TestCase(Assignment assignment, TestSuiteRevision testSuiteRevision,
+                    Integer order, Boolean isSample) {
         this();
         this.assignment = assignment;
+        this.testSuiteRevision = testSuiteRevision;
         this.order = order;
         this.isSample = isSample;
     }

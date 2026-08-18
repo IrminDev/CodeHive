@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 
 import com.github.codehive.worker.model.dto.ExecutionReport;
 import com.github.codehive.worker.model.dto.ExecutionResult;
+import com.github.codehive.worker.model.dto.TestCaseResult;
 import com.github.codehive.worker.model.dto.queue.ExecutionJob;
 import com.github.codehive.worker.model.dto.queue.ExecutionTestCaseInfo;
 import com.github.codehive.worker.model.enums.ComparatorType;
@@ -67,6 +68,20 @@ class TestExecutionServiceTest {
         verify(storage).download("opaque/expected");
         verify(storage).upload("opaque/stdout", "2\n");
         verify(storage).upload(org.mockito.ArgumentMatchers.eq("opaque/report"), any(String.class));
+    }
+
+    @Test
+    void practiceDiagnosticOutputIsBoundedBeforeItReachesReportStorage() {
+        TestCaseResult result = new TestCaseResult();
+        String oversizedOutput = "x".repeat(10 * 1024);
+
+        result.setExpectedOutput(oversizedOutput);
+        result.setActualOutput(oversizedOutput);
+
+        assertThat(result.getExpectedOutput()).hasSize(8 * 1024)
+                .endsWith("[Output truncated for artifact retention]");
+        assertThat(result.getActualOutput()).hasSize(8 * 1024)
+                .endsWith("[Output truncated for artifact retention]");
     }
 
     private ByteArrayInputStream stream(String value) {

@@ -92,15 +92,14 @@ File: model/entity/Execution.java
 
 ### TestCase
 File: model/entity/TestCase.java
-- assignment relation required
+- assignment and test-suite revision relations required
 - order stored as order_index, non-null; represents 1-based upload position
 - isSample defaults to false
 
-### ReferenceSolution
-File: model/entity/ReferenceSolution.java
-- assignment relation required
-- language: enum required
-- one ReferenceSolution per assignment per language; stored in MinIO at ObjectKeyBuilder.referenceSolutionSourceCode
+### Reference solution revisions
+- `ReferenceSolutionRevision` is immutable source metadata for an assignment revision.
+- It stores language, revision-scoped MinIO `objectKey`, status, and activation timestamps.
+- `Assignment.activeReferenceSolutionRevision` selects validated source used for practice execution.
 
 ### Notification preferences
 
@@ -121,10 +120,11 @@ Request classes live under model/request grouped by domain:
 ### CreateAssignmentRequest fields
 - groupId, launchDate, dueDate, closeDate, examples
 - title, description, constraints, hints, tags
-- timeLimitMs (@Min 100), memoryLimitMb (@Min 16)
+- timeLimitMs (100–10,000 ms), memoryLimitMb (16–1,000 MB)
 - comparatorType, allowedLanguages, referenceLanguage
 - dueDate (nullable)
 - sampleFlags: parallel list to uploaded files; true = sample test case
+- A task may include at most 50 test case inputs.
 
 Validation patterns:
 - @NotBlank for required strings
@@ -148,7 +148,7 @@ Auth-specific responses:
 
 ## DTO and Mapper Layer
 Application DTOs:
-- UserDTO, ExecutionDTO, AssignmentDTO, SubmissionDTO, TestCaseDTO, ReferenceSolutionDTO
+- UserDTO, ExecutionDTO, AssignmentDTO, SubmissionDTO
 
 Queue DTOs (model/dto/queue):
 - ExecutionJob — student execution job sent to worker
@@ -158,14 +158,14 @@ Queue DTOs (model/dto/queue):
 - TestGenerationResult — outcome of output generation; drives assignment activation
 
 Mappers convert entity <-> DTO:
-- ExecutionMapper, UserMapper, AssignmentMapper, SubmissionMapper, TestCaseMapper, ReferenceSolutionMapper
+- ExecutionMapper, UserMapper, AssignmentMapper, SubmissionMapper
 
 ## Enum Strategy
 Enums are persisted and transferred as string values:
 - Role, Scope
 - Language (JAVA, PYTHON, C, CPP)
 - ExecutionType (PRACTICE, DEFINITIVE)
-- ExecutionStatus (AC, WA, CE, RTE, TLE, MLE, OLE, PENDING) — OLE = Output Limit Exceeded (> 4 MB combined stdout+stderr)
+- ExecutionStatus (AC, WA, CE, RTE, TLE, MLE, OLE, PENDING) — OLE = Output Limit Exceeded (> 8 MB combined stdout+stderr)
 - ComparatorType (EXACT_MATCH, FLOATING_POINT)
 
 ## Exception Model

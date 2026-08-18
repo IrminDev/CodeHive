@@ -331,7 +331,7 @@ export function ExecutionReportPage() {
                         <span className="text-lg font-bold text-gray-900 dark:text-white tabular-nums">
                           {report?.maxMemoryUsedMb != null ? `${report.maxMemoryUsedMb}MB` : "—"}
                         </span>
-                        <span className="text-xs text-gray-400 dark:text-gray-500 font-mono">/512MB</span>
+                        <span className="text-xs text-gray-400 dark:text-gray-500 font-mono">/1000MB</span>
                       </div>
                       {report?.maxMemoryUsedMb != null && (
                         <div className="mt-2 h-1 rounded-full bg-gray-200 dark:bg-dark-card overflow-hidden">

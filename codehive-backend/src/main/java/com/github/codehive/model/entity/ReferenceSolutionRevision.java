@@ -45,6 +45,8 @@ public class ReferenceSolutionRevision {
 
     private Instant activatedAt;
 
+    private Instant artifactsPurgedAt;
+
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
     public Assignment getAssignment() { return assignment; }
@@ -59,4 +61,6 @@ public class ReferenceSolutionRevision {
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
     public Instant getActivatedAt() { return activatedAt; }
     public void setActivatedAt(Instant activatedAt) { this.activatedAt = activatedAt; }
+    public Instant getArtifactsPurgedAt() { return artifactsPurgedAt; }
+    public void setArtifactsPurgedAt(Instant artifactsPurgedAt) { this.artifactsPurgedAt = artifactsPurgedAt; }
 }

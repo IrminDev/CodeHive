@@ -8,6 +8,10 @@ Service files:
 - app/services/RecoveryPasswordService.ts
 - app/services/index.ts
 - app/features/teacher/api/assignment.api.ts
+- app/features/teacher/api/group.api.ts
+- app/features/teacher/api/student-work.api.ts
+- app/features/teacher/api/metrics.api.ts
+- app/features/teacher/api/client.ts
 
 Base URL strategy:
 - Uses VITE_API_URL when provided.
@@ -46,11 +50,33 @@ Behavior details:
 
 ## Teacher Assignment API
 
-- Lists active teacher groups and assignments per group.
+- Lists active teacher groups and paginated assignments per group.
 - Creates assignments with multipart metadata/reference/test files.
+- Retrieves and updates assignment metadata/schedules through multipart requests.
+- Deletes assignments logically.
 - Loads an owner-only complete clone-form snapshot.
 - Submits a complete edited clone snapshot as JSON, including reference source and test inputs.
 - Converts backend wrapper responses to typed feature data and surfaces API messages on failure.
+
+## Teacher Group API
+
+- Creates, lists, retrieves, and updates owned groups.
+- Lists active roster entries and removes active students.
+- Archives, unarchives, logically deletes, restores, and rotates join codes.
+
+## Teacher Student-Work API
+
+- Lists assignment student-work aggregates and submission history.
+- Saves draft grades and explicitly returns them to students.
+- Creates, lists, and logically deletes feedback.
+
+## Teacher Metrics API
+
+- Loads group overview, per-assignment, and per-student metrics.
+- Loads detailed metrics for one assignment.
+
+Teacher API modules share authenticated response/error parsing through
+`app/features/teacher/api/client.ts`.
 
 ## Type Contracts
 Services consume and return typed contracts from app/types:

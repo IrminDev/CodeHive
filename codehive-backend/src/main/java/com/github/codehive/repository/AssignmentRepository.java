@@ -58,4 +58,8 @@ public interface AssignmentRepository extends JpaRepository<Assignment, UUID> {
     List<Assignment> findReminderCandidates(@Param("status") AssignmentValidationStatus status,
                                             @Param("now") Instant now,
                                             @Param("maximum") Instant maximum);
+
+    List<Assignment> findByGroupIdAndIsActiveTrueOrderByCreatedAtDesc(UUID groupId);
+
+    List<Assignment> findByIsActiveFalseAndDeletedAtIsNull();
 }

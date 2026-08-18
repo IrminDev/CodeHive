@@ -9,13 +9,6 @@ import { useTheme } from "~/core/providers/ThemeProvider";
 import { joinGroup, listMyGroups } from "../api/group.api";
 import type { ClassGroup } from "../types/group.types";
 
-/* ── Mock data (DEV) ── */
-
-const MOCK_GROUPS: ClassGroup[] = [
-  { id: "g1", name: "CS-201 Algorithms",      code: "ALGO2025", schedule: "M-W-F",   isActive: true, archived: false, memberCount: 281 },
-  { id: "g2", name: "CS-310 Graph Theory",    code: "GRPH2025", schedule: "T-Th",    isActive: true, archived: false, memberCount: 310 },
-  { id: "g3", name: "CS-150 Intro to Python", code: "PY2025",   schedule: undefined, isActive: true, archived: true,  memberCount: 150 },
-];
 
 const BADGE_COLORS = [
   "bg-azure",
@@ -303,11 +296,11 @@ export function JoinGroupPage() {
                       </div>
 
                       {/* Status */}
-                      {g.archived ? (
+                      {g.status === "READ_ONLY" ? (
                         <span className="text-[10px] font-medium text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-dark-card border border-gray-200 dark:border-gray-700/60 px-2.5 py-1 rounded-full flex-shrink-0">
                           Read-only
                         </span>
-                      ) : g.isActive ? (
+                      ) : g.status === "ACTIVE" ? (
                         <div className="flex items-center gap-1.5 flex-shrink-0">
                           <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
                           <span className="text-xs text-green-500 font-medium">Active</span>

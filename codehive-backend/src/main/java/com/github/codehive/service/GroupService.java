@@ -108,6 +108,7 @@ public class GroupService {
             throw new AccessDeniedException("Only students can join groups");
         }
         ClassGroup group = groupRepository.findByJoinCodeIgnoreCase(joinCode.trim())
+                .filter(candidate -> Boolean.TRUE.equals(candidate.getIsActive()))
                 .orElseThrow(() -> new EntityNotFoundException("No active group uses that join code"));
         if (group.getOwner().getId().equals(student.getId())) {
             throw new ValidationException("Group owners cannot enroll in their own group");
@@ -183,14 +184,22 @@ public class GroupService {
         ClassGroup group = requireOwnedGroup(id, email);
         group.setIsActive(false);
         group.setArchived(true);
+        if (group.getDeletedAt() == null) group.setDeletedAt(java.time.Instant.now());
         touch(group);
+        notificationPublisher.publish(NotificationDomainEvent.of(
+                NotificationType.GROUP_ARCHIVED, group.getOwner().getId(), null,
+                group.getId(), null, null));
     }
 
     @Transactional
     public GroupDTO restore(UUID id, String email) {
         ClassGroup group = requireOwnedGroup(id, email);
+        if (Boolean.TRUE.equals(group.getIsActive())) {
+            throw new ValidationException("Group is not deleted");
+        }
         group.setIsActive(true);
         group.setArchived(true);
+        group.setDeletedAt(null);
         touch(group);
         return GroupMapper.toDTO(group, true);
     }

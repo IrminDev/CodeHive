@@ -14,7 +14,6 @@ import com.github.codehive.model.entity.AssignmentFeedback;
 import com.github.codehive.model.entity.StudentAssignmentWork;
 import com.github.codehive.model.entity.User;
 import com.github.codehive.model.enums.FeedbackStatus;
-import com.github.codehive.model.enums.Role;
 import com.github.codehive.model.enums.NotificationType;
 import com.github.codehive.model.exception.EntityNotFoundException;
 import com.github.codehive.repository.AssignmentFeedbackRepository;
@@ -49,7 +48,7 @@ public class AssignmentFeedbackService {
 
     @Transactional
     public AssignmentFeedbackDTO create(UUID assignmentId, UUID studentId, String body, String email) {
-        User teacher = requireTeacher(email);
+        User teacher = requireUser(email);
         Assignment assignment = requireOwnedAssignment(assignmentId, teacher);
         User student = userRepository.findById(studentId)
                 .orElseThrow(() -> new EntityNotFoundException("Student not found: " + studentId));
@@ -67,7 +66,7 @@ public class AssignmentFeedbackService {
 
     @Transactional
     public void delete(UUID feedbackId, String email) {
-        User teacher = requireTeacher(email);
+        User teacher = requireUser(email);
         AssignmentFeedback feedback = feedbackRepository.findById(feedbackId)
                 .orElseThrow(() -> new EntityNotFoundException("Feedback not found: " + feedbackId));
         requireOwnedAssignment(feedback.getStudentWork().getAssignment().getId(), teacher);
@@ -79,11 +78,11 @@ public class AssignmentFeedbackService {
 
     @Transactional(readOnly = true)
     public List<AssignmentFeedbackDTO> list(UUID assignmentId, UUID studentId, String email) {
-        User caller = userRepository.findByEmail(email)
-                .orElseThrow(() -> new EntityNotFoundException("Authenticated user not found"));
-        if (caller.getRole() == Role.TEACHER) {
-            requireOwnedAssignment(assignmentId, caller);
-        } else if (!caller.getId().equals(studentId)) {
+        User caller = requireUser(email);
+        Assignment assignment = assignmentRepository.findById(assignmentId)
+                .orElseThrow(() -> new EntityNotFoundException("Assignment not found: " + assignmentId));
+        boolean owner = assignment.getGroup().getOwner().getId().equals(caller.getId());
+        if (!owner && !caller.getId().equals(studentId)) {
             throw new AccessDeniedException("Students can only view their own feedback");
         }
         StudentAssignmentWork work = workRepository.findByAssignmentIdAndStudentId(assignmentId, studentId)
@@ -101,13 +100,9 @@ public class AssignmentFeedbackService {
         return assignment;
     }
 
-    private User requireTeacher(String email) {
-        User user = userRepository.findByEmail(email)
+    private User requireUser(String email) {
+        return userRepository.findByEmail(email)
                 .orElseThrow(() -> new EntityNotFoundException("Authenticated user not found"));
-        if (user.getRole() != Role.TEACHER) {
-            throw new AccessDeniedException("Only teachers can manage feedback");
-        }
-        return user;
     }
 
     private AssignmentFeedbackDTO toDTO(AssignmentFeedback feedback) {

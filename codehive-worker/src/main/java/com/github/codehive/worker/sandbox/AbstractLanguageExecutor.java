@@ -379,7 +379,7 @@ public abstract class AbstractLanguageExecutor implements LanguageExecutor {
 
         if (truncated[0]) {
             return ExecutionResult.outputLimitExceeded(
-                    stdout + "\n[Output truncated: exceeded 4 MB limit]", executionTime);
+                    stdout + "\n[Output truncated: exceeded 8 MB limit]", executionTime);
         }
         if (exitCode == 124L) {
             return ExecutionResult.timeLimitExceeded(session.getTimeLimitMs());

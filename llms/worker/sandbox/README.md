@@ -30,6 +30,8 @@ Returns ExecutionResult with:
 - exitCode
 - compilationError (when applicable)
 
+Job-supplied limits are clamped to 100–10,000 ms, 16–1,000 MB, and at most 50 test cases per job.
+
 ## Container Security Hardening
 All containers (both compile and execute phases) apply these restrictions:
 
@@ -53,7 +55,7 @@ Seccomp profile blocks: `unshare`, `ptrace`, `bpf`, `io_uring_*`, `keyctl`, `mou
 Temp directory permissions are set to `rwxrwxrwx` so `nobody` can access the workspace. Source and input files are set to `r--r--r--`.
 
 ## Output Size Limit (OLE verdict)
-stdout and stderr are captured with a shared 4 MB cap across both streams. When exceeded the executor returns `ExecutionResult.outputLimitExceeded()` with status `OLE`.
+stdout and stderr are captured with a shared 8 MB cap across both streams. When exceeded the executor returns `ExecutionResult.outputLimitExceeded()` with status `OLE`.
 
 Compilation stderr is separately capped at 256 KB.
 

@@ -531,6 +531,7 @@ export function AssignmentPage() {
             {/* AI panel header */}
             <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700/60 bg-gray-50 dark:bg-dark-surface">
               <div className="flex items-center gap-2">
+                <span className="text-sm leading-none">✨</span>
                 <span className="text-xs font-semibold text-gray-700 dark:text-gray-200">AI Assistant</span>
               </div>
               <button
@@ -963,6 +964,49 @@ function ResultsStatusBar({
   );
 }
 
+function ResultsStatusBar({
+  report,
+  timeLimitMs,
+  memoryLimitMb,
+}: {
+  report: ExecutionReport;
+  timeLimitMs: number;
+  memoryLimitMb: number;
+}) {
+  const pct = report.totalTests > 0 ? (report.passedTests / report.totalTests) * 100 : 0;
+  const allPassed = report.passedTests === report.totalTests;
+
+  return (
+    <div className="h-8 flex-shrink-0 flex items-center gap-3 px-3 border-t border-gray-200 dark:border-gray-800/60 bg-gray-50 dark:bg-dark-bg">
+      <span className={`px-2 py-0.5 rounded border text-[10px] font-bold flex-shrink-0 ${VERDICT_STYLES[report.overallStatus] ?? ""}`}>
+        {report.overallStatus}
+      </span>
+
+      <span className="text-[10px] text-gray-500 dark:text-gray-400 flex-shrink-0">
+        {report.passedTests}/{report.totalTests} cases passed
+      </span>
+
+      {/* Progress bar */}
+      <div className="flex-1 h-1 rounded-full bg-gray-200 dark:bg-gray-800 overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-all ${allPassed ? "bg-green-500" : "bg-red-500"}`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+
+      <div className="flex items-center gap-3 text-[10px] text-gray-400 dark:text-gray-600 font-mono flex-shrink-0">
+        {report.maxExecutionTimeMs !== undefined && (
+          <span>time {report.maxExecutionTimeMs}ms/{timeLimitMs}ms</span>
+        )}
+        {report.maxMemoryUsedMb !== undefined && (
+          <span>mem {report.maxMemoryUsedMb?.toFixed(1)}MB/{memoryLimitMb}MB</span>
+        )}
+        <span>exit 0</span>
+      </div>
+    </div>
+  );
+}
+
 /* ── Shared small components ── */
 
 function MetricChip({ icon, label }: { icon: React.ReactNode; label: string }) {
@@ -970,7 +1014,7 @@ function MetricChip({ icon, label }: { icon: React.ReactNode; label: string }) {
     <span className="hidden sm:inline-flex items-center gap-1.5 text-[10px] text-gray-500 dark:text-gray-500 font-mono">
       <span className="text-gray-400 dark:text-gray-600">{icon}</span>
       {label}
-    </span>
+    </div>
   );
 }
 

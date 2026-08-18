@@ -19,12 +19,14 @@ Primary classes:
    - Part `metadata`: JSON matching CreateAssignmentRequest.
    - Part `referenceSolution`: source file.
    - Part `testCaseInputs`: list of test case input files.
+   - Validation rejects more than 50 test inputs, a time limit outside 100–10,000 ms,
+     or a memory limit outside 16–1,000 MB.
 2. AssignmentService:
    - Creates a logically active Assignment with validationStatus PROCESSING.
-   - Creates ReferenceSolution entity.
-   - Creates TestCase entities (order = upload position, isSample from sampleFlags).
-   - Uploads reference solution to `test-suites/assignments/{id}/reference/Main.{ext}`.
-   - Uploads each test case input to `test-suites/assignments/{id}/tc-{tcId}/tc{tcId}.in`.
+   - Creates a PROCESSING ReferenceSolutionRevision and TestSuiteRevision.
+   - Creates TestCase entities bound to that test-suite revision (order = upload position, isSample from sampleFlags).
+   - Uploads reference solution to `assignments/{assignmentId}/test-suite-revisions/{revisionId}/reference/Main.{ext}`.
+   - Uploads each test case input under its test-suite revision path.
    - Publishes TestGenerationJob to `codehive_test_generation_queue`.
 3. Worker generates expected outputs and publishes TestGenerationResult.
 4. TestGenerationResultListener sets validationStatus READY on success or FAILED on failure.
@@ -89,7 +91,7 @@ Full report response (from MinIO):
 
 ## Execution Job Construction
 PRACTICE mode:
-- Loads first ReferenceSolution for the assignment to get language and reference path.
+- Loads Assignment.activeReferenceSolutionRevision for language and reference path.
 - Uses inline testCases from the request.
 - timeLimitMs, memoryLimitMb, comparatorType come from Assignment entity.
 
@@ -121,4 +123,4 @@ Repositories:
 - repository/AssignmentRepository.java
 - repository/ExecutionRepository.java
 - repository/TestCaseRepository.java
-- repository/ReferenceSolutionRepository.java
+- repository/ReferenceSolutionRevisionRepository.java

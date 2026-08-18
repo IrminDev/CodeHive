@@ -27,6 +27,8 @@ class SubmissionLifecycleServiceTest {
             UUID.fromString("00000000-0000-0000-0000-000000000001");
     private static final UUID SUBMISSION_ID =
             UUID.fromString("00000000-0000-0000-0000-000000000002");
+    private static final UUID OTHER_STUDENT_ID =
+            UUID.fromString("00000000-0000-0000-0000-000000000003");
 
     @Test
     void withdrawsTheCurrentSubmissionBeforeCloseDate() {
@@ -50,6 +52,36 @@ class SubmissionLifecycleServiceTest {
                 .hasMessageContaining("closed");
     }
 
+    @Test
+    void rejectsWithdrawalByAnotherStudentWithoutChangingSubmission() {
+        Fixture fixture = fixture(Instant.now().plus(1, ChronoUnit.DAYS));
+        User otherStudent = new User();
+        otherStudent.setId(OTHER_STUDENT_ID);
+        when(fixture.userRepository.findByEmail("other@example.com"))
+                .thenReturn(Optional.of(otherStudent));
+
+        assertThatThrownBy(() -> fixture.service.withdraw(SUBMISSION_ID, "other@example.com"))
+                .isInstanceOf(org.springframework.security.access.AccessDeniedException.class)
+                .hasMessageContaining("own submissions");
+
+        assertThat(fixture.submission.getStatus()).isEqualTo(SubmissionStatus.SUBMITTED);
+        assertThat(fixture.work.getCurrentSubmission()).isSameAs(fixture.submission);
+    }
+
+    @Test
+    void rejectsWithdrawalOfSubmissionThatIsNoLongerCurrent() {
+        Fixture fixture = fixture(Instant.now().plus(1, ChronoUnit.DAYS));
+        Submission newerSubmission = new Submission();
+        newerSubmission.setId(UUID.fromString("00000000-0000-0000-0000-000000000004"));
+        fixture.work.setCurrentSubmission(newerSubmission);
+
+        assertThatThrownBy(() -> fixture.service.withdraw(SUBMISSION_ID, "student@example.com"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("current submission");
+
+        assertThat(fixture.submission.getStatus()).isEqualTo(SubmissionStatus.SUBMITTED);
+    }
+
     private Fixture fixture(Instant closeDate) {
         SubmissionRepository submissionRepository = mock(SubmissionRepository.class);
         UserRepository userRepository = mock(UserRepository.class);
@@ -69,10 +101,10 @@ class SubmissionLifecycleServiceTest {
         when(userRepository.findByEmail("student@example.com")).thenReturn(Optional.of(student));
         when(submissionRepository.findById(SUBMISSION_ID)).thenReturn(Optional.of(submission));
         return new Fixture(new SubmissionLifecycleService(submissionRepository, userRepository),
-                submission, work);
+                submission, work, userRepository);
     }
 
     private record Fixture(SubmissionLifecycleService service, Submission submission,
-                           StudentAssignmentWork work) {
+                           StudentAssignmentWork work, UserRepository userRepository) {
     }
 }

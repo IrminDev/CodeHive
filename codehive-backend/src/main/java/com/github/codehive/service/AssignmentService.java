@@ -29,24 +29,22 @@ import com.github.codehive.model.dto.queue.TestGenerationJob;
 import com.github.codehive.model.entity.Assignment;
 import com.github.codehive.model.entity.AssignmentExample;
 import com.github.codehive.model.entity.ClassGroup;
-import com.github.codehive.model.entity.ReferenceSolution;
 import com.github.codehive.model.entity.ReferenceSolutionRevision;
 import com.github.codehive.model.entity.TestCase;
 import com.github.codehive.model.entity.TestSuiteRevision;
 import com.github.codehive.model.entity.User;
 import com.github.codehive.model.enums.AssignmentValidationStatus;
 import com.github.codehive.model.enums.EnrollmentStatus;
-import com.github.codehive.model.enums.Role;
 import com.github.codehive.model.exception.EntityNotFoundException;
 import com.github.codehive.model.exception.ValidationException;
 import com.github.codehive.model.mapper.AssignmentMapper;
 import com.github.codehive.model.request.assignment.AssignmentExampleRequest;
+import com.github.codehive.model.request.assignment.AssignmentLimits;
 import com.github.codehive.model.request.assignment.CloneAssignmentRequest;
 import com.github.codehive.model.request.assignment.CloneTestCaseRequest;
 import com.github.codehive.model.request.assignment.CreateAssignmentRequest;
 import com.github.codehive.repository.AssignmentRepository;
 import com.github.codehive.repository.GroupEnrollmentRepository;
-import com.github.codehive.repository.ReferenceSolutionRepository;
 import com.github.codehive.repository.ReferenceSolutionRevisionRepository;
 import com.github.codehive.repository.TestCaseRepository;
 import com.github.codehive.repository.TestSuiteRevisionRepository;
@@ -60,7 +58,6 @@ public class AssignmentService {
 
     private final AssignmentRepository assignmentRepository;
     private final TestCaseRepository testCaseRepository;
-    private final ReferenceSolutionRepository referenceSolutionRepository;
     private final ReferenceSolutionRevisionRepository referenceSolutionRevisionRepository;
     private final TestSuiteRevisionRepository testSuiteRevisionRepository;
     private final ObjectStorageService objectStorageService;
@@ -70,7 +67,6 @@ public class AssignmentService {
     private final GroupService groupService;
 
     public AssignmentService(AssignmentRepository assignmentRepository, TestCaseRepository testCaseRepository,
-                             ReferenceSolutionRepository referenceSolutionRepository,
                              ReferenceSolutionRevisionRepository referenceSolutionRevisionRepository,
                              TestSuiteRevisionRepository testSuiteRevisionRepository,
                              ObjectStorageService objectStorageService,
@@ -79,7 +75,6 @@ public class AssignmentService {
                              GroupService groupService) {
         this.assignmentRepository = assignmentRepository;
         this.testCaseRepository = testCaseRepository;
-        this.referenceSolutionRepository = referenceSolutionRepository;
         this.referenceSolutionRevisionRepository = referenceSolutionRevisionRepository;
         this.testSuiteRevisionRepository = testSuiteRevisionRepository;
         this.objectStorageService = objectStorageService;
@@ -108,17 +103,15 @@ public class AssignmentService {
         authorizeRead(assignment, user);
         AssignmentDTO dto = AssignmentMapper.toDTO(assignment);
 
-        List<TestCase> sampleEntities = assignment.getActiveTestSuiteRevision() != null
-                ? testCaseRepository.findByTestSuiteRevisionIdAndIsSampleOrderByOrderAsc(
-                        assignment.getActiveTestSuiteRevision().getId(), true)
-                : testCaseRepository.findByAssignmentIdAndIsSample(id, true);
+        TestSuiteRevision testSuiteRevision = resolveCurrentTestSuiteRevision(assignment);
+        List<TestCase> sampleEntities = testCaseRepository.findByTestSuiteRevisionIdAndIsSampleOrderByOrderAsc(
+                testSuiteRevision.getId(), true);
         List<TestCase> samples = sampleEntities.stream()
                 .sorted(Comparator.comparing(TestCase::getOrder)).toList();
         List<SampleTestCaseDTO> sampleDTOs = new ArrayList<>();
         for (TestCase tc : samples) {
-            String inputKey = tc.getTestSuiteRevision() != null
-                    ? ObjectKeyBuilder.testCaseInput(id, tc.getTestSuiteRevision().getId(), tc.getId())
-                    : ObjectKeyBuilder.testCaseInput(id, tc.getId());
+            String inputKey = ObjectKeyBuilder.testCaseInput(
+                    id, testSuiteRevision.getId(), tc.getId());
             try (InputStream stream = objectStorageService.download(inputKey)) {
                 sampleDTOs.add(new SampleTestCaseDTO(tc.getOrder(),
                         new String(stream.readAllBytes(), StandardCharsets.UTF_8)));
@@ -133,25 +126,24 @@ public class AssignmentService {
     @Transactional
     public AssignmentDTO createAssignment(CreateAssignmentRequest request, MultipartFile referenceSolutionFile,
                                           List<MultipartFile> testCaseInputFiles, String email) {
-        User author = requireTeacher(email);
+        User author = requireUser(email);
         ClassGroup group = groupService.requireOwnedWritableGroup(request.getGroupId(), author);
         validateDates(request.getLaunchDate(), request.getDueDate(), request.getCloseDate());
         if (testCaseInputFiles == null || testCaseInputFiles.isEmpty()) {
             throw new ValidationException("At least one test case input is required");
         }
+        validateLimits(request.getTimeLimitMs(), request.getMemoryLimitMb(), testCaseInputFiles.size());
 
         Assignment assignment = baseAssignment(request, group, author);
         addExamples(assignment, request.getExamples());
         assignment = assignmentRepository.save(assignment);
 
-        ReferenceSolution reference = referenceSolutionRepository.save(
-                new ReferenceSolution(assignment, request.getReferenceLanguage()));
         ReferenceSolutionRevision referenceRevision = new ReferenceSolutionRevision();
         referenceRevision.setAssignment(assignment);
         referenceRevision.setLanguage(request.getReferenceLanguage());
         referenceRevision.setObjectKey("pending");
         referenceRevision = referenceSolutionRevisionRepository.save(referenceRevision);
-        String extension = FileExtensionUtil.getFileExtensionByLanguage(reference.getLanguage());
+        String extension = FileExtensionUtil.getFileExtensionByLanguage(request.getReferenceLanguage());
         String referencePath = ObjectKeyBuilder.referenceSolutionSourceCode(
                 assignment.getId(), referenceRevision.getId(), extension);
         referenceRevision.setObjectKey(referencePath);
@@ -171,7 +163,7 @@ public class AssignmentService {
 
     @Transactional
     public AssignmentDTO cloneAssignment(UUID sourceId, CloneAssignmentRequest request, String email) {
-        User teacher = requireTeacher(email);
+        User teacher = requireUser(email);
         Assignment source = requireAssignment(sourceId);
         if (!source.getGroup().getOwner().getId().equals(teacher.getId())) {
             throw new AccessDeniedException("Only the source assignment owner can clone it");
@@ -181,6 +173,7 @@ public class AssignmentService {
             throw new ValidationException("Target group must be different from the source group");
         }
         validateDates(request.getLaunchDate(), request.getDueDate(), request.getCloseDate());
+        validateLimits(request.getTimeLimitMs(), request.getMemoryLimitMb(), request.getTestCases().size());
 
         Assignment clone = new Assignment(request.getTitle(), request.getDescription(), request.getTimeLimitMs(),
                 request.getMemoryLimitMb(), request.getComparatorType());
@@ -199,7 +192,6 @@ public class AssignmentService {
         addExamples(clone, request.getExamples());
         clone = assignmentRepository.save(clone);
 
-        referenceSolutionRepository.save(new ReferenceSolution(clone, request.getReferenceLanguage()));
         ReferenceSolutionRevision cloneReferenceRevision = new ReferenceSolutionRevision();
         cloneReferenceRevision.setAssignment(clone);
         cloneReferenceRevision.setLanguage(request.getReferenceLanguage());
@@ -220,9 +212,9 @@ public class AssignmentService {
         List<TestCaseInfo> infos = new ArrayList<>();
         for (int index = 0; index < request.getTestCases().size(); index++) {
             CloneTestCaseRequest requestedCase = request.getTestCases().get(index);
-            TestCase clonedCase = testCaseRepository.save(
-                    new TestCase(clone, index + 1, Boolean.TRUE.equals(requestedCase.getSample())));
-            clonedCase.setTestSuiteRevision(cloneTestSuiteRevision);
+            TestCase clonedCase = testCaseRepository.save(new TestCase(
+                    clone, cloneTestSuiteRevision, index + 1,
+                    Boolean.TRUE.equals(requestedCase.getSample())));
             String input = ObjectKeyBuilder.testCaseInput(
                     clone.getId(), cloneTestSuiteRevision.getId(), clonedCase.getId());
             String output = ObjectKeyBuilder.testCaseExpectedOutput(
@@ -236,33 +228,28 @@ public class AssignmentService {
 
     @Transactional(readOnly = true)
     public CloneAssignmentFormDTO getCloneForm(UUID sourceId, String email) {
-        User teacher = requireTeacher(email);
+        User teacher = requireUser(email);
         Assignment source = requireAssignment(sourceId);
         if (!source.getGroup().getOwner().getId().equals(teacher.getId())) {
             throw new AccessDeniedException("Only the source assignment owner can clone it");
         }
 
-        ReferenceSolution sourceReference = referenceSolutionRepository.findByAssignmentId(sourceId).stream()
-                .findFirst()
-                .orElseThrow(() -> new EntityNotFoundException("Source assignment has no reference solution"));
-        ReferenceSolutionRevision activeReference = source.getActiveReferenceSolutionRevision();
-        var referenceLanguage = activeReference != null
-                ? activeReference.getLanguage() : sourceReference.getLanguage();
-        String referencePath = activeReference != null
-                ? activeReference.getObjectKey()
-                : ObjectKeyBuilder.referenceSolutionSourceCode(
-                        sourceId, FileExtensionUtil.getFileExtensionByLanguage(referenceLanguage));
+        ReferenceSolutionRevision sourceReference = source.getActiveReferenceSolutionRevision() != null
+                ? source.getActiveReferenceSolutionRevision()
+                : referenceSolutionRevisionRepository.findByAssignmentIdOrderByCreatedAtDesc(sourceId).stream()
+                        .findFirst()
+                        .orElseThrow(() -> new EntityNotFoundException(
+                                "Source assignment has no reference solution revision"));
+        var referenceLanguage = sourceReference.getLanguage();
+        String referencePath = sourceReference.getObjectKey();
 
-        List<TestCase> sourceCases = source.getActiveTestSuiteRevision() != null
-                ? testCaseRepository.findByTestSuiteRevisionIdOrderByOrderAsc(
-                        source.getActiveTestSuiteRevision().getId())
-                : testCaseRepository.findByAssignmentIdOrderByOrderAsc(sourceId);
+        TestSuiteRevision sourceTestSuite = resolveCurrentTestSuiteRevision(source);
+        List<TestCase> sourceCases = testCaseRepository.findByTestSuiteRevisionIdOrderByOrderAsc(
+                sourceTestSuite.getId());
         List<CloneAssignmentTestCaseDTO> testCases = new ArrayList<>();
         for (TestCase sourceCase : sourceCases) {
-            String inputPath = sourceCase.getTestSuiteRevision() != null
-                    ? ObjectKeyBuilder.testCaseInput(
-                            sourceId, sourceCase.getTestSuiteRevision().getId(), sourceCase.getId())
-                    : ObjectKeyBuilder.testCaseInput(sourceId, sourceCase.getId());
+            String inputPath = ObjectKeyBuilder.testCaseInput(
+                    sourceId, sourceTestSuite.getId(), sourceCase.getId());
             testCases.add(new CloneAssignmentTestCaseDTO(
                     sourceCase.getOrder(), readTextObject(inputPath), sourceCase.getIsSample()));
         }
@@ -290,12 +277,13 @@ public class AssignmentService {
 
     @Transactional
     public void softDelete(UUID id, String email) {
-        User teacher = requireTeacher(email);
+        User teacher = requireUser(email);
         Assignment assignment = requireAssignment(id);
         if (!assignment.getGroup().getOwner().getId().equals(teacher.getId())) {
             throw new AccessDeniedException("Only the group owner can delete this assignment");
         }
         assignment.setIsActive(false);
+        if (assignment.getDeletedAt() == null) assignment.setDeletedAt(Instant.now());
     }
 
     private Assignment baseAssignment(CreateAssignmentRequest request, ClassGroup group, User author) {
@@ -333,8 +321,8 @@ public class AssignmentService {
         for (int index = 0; index < files.size(); index++) {
             boolean sample = sampleFlags != null && index < sampleFlags.size()
                     && Boolean.TRUE.equals(sampleFlags.get(index));
-            TestCase testCase = testCaseRepository.save(new TestCase(assignment, index + 1, sample));
-            testCase.setTestSuiteRevision(revision);
+            TestCase testCase = testCaseRepository.save(
+                    new TestCase(assignment, revision, index + 1, sample));
             String inputPath = ObjectKeyBuilder.testCaseInput(
                     assignment.getId(), revision.getId(), testCase.getId());
             String outputPath = ObjectKeyBuilder.testCaseExpectedOutput(
@@ -356,6 +344,15 @@ public class AssignmentService {
         job.setReferenceSolutionRevisionId(referenceRevision.getId());
         job.setComparatorType(assignment.getComparatorType());
         testGenerationRequestProducer.sendTestGenerationRequest(job);
+    }
+
+    private TestSuiteRevision resolveCurrentTestSuiteRevision(Assignment assignment) {
+        if (assignment.getActiveTestSuiteRevision() != null) {
+            return assignment.getActiveTestSuiteRevision();
+        }
+        return testSuiteRevisionRepository.findTopByAssignmentIdOrderByRevisionNumberDesc(assignment.getId())
+                .orElseThrow(() -> new EntityNotFoundException(
+                        "Assignment has no test suite revision: " + assignment.getId()));
     }
 
     private void authorizeRead(Assignment assignment, User user) {
@@ -397,6 +394,20 @@ public class AssignmentService {
         }
     }
 
+    private void validateLimits(Long timeLimitMs, Long memoryLimitMb, int testCaseCount) {
+        if (timeLimitMs == null || timeLimitMs < AssignmentLimits.MIN_TIME_LIMIT_MS
+                || timeLimitMs > AssignmentLimits.MAX_TIME_LIMIT_MS) {
+            throw new ValidationException("Time limit must be between 100 and 10000ms");
+        }
+        if (memoryLimitMb == null || memoryLimitMb < AssignmentLimits.MIN_MEMORY_LIMIT_MB
+                || memoryLimitMb > AssignmentLimits.MAX_MEMORY_LIMIT_MB) {
+            throw new ValidationException("Memory limit must be between 16 and 1000MB");
+        }
+        if (testCaseCount > AssignmentLimits.MAX_TEST_CASES) {
+            throw new ValidationException("At most 50 test cases are allowed");
+        }
+    }
+
     private Assignment requireAssignment(UUID id) {
         return assignmentRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Assignment not found: " + id));
@@ -405,12 +416,6 @@ public class AssignmentService {
     private User requireUser(String email) {
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new EntityNotFoundException("Authenticated user not found"));
-    }
-
-    private User requireTeacher(String email) {
-        User user = requireUser(email);
-        if (user.getRole() != Role.TEACHER) throw new AccessDeniedException("Only teachers can manage assignments");
-        return user;
     }
 
     private void uploadMultipartFile(String path, MultipartFile file) {

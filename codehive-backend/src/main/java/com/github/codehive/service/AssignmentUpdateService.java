@@ -32,7 +32,6 @@ import com.github.codehive.model.entity.User;
 import com.github.codehive.model.enums.AssignmentUpdateKind;
 import com.github.codehive.model.enums.AssignmentUpdateStatus;
 import com.github.codehive.model.enums.RevisionStatus;
-import com.github.codehive.model.enums.Role;
 import com.github.codehive.model.enums.TestGenerationMode;
 import com.github.codehive.model.enums.TestSuiteUpdateMode;
 import com.github.codehive.model.enums.GradeChangeReason;
@@ -40,6 +39,7 @@ import com.github.codehive.model.enums.NotificationType;
 import com.github.codehive.model.exception.EntityNotFoundException;
 import com.github.codehive.model.exception.ValidationException;
 import com.github.codehive.model.request.assignment.AssignmentExampleRequest;
+import com.github.codehive.model.request.assignment.AssignmentLimits;
 import com.github.codehive.model.request.assignment.UpdateAssignmentRequest;
 import com.github.codehive.repository.AssignmentRepository;
 import com.github.codehive.repository.AssignmentUpdateRepository;
@@ -106,7 +106,7 @@ public class AssignmentUpdateService {
                                       MultipartFile referenceSolution,
                                       List<MultipartFile> replacementTestCases,
                                       String email) {
-        User teacher = requireTeacher(email);
+        User teacher = requireUser(email);
         Assignment assignment = requireAssignment(assignmentId);
         groupService.requireOwnedWritableGroup(assignment.getGroup().getId(), teacher);
         if (updateRepository.existsByAssignmentIdAndStatus(
@@ -117,6 +117,7 @@ public class AssignmentUpdateService {
         boolean hasReference = referenceSolution != null && !referenceSolution.isEmpty();
         boolean hasTests = replacementTestCases != null && !replacementTestCases.isEmpty();
         validateProposedDates(assignment, request);
+        validateProposedLimits(assignment, request, replacementTestCases);
 
         AssignmentUpdate update = baseUpdate(assignment, teacher, request);
         if (!hasReference && !hasTests) {
@@ -173,7 +174,7 @@ public class AssignmentUpdateService {
 
     @Transactional(readOnly = true)
     public AssignmentUpdateDTO get(UUID updateId, String email) {
-        User teacher = requireTeacher(email);
+        User teacher = requireUser(email);
         AssignmentUpdate update = updateRepository.findById(updateId)
                 .orElseThrow(() -> new EntityNotFoundException("Assignment update not found: " + updateId));
         if (!update.getAssignment().getGroup().getOwner().getId().equals(teacher.getId())) {
@@ -329,8 +330,7 @@ public class AssignmentUpdateService {
                 for (TestCase existing : testCaseRepository
                         .findByTestSuiteRevisionIdOrderByOrderAsc(active.getId())) {
                     TestCase copied = new TestCase(
-                            assignment, existing.getOrder(), existing.getIsSample());
-                    copied.setTestSuiteRevision(revision);
+                            assignment, revision, existing.getOrder(), existing.getIsSample());
                     copied = testCaseRepository.save(copied);
                     String input = ObjectKeyBuilder.testCaseInput(
                             assignment.getId(), revision.getId(), copied.getId());
@@ -346,8 +346,8 @@ public class AssignmentUpdateService {
         for (int index = 0; index < files.size(); index++) {
             boolean sample = sampleFlags != null && index < sampleFlags.size()
                     && Boolean.TRUE.equals(sampleFlags.get(index));
-            TestCase testCase = new TestCase(assignment, orderOffset + index + 1, sample);
-            testCase.setTestSuiteRevision(revision);
+            TestCase testCase = new TestCase(
+                    assignment, revision, orderOffset + index + 1, sample);
             testCase = testCaseRepository.save(testCase);
             String input = ObjectKeyBuilder.testCaseInput(
                     assignment.getId(), revision.getId(), testCase.getId());
@@ -462,6 +462,30 @@ public class AssignmentUpdateService {
         }
     }
 
+    private void validateProposedLimits(Assignment assignment, UpdateAssignmentRequest request,
+                                        List<MultipartFile> replacementTestCases) {
+        Long timeLimitMs = request.getTimeLimitMs();
+        if (timeLimitMs != null && (timeLimitMs < AssignmentLimits.MIN_TIME_LIMIT_MS
+                || timeLimitMs > AssignmentLimits.MAX_TIME_LIMIT_MS)) {
+            throw new ValidationException("Time limit must be between 100 and 10000ms");
+        }
+        Long memoryLimitMb = request.getMemoryLimitMb();
+        if (memoryLimitMb != null && (memoryLimitMb < AssignmentLimits.MIN_MEMORY_LIMIT_MB
+                || memoryLimitMb > AssignmentLimits.MAX_MEMORY_LIMIT_MB)) {
+            throw new ValidationException("Memory limit must be between 16 and 1000MB");
+        }
+        if (replacementTestCases == null || replacementTestCases.isEmpty()) return;
+        int total = replacementTestCases.size();
+        if (request.getTestSuiteUpdateMode() == null
+                || request.getTestSuiteUpdateMode() == TestSuiteUpdateMode.APPEND) {
+            TestSuiteRevision active = assignment.getActiveTestSuiteRevision();
+            if (active != null) total += testCaseRepository.countByTestSuiteRevisionId(active.getId());
+        }
+        if (total > AssignmentLimits.MAX_TEST_CASES) {
+            throw new ValidationException("At most 50 test cases are allowed");
+        }
+    }
+
     private void validateNotPast(String field, Instant value) {
         if (value != null && value.isBefore(Instant.now())) {
             throw new ValidationException(field + " date cannot be before the current time");
@@ -561,13 +585,9 @@ public class AssignmentUpdateService {
                 .orElseThrow(() -> new EntityNotFoundException("Assignment not found: " + id));
     }
 
-    private User requireTeacher(String email) {
-        User user = userRepository.findByEmail(email)
+    private User requireUser(String email) {
+        return userRepository.findByEmail(email)
                 .orElseThrow(() -> new EntityNotFoundException("Authenticated user not found"));
-        if (user.getRole() != Role.TEACHER) {
-            throw new AccessDeniedException("Only teachers can update assignments");
-        }
-        return user;
     }
 
     private AssignmentUpdateDTO toDTO(AssignmentUpdate update) {
