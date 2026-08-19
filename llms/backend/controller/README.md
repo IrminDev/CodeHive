@@ -50,6 +50,8 @@ Error handling is centralized in:
 - Listings require groupId and are ownership/enrollment aware.
 - `GET /api/assignments/{id}/clone-form` is teacher-owner-only and returns all editable
   metadata, examples, reference source, and test inputs. Source dates are intentionally omitted.
+- `GET /api/assignments/{id}/preview` is owner-only and returns read-only assignment metadata,
+  reference source, private test inputs, and generated expected outputs when validation is READY.
 - `POST /api/assignments/{id}/clone` accepts the complete edited clone snapshot, creates it
   in another owned active writable group, and queues output generation.
 - `DELETE /api/assignments/{id}` performs logical deletion.
@@ -59,6 +61,13 @@ Error handling is centralized in:
 - Owners can update, list roster, remove students, archive/unarchive, logical delete/restore, and rotate join code regardless of role.
 - Student: join by code and leave.
 - Both roles list and retrieve only accessible groups; join codes are never exposed to students.
+
+### SubmissionController
+
+- `GET /api/submissions/mine` is student-only and returns a bounded recent-submission feed with latest execution verdict and time.
+- `GET /api/submissions/mine/group/{groupId}` is student-only and returns the current
+  submitted work for accessible group assignments. It is used for delivery-state flags;
+  withdrawn work is excluded.
 
 ### AdminUserController
 - Lists and retrieves users with `VIEW_USERS`.

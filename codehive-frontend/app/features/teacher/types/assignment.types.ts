@@ -3,7 +3,7 @@ export type Language = "JAVA" | "PYTHON" | "CPP" | "C";
 export type AssignmentValidationStatus = "PROCESSING" | "READY" | "FAILED";
 export type AssignmentUpdateStatus = "VALIDATING" | "APPLIED" | "REJECTED";
 export type AssignmentUpdateKind = "METADATA" | "REFERENCE_ONLY" | "TEST_SUITE";
-export type TestSuiteUpdateMode = "APPEND" | "REPLACE";
+export type TestSuiteUpdateMode = "APPEND" | "REPLACE_ALL";
 
 export interface AssignmentExample {
   input: string;
@@ -87,6 +87,20 @@ export interface CloneAssignmentForm {
   examples: AssignmentExample[];
   testCases: Array<{ order: number; input: string; sample: boolean }>;
   maxPoints: number;
+}
+
+export interface AssignmentPreviewTestCase {
+  order: number;
+  input: string;
+  expectedOutput?: string;
+  sample: boolean;
+}
+
+export interface AssignmentPreview {
+  assignment: TeacherAssignment;
+  referenceLanguage: Language;
+  referenceSolution: string;
+  testCases: AssignmentPreviewTestCase[];
 }
 
 export interface CloneAssignmentPayload extends Omit<CloneAssignmentForm, "sourceGroupId" | "testCases"> {

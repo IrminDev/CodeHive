@@ -2,6 +2,7 @@ import { API_BASE_URL } from "~/core/config/env";
 import { teacherAuthHeaders, teacherRequest } from "./client";
 import type {
   AssignmentPage,
+  AssignmentPreview,
   AssignmentUpdate,
   CloneAssignmentForm,
   CloneAssignmentPayload,
@@ -14,6 +15,8 @@ import type { TeacherGroup } from "../types/group.types";
 export type {
   AssignmentExample,
   AssignmentPage,
+  AssignmentPreview,
+  AssignmentPreviewTestCase,
   AssignmentUpdate,
   CloneAssignmentForm,
   CloneAssignmentPayload,
@@ -97,6 +100,16 @@ export function getTeacherAssignment(assignmentId: string): Promise<TeacherAssig
   return teacherRequest<TeacherAssignment>(
     `/api/assignments/${encodeURIComponent(assignmentId)}`,
   ).then(normalizeAssignment);
+}
+
+export function getTeacherAssignmentPreview(assignmentId: string): Promise<AssignmentPreview> {
+  return teacherRequest<AssignmentPreview>(
+    `/api/assignments/${encodeURIComponent(assignmentId)}/preview`,
+  ).then((preview) => ({
+    ...preview,
+    assignment: normalizeAssignment(preview.assignment),
+    testCases: preview.testCases ?? [],
+  }));
 }
 
 export function getTeacherAssignmentPage(

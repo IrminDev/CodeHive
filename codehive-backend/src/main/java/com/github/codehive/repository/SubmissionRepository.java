@@ -13,6 +13,7 @@ import com.github.codehive.model.dto.metrics.SubmissionAttemptCount;
 import com.github.codehive.model.entity.Assignment;
 import com.github.codehive.model.entity.Submission;
 import com.github.codehive.model.entity.User;
+import com.github.codehive.model.enums.SubmissionStatus;
 
 public interface SubmissionRepository extends JpaRepository<Submission, UUID> {
     List<Submission> findByAssignment(Assignment assignment);
@@ -28,6 +29,11 @@ public interface SubmissionRepository extends JpaRepository<Submission, UUID> {
     long countByAssignmentId(UUID assignmentId);
 
     List<Submission> findByAssignmentAndStudentOrderByCreatedAtDesc(Assignment assignment, User student);
+
+    List<Submission> findByStudentIdOrderByCreatedAtDesc(UUID studentId);
+
+    List<Submission> findByStudentIdAndAssignmentGroupIdAndStatusOrderByCreatedAtDesc(
+            UUID studentId, UUID groupId, SubmissionStatus status);
 
     boolean existsByAssignmentIdAndStudentId(UUID assignmentId, UUID studentId);
 

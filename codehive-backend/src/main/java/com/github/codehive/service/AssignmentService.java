@@ -23,6 +23,8 @@ import com.github.codehive.model.dto.AssignmentDTO;
 import com.github.codehive.model.dto.AssignmentExampleDTO;
 import com.github.codehive.model.dto.CloneAssignmentFormDTO;
 import com.github.codehive.model.dto.CloneAssignmentTestCaseDTO;
+import com.github.codehive.model.dto.AssignmentPreviewDTO;
+import com.github.codehive.model.dto.AssignmentPreviewTestCaseDTO;
 import com.github.codehive.model.dto.SampleTestCaseDTO;
 import com.github.codehive.model.dto.queue.TestCaseInfo;
 import com.github.codehive.model.dto.queue.TestGenerationJob;
@@ -273,6 +275,36 @@ public class AssignmentService {
                 examples,
                 testCases,
                 source.getMaxPoints());
+    }
+
+    @Transactional(readOnly = true)
+    public AssignmentPreviewDTO getTeacherPreview(UUID assignmentId, String email) {
+        User teacher = requireUser(email);
+        Assignment assignment = requireAssignment(assignmentId);
+        if (!assignment.getGroup().getOwner().getId().equals(teacher.getId())) {
+            throw new AccessDeniedException("Only the assignment owner can preview it");
+        }
+
+        ReferenceSolutionRevision reference = assignment.getActiveReferenceSolutionRevision() != null
+                ? assignment.getActiveReferenceSolutionRevision()
+                : referenceSolutionRevisionRepository.findByAssignmentIdOrderByCreatedAtDesc(assignmentId).stream()
+                        .findFirst()
+                        .orElseThrow(() -> new EntityNotFoundException(
+                                "Assignment has no reference solution revision"));
+        TestSuiteRevision testSuite = resolveCurrentTestSuiteRevision(assignment);
+        boolean outputsReady = assignment.getValidationStatus() == AssignmentValidationStatus.READY;
+        List<AssignmentPreviewTestCaseDTO> testCases = new ArrayList<>();
+        for (TestCase testCase : testCaseRepository.findByTestSuiteRevisionIdOrderByOrderAsc(testSuite.getId())) {
+            String inputPath = ObjectKeyBuilder.testCaseInput(assignmentId, testSuite.getId(), testCase.getId());
+            String expectedOutput = outputsReady
+                    ? readTextObject(ObjectKeyBuilder.testCaseExpectedOutput(assignmentId, testSuite.getId(), testCase.getId()))
+                    : null;
+            testCases.add(new AssignmentPreviewTestCaseDTO(
+                    testCase.getOrder(), readTextObject(inputPath), expectedOutput, testCase.getIsSample()));
+        }
+        return new AssignmentPreviewDTO(
+                AssignmentMapper.toDTO(assignment), reference.getLanguage(),
+                readTextObject(reference.getObjectKey()), testCases);
     }
 
     @Transactional

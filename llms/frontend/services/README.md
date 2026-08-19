@@ -55,8 +55,19 @@ Behavior details:
 - Retrieves and updates assignment metadata/schedules through multipart requests.
 - Deletes assignments logically.
 - Loads an owner-only complete clone-form snapshot.
+- Loads an owner-only read-only assignment preview with reference source, private test inputs, and generated expected outputs.
 - Submits a complete edited clone snapshot as JSON, including reference source and test inputs.
 - Converts backend wrapper responses to typed feature data and surfaces API messages on failure.
+
+## Student Dashboard Data
+
+- Loads accessible groups from `GET /api/groups`.
+- Loads student-visible assignments per active enrolled group through `GET /api/assignments?groupId=...`.
+- Loads recent definitive submission results from `GET /api/submissions/mine?limit=5`.
+- Loads one group and its assignments from `GET /api/groups/{groupId}` and
+  `GET /api/assignments?groupId={groupId}`.
+- Loads current student submissions for group delivery flags from
+  `GET /api/submissions/mine/group/{groupId}`.
 
 ## Teacher Group API
 

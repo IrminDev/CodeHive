@@ -120,9 +120,9 @@
     "semantic_hash": "fbedd22c24e55428904ed70ba88231e4"
   },
   "codehive-backend/src/main/java/com/github/codehive/controller/AssignmentController.java": {
-    "mtime": 1786581612.8268883,
-    "ast_hash": "07c61735982b12cd87282f93cdde6d0c",
-    "semantic_hash": "07c61735982b12cd87282f93cdde6d0c"
+    "mtime": 1787102554.8978274,
+    "ast_hash": "813bc52ff13ad3cd2d9efbca0eec456b",
+    "semantic_hash": ""
   },
   "codehive-backend/src/main/java/com/github/codehive/controller/AssignmentStudentWorkController.java": {
     "mtime": 1786581612.8268883,
@@ -155,9 +155,9 @@
     "semantic_hash": "e8386af399c0e65b03167e76070b36a8"
   },
   "codehive-backend/src/main/java/com/github/codehive/controller/SubmissionController.java": {
-    "mtime": 1785047053.903319,
-    "ast_hash": "864dbcead0c49a25ffd11c3b7ebac028",
-    "semantic_hash": "864dbcead0c49a25ffd11c3b7ebac028"
+    "mtime": 1787110637.0517688,
+    "ast_hash": "234cb5f8e01f4a1ab0d7c7b8c0cfdfa6",
+    "semantic_hash": ""
   },
   "codehive-backend/src/main/java/com/github/codehive/messaging/listener/ExecutionResultListener.java": {
     "mtime": 1784422446.506808,
@@ -170,9 +170,9 @@
     "semantic_hash": "2b6180e36fd5422d04b3e99ea01f9fff"
   },
   "codehive-backend/src/main/java/com/github/codehive/messaging/listener/TestGenerationResultListener.java": {
-    "mtime": 1785048527.0833125,
-    "ast_hash": "0f42fd779c7ad23e32bcacf08cc90ecb",
-    "semantic_hash": "0f42fd779c7ad23e32bcacf08cc90ecb"
+    "mtime": 1787113713.4727437,
+    "ast_hash": "0e874dc76a9dfd12847cce8b0609262d",
+    "semantic_hash": ""
   },
   "codehive-backend/src/main/java/com/github/codehive/messaging/producer/ExecutionRequestProducer.java": {
     "mtime": 1785045656.0961518,
@@ -500,9 +500,9 @@
     "semantic_hash": "93a74d0b44dc9f43e096c75e0e6d598e"
   },
   "codehive-backend/src/main/java/com/github/codehive/model/enums/TestSuiteUpdateMode.java": {
-    "mtime": 1785047355.198211,
-    "ast_hash": "9f6580022e1c3232a243b480a25fe913",
-    "semantic_hash": "9f6580022e1c3232a243b480a25fe913"
+    "mtime": 1787116971.563656,
+    "ast_hash": "baa40de32bbd9150742285439bc9e0f4",
+    "semantic_hash": ""
   },
   "codehive-backend/src/main/java/com/github/codehive/model/exception/ArtifactExpiredException.java": {
     "mtime": 1785046786.1514287,
@@ -780,9 +780,9 @@
     "semantic_hash": "dd45f5510c11d3cf697725886f5f81b5"
   },
   "codehive-backend/src/main/java/com/github/codehive/notification/strategy/AssignmentNotificationStrategy.java": {
-    "mtime": 1785046657.143278,
-    "ast_hash": "bb4aff3126229c4a8d92870c33cd22fc",
-    "semantic_hash": "bb4aff3126229c4a8d92870c33cd22fc"
+    "mtime": 1787113664.6517231,
+    "ast_hash": "2d6db08b909d8ef7e75343ca5e5bf8b5",
+    "semantic_hash": ""
   },
   "codehive-backend/src/main/java/com/github/codehive/notification/strategy/GroupNotificationStrategy.java": {
     "mtime": 1784956720.0114212,
@@ -885,9 +885,9 @@
     "semantic_hash": "9f1f7928e8ee1f125e1150b7d78eb782"
   },
   "codehive-backend/src/main/java/com/github/codehive/repository/SubmissionRepository.java": {
-    "mtime": 1786581612.8278885,
-    "ast_hash": "735d09acbc606b6ae1ab4e841979a645",
-    "semantic_hash": "735d09acbc606b6ae1ab4e841979a645"
+    "mtime": 1787110636.8617687,
+    "ast_hash": "488ad5a7d0e55a082f3707a3e6612683",
+    "semantic_hash": ""
   },
   "codehive-backend/src/main/java/com/github/codehive/repository/TestCaseRepository.java": {
     "mtime": 1786582137.7284098,
@@ -895,8 +895,8 @@
     "semantic_hash": "54a5cb0ac2cf9314ab72b6e0c89a7ef4"
   },
   "codehive-backend/src/main/java/com/github/codehive/repository/TestSuiteRevisionRepository.java": {
-    "mtime": 1786934516.0757277,
-    "ast_hash": "c3a9fb43706434ce9e12eea7ea9bae16",
+    "mtime": 1787113664.5607386,
+    "ast_hash": "27d49092b4c97a7e3f4a10e398abbdb5",
     "semantic_hash": ""
   },
   "codehive-backend/src/main/java/com/github/codehive/repository/UserNotificationPreferenceRepository.java": {
@@ -940,13 +940,13 @@
     "semantic_hash": "f87344ef83d9085a22b9cd4ba28778b4"
   },
   "codehive-backend/src/main/java/com/github/codehive/service/AssignmentService.java": {
-    "mtime": 1786934121.6554048,
-    "ast_hash": "eadbedb78ace1f51c557f3118ee5967d",
+    "mtime": 1787102554.8158262,
+    "ast_hash": "e1d696786f16cacfa2a86f76330adca5",
     "semantic_hash": ""
   },
   "codehive-backend/src/main/java/com/github/codehive/service/AssignmentUpdateService.java": {
-    "mtime": 1786932482.0065155,
-    "ast_hash": "3268fe73c9f7a9d280f94bfe7ce40e31",
+    "mtime": 1787115503.6816223,
+    "ast_hash": "8fbf381ea80203a96136d0fe14ac5994",
     "semantic_hash": ""
   },
   "codehive-backend/src/main/java/com/github/codehive/service/AuthService.java": {
@@ -1075,8 +1075,8 @@
     "semantic_hash": "28abebc42907d7e56e94d2287092f451"
   },
   "codehive-backend/src/test/java/com/github/codehive/controller/AssignmentControllerIntegrationTest.java": {
-    "mtime": 1786932518.1391177,
-    "ast_hash": "2c54bd6a68fcf0f23824abc60f919b8b",
+    "mtime": 1787102665.2862208,
+    "ast_hash": "22e9088d586fdbf36597fe148873cb90",
     "semantic_hash": ""
   },
   "codehive-backend/src/test/java/com/github/codehive/controller/AuthControllerIntegrationTest.java": {
@@ -1125,8 +1125,8 @@
     "semantic_hash": "93500a68e761da044f0792c8d633d03f"
   },
   "codehive-backend/src/test/java/com/github/codehive/service/AssignmentUpdateServiceTest.java": {
-    "mtime": 1786932638.2427967,
-    "ast_hash": "d24f180564fb42162be8d8d19c33d935",
+    "mtime": 1787115564.6081538,
+    "ast_hash": "f0a69db25d31f81977798469211c1b03",
     "semantic_hash": ""
   },
   "codehive-backend/src/test/java/com/github/codehive/service/AuthServiceTest.java": {
@@ -1310,8 +1310,8 @@
     "semantic_hash": "8bde365f78c2db63271b0e64eae53ec3"
   },
   "codehive-frontend/app/features/landing/components/Header.tsx": {
-    "mtime": 1786581612.8290155,
-    "ast_hash": "bd20a128325703eabe2aee4475647e57",
+    "mtime": 1787109807.1536424,
+    "ast_hash": "f97b512c7b51002888c1a93bbd59e61b",
     "semantic_hash": ""
   },
   "codehive-frontend/app/features/landing/components/Hero.tsx": {
@@ -1340,19 +1340,14 @@
     "semantic_hash": "c1ae178b98fe4591152aef977f6e79ec"
   },
   "codehive-frontend/app/features/student/api/assignment.api.ts": {
-    "mtime": 1784422446.5131125,
-    "ast_hash": "5682700c8a529dc921e0b1189013aabb",
-    "semantic_hash": "5682700c8a529dc921e0b1189013aabb"
-  },
-  "codehive-frontend/app/features/student/api/execution.api.ts": {
-    "mtime": 1786581612.8290155,
-    "ast_hash": "7b3b68aa84fa569266e6d110c7cd0feb",
+    "mtime": 1787109442.3829632,
+    "ast_hash": "57406e8c6bb61348724123d2be0c8388",
     "semantic_hash": ""
   },
-  "codehive-frontend/app/features/student/api/groups.api.ts": {
-    "mtime": 1784422446.5131397,
-    "ast_hash": "825d2032a6bbe31fd72edeba616399e9",
-    "semantic_hash": "825d2032a6bbe31fd72edeba616399e9"
+  "codehive-frontend/app/features/student/api/execution.api.ts": {
+    "mtime": 1787117356.0429878,
+    "ast_hash": "f7d4547d784a4d8c7b8666ac2cbe0cac",
+    "semantic_hash": ""
   },
   "codehive-frontend/app/features/student/components/GroupCard.tsx": {
     "mtime": 1784422446.5131397,
@@ -1365,18 +1360,18 @@
     "semantic_hash": "6cf3a9b354149eadc24d47e6bc54e7bd"
   },
   "codehive-frontend/app/features/student/pages/AssignmentPage.tsx": {
-    "mtime": 1786581612.8290155,
-    "ast_hash": "811235afc1f2b85a720445ecfedb7158",
+    "mtime": 1787117492.4988563,
+    "ast_hash": "efd79d9ab5ade4e8ff6db9efae69a029",
     "semantic_hash": ""
   },
   "codehive-frontend/app/features/student/pages/StudentDashboardPage.tsx": {
-    "mtime": 1786583373.6757538,
-    "ast_hash": "cdf53720fe8de467d1268f983e626ce4",
+    "mtime": 1787112738.730106,
+    "ast_hash": "d9eadf352368f82622100e6cfd8f9289",
     "semantic_hash": ""
   },
   "codehive-frontend/app/features/student/routes/routes.ts": {
-    "mtime": 1786581612.8290155,
-    "ast_hash": "7d0ad95e20d6acef8cbafa5210f5416e",
+    "mtime": 1787112738.6381059,
+    "ast_hash": "b95f3cc509b3ea69863785d764bbd4eb",
     "semantic_hash": ""
   },
   "codehive-frontend/app/features/student/routes/student.assignment.tsx": {
@@ -1390,8 +1385,8 @@
     "semantic_hash": ""
   },
   "codehive-frontend/app/features/student/types/assignment.types.ts": {
-    "mtime": 1786581612.8290155,
-    "ast_hash": "2bc5e342a53e92a72b3288a18cfce729",
+    "mtime": 1787099305.4319015,
+    "ast_hash": "6646fa64adbaf490467cef0f096e6ccf",
     "semantic_hash": ""
   },
   "codehive-frontend/app/features/student/types/execution.types.ts": {
@@ -1400,13 +1395,13 @@
     "semantic_hash": ""
   },
   "codehive-frontend/app/features/student/types/group.types.ts": {
-    "mtime": 1786583373.7557847,
-    "ast_hash": "217e51721fb027a32b87ea105acb557f",
+    "mtime": 1787110682.294751,
+    "ast_hash": "7908d324836389c61915cb4118e7193e",
     "semantic_hash": ""
   },
   "codehive-frontend/app/features/teacher/api/assignment.api.ts": {
-    "mtime": 1786583392.3063645,
-    "ast_hash": "125599729a52a5cbe7d511dd9d167f07",
+    "mtime": 1787102651.9470506,
+    "ast_hash": "542aa53b82b4b020ab0edb63e555345a",
     "semantic_hash": ""
   },
   "codehive-frontend/app/features/teacher/config/dashboard.config.tsx": {
@@ -1415,18 +1410,18 @@
     "semantic_hash": ""
   },
   "codehive-frontend/app/features/teacher/pages/CreateAssignmentPage.tsx": {
-    "mtime": 1786932609.7121103,
-    "ast_hash": "9d4688eaaa5e234c175d36c26408dfd7",
+    "mtime": 1787112947.0383594,
+    "ast_hash": "9ecd802c6fd32267c72e74467196494e",
     "semantic_hash": ""
   },
   "codehive-frontend/app/features/teacher/pages/TeacherDashboardPage.tsx": {
-    "mtime": 1786582759.5914743,
-    "ast_hash": "7130d4a658b84bd8129a21d66c9077da",
+    "mtime": 1787100218.416007,
+    "ast_hash": "7d76f816539e624cbaed5553919e2e6a",
     "semantic_hash": ""
   },
   "codehive-frontend/app/features/teacher/routes/routes.ts": {
-    "mtime": 1786583327.1807678,
-    "ast_hash": "355d8567a6572f0edb5d2447ab5255a5",
+    "mtime": 1787116135.6798651,
+    "ast_hash": "1e5b32bc8b791f0678fbb56ad7665383",
     "semantic_hash": ""
   },
   "codehive-frontend/app/features/teacher/routes/teacher.create-assignment.tsx": {
@@ -1875,9 +1870,9 @@
     "semantic_hash": ""
   },
   "codehive-worker/src/main/java/com/github/codehive/worker/sandbox/c/CExecutor.java": {
-    "mtime": 1784422446.517573,
-    "ast_hash": "180aeba4efeab9a9a8725eab792dc2f6",
-    "semantic_hash": "180aeba4efeab9a9a8725eab792dc2f6"
+    "mtime": 1787117144.684563,
+    "ast_hash": "16d4e815b81f260e7d493dd29bf58ba5",
+    "semantic_hash": ""
   },
   "codehive-worker/src/main/java/com/github/codehive/worker/sandbox/cpp/CPPExecutor.java": {
     "mtime": 1784422446.517573,
@@ -2125,8 +2120,8 @@
     "semantic_hash": "cf4e27f130aaadf674e4ca89bc58f5e4"
   },
   "AGENTS.md": {
-    "mtime": 1786933984.8994458,
-    "ast_hash": "29c682495badb467fb958a55863f682a",
+    "mtime": 1786936910.79037,
+    "ast_hash": "8afb6ab58ed7a5958ef135f8420456a5",
     "semantic_hash": ""
   },
   "PR_template.md": {
@@ -2140,9 +2135,9 @@
     "semantic_hash": "c87379975557f37f055f4982aafbbefa"
   },
   "codehive-backend/docker-compose.yaml": {
-    "mtime": 1785046786.065432,
-    "ast_hash": "c8b8ababd43691ec1ebe0618582d317c",
-    "semantic_hash": "c8b8ababd43691ec1ebe0618582d317c"
+    "mtime": 1786934631.508794,
+    "ast_hash": "90da1fbb2283281810b4d1f13270c21c",
+    "semantic_hash": ""
   },
   "codehive-backend/src/main/resources/templates/email/html/notification.html": {
     "mtime": 1784956452.6429417,
@@ -2250,9 +2245,9 @@
     "semantic_hash": "8a7d795c87dc7eda7799a0f1135cf8cd"
   },
   "llms/backend/controller/README.md": {
-    "mtime": 1785300302.9460897,
-    "ast_hash": "4dfa5d80c6b073e022f4e0c84c7fe0f8",
-    "semantic_hash": "4dfa5d80c6b073e022f4e0c84c7fe0f8"
+    "mtime": 1787110803.3526978,
+    "ast_hash": "168137b86b47f273c5888f18820d56a9",
+    "semantic_hash": ""
   },
   "llms/backend/executions/README.md": {
     "mtime": 1786932638.4157946,
@@ -2260,14 +2255,14 @@
     "semantic_hash": ""
   },
   "llms/backend/groups/README.md": {
-    "mtime": 1786581612.852889,
-    "ast_hash": "17d0f3f6c6b0e595489c754f2c1b76b9",
-    "semantic_hash": "17d0f3f6c6b0e595489c754f2c1b76b9"
+    "mtime": 1787115594.838938,
+    "ast_hash": "2109bfaf7974677186c8def92357e80d",
+    "semantic_hash": ""
   },
   "llms/backend/messaging/README.md": {
-    "mtime": 1784956890.9822354,
-    "ast_hash": "6ba1f6d70b4cbd6ddfb8f931a50d1b68",
-    "semantic_hash": "6ba1f6d70b4cbd6ddfb8f931a50d1b68"
+    "mtime": 1787113737.1000872,
+    "ast_hash": "6305ec1a90d4676067088680d2b2f36d",
+    "semantic_hash": ""
   },
   "llms/backend/model/README.md": {
     "mtime": 1786932638.3297956,
@@ -2280,9 +2275,9 @@
     "semantic_hash": "4fc97f86742408ac5296b62a63a99c49"
   },
   "llms/backend/notifications/README.md": {
-    "mtime": 1785047469.29507,
-    "ast_hash": "cf0000092b7b742ca4c780505eafde7c",
-    "semantic_hash": "cf0000092b7b742ca4c780505eafde7c"
+    "mtime": 1787113737.186074,
+    "ast_hash": "1479e69707521536ba9ad8467daec39b",
+    "semantic_hash": ""
   },
   "llms/backend/notifications/REQUIREMENTS.md": {
     "mtime": 1785047459.0832522,
@@ -2315,29 +2310,29 @@
     "semantic_hash": "3df932422e0457036e4ef0d768db4aaf"
   },
   "llms/frontend/components/README.md": {
-    "mtime": 1784422446.518806,
-    "ast_hash": "f68c5f6f8ff8b07a7bcc5e72c43ce298",
-    "semantic_hash": "f68c5f6f8ff8b07a7bcc5e72c43ce298"
+    "mtime": 1787112778.6571589,
+    "ast_hash": "0a2bc1ba40d217319cae375fee7bd8b9",
+    "semantic_hash": ""
   },
   "llms/frontend/professor/README.md": {
-    "mtime": 1786583327.3438706,
-    "ast_hash": "9df5dd8a69863dd0b9a4fc1ea17b4d1e",
+    "mtime": 1787116971.8476982,
+    "ast_hash": "6f36b8551e5ff82466e42f25f5cf6320",
     "semantic_hash": ""
   },
   "llms/frontend/routes/README.md": {
-    "mtime": 1786583327.4259224,
-    "ast_hash": "57d4cd3e3373806a65b19a78a1de43a9",
+    "mtime": 1787112778.5691588,
+    "ast_hash": "caacef65638bc5d27ee18752b2a48cf3",
     "semantic_hash": ""
   },
   "llms/frontend/services/README.md": {
-    "mtime": 1786583071.267216,
-    "ast_hash": "e6b17526052f8f10a5415900f9d879cb",
+    "mtime": 1787110803.266698,
+    "ast_hash": "db46a6547c4a65aa0e47098341bcbb10",
     "semantic_hash": ""
   },
   "llms/frontend/student/README.md": {
-    "mtime": 1784422446.518806,
-    "ast_hash": "6e1706656eb74831c2780d6845e37477",
-    "semantic_hash": "6e1706656eb74831c2780d6845e37477"
+    "mtime": 1787117503.453519,
+    "ast_hash": "6079f4f42449aea34a8d4254a4f0decc",
+    "semantic_hash": ""
   },
   "llms/worker/OVERVIEW.md": {
     "mtime": 1786932638.5067937,
@@ -2355,13 +2350,13 @@
     "semantic_hash": "45b6ff8f03a9eb6248c9dcc0fb6317a2"
   },
   "llms/worker/messaging/README.md": {
-    "mtime": 1785047410.16815,
-    "ast_hash": "87b424d950ca9d53100b66486ad52a3f",
-    "semantic_hash": "87b424d950ca9d53100b66486ad52a3f"
+    "mtime": 1787113737.2760603,
+    "ast_hash": "328d1cd62243bbc29094387db964de9e",
+    "semantic_hash": ""
   },
   "llms/worker/sandbox/README.md": {
-    "mtime": 1786932638.5917928,
-    "ast_hash": "0decafea41086fd42cd2ec513b728a69",
+    "mtime": 1787117144.8845828,
+    "ast_hash": "0e880ba61a362a8364ee70f7ad6821eb",
     "semantic_hash": ""
   },
   "codehive-backend/src/main/resources/static/images/default-avatar.png": {
@@ -2405,8 +2400,8 @@
     "semantic_hash": "ba331421cb36d3935a5e5eb65ec079d7"
   },
   "codehive-frontend/app/features/teacher/pages/TeacherAssignmentsPage.tsx": {
-    "mtime": 1786582995.8406897,
-    "ast_hash": "141b91a743607c09b6091df499bd2ee9",
+    "mtime": 1787116156.9730535,
+    "ast_hash": "e689331498084656476e3e6301e7c7c9",
     "semantic_hash": ""
   },
   "codehive-frontend/app/features/teacher/routes/teacher.assignments.tsx": {
@@ -2540,8 +2535,8 @@
     "semantic_hash": ""
   },
   "codehive-frontend/app/features/dashboard/api/dashboard.api.ts": {
-    "mtime": 1786583373.5907211,
-    "ast_hash": "6537ca4b417a999f8b78247525037a7c",
+    "mtime": 1787099305.4302688,
+    "ast_hash": "78cea3c973dce37b11afa23a4ddb8901",
     "semantic_hash": ""
   },
   "codehive-frontend/app/features/dashboard/components/DashboardLayout.tsx": {
@@ -2565,8 +2560,8 @@
     "semantic_hash": ""
   },
   "codehive-frontend/app/features/student/api/group.api.ts": {
-    "mtime": 1786581612.8290155,
-    "ast_hash": "041ead6e41cff1d2fd557bb4a22b64ad",
+    "mtime": 1787110682.386751,
+    "ast_hash": "8b38bbbe78560fbc53c62e8be894b54c",
     "semantic_hash": ""
   },
   "codehive-frontend/app/features/student/pages/ExecutionReportPage.tsx": {
@@ -2575,13 +2570,13 @@
     "semantic_hash": ""
   },
   "codehive-frontend/app/features/student/pages/JoinGroupPage.tsx": {
-    "mtime": 1786581612.8290155,
-    "ast_hash": "2e34c05a7ee2de394303716e01cab5c3",
+    "mtime": 1787112690.7150393,
+    "ast_hash": "ffd0ca81e23b020728edc279737280be",
     "semantic_hash": ""
   },
   "codehive-frontend/app/features/student/pages/SubmissionHistoryPage.tsx": {
-    "mtime": 1786581612.8290155,
-    "ast_hash": "2e06c71ebf25b03205abdaf6bf1ecb01",
+    "mtime": 1787099305.4319015,
+    "ast_hash": "4877b7658c616b4e00e451e54825c8da",
     "semantic_hash": ""
   },
   "codehive-frontend/app/features/student/routes/student.join-group.tsx": {
@@ -2635,8 +2630,8 @@
     "semantic_hash": ""
   },
   "codehive-frontend/app/features/teacher/pages/EditAssignmentPage.tsx": {
-    "mtime": 1786932482.4415107,
-    "ast_hash": "9177ffeeaa36019a068c2db847d744c8",
+    "mtime": 1787116971.4626412,
+    "ast_hash": "a08bf2d21ee915ebf4fcaa6a1252576c",
     "semantic_hash": ""
   },
   "codehive-frontend/app/features/teacher/pages/TeacherAnalyticsPage.tsx": {
@@ -2650,8 +2645,8 @@
     "semantic_hash": ""
   },
   "codehive-frontend/app/features/teacher/pages/TeacherGroupDetailPage.tsx": {
-    "mtime": 1786582578.798102,
-    "ast_hash": "e116427758a4f2d8e4b4954399fd9756",
+    "mtime": 1787100655.55383,
+    "ast_hash": "76d3755e0ce71ecb71f51de18b324ca5",
     "semantic_hash": ""
   },
   "codehive-frontend/app/features/teacher/pages/TeacherGroupsPage.tsx": {
@@ -2700,8 +2695,8 @@
     "semantic_hash": ""
   },
   "codehive-frontend/app/features/teacher/types/assignment.types.ts": {
-    "mtime": 1786582929.016931,
-    "ast_hash": "b9f1d057b59e2928c4b9ccf5aa670095",
+    "mtime": 1787116971.3646266,
+    "ast_hash": "e4580f6c11b2000bd74a950076e17f6b",
     "semantic_hash": ""
   },
   "codehive-frontend/app/features/teacher/types/group.types.ts": {
@@ -2772,6 +2767,136 @@
   "codehive-backend/src/test/java/com/github/codehive/service/ArtifactCleanupServiceTest.java": {
     "mtime": 1786934396.2604175,
     "ast_hash": "70b9913bddf94259a1d5d27330b07a23",
+    "semantic_hash": ""
+  },
+  "codehive-frontend/app/features/dashboard/types/dashboard.types.ts": {
+    "mtime": 1787099305.4302688,
+    "ast_hash": "8b95e3be0ff3b57c5163b52e0544c857",
+    "semantic_hash": ""
+  },
+  "codehive-frontend/app/features/student/api/client.ts": {
+    "mtime": 1787099305.4319015,
+    "ast_hash": "f68ed8e1c5d9e92aa35a4a682951ad5a",
+    "semantic_hash": ""
+  },
+  "codehive-frontend/pnpm-workspace.yaml": {
+    "mtime": 1787099535.1059449,
+    "ast_hash": "71d750bf975fc42585a2a41196fb788e",
+    "semantic_hash": ""
+  },
+  "docs/AI_STUDENT_ASSISTANT_IMPLEMENTATION_PLAN.md": {
+    "mtime": 1786937011.3166795,
+    "ast_hash": "e4f2be01a95476e8d5fc26a967ea9449",
+    "semantic_hash": ""
+  },
+  "codehive-backend/src/main/java/com/github/codehive/model/dto/AssignmentPreviewDTO.java": {
+    "mtime": 1787102554.7308252,
+    "ast_hash": "9b76eb819a0b8f0c07cdd50690b2c81e",
+    "semantic_hash": ""
+  },
+  "codehive-backend/src/main/java/com/github/codehive/model/dto/AssignmentPreviewTestCaseDTO.java": {
+    "mtime": 1787102554.640824,
+    "ast_hash": "aa8c6deb7b27693bd3814b0ede0554b5",
+    "semantic_hash": ""
+  },
+  "codehive-frontend/app/features/teacher/pages/TeacherAssignmentPreviewPage.tsx": {
+    "mtime": 1787102722.7439594,
+    "ast_hash": "1f25d09ed415a2329b340fcf320d805a",
+    "semantic_hash": ""
+  },
+  "codehive-frontend/app/features/teacher/routes/teacher.assignments.$assignmentId.preview.tsx": {
+    "mtime": 1787102630.7157807,
+    "ast_hash": "cd1910a9daf120d28e172afabe817712",
+    "semantic_hash": ""
+  },
+  "codehive-backend/src/main/java/com/github/codehive/model/dto/RecentSubmissionDTO.java": {
+    "mtime": 1787109416.532886,
+    "ast_hash": "5f9e889d74e1495b8f03ce348ee77c53",
+    "semantic_hash": ""
+  },
+  "codehive-backend/src/main/java/com/github/codehive/service/StudentSubmissionQueryService.java": {
+    "mtime": 1787110636.9597688,
+    "ast_hash": "2a120d8b74e59b620e6124c603c4c910",
+    "semantic_hash": ""
+  },
+  "codehive-backend/src/test/java/com/github/codehive/service/StudentSubmissionQueryServiceTest.java": {
+    "mtime": 1787110637.1477687,
+    "ast_hash": "b6c4725bb9d91033a1c82132b65ed553",
+    "semantic_hash": ""
+  },
+  "codehive-frontend/app/features/student/api/submission.api.ts": {
+    "mtime": 1787110682.577751,
+    "ast_hash": "576a0b88ba07fad47eaa279d5ac94293",
+    "semantic_hash": ""
+  },
+  "codehive-frontend/app/features/student/types/submission.types.ts": {
+    "mtime": 1787109442.292963,
+    "ast_hash": "ea0ec6dbd44cc3c1392303fb73bb4881",
+    "semantic_hash": ""
+  },
+  "codehive-backend/src/main/java/com/github/codehive/model/dto/StudentGroupSubmissionDTO.java": {
+    "mtime": 1787110636.7717688,
+    "ast_hash": "4ddefaea300ddbc2b69b452a08c27dd8",
+    "semantic_hash": ""
+  },
+  "codehive-frontend/app/features/student/pages/StudentGroupDetailPage.tsx": {
+    "mtime": 1787112655.461988,
+    "ast_hash": "badf2a0cd3da717df06cebd6bb0e2180",
+    "semantic_hash": ""
+  },
+  "codehive-frontend/app/features/student/routes/student.group.tsx": {
+    "mtime": 1787110682.7537508,
+    "ast_hash": "d2e075a689e49362ace8272ef74a1eb6",
+    "semantic_hash": ""
+  },
+  "codehive-frontend/app/features/student/types/group-submission.types.ts": {
+    "mtime": 1787110682.481751,
+    "ast_hash": "cdfbba17de3fe25472c5ce8b7852f64b",
+    "semantic_hash": ""
+  },
+  "codehive-frontend/app/features/student/components/StudentHeader.tsx": {
+    "mtime": 1787112755.3071284,
+    "ast_hash": "0ce4e43ce58338f00fcf888b8428dc06",
+    "semantic_hash": ""
+  },
+  "codehive-frontend/app/features/student/components/StudentSidebar.tsx": {
+    "mtime": 1787112586.2148805,
+    "ast_hash": "03cdb75c8f3c059d2da8f18c9b2ead7b",
+    "semantic_hash": ""
+  },
+  "codehive-frontend/app/features/student/pages/MyGroupsPage.tsx": {
+    "mtime": 1787112738.4631057,
+    "ast_hash": "9a95f035dcbb228111234bfc46c7ba79",
+    "semantic_hash": ""
+  },
+  "codehive-frontend/app/features/student/routes/student.groups.tsx": {
+    "mtime": 1787112738.5471058,
+    "ast_hash": "6c7835368caad544ea2905b01139a7b0",
+    "semantic_hash": ""
+  },
+  "codehive-backend/src/test/java/com/github/codehive/messaging/listener/TestGenerationResultListenerTest.java": {
+    "mtime": 1787113713.56173,
+    "ast_hash": "adb08a64d8440b7edae1825e16895326",
+    "semantic_hash": ""
+  },
+  "codehive-backend/src/test/java/com/github/codehive/notification/strategy/AssignmentNotificationStrategyTest.java": {
+    "mtime": 1787113664.8046973,
+    "ast_hash": "be84cc6e8eb42c49b90cb2666a08d775",
+    "semantic_hash": ""
+  },
+  "codehive-frontend/app/features/teacher/routes/teacher.assignments.$assignmentId.revalidate.tsx": {
+    "mtime": 1787116143.6569595,
+    "ast_hash": "7673d667043059f174fdfe63d8cf3472",
+    "semantic_hash": ""
+  },
+  "codehive-worker/src/test/java/com/github/codehive/worker/sandbox/c/CExecutorTest.java": {
+    "mtime": 1787117144.778572,
+    "ast_hash": "cef1cb53b2a4bbf4ae0eadab558774c0",
+    "semantic_hash": ""
+  },
+  "codehive-backend/src/test/java/com/github/codehive/model/enums/TestSuiteUpdateModeTest.java": {
+    "mtime": 1787116971.730681,
+    "ast_hash": "d875185d1357a0865bfb195c97f0736f",
     "semantic_hash": ""
   }
 }

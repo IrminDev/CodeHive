@@ -83,6 +83,11 @@ Teacher notifications:
 - `ASSIGNMENT_VALIDATION_FAILED`
 - `ASSIGNMENT_READY`
 
+For `ASSIGNMENT_VALIDATION_FAILED`, the teacher email includes the failed revision's
+stored worker diagnostic (compiler stderr or generation error). Rendering is bounded
+to 12,000 characters and 80 lines, strips control characters, and indicates when the
+displayed output was truncated. Full bounded output remains in the failed revision.
+
 Student notifications:
 
 - `ASSIGNMENT_PUBLISHED`

@@ -1,8 +1,8 @@
-import { useRef, useState } from "react";
-import { useNavigate, Link } from "react-router";
+import { useRef, useState, useEffect } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import {
   Home, BookOpen, Plus, GraduationCap, Users, Settings, Bell,
-  Sun, Moon, ChevronRight, ArrowLeft, X, Check, Info, Clock, Database,
+  Sun, Moon, ChevronRight, ArrowLeft, X, Check, Info,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { CodeEditor } from "~/shared/components/CodeEditor";
@@ -10,7 +10,7 @@ import { sileo } from "sileo";
 import { useTheme } from "~/core/providers/ThemeProvider";
 import { useAuth } from "~/core/providers/AuthProvider";
 import { createAssignment, getActiveTeacherGroups } from "../api/assignment.api";
-import type { Language, ComparatorType, TeacherGroup } from "../api/assignment.api";
+import type { AssignmentExample, Language, ComparatorType, TeacherGroup } from "../api/assignment.api";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -32,8 +32,21 @@ const EXT_TO_LANG: Record<string, Language> = {
   py: "PYTHON", java: "JAVA", cpp: "CPP", cc: "CPP", c: "C",
 };
 
+const MAX_TITLE_CHARS = 200;
+const MAX_TAGS = 10;
+const MAX_TAG_CHARS = 50;
+const MAX_SUPPORTING_TEXT_CHARS = 5_000;
+const MAX_SOURCE_LINES = 500;
+const MAX_SOURCE_BYTES = 256 * 1024;
+const MAX_TEST_INPUT_BYTES = 1024 * 1024;
+const MAX_TOTAL_TEST_INPUT_BYTES = 5 * 1024 * 1024;
+const MAX_EXAMPLES = 10;
+const MAX_EXAMPLE_INPUT_OUTPUT_CHARS = 10_000;
+const MAX_EXPLANATION_CHARS = 2_000;
+
 type SolutionMode = "editor" | "file";
 type TestCaseMode = "text" | "file";
+type PublishMode = "immediately" | "scheduled";
 
 interface TestCaseEntry {
   id: string; mode: TestCaseMode; text: string; file: File | null; isSample: boolean;
@@ -47,6 +60,18 @@ function textToFile(content: string, name: string): File {
 
 function codeToFile(code: string, ext: string): File {
   return new File([code], `solution.${ext}`, { type: "text/plain" });
+}
+
+function byteSize(value: string): number {
+  return new Blob([value]).size;
+}
+
+function lineCount(value: string): number {
+  return value ? value.split("\n").length : 0;
+}
+
+function CharacterCount({ value, max }: { value: string; max: number }) {
+  return <p className="mt-1 text-right text-[11px] text-gray-600">{value.length.toLocaleString()} / {max.toLocaleString()}</p>;
 }
 
 
@@ -93,14 +118,14 @@ function FieldLabel({ children, htmlFor }: { children: React.ReactNode; htmlFor?
   );
 }
 
-function StyledInput({ id, value, onChange, placeholder, required, type = "text", min, step }: {
+function StyledInput({ id, value, onChange, placeholder, required, type = "text", min, max, step, maxLength }: {
   id?: string; value: string | number; onChange: (v: string) => void;
-  placeholder?: string; required?: boolean; type?: string; min?: string; step?: string;
+  placeholder?: string; required?: boolean; type?: string; min?: string; max?: string; step?: string; maxLength?: number;
 }) {
   return (
     <input
       id={id} type={type} value={value} onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder} required={required} min={min} step={step}
+      placeholder={placeholder} required={required} min={min} max={max} step={step} maxLength={maxLength}
       className="w-full px-4 py-3 rounded-xl border border-gray-700/50 bg-dark-surface text-white
                  placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-azure
                  focus:border-transparent transition-all text-sm"
@@ -241,6 +266,7 @@ export function CreateAssignmentPage() {
   const [memoryLimitMb, setMemoryLimitMb]         = useState(256);
   const [maxPoints, setMaxPoints]                 = useState(100);
   const [comparatorType, setComparatorType]       = useState<ComparatorType>("EXACT_MATCH");
+  const [publishMode, setPublishMode]             = useState<PublishMode>("immediately");
   const [launchDate, setLaunchDate]               = useState("");
   const [dueDate, setDueDate]                     = useState("");
   const [closeDate, setCloseDate]                 = useState("");
@@ -257,6 +283,7 @@ export function CreateAssignmentPage() {
   const [testCases, setTestCases] = useState<TestCaseEntry[]>([
     { id: uid(), mode: "text", text: "", file: null, isSample: false },
   ]);
+  const [examples, setExamples] = useState<AssignmentExample[]>([]);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -285,6 +312,10 @@ export function CreateAssignmentPage() {
   // ── Tag helpers ──
   function addTag() {
     const t = tagInput.trim().toUpperCase();
+    if (tags.length >= MAX_TAGS) {
+      sileo.error({ title: `Use at most ${MAX_TAGS} tags.` });
+      return;
+    }
     if (t && !tags.includes(t)) setTags((p) => [...p, t]);
     setTagInput("");
   }
@@ -301,12 +332,27 @@ export function CreateAssignmentPage() {
   }
 
   // ── Solution file ──
-  function handleSolutionFile(file: File | null) {
+  async function handleSolutionFile(file: File | null) {
     setSolutionFile(file);
     if (!file) return;
     const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
     const detected = EXT_TO_LANG[ext];
-    if (detected) setReferenceLanguage(detected);
+    if (!detected) {
+      setSolutionFile(null);
+      sileo.error({ title: "Reference solution must be a .py, .java, .cpp, .cc, or .c file." });
+      return;
+    }
+    if (file.size > MAX_SOURCE_BYTES) {
+      setSolutionFile(null);
+      sileo.error({ title: "Reference solution must not exceed 256 KiB." });
+      return;
+    }
+    if (lineCount(await file.text()) > MAX_SOURCE_LINES) {
+      setSolutionFile(null);
+      sileo.error({ title: "Reference solution must not exceed 500 lines." });
+      return;
+    }
+    setReferenceLanguage(detected);
   }
 
   // ── Test cases ──
@@ -324,6 +370,66 @@ export function CreateAssignmentPage() {
     setTestCases((p) => p.map((tc) => (tc.id === id ? { ...tc, ...patch } : tc)));
   }
 
+  function totalTestInputBytes(items: TestCaseEntry[]): number {
+    return items.reduce((total, item) => total + (item.mode === "text" ? byteSize(item.text) : item.file?.size ?? 0), 0);
+  }
+
+  function updateSolutionCode(value: string) {
+    if (lineCount(value) > MAX_SOURCE_LINES) {
+      sileo.error({ title: "Reference solution must not exceed 500 lines." });
+      return;
+    }
+    if (byteSize(value) > MAX_SOURCE_BYTES) {
+      sileo.error({ title: "Reference solution must not exceed 256 KiB." });
+      return;
+    }
+    setSolutionCode(value);
+  }
+
+  function updateTestCaseText(id: string, value: string) {
+    if (byteSize(value) > MAX_TEST_INPUT_BYTES) {
+      sileo.error({ title: "Each test input must not exceed 1 MiB." });
+      return;
+    }
+    const current = testCases.find((item) => item.id === id);
+    if (!current) return;
+    const next = testCases.map((item) => item.id === id ? { ...item, text: value } : item);
+    if (totalTestInputBytes(next) > MAX_TOTAL_TEST_INPUT_BYTES) {
+      sileo.error({ title: "Combined test inputs must not exceed 5 MiB." });
+      return;
+    }
+    patchTestCase(id, { text: value });
+  }
+
+  function handleTestCaseFile(id: string, file: File | null) {
+    if (!file) {
+      patchTestCase(id, { file: null });
+      return;
+    }
+    if (file.size > MAX_TEST_INPUT_BYTES) {
+      sileo.error({ title: "Each test input must not exceed 1 MiB." });
+      return;
+    }
+    const next = testCases.map((item) => item.id === id ? { ...item, file } : item);
+    if (totalTestInputBytes(next) > MAX_TOTAL_TEST_INPUT_BYTES) {
+      sileo.error({ title: "Combined test inputs must not exceed 5 MiB." });
+      return;
+    }
+    patchTestCase(id, { file });
+  }
+
+  function addExample() {
+    if (examples.length >= MAX_EXAMPLES) {
+      sileo.error({ title: `Use at most ${MAX_EXAMPLES} public examples.` });
+      return;
+    }
+    setExamples((items) => [...items, { input: "", output: "", explanation: "" }]);
+  }
+
+  function patchExample(index: number, patch: Partial<AssignmentExample>) {
+    setExamples((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item));
+  }
+
   // ── Submit ──
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -335,7 +441,11 @@ export function CreateAssignmentPage() {
       sileo.error({ title: "Select an active group." });
       return;
     }
-    const launch = launchDate ? new Date(launchDate).toISOString() : undefined;
+    if (publishMode === "scheduled" && !launchDate) {
+      sileo.error({ title: "Select a launch date for scheduled publishing." });
+      return;
+    }
+    const launch = publishMode === "scheduled" ? new Date(launchDate).toISOString() : undefined;
     const due = dueDate ? new Date(dueDate).toISOString() : undefined;
     const close = closeDate ? new Date(closeDate).toISOString() : undefined;
     if ((launch && due && launch > due) || (due && close && due > close) || (launch && close && launch > close)) {
@@ -344,6 +454,10 @@ export function CreateAssignmentPage() {
     }
     let resolvedSolution: File;
     if (solutionMode === "editor") {
+      if (lineCount(solutionCode) > MAX_SOURCE_LINES || byteSize(solutionCode) > MAX_SOURCE_BYTES) {
+        sileo.error({ title: "Reference solution exceeds source limits." });
+        return;
+      }
       const meta = LANGUAGES.find((l) => l.value === referenceLanguage)!;
       resolvedSolution = codeToFile(solutionCode, meta.ext);
     } else {
@@ -361,6 +475,19 @@ export function CreateAssignmentPage() {
         testCaseFiles.push(tc.file);
       }
     }
+    if (totalTestInputBytes(testCases) > MAX_TOTAL_TEST_INPUT_BYTES) {
+      sileo.error({ title: "Combined test inputs must not exceed 5 MiB." });
+      return;
+    }
+    const normalizedExamples = examples.map((example) => ({
+      input: example.input.trim(),
+      output: example.output.trim(),
+      explanation: example.explanation?.trim() ?? "",
+    }));
+    if (normalizedExamples.some((example) => !example.input || !example.output || !example.explanation)) {
+      sileo.error({ title: "Every public example needs input, output, and an explanation." });
+      return;
+    }
     setIsSubmitting(true);
     try {
       await createAssignment(
@@ -375,7 +502,7 @@ export function CreateAssignmentPage() {
           launchDate: launch,
           dueDate: due,
           closeDate: close,
-          examples: [],
+          examples: normalizedExamples,
           maxPoints,
           sampleFlags: testCases.map((tc) => tc.isSample),
         },
@@ -397,11 +524,15 @@ export function CreateAssignmentPage() {
   const hasSolution   = solutionMode === "editor" ? solutionCode.trim().length > 10 : solutionFile !== null;
   const hasTestCase   = testCases.some((tc) => tc.mode === "text" ? tc.text.trim().length > 0 : tc.file !== null);
   const hasDueDate    = dueDate.length > 0;
+  const datesOutOfOrder = Boolean(
+    (publishMode === "scheduled" && launchDate && dueDate && launchDate > dueDate)
+    || (dueDate && closeDate && dueDate > closeDate)
+    || (publishMode === "scheduled" && launchDate && closeDate && launchDate > closeDate),
+  );
 
-  const selectedGroup = groups.find((g) => g.id === groupId);
   const monacoLang    = LANGUAGES.find((l) => l.value === referenceLanguage)?.monaco ?? "python";
 
-  const STEPS = ["Basics", "Config", "Solution", "Tests"];
+  const STEPS = ["Basics", "Config", "Solution", "Tests", "Examples"];
 
   return (
     <div className="h-screen flex overflow-hidden bg-dark-bg text-white">
@@ -457,11 +588,9 @@ export function CreateAssignmentPage() {
           </button>
         </header>
 
-        {/* Main: form + preview */}
-        <div className="flex-1 flex min-h-0">
-          {/* ── Form ── */}
+        <div className="flex-1 min-h-0">
           <form onSubmit={handleSubmit}
-            className="flex-1 overflow-y-auto scrollbar-hide px-8 py-7 min-w-0">
+            className="h-full overflow-y-auto scrollbar-hide px-6 sm:px-8 py-7 min-w-0">
             {/* Page header */}
             <div className="flex items-start gap-4 mb-8">
               <button type="button" onClick={() => navigate("/teacher")}
@@ -495,7 +624,7 @@ export function CreateAssignmentPage() {
               </div>
             </div>
 
-            <div className="space-y-5">
+            <div className="max-w-5xl mx-auto space-y-5">
               {/* ── 01 Basic information ── */}
               <SectionCard number="01" title="Basic information" badge="Required">
                 <div className="space-y-5">
@@ -504,20 +633,22 @@ export function CreateAssignmentPage() {
                     <StyledInput
                       id="title" value={title} onChange={setTitle}
                       placeholder="e.g. Topological Sort — Course Scheduler"
-                      required
+                      required maxLength={MAX_TITLE_CHARS}
                     />
+                    <CharacterCount value={title} max={MAX_TITLE_CHARS} />
                   </div>
                   <div>
                     <FieldLabel htmlFor="description">Description</FieldLabel>
                     <textarea
                       id="description" value={description}
                       onChange={(e) => setDescription(e.target.value)}
-                      rows={4} required
+                      rows={4} required maxLength={MAX_SUPPORTING_TEXT_CHARS}
                       placeholder="Given N courses and a list of prerequisites [a, b] meaning b must be taken before a..."
                       className="w-full px-4 py-3 rounded-xl border border-gray-700/50 bg-dark-surface text-white text-sm
                                  placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-azure
                                  focus:border-transparent transition-all resize-none"
                     />
+                    <CharacterCount value={description} max={MAX_SUPPORTING_TEXT_CHARS} />
                   </div>
                   <div>
                     <FieldLabel>Tags</FieldLabel>
@@ -535,9 +666,9 @@ export function CreateAssignmentPage() {
                       <div className="flex items-center gap-1">
                         <input
                           type="text" value={tagInput}
-                          onChange={(e) => setTagInput(e.target.value)}
+                          onChange={(e) => setTagInput(e.target.value.toUpperCase())}
                           onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag(); } }}
-                          placeholder="Add tag..."
+                          placeholder="Add tag..." maxLength={MAX_TAG_CHARS}
                           className="w-24 bg-transparent text-xs text-yellow placeholder:text-gray-600
                                      focus:outline-none border-none"
                         />
@@ -555,15 +686,18 @@ export function CreateAssignmentPage() {
                         + Add tag
                       </button>
                     )}
+                    <p className="mt-1 text-xs text-gray-600">{tags.length} / {MAX_TAGS} tags · {tagInput.length} / {MAX_TAG_CHARS} characters</p>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <FieldLabel htmlFor="constraints">Constraints <span className="text-gray-600 font-normal">(one per line)</span></FieldLabel>
-                      <textarea id="constraints" rows={3} value={constraints} onChange={(event) => setConstraints(event.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-700/50 bg-dark-surface text-white text-sm resize-none" />
+                      <textarea id="constraints" rows={3} value={constraints} maxLength={MAX_SUPPORTING_TEXT_CHARS} onChange={(event) => setConstraints(event.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-700/50 bg-dark-surface text-white text-sm resize-none" />
+                      <CharacterCount value={constraints} max={MAX_SUPPORTING_TEXT_CHARS} />
                     </div>
                     <div>
                       <FieldLabel htmlFor="hints">Hints <span className="text-gray-600 font-normal">(one per line)</span></FieldLabel>
-                      <textarea id="hints" rows={3} value={hints} onChange={(event) => setHints(event.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-700/50 bg-dark-surface text-white text-sm resize-none" />
+                      <textarea id="hints" rows={3} value={hints} maxLength={MAX_SUPPORTING_TEXT_CHARS} onChange={(event) => setHints(event.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-700/50 bg-dark-surface text-white text-sm resize-none" />
+                      <CharacterCount value={hints} max={MAX_SUPPORTING_TEXT_CHARS} />
                     </div>
                   </div>
                 </div>
@@ -627,22 +761,41 @@ export function CreateAssignmentPage() {
 
                   <div>
                     <FieldLabel htmlFor="maxPoints">Maximum points</FieldLabel>
-                    <StyledInput id="maxPoints" type="number" min="0.01" step="0.01" value={maxPoints} onChange={(value) => setMaxPoints(Number(value))} required />
+                    <StyledInput id="maxPoints" type="number" min="0.01" max="9999999999.99" step="0.01" value={maxPoints} onChange={(value) => setMaxPoints(Number(value))} required />
                   </div>
 
-                  {/* Launch date */}
-                  <div>
-                    <FieldLabel htmlFor="launchDate">Launch date <span className="text-gray-600 font-normal">(optional)</span></FieldLabel>
-                    <StyledInput
-                      id="launchDate" type="datetime-local" min={minimumDate} value={launchDate} onChange={setLaunchDate}
-                    />
+                  <div className="sm:col-span-2">
+                    <FieldLabel>Publish assignment</FieldLabel>
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      <button type="button" aria-pressed={publishMode === "immediately"}
+                        onClick={() => { setPublishMode("immediately"); setLaunchDate(""); }}
+                        className={`text-left rounded-xl border p-4 transition-colors ${publishMode === "immediately" ? "border-azure bg-azure/10" : "border-gray-700/50 hover:border-gray-600"}`}>
+                        <span className={`block text-sm font-semibold ${publishMode === "immediately" ? "text-azure" : "text-gray-300"}`}>Publish immediately</span>
+                        <span className="block mt-1 text-xs leading-relaxed text-gray-500">Students can see it as soon as test generation finishes.</span>
+                      </button>
+                      <button type="button" aria-pressed={publishMode === "scheduled"}
+                        onClick={() => setPublishMode("scheduled")}
+                        className={`text-left rounded-xl border p-4 transition-colors ${publishMode === "scheduled" ? "border-yellow bg-yellow/10" : "border-gray-700/50 hover:border-gray-600"}`}>
+                        <span className={`block text-sm font-semibold ${publishMode === "scheduled" ? "text-yellow" : "text-gray-300"}`}>Schedule publish</span>
+                        <span className="block mt-1 text-xs leading-relaxed text-gray-500">Keep it hidden until the launch date you choose.</span>
+                      </button>
+                    </div>
                   </div>
+
+                  {publishMode === "scheduled" && (
+                    <div>
+                      <FieldLabel htmlFor="launchDate">Launch date</FieldLabel>
+                      <StyledInput
+                        id="launchDate" type="datetime-local" min={minimumDate} value={launchDate} onChange={setLaunchDate} required
+                      />
+                    </div>
+                  )}
 
                   {/* Due date */}
                   <div>
                     <FieldLabel htmlFor="dueDate">Due date <span className="text-gray-600 font-normal">(optional)</span></FieldLabel>
                     <StyledInput
-                      id="dueDate" type="datetime-local" min={minimumDate} value={dueDate} onChange={setDueDate}
+                      id="dueDate" type="datetime-local" min={(publishMode === "scheduled" && launchDate) || minimumDate} value={dueDate} onChange={setDueDate}
                     />
                   </div>
 
@@ -650,10 +803,11 @@ export function CreateAssignmentPage() {
                   <div>
                     <FieldLabel htmlFor="closeDate">Close date <span className="text-gray-600 font-normal">(optional)</span></FieldLabel>
                     <StyledInput
-                      id="closeDate" type="datetime-local" min={minimumDate} value={closeDate} onChange={setCloseDate}
+                      id="closeDate" type="datetime-local" min={dueDate || (publishMode === "scheduled" && launchDate) || minimumDate} value={closeDate} onChange={setCloseDate}
                     />
                   </div>
                 </div>
+                {datesOutOfOrder && <p className="mt-3 text-sm text-red-400">Dates must satisfy launch ≤ due ≤ close.</p>}
 
                 {/* Allowed languages */}
                 <div className="mt-5">
@@ -701,15 +855,16 @@ export function CreateAssignmentPage() {
                     <div style={{ height: 320 }}>
                       <CodeEditor
                         height="100%" language={monacoLang}
-                        value={solutionCode} onChange={(v) => setSolutionCode(v)}
+                        value={solutionCode} onChange={updateSolutionCode}
                       />
                     </div>
+                    <p className="px-4 py-2 text-right text-xs text-gray-500 border-t border-gray-700">{lineCount(solutionCode)} / {MAX_SOURCE_LINES} lines · {byteSize(solutionCode).toLocaleString()} / {MAX_SOURCE_BYTES.toLocaleString()} bytes</p>
                   </div>
                 ) : (
                   <UploadZone
                     file={solutionFile} onFile={handleSolutionFile}
                     accept=".py,.java,.cpp,.cc,.c"
-                    hint="Accepted: .py .java .cpp .c — language auto-detected from extension"
+                    hint="Accepted: .py .java .cpp .cc .c · maximum 500 lines and 256 KiB"
                   />
                 )}
               </SectionCard>
@@ -749,18 +904,22 @@ export function CreateAssignmentPage() {
                       </div>
                       <div className="p-4">
                         {tc.mode === "text" ? (
-                          <textarea value={tc.text}
-                            onChange={(e) => patchTestCase(tc.id, { text: e.target.value })}
-                            rows={3} placeholder="Enter the test case input (stdin)..."
-                            className="w-full px-4 py-3 rounded-xl border border-gray-700/50 bg-dark-surface
-                                       text-white font-mono text-sm placeholder:text-gray-600
-                                       focus:outline-none focus:ring-2 focus:ring-azure focus:border-transparent
-                                       transition-all resize-none"
-                          />
+                          <>
+                            <textarea value={tc.text}
+                              onChange={(e) => updateTestCaseText(tc.id, e.target.value)}
+                              maxLength={MAX_TEST_INPUT_BYTES}
+                              rows={3} placeholder="Enter the test case input (stdin)..."
+                              className="w-full px-4 py-3 rounded-xl border border-gray-700/50 bg-dark-surface
+                                         text-white font-mono text-sm placeholder:text-gray-600
+                                         focus:outline-none focus:ring-2 focus:ring-azure focus:border-transparent
+                                         transition-all resize-none"
+                            />
+                            <p className="mt-1 text-right text-[11px] text-gray-600">{byteSize(tc.text).toLocaleString()} / {MAX_TEST_INPUT_BYTES.toLocaleString()} bytes</p>
+                          </>
                         ) : (
                           <UploadZone
-                            file={tc.file} onFile={(f) => patchTestCase(tc.id, { file: f })}
-                            accept=".txt" hint="Plain text — each line is read as stdin"
+                            file={tc.file} onFile={(f) => void handleTestCaseFile(tc.id, f)}
+                            accept=".txt" hint="Plain text stdin · maximum 1 MiB per input, 5 MiB total"
                           />
                         )}
                       </div>
@@ -775,6 +934,61 @@ export function CreateAssignmentPage() {
                   </button>
                 </div>
               </SectionCard>
+
+              {/* ── 05 Public Examples ── */}
+              <SectionCard number="05" title="Public examples" badge="Optional">
+                <p className="text-sm text-gray-400 mb-4">Examples appear in assignment instructions. They are separate from private evaluator test cases.</p>
+                <div className="space-y-4">
+                  {examples.map((example, index) => (
+                    <div key={index} className="border border-gray-700/50 rounded-xl p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-sm font-semibold text-white">Example {index + 1}</span>
+                        <button type="button" onClick={() => setExamples((items) => items.filter((_, itemIndex) => itemIndex !== index))} className="text-xs text-red-400 hover:text-red-300">Remove</button>
+                      </div>
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <div>
+                          <FieldLabel htmlFor={`example-input-${index}`}>Input</FieldLabel>
+                          <textarea id={`example-input-${index}`} required rows={3} value={example.input} maxLength={MAX_EXAMPLE_INPUT_OUTPUT_CHARS} onChange={(event) => patchExample(index, { input: event.target.value })} className="w-full px-4 py-3 rounded-xl border border-gray-700/50 bg-dark-surface text-white font-mono text-sm resize-none" />
+                          <CharacterCount value={example.input} max={MAX_EXAMPLE_INPUT_OUTPUT_CHARS} />
+                        </div>
+                        <div>
+                          <FieldLabel htmlFor={`example-output-${index}`}>Output</FieldLabel>
+                          <textarea id={`example-output-${index}`} required rows={3} value={example.output} maxLength={MAX_EXAMPLE_INPUT_OUTPUT_CHARS} onChange={(event) => patchExample(index, { output: event.target.value })} className="w-full px-4 py-3 rounded-xl border border-gray-700/50 bg-dark-surface text-white font-mono text-sm resize-none" />
+                          <CharacterCount value={example.output} max={MAX_EXAMPLE_INPUT_OUTPUT_CHARS} />
+                        </div>
+                      </div>
+                      <div className="mt-4">
+                        <FieldLabel htmlFor={`example-explanation-${index}`}>Explanation</FieldLabel>
+                        <textarea id={`example-explanation-${index}`} required rows={2} value={example.explanation ?? ""} maxLength={MAX_EXPLANATION_CHARS} onChange={(event) => patchExample(index, { explanation: event.target.value })} className="w-full px-4 py-3 rounded-xl border border-gray-700/50 bg-dark-surface text-white text-sm resize-none" />
+                        <CharacterCount value={example.explanation ?? ""} max={MAX_EXPLANATION_CHARS} />
+                      </div>
+                    </div>
+                  ))}
+                  <button type="button" onClick={addExample} disabled={examples.length >= MAX_EXAMPLES} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-gray-700 text-gray-500 hover:border-azure/50 hover:text-azure disabled:opacity-50 transition-all text-sm font-medium">
+                    <Plus size={14} /> Add public example ({examples.length} / {MAX_EXAMPLES})
+                  </button>
+                </div>
+              </SectionCard>
+
+              <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] rounded-2xl border border-gray-700/40 bg-dark-card p-5">
+                <div>
+                  <p className="text-[10px] font-semibold tracking-widest text-gray-500 uppercase mb-3">Readiness checklist</p>
+                  <div className="grid gap-2.5 sm:grid-cols-2">
+                    <CheckItem done={hasTitleDesc} label="Title & description" />
+                    <CheckItem done={hasLang} label="At least 1 language" />
+                    <CheckItem done={hasSolution} label="Reference solution" />
+                    <CheckItem done={hasTestCase} label="At least 1 test case" />
+                    <CheckItem done={hasDueDate} label="Due date set" pending />
+                  </div>
+                </div>
+                <div className="flex gap-3 rounded-xl border border-azure/20 bg-azure/5 p-4">
+                  <Info size={17} className="text-azure flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-white">Expected outputs are generated automatically</p>
+                    <p className="mt-1 text-sm leading-relaxed text-gray-400">On creation, CodeHive runs reference solution against every private test input. Assignment becomes available after validation finishes.</p>
+                  </div>
+                </div>
+              </section>
 
               {/* ── Submit ── */}
               <div className="flex justify-end gap-3 pb-8">
@@ -804,58 +1018,6 @@ export function CreateAssignmentPage() {
               </div>
             </div>
           </form>
-
-          {/* ── Live preview sidebar ── */}
-          <div className="w-80 flex-shrink-0 border-l border-gray-700/30 overflow-y-auto scrollbar-hide py-7 px-5">
-            {/* Preview card */}
-            <p className="text-[10px] font-semibold tracking-widest text-gray-500 uppercase mb-3">
-              Live Preview
-            </p>
-            <div className="bg-dark-card rounded-2xl border border-gray-700/30 p-4 mb-6">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-yellow/15 text-yellow">
-                  MEDIUM
-                </span>
-                {selectedGroup && (
-                  <span className="px-2 py-0.5 rounded-full text-xs font-mono font-semibold bg-azure/15 text-azure">
-                    {selectedGroup.name}
-                  </span>
-                )}
-              </div>
-              <p className="text-sm font-semibold text-white leading-snug mb-3 min-h-[2.5rem]">
-                {title || <span className="text-gray-600 font-normal">Assignment title…</span>}
-              </p>
-              <div className="flex items-center gap-4 text-xs text-gray-500">
-                <span className="flex items-center gap-1">
-                  <Clock size={11} />
-                  {timeLimitMs}ms
-                </span>
-                <span className="flex items-center gap-1">
-                  <Database size={11} />
-                  {memoryLimitMb}MB
-                </span>
-              </div>
-            </div>
-
-            {/* Checklist */}
-            <p className="text-[10px] font-semibold tracking-widest text-gray-500 uppercase mb-3">
-              Checklist
-            </p>
-            <div className="space-y-2.5 mb-4">
-              <CheckItem done={hasTitleDesc}  label="Title & description" />
-              <CheckItem done={hasLang}       label="At least 1 language" />
-              <CheckItem done={hasSolution}   label="Reference solution" />
-              <CheckItem done={hasTestCase}   label="≥ 1 test case" />
-              <CheckItem done={hasDueDate}    label="Due date set" pending />
-            </div>
-
-            <div className="flex gap-2.5 p-3 rounded-xl bg-dark-card border border-gray-700/30">
-              <Info size={13} className="text-azure flex-shrink-0 mt-0.5" />
-              <p className="text-xs text-gray-500 leading-relaxed">
-                On submit, CodeHive runs your reference solution against every test to generate expected outputs automatically.
-              </p>
-            </div>
-          </div>
         </div>
       </div>
     </div>

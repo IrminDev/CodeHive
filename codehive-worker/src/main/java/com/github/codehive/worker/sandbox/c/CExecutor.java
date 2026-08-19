@@ -6,7 +6,9 @@ import org.springframework.stereotype.Component;
 
 @Component("C")
 public class CExecutor extends AbstractLanguageExecutor {
-    private static final String COMPILE_IMAGE = "gcc:12";
+    // GCC 13 exposes C23 draft support through -std=c2x.
+    // Bookworm matches the Debian 12 execution image, preserving glibc compatibility.
+    private static final String COMPILE_IMAGE = "gcc:13-bookworm";
     private static final String EXEC_IMAGE = "irmindev/c-exec:latest";
     private static final long PIDS_LIMIT = 32L;
 
@@ -31,7 +33,7 @@ public class CExecutor extends AbstractLanguageExecutor {
 
     @Override
     protected String[] compileCommand() {
-        return new String[]{"gcc", "-std=c23", "-o", "program", "main.c", "-lm"};
+        return new String[]{"gcc", "-std=c2x", "-o", "program", "main.c", "-lm"};
     }
 
     @Override

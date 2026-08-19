@@ -1,12 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
-import {
-  Bell, BookOpen, ChevronRight, ClipboardList,
-  GraduationCap, Home, Moon, Search, Settings, Sun, Users,
-} from "lucide-react";
-import { useAuth } from "~/core/providers/AuthProvider";
-import { useTheme } from "~/core/providers/ThemeProvider";
+import { Users } from "lucide-react";
 import { joinGroup, listMyGroups } from "../api/group.api";
+import { StudentHeader } from "../components/StudentHeader";
+import { StudentSidebar } from "../components/StudentSidebar";
 import type { ClassGroup } from "../types/group.types";
 
 
@@ -21,8 +18,6 @@ const BADGE_COLORS = [
 const CODE_LENGTH = 8;
 
 export function JoinGroupPage() {
-  const { user } = useAuth();
-  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
   const [chars, setChars] = useState<string[]>(Array(CODE_LENGTH).fill(""));
@@ -32,13 +27,12 @@ export function JoinGroupPage() {
   const [groups, setGroups] = useState<ClassGroup[]>([]);
 
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
-  const firstName = user?.name?.split(" ")[0] ?? "ST";
   const code = chars.join("").toUpperCase();
   const filled = chars.filter(Boolean).length;
 
   useEffect(() => {
     listMyGroups()
-      .catch(() => import.meta.env.DEV ? MOCK_GROUPS : [])
+      .catch(() => [])
       .then(setGroups);
   }, []);
 
@@ -86,7 +80,7 @@ export function JoinGroupPage() {
     try {
       await joinGroup(code);
       setSuccess(true);
-      setTimeout(() => navigate("/dashboard"), 1500);
+      setTimeout(() => navigate("/groups"), 1500);
     } catch (err) {
       setError((err as Error).message || `No active group found for code ${code}. Check with your teacher and try again.`);
     } finally {
@@ -97,70 +91,12 @@ export function JoinGroupPage() {
   return (
     <div className="h-screen flex overflow-hidden bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100 font-sans">
 
-      {/* ── Icon Sidebar ── */}
-      <aside className="w-14 flex-shrink-0 flex flex-col items-center py-4 gap-1 bg-gray-50 dark:bg-dark-surface border-r border-gray-200 dark:border-gray-800/60">
-        <Link to="/" className="mb-4 flex-shrink-0">
-          <div
-            style={{ clipPath: "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)" }}
-            className="w-9 h-9 bg-yellow flex items-center justify-center"
-          >
-            <span className="text-dark-bg font-bold text-sm leading-none">&lt;/&gt;</span>
-          </div>
-        </Link>
-
-        <nav className="flex flex-col items-center gap-1 flex-1 w-full px-2">
-          <SidebarIcon icon={<Home size={20} />}          label="Dashboard"   to="/dashboard" />
-          <SidebarIcon icon={<Users size={20} />}         label="Groups"      to="/groups/join" active />
-          <SidebarIcon icon={<BookOpen size={20} />}      label="Courses"     to="/courses" />
-          <SidebarIcon icon={<GraduationCap size={20} />} label="Grades"      to="/grades" />
-          <SidebarIcon icon={<ClipboardList size={20} />} label="Assignments" to="/assignments" />
-        </nav>
-
-        <div className="flex flex-col items-center gap-2 w-full px-2">
-          <SidebarIcon icon={<Settings size={20} />} label="Settings" to="/settings" />
-          <div
-            title={user?.name}
-            className="w-9 h-9 rounded-full bg-azure flex items-center justify-center text-xs font-bold text-white"
-          >
-            {firstName.slice(0, 2).toUpperCase()}
-          </div>
-        </div>
-      </aside>
+      <StudentSidebar active="join" />
 
       {/* ── Main area ── */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
 
-        {/* ── Header ── */}
-        <header className="h-12 flex-shrink-0 flex items-center gap-4 px-5 bg-gray-50 dark:bg-dark-surface border-b border-gray-200 dark:border-gray-800/60">
-          <div className="flex items-center gap-1.5 text-sm flex-shrink-0">
-            <span className="text-gray-400 dark:text-gray-500">Student</span>
-            <ChevronRight size={14} className="text-gray-300 dark:text-gray-600" />
-            <span className="text-gray-400 dark:text-gray-400">Groups</span>
-            <ChevronRight size={14} className="text-gray-300 dark:text-gray-600" />
-            <span className="text-gray-900 dark:text-gray-100 font-medium">Join</span>
-          </div>
-
-          <div className="flex-1 max-w-sm mx-auto">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white dark:bg-dark-card border border-gray-200 dark:border-gray-700/60">
-              <Search size={13} className="text-gray-400 dark:text-gray-500 flex-shrink-0" />
-              <input
-                type="text"
-                placeholder="Search assignments, groups..."
-                className="flex-1 bg-transparent text-xs text-gray-700 dark:text-gray-300 placeholder:text-gray-400 dark:placeholder:text-gray-600 focus:outline-none"
-              />
-              <span className="text-[10px] text-gray-400 dark:text-gray-600 font-mono border border-gray-200 dark:border-gray-700 rounded px-1 flex-shrink-0">⌘K</span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3 ml-auto flex-shrink-0">
-            <button className="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">
-              <Bell size={18} />
-            </button>
-            <button onClick={toggleTheme} className="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">
-              {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
-            </button>
-          </div>
-        </header>
+        <StudentHeader breadcrumbs={[{ label: "Student" }, { label: "Groups", to: "/groups" }, { label: "Join" }]} />
 
         {/* ── Content ── */}
         <main className="flex-1 overflow-y-auto scrollbar-hide px-8 py-10">
@@ -296,11 +232,11 @@ export function JoinGroupPage() {
                       </div>
 
                       {/* Status */}
-                      {g.status === "READ_ONLY" ? (
+                      {g.archived ? (
                         <span className="text-[10px] font-medium text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-dark-card border border-gray-200 dark:border-gray-700/60 px-2.5 py-1 rounded-full flex-shrink-0">
                           Read-only
                         </span>
-                      ) : g.status === "ACTIVE" ? (
+                      ) : g.isActive ? (
                         <div className="flex items-center gap-1.5 flex-shrink-0">
                           <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
                           <span className="text-xs text-green-500 font-medium">Active</span>
@@ -321,25 +257,5 @@ export function JoinGroupPage() {
         </main>
       </div>
     </div>
-  );
-}
-
-/* ── Sub-components ── */
-
-function SidebarIcon({ icon, label, to, active = false }: {
-  icon: React.ReactNode; label: string; to: string; active?: boolean;
-}) {
-  return (
-    <Link
-      to={to}
-      title={label}
-      className={`w-10 h-10 flex items-center justify-center rounded-xl transition-colors ${
-        active
-          ? "text-yellow bg-yellow/10"
-          : "text-gray-400 dark:text-gray-600 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-dark-card"
-      }`}
-    >
-      {icon}
-    </Link>
   );
 }

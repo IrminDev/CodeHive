@@ -13,6 +13,8 @@ import com.github.codehive.model.entity.TestSuiteRevision;
 
 public interface TestSuiteRevisionRepository extends JpaRepository<TestSuiteRevision, UUID> {
     Optional<TestSuiteRevision> findTopByAssignmentIdOrderByRevisionNumberDesc(UUID assignmentId);
+    Optional<TestSuiteRevision> findTopByAssignmentIdAndStatusOrderByRevisionNumberDesc(
+            UUID assignmentId, RevisionStatus status);
     List<TestSuiteRevision> findByAssignmentIdOrderByRevisionNumberDesc(UUID assignmentId);
     List<TestSuiteRevision> findByStatusAndCreatedAtBefore(RevisionStatus status, Instant createdAt);
     boolean existsByReferenceSolutionRevisionIdAndStatus(UUID referenceSolutionRevisionId,

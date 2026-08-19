@@ -346,6 +346,26 @@ class AssignmentControllerIntegrationTest {
     }
 
     @Test
+    @DisplayName("returns owner-only preview with reference source and generated outputs")
+    void getTeacherPreview() throws Exception {
+        Assignment assignment = saveAssignment("Preview me");
+        testCaseRepository.saveAndFlush(new TestCase(
+                assignment, assignment.getActiveTestSuiteRevision(), 1, true));
+        when(objectStorageService.download(anyString()))
+                .thenAnswer(invocation -> new ByteArrayInputStream("generated content".getBytes()));
+
+        mockMvc.perform(get("/api/assignments/{id}/preview", assignment.getId())
+                        .header("Authorization", "Bearer " + teacherToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.assignment.title").value("Preview me"))
+                .andExpect(jsonPath("$.data.referenceLanguage").value("JAVA"))
+                .andExpect(jsonPath("$.data.referenceSolution").value("generated content"))
+                .andExpect(jsonPath("$.data.testCases[0].input").value("generated content"))
+                .andExpect(jsonPath("$.data.testCases[0].expectedOutput").value("generated content"))
+                .andExpect(jsonPath("$.data.testCases[0].sample").value(true));
+    }
+
+    @Test
     @DisplayName("clones the edited form snapshot and leaves omitted dates empty")
     void cloneAssignment() throws Exception {
         Assignment source = saveAssignment("Clone me");

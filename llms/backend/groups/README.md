@@ -86,6 +86,7 @@ Propietario (User autorizado con CREATE_GROUP)
 6. Cambiar únicamente la solución de referencia exige validación contra los casos activos, pero no reejecuta entregas ni notifica estudiantes.
 7. Un cambio de casos de prueba se publica únicamente cuando la solución de referencia completa todos los casos correctamente; un fallo conserva intacta la revisión activa.
 8. Al publicar una revisión de casos, se reejecuta únicamente la entrega actual no retirada de cada estudiante.
+9. Una tarea cuya validación inicial falló no tiene revisión activa. Al corregir únicamente su solución de referencia, el sistema copia sus entradas privadas almacenadas a una nueva revisión, regenera salidas esperadas y, si tiene éxito, restaura la tarea a `READY`.
 
 ### Clonación
 

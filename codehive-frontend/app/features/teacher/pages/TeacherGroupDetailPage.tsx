@@ -26,6 +26,16 @@ function formatDate(value?: string): string {
   return value ? new Date(value).toLocaleDateString() : "—";
 }
 
+interface Confirmation {
+  title: string;
+  message: string;
+  confirmLabel: string;
+  successMessage: string;
+  action: () => Promise<unknown>;
+  redirect?: boolean;
+  destructive?: boolean;
+}
+
 export function TeacherGroupDetailPage() {
   const navigate = useNavigate();
   const { groupId = "" } = useParams<{ groupId: string }>();
@@ -38,6 +48,7 @@ export function TeacherGroupDetailPage() {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
 
   const load = useCallback(async () => {
     if (!groupId) return;
@@ -88,6 +99,17 @@ export function TeacherGroupDetailPage() {
 
   const state = !group.isActive ? "Deleted" : group.archived ? "Archived" : "Active";
 
+  function requestConfirmation(next: Confirmation) {
+    setConfirmation(next);
+  }
+
+  function confirmAction() {
+    if (!confirmation) return;
+    const next = confirmation;
+    setConfirmation(null);
+    void runAction(next.action, next.successMessage, next.redirect);
+  }
+
   return (
     <DashboardLayout logoLinkTo="/teacher" navLinks={TEACHER_NAV} sidebarItems={TEACHER_SIDEBAR_ITEMS}>
       <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4 mb-8">
@@ -110,34 +132,63 @@ export function TeacherGroupDetailPage() {
             </button>
           )}
           {group.isActive && !group.archived && (
-            <button disabled={busy} onClick={() => void runAction(() => rotateGroupJoinCode(group.id), "Join code rotated.")} className="btn-outline inline-flex items-center gap-2">
+            <button
+              disabled={busy}
+              onClick={() => requestConfirmation({
+                title: "Rotate join code?",
+                message: "Current code will stop working immediately. Students will need the new code to join.",
+                confirmLabel: "Rotate code",
+                successMessage: "Join code rotated.",
+                action: () => rotateGroupJoinCode(group.id),
+              })}
+              className="btn-outline inline-flex items-center gap-2"
+            >
               <RefreshCw size={14} /> Rotate code
             </button>
           )}
           {group.isActive && (
             <button
               disabled={busy}
-              onClick={() => void runAction(
-                () => group.archived ? unarchiveGroup(group.id) : archiveGroup(group.id),
-                group.archived ? "Group unarchived." : "Group archived.",
-              )}
+              onClick={() => requestConfirmation({
+                title: group.archived ? "Unarchive group?" : "Archive group?",
+                message: group.archived
+                  ? "Group will become active again and students will regain access."
+                  : "Students will lose access, but group history and assignments will remain stored.",
+                confirmLabel: group.archived ? "Unarchive group" : "Archive group",
+                successMessage: group.archived ? "Group unarchived." : "Group archived.",
+                action: () => group.archived ? unarchiveGroup(group.id) : archiveGroup(group.id),
+              })}
               className="btn-outline inline-flex items-center gap-2"
             >
               <Archive size={14} /> {group.archived ? "Unarchive" : "Archive"}
             </button>
           )}
           {!group.isActive ? (
-            <button disabled={busy} onClick={() => void runAction(() => restoreGroup(group.id), "Group restored in archived state.")} className="btn-primary">
+            <button
+              disabled={busy}
+              onClick={() => requestConfirmation({
+                title: "Restore group?",
+                message: "Group will be restored in archived state. You can unarchive it afterward.",
+                confirmLabel: "Restore group",
+                successMessage: "Group restored in archived state.",
+                action: () => restoreGroup(group.id),
+              })}
+              className="btn-primary"
+            >
               Restore
             </button>
           ) : (
             <button
               disabled={busy}
-              onClick={() => {
-                if (window.confirm("Delete this group? History remains stored, but students lose access.")) {
-                  void runAction(() => deleteGroup(group.id), "Group deleted.", true);
-                }
-              }}
+              onClick={() => requestConfirmation({
+                title: "Delete group?",
+                message: "Students will lose access. Group history remains stored, but this action cannot be undone here.",
+                confirmLabel: "Delete group",
+                successMessage: "Group deleted.",
+                action: () => deleteGroup(group.id),
+                redirect: true,
+                destructive: true,
+              })}
               className="btn-outline inline-flex items-center gap-2 text-red-500"
             >
               <Trash2 size={14} /> Delete
@@ -215,7 +266,19 @@ export function TeacherGroupDetailPage() {
             <div className="flex items-center gap-2 mt-3">
               <strong className="font-mono text-xl tracking-widest text-azure dark:text-yellow flex-1">{group.joinCode || "Unavailable"}</strong>
               {group.joinCode && <button onClick={() => void navigator.clipboard.writeText(group.joinCode!)} title="Copy join code"><Copy size={16} /></button>}
-              {group.isActive && !group.archived && <button disabled={busy} onClick={() => void runAction(() => rotateGroupJoinCode(group.id), "Join code rotated.")} title="Rotate join code"><RotateCcw size={16} /></button>}
+              {group.isActive && !group.archived && (
+                <button
+                  disabled={busy}
+                  onClick={() => requestConfirmation({
+                    title: "Rotate join code?",
+                    message: "Current code will stop working immediately. Students will need the new code to join.",
+                    confirmLabel: "Rotate code",
+                    successMessage: "Join code rotated.",
+                    action: () => rotateGroupJoinCode(group.id),
+                  })}
+                  title="Rotate join code"
+                ><RotateCcw size={16} /></button>
+              )}
             </div>
           </div>
           <div className="bg-white dark:bg-dark-card rounded-2xl border border-gray-200 dark:border-gray-700/40 p-5 space-y-3 text-sm">
@@ -228,6 +291,29 @@ export function TeacherGroupDetailPage() {
           </div>
         </aside>
       </div>
+      {confirmation && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" role="presentation">
+          <div
+            className="w-full max-w-md bg-white dark:bg-dark-card rounded-2xl border border-gray-200 dark:border-gray-700/50 shadow-2xl p-6"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="group-confirmation-title"
+          >
+            <h2 id="group-confirmation-title" className="text-lg font-semibold">{confirmation.title}</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">{confirmation.message}</p>
+            <div className="flex justify-end gap-2 mt-6">
+              <button disabled={busy} onClick={() => setConfirmation(null)} className="btn-outline">Cancel</button>
+              <button
+                disabled={busy}
+                onClick={confirmAction}
+                className={confirmation.destructive ? "btn-outline text-red-500" : "btn-primary"}
+              >
+                {confirmation.confirmLabel}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 }

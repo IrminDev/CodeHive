@@ -78,6 +78,13 @@ type LeftTab = "problem" | "constraints" | "hints" | "mysubs";
 type TestTab = "testcases" | "output" | "stderr" | "verdict";
 type AiMessage = { role: "user" | "ai"; text: string };
 
+function practiceInputs(assignment: Assignment): string[] {
+  const samples = [...(assignment.sampleTestCases ?? [])]
+    .sort((left, right) => left.order - right.order)
+    .map((testCase) => testCase.input);
+  return samples.length ? samples : [""];
+}
+
 export function AssignmentPage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
@@ -111,6 +118,8 @@ export function AssignmentPage() {
     getAssignment(id)
       .then((a) => {
         setAssignment(a);
+        setTestCases(practiceInputs(a));
+        setSelectedCase(0);
         if (a.allowedLanguages?.length > 0) {
           setSelectedLanguage(a.allowedLanguages[0]);
           setCode(LANGUAGE_TEMPLATES[a.allowedLanguages[0]] ?? "");
@@ -134,6 +143,15 @@ export function AssignmentPage() {
               "Consider using a hash map to store complements.",
             ],
             tags: ["array", "hash-table"],
+            examples: [{
+              input: "nums = [2, 7, 11, 15]\ntarget = 9",
+              output: "[0, 1]",
+              explanation: "nums[0] + nums[1] equals target.",
+            }],
+            sampleTestCases: [{
+              order: 1,
+              input: "4\n2 7 11 15\n9\n",
+            }],
             timeLimitMs: 1000,
             memoryLimitMb: 256,
             comparatorType: "EXACT_MATCH",
@@ -144,6 +162,8 @@ export function AssignmentPage() {
             isActive: true,
           };
           setAssignment(mock);
+          setTestCases(practiceInputs(mock));
+          setSelectedCase(0);
           setSelectedLanguage(mock.allowedLanguages[0]);
           setCode(LANGUAGE_TEMPLATES[mock.allowedLanguages[0]] ?? "");
         } else {
@@ -658,6 +678,9 @@ function ProblemTab({ assignment }: { assignment: Assignment }) {
       {/* Examples */}
       {assignment.examples && assignment.examples.length > 0 && (
         <div className="space-y-3">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
+            Examples
+          </p>
           {assignment.examples.map((ex, i) => (
             <div key={i} className="space-y-1.5">
               <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
@@ -964,49 +987,6 @@ function ResultsStatusBar({
   );
 }
 
-function ResultsStatusBar({
-  report,
-  timeLimitMs,
-  memoryLimitMb,
-}: {
-  report: ExecutionReport;
-  timeLimitMs: number;
-  memoryLimitMb: number;
-}) {
-  const pct = report.totalTests > 0 ? (report.passedTests / report.totalTests) * 100 : 0;
-  const allPassed = report.passedTests === report.totalTests;
-
-  return (
-    <div className="h-8 flex-shrink-0 flex items-center gap-3 px-3 border-t border-gray-200 dark:border-gray-800/60 bg-gray-50 dark:bg-dark-bg">
-      <span className={`px-2 py-0.5 rounded border text-[10px] font-bold flex-shrink-0 ${VERDICT_STYLES[report.overallStatus] ?? ""}`}>
-        {report.overallStatus}
-      </span>
-
-      <span className="text-[10px] text-gray-500 dark:text-gray-400 flex-shrink-0">
-        {report.passedTests}/{report.totalTests} cases passed
-      </span>
-
-      {/* Progress bar */}
-      <div className="flex-1 h-1 rounded-full bg-gray-200 dark:bg-gray-800 overflow-hidden">
-        <div
-          className={`h-full rounded-full transition-all ${allPassed ? "bg-green-500" : "bg-red-500"}`}
-          style={{ width: `${pct}%` }}
-        />
-      </div>
-
-      <div className="flex items-center gap-3 text-[10px] text-gray-400 dark:text-gray-600 font-mono flex-shrink-0">
-        {report.maxExecutionTimeMs !== undefined && (
-          <span>time {report.maxExecutionTimeMs}ms/{timeLimitMs}ms</span>
-        )}
-        {report.maxMemoryUsedMb !== undefined && (
-          <span>mem {report.maxMemoryUsedMb?.toFixed(1)}MB/{memoryLimitMb}MB</span>
-        )}
-        <span>exit 0</span>
-      </div>
-    </div>
-  );
-}
-
 /* ── Shared small components ── */
 
 function MetricChip({ icon, label }: { icon: React.ReactNode; label: string }) {
@@ -1014,7 +994,7 @@ function MetricChip({ icon, label }: { icon: React.ReactNode; label: string }) {
     <span className="hidden sm:inline-flex items-center gap-1.5 text-[10px] text-gray-500 dark:text-gray-500 font-mono">
       <span className="text-gray-400 dark:text-gray-600">{icon}</span>
       {label}
-    </div>
+    </span>
   );
 }
 

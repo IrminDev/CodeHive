@@ -162,6 +162,15 @@ public class AssignmentUpdateService {
                     request.getTestSuiteUpdateMode());
             publishValidation(update, assignment, proposedReference, suite, testCases,
                     TestGenerationMode.TEST_SUITE_GENERATION);
+        } else if (assignment.getActiveTestSuiteRevision() == null) {
+            update.setKind(AssignmentUpdateKind.TEST_SUITE);
+            TestSuiteRevision suite = createTestSuiteRevision(assignment, proposedReference);
+            update.setTestSuiteRevision(suite);
+            update = updateRepository.save(update);
+            List<TestCaseInfo> testCases = persistProposedTests(
+                    assignment, suite, List.of(), List.of(), TestSuiteUpdateMode.APPEND);
+            publishValidation(update, assignment, proposedReference, suite, testCases,
+                    TestGenerationMode.TEST_SUITE_GENERATION);
         } else {
             update.setKind(AssignmentUpdateKind.REFERENCE_ONLY);
             update = updateRepository.save(update);
@@ -217,6 +226,7 @@ public class AssignmentUpdateService {
             return;
         }
         boolean wasStudentPublished = studentPublished(assignment);
+        boolean restoringFailedAssignment = assignment.getActiveTestSuiteRevision() == null;
         boolean datesChanged = datesChanged(assignment, proposed);
         boolean maxPointsChanged = proposed.getMaxPoints() != null
                 && proposed.getMaxPoints().compareTo(assignment.getMaxPoints()) != 0;
@@ -227,6 +237,17 @@ public class AssignmentUpdateService {
             suite.setStatus(RevisionStatus.ACTIVE);
             suite.setActivatedAt(Instant.now());
             assignment.setActiveTestSuiteRevision(suite);
+            if (restoringFailedAssignment) {
+                assignment.setValidationStatus(
+                        com.github.codehive.model.enums.AssignmentValidationStatus.READY);
+                publishAssignmentEvent(NotificationType.ASSIGNMENT_READY,
+                        assignment, update.getCreatedBy(), update.getCreatedBy().getId());
+                if (assignment.getLaunchDate() == null
+                        || !Instant.now().isBefore(assignment.getLaunchDate())) {
+                    publishAssignmentEvent(NotificationType.ASSIGNMENT_PUBLISHED,
+                            assignment, update.getCreatedBy(), null);
+                }
+            }
             int cleared = gradeService.clearAssignmentGrades(
                     assignment, GradeChangeReason.CLEARED_TEST_SUITE_CHANGED, update.getCreatedBy());
             if (cleared > 0) publishAssignmentEvent(
@@ -325,10 +346,10 @@ public class AssignmentUpdateService {
         List<TestCaseInfo> infos = new ArrayList<>();
         int orderOffset = 0;
         if (mode == null || mode == TestSuiteUpdateMode.APPEND) {
-            TestSuiteRevision active = assignment.getActiveTestSuiteRevision();
-            if (active != null) {
+            TestSuiteRevision sourceSuite = sourceTestSuite(assignment);
+            if (sourceSuite != null) {
                 for (TestCase existing : testCaseRepository
-                        .findByTestSuiteRevisionIdOrderByOrderAsc(active.getId())) {
+                        .findByTestSuiteRevisionIdOrderByOrderAsc(sourceSuite.getId())) {
                     TestCase copied = new TestCase(
                             assignment, revision, existing.getOrder(), existing.getIsSample());
                     copied = testCaseRepository.save(copied);
@@ -337,7 +358,7 @@ public class AssignmentUpdateService {
                     String output = ObjectKeyBuilder.testCaseExpectedOutput(
                             assignment.getId(), revision.getId(), copied.getId());
                     copy(ObjectKeyBuilder.testCaseInput(
-                            assignment.getId(), active.getId(), existing.getId()), input);
+                            assignment.getId(), sourceSuite.getId(), existing.getId()), input);
                     infos.add(new TestCaseInfo(copied.getId(), input, output));
                     orderOffset++;
                 }
@@ -375,6 +396,14 @@ public class AssignmentUpdateService {
                             assignment.getId(), active.getId(), testCase.getId()));
                     return info;
                 }).toList();
+    }
+
+    private TestSuiteRevision sourceTestSuite(Assignment assignment) {
+        TestSuiteRevision active = assignment.getActiveTestSuiteRevision();
+        if (active != null) return active;
+        return testSuiteRevisionRepository.findTopByAssignmentIdOrderByRevisionNumberDesc(
+                assignment.getId()).orElseThrow(() ->
+                new ValidationException("Assignment has no test suite to retry"));
     }
 
     private void publishValidation(AssignmentUpdate update, Assignment assignment,

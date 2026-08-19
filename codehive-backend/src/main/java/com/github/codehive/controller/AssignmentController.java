@@ -26,6 +26,7 @@ import org.springframework.web.multipart.MultipartFile;
 import com.github.codehive.model.dto.AssignmentDTO;
 import com.github.codehive.model.dto.AssignmentUpdateDTO;
 import com.github.codehive.model.dto.CloneAssignmentFormDTO;
+import com.github.codehive.model.dto.AssignmentPreviewDTO;
 import com.github.codehive.model.request.assignment.CreateAssignmentRequest;
 import com.github.codehive.model.request.assignment.CloneAssignmentRequest;
 import com.github.codehive.model.request.assignment.UpdateAssignmentRequest;
@@ -179,6 +180,14 @@ public class AssignmentController {
             @PathVariable UUID id, Authentication authentication) {
         return ResponseEntity.ok(new SuccessResponse<>("Assignment clone form retrieved.",
                 assignmentService.getCloneForm(id, authentication.getName())));
+    }
+
+    @GetMapping("/{id}/preview")
+    @Operation(summary = "Get owner-only assignment preview with generated outputs")
+    public ResponseEntity<SuccessResponse<AssignmentPreviewDTO>> getPreview(
+            @PathVariable UUID id, Authentication authentication) {
+        return ResponseEntity.ok(new SuccessResponse<>("Assignment preview retrieved.",
+                assignmentService.getTeacherPreview(id, authentication.getName())));
     }
 
     @Operation(summary = "Clone an assignment",

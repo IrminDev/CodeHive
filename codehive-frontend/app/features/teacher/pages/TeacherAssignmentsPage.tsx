@@ -8,10 +8,7 @@ import {
   getActiveTeacherGroups,
   getTeacherAssignments,
 } from "../api/assignment.api";
-import type {
-  TeacherAssignment,
-  TeacherGroup,
-} from "../api/assignment.api";
+import type { TeacherAssignment, TeacherGroup } from "../api/assignment.api";
 import { TEACHER_NAV, TEACHER_SIDEBAR_ITEMS } from "../config/dashboard.config";
 
 export function TeacherAssignmentsPage() {
@@ -22,14 +19,26 @@ export function TeacherAssignmentsPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   async function handleDelete(assignmentId: string) {
-    if (!window.confirm("Delete this assignment? Existing history remains stored.")) return;
+    if (
+      !window.confirm(
+        "Delete this assignment? Existing history remains stored.",
+      )
+    )
+      return;
     setDeletingId(assignmentId);
     try {
       await deleteAssignment(assignmentId);
-      setAssignments((items) => items.filter((item) => item.id !== assignmentId));
+      setAssignments((items) =>
+        items.filter((item) => item.id !== assignmentId),
+      );
       sileo.success({ title: "Assignment deleted." });
     } catch (error) {
-      sileo.error({ title: error instanceof Error ? error.message : "Failed to delete assignment." });
+      sileo.error({
+        title:
+          error instanceof Error
+            ? error.message
+            : "Failed to delete assignment.",
+      });
     } finally {
       setDeletingId(null);
     }
@@ -48,7 +57,8 @@ export function TeacherAssignmentsPage() {
         if (!cancelled) {
           setLoading(false);
           sileo.error({
-            title: error instanceof Error ? error.message : "Failed to load groups.",
+            title:
+              error instanceof Error ? error.message : "Failed to load groups.",
           });
         }
       });
@@ -68,7 +78,10 @@ export function TeacherAssignmentsPage() {
       .catch((error) => {
         if (!cancelled) {
           sileo.error({
-            title: error instanceof Error ? error.message : "Failed to load assignments.",
+            title:
+              error instanceof Error
+                ? error.message
+                : "Failed to load assignments.",
           });
         }
       })
@@ -88,9 +101,11 @@ export function TeacherAssignmentsPage() {
     >
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Assignments</h1>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+            Assignments
+          </h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Choose assignment to clone and edit.
+            Edit assignment details or validate a code and test-suite revision.
           </p>
         </div>
         <Link to="/teacher/create-assignment" className="btn-primary">
@@ -112,9 +127,13 @@ export function TeacherAssignmentsPage() {
           className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700
                      bg-white dark:bg-dark-surface text-gray-900 dark:text-white"
         >
-          {!groups.length && <option value="">No active groups available</option>}
+          {!groups.length && (
+            <option value="">No active groups available</option>
+          )}
           {groups.map((group) => (
-            <option key={group.id} value={group.id}>{group.name}</option>
+            <option key={group.id} value={group.id}>
+              {group.name}
+            </option>
           ))}
         </select>
       </div>
@@ -149,17 +168,31 @@ export function TeacherAssignmentsPage() {
                   {assignment.dueDate && (
                     <>
                       <span>•</span>
-                      <span>Due {new Date(assignment.dueDate).toLocaleString()}</span>
+                      <span>
+                        Due {new Date(assignment.dueDate).toLocaleString()}
+                      </span>
                     </>
                   )}
                 </div>
               </div>
               <div className="flex gap-2">
                 <Link
+                  to={`/teacher/assignments/${assignment.id}/preview`}
+                  className="btn-outline inline-flex items-center justify-center"
+                >
+                  Preview
+                </Link>
+                <Link
                   to={`/teacher/assignments/${assignment.id}/edit`}
                   className="btn-outline inline-flex items-center justify-center"
                 >
                   Edit
+                </Link>
+                <Link
+                  to={`/teacher/assignments/${assignment.id}/revalidate`}
+                  className="btn-outline inline-flex items-center justify-center"
+                >
+                  Validate
                 </Link>
                 <Link
                   to={`/teacher/grades?groupId=${assignment.groupId}&assignmentId=${assignment.id}`}

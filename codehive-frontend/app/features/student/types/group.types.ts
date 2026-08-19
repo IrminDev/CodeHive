@@ -1,7 +1,12 @@
 export type ClassGroup = {
   id: string;
   name: string;
-  code: string;
+  description?: string;
+  ownerName?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  joinCode?: string;
+  code?: string;
   schedule?: string;
   isActive: boolean;
   archived: boolean;

@@ -1,16 +1,17 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
 import {
-  Bell, BookOpen, ChevronRight, ClipboardList, Clock,
-  GraduationCap, HardDrive, Home, Moon, Plus, RefreshCw,
-  Search, Settings, Sun, Users,
+  ChevronRight, Clock, HardDrive, Plus, RefreshCw,
 } from "lucide-react";
 import { useAuth } from "~/core/providers/AuthProvider";
-import { useTheme } from "~/core/providers/ThemeProvider";
 import { listMyGroups } from "../api/group.api";
-import { listAssignments } from "../api/assignment.api";
+import { listAssignmentsForGroups } from "../api/assignment.api";
+import { listRecentSubmissions } from "../api/submission.api";
+import { StudentHeader } from "../components/StudentHeader";
+import { StudentSidebar } from "../components/StudentSidebar";
 import type { Assignment, Language } from "../types/assignment.types";
 import type { ClassGroup } from "../types/group.types";
+import type { RecentSubmission, SubmissionResultStatus } from "../types/submission.types";
 
 const LANG_ABBR: Record<Language, string> = {
   PYTHON: "PY",
@@ -42,68 +43,15 @@ function formatDue(iso: string): string {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-const MOCK_ASSIGNMENTS: Assignment[] = [
-  {
-    id: "mock-1", title: "Two-Sum & K-Sum variants", description: "",
-    constraints: [], hints: [], tags: ["array", "hash-table"],
-    timeLimitMs: 2000, memoryLimitMb: 256, comparatorType: "EXACT_MATCH",
-    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
-    dueDate: new Date(Date.now() + 5 * 86400000).toISOString(),
-    allowedLanguages: ["PYTHON", "JAVA", "CPP"], isActive: true,
-  },
-  {
-    id: "mock-2", title: "Topological Sort — Course Scheduler", description: "",
-    constraints: [], hints: [], tags: ["graph", "BFS"],
-    timeLimitMs: 3000, memoryLimitMb: 512, comparatorType: "EXACT_MATCH",
-    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
-    dueDate: new Date(Date.now() + 7 * 86400000).toISOString(),
-    allowedLanguages: ["PYTHON", "JAVA"], isActive: true,
-  },
-  {
-    id: "mock-3", title: "Memory-bound LRU Cache", description: "",
-    constraints: [], hints: [], tags: ["design", "hash-table"],
-    timeLimitMs: 1500, memoryLimitMb: 128, comparatorType: "EXACT_MATCH",
-    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
-    dueDate: new Date(Date.now() + 12 * 86400000).toISOString(),
-    allowedLanguages: ["C", "CPP"], isActive: true,
-  },
-  {
-    id: "mock-4", title: "String tokenizer with backreferences", description: "",
-    constraints: [], hints: [], tags: ["string", "parsing"],
-    timeLimitMs: 2000, memoryLimitMb: 256, comparatorType: "EXACT_MATCH",
-    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
-    dueDate: new Date(Date.now() + 15 * 86400000).toISOString(),
-    allowedLanguages: ["PYTHON"], isActive: true,
-  },
-];
-
-type SubmissionVerdict = "AC" | "WA" | "TLE" | "CE" | "RTE" | "MLE";
-
-interface RecentSubmission {
-  id: string;
-  title: string;
-  language: string;
-  verdict: SubmissionVerdict;
-  timeMs?: number;
-  detail?: string;
-  timeAgo: string;
-}
-
-const MOCK_SUBMISSIONS: RecentSubmission[] = [
-  { id: "s1", title: "Two-sum (hash map)", language: "python", verdict: "AC", timeMs: 14, timeAgo: "2m" },
-  { id: "s2", title: "Tree diameter — recursive", language: "java", verdict: "WA", timeMs: 180, timeAgo: "17m" },
-  { id: "s3", title: "Quicksort partitioning", language: "c++", verdict: "TLE", detail: "TLE@8/10", timeAgo: "1h" },
-  { id: "s4", title: "Bracket matching", language: "python", verdict: "CE", timeAgo: "3h" },
-  { id: "s5", title: "Reverse linked list", language: "c", verdict: "AC", timeMs: 6, timeAgo: "yesterday" },
-];
-
-const VERDICT_STYLES: Record<SubmissionVerdict, { bg: string; text: string }> = {
+const VERDICT_STYLES: Record<SubmissionResultStatus, { bg: string; text: string }> = {
   AC:  { bg: "bg-green-500/15",  text: "text-green-400" },
   WA:  { bg: "bg-red-500/15",   text: "text-red-400" },
   TLE: { bg: "bg-orange-500/15", text: "text-orange-400" },
   CE:  { bg: "bg-yellow-500/15", text: "text-yellow-400" },
   RTE: { bg: "bg-red-500/15",   text: "text-red-400" },
   MLE: { bg: "bg-purple-500/15", text: "text-purple-400" },
+  OLE: { bg: "bg-pink-500/15", text: "text-pink-400" },
+  PENDING: { bg: "bg-yellow/15", text: "text-yellow" },
 };
 
 const GROUP_BADGE_COLORS = [
@@ -112,37 +60,51 @@ const GROUP_BADGE_COLORS = [
   { bg: "bg-yellow", text: "text-dark-bg" },
 ];
 
+function formatRelativeTime(value: string): string {
+  const minutes = Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 60_000));
+  if (minutes < 1) return "now";
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h`;
+  return `${Math.floor(hours / 24)}d`;
+}
+
 export function StudentDashboardPage() {
   const { user } = useAuth();
-  const { theme, toggleTheme } = useTheme();
 
   const [groups, setGroups] = useState<ClassGroup[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [loadingGroups, setLoadingGroups] = useState(true);
   const [loadingAssignments, setLoadingAssignments] = useState(true);
+  const [loadingSubmissions, setLoadingSubmissions] = useState(true);
   const [filterTab, setFilterTab] = useState<FilterTab>("all");
-  const [submissions] = useState<RecentSubmission[]>(
-    import.meta.env.DEV ? MOCK_SUBMISSIONS : []
-  );
+  const [submissions, setSubmissions] = useState<RecentSubmission[]>([]);
 
-  useEffect(() => {
-    listMyGroups()
-      .then(setGroups)
-      .catch(() => { if (import.meta.env.DEV) setGroups([]); })
-      .finally(() => setLoadingGroups(false));
-    listAssignments(0, 12)
-      .then((page) => {
-        if (import.meta.env.DEV && page.content.length === 0) {
-          setAssignments(MOCK_ASSIGNMENTS);
-        } else {
-          setAssignments(page.content);
-        }
-      })
-      .catch(() => {
-        if (import.meta.env.DEV) setAssignments(MOCK_ASSIGNMENTS);
-      })
-      .finally(() => setLoadingAssignments(false));
+  const loadDashboard = useCallback(async () => {
+    setLoadingGroups(true);
+    setLoadingAssignments(true);
+    setLoadingSubmissions(true);
+    try {
+      const groupItems = (await listMyGroups()).filter((group) => group.isActive && !group.archived);
+      setGroups(groupItems);
+      const [assignmentResult, submissionResult] = await Promise.allSettled([
+        listAssignmentsForGroups(groupItems.map((group) => group.id)),
+        listRecentSubmissions(),
+      ]);
+      setAssignments(assignmentResult.status === "fulfilled" ? assignmentResult.value : []);
+      setSubmissions(submissionResult.status === "fulfilled" ? submissionResult.value : []);
+    } catch {
+      setGroups([]);
+      setAssignments([]);
+      setSubmissions([]);
+    } finally {
+      setLoadingGroups(false);
+      setLoadingAssignments(false);
+      setLoadingSubmissions(false);
+    }
   }, []);
+
+  useEffect(() => { void loadDashboard(); }, [loadDashboard]);
 
   const totalPending = groups.filter((g) => g.isActive && !g.archived).length;
   const firstName = user?.name?.split(" ")[0] ?? "Student";
@@ -172,75 +134,12 @@ export function StudentDashboardPage() {
   return (
     <div className="h-screen flex overflow-hidden bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100 font-sans">
 
-      {/* ── Icon Sidebar ── */}
-      <aside className="w-14 flex-shrink-0 flex flex-col items-center py-4 gap-1 bg-gray-50 dark:bg-dark-surface border-r border-gray-200 dark:border-gray-800/60">
-        {/* Logo */}
-        <Link to="/" className="mb-4 flex-shrink-0">
-          <div
-            style={{ clipPath: "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)" }}
-            className="w-9 h-9 bg-yellow flex items-center justify-center"
-          >
-            <span className="text-dark-bg font-bold text-sm leading-none">&lt;/&gt;</span>
-          </div>
-        </Link>
-
-        <nav className="flex flex-col items-center gap-1 flex-1 w-full px-2">
-          <SidebarIcon icon={<Home size={20} />} label="Dashboard" to="/dashboard" active />
-          <SidebarIcon icon={<Users size={20} />} label="Groups" to="/groups" />
-          <SidebarIcon icon={<BookOpen size={20} />} label="Courses" to="/courses" />
-          <SidebarIcon icon={<GraduationCap size={20} />} label="Grades" to="/grades" />
-          <SidebarIcon icon={<ClipboardList size={20} />} label="Assignments" to="/assignments" />
-        </nav>
-
-        <div className="flex flex-col items-center gap-2 w-full px-2">
-          <SidebarIcon icon={<Settings size={20} />} label="Settings" to="/settings" />
-          <div
-            title={user?.name}
-            className="w-9 h-9 rounded-full bg-azure dark:bg-azure flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
-          >
-            {firstName.slice(0, 2).toUpperCase()}
-          </div>
-        </div>
-      </aside>
+      <StudentSidebar active="dashboard" />
 
       {/* ── Main area ── */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
 
-        {/* ── Header ── */}
-        <header className="h-12 flex-shrink-0 flex items-center gap-4 px-5 bg-gray-50 dark:bg-dark-surface border-b border-gray-200 dark:border-gray-800/60">
-          {/* Breadcrumb */}
-          <div className="flex items-center gap-1.5 text-sm flex-shrink-0">
-            <span className="text-gray-400 dark:text-gray-500">Student</span>
-            <ChevronRight size={14} className="text-gray-300 dark:text-gray-600" />
-            <span className="text-gray-900 dark:text-gray-100 font-medium">Dashboard</span>
-          </div>
-
-          {/* Search */}
-          <div className="flex-1 max-w-sm mx-auto">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white dark:bg-dark-card border border-gray-200 dark:border-gray-700/60">
-              <Search size={13} className="text-gray-400 dark:text-gray-500 flex-shrink-0" />
-              <input
-                type="text"
-                placeholder="Search assignments, groups..."
-                className="flex-1 bg-transparent text-xs text-gray-700 dark:text-gray-300 placeholder:text-gray-400 dark:placeholder:text-gray-600 focus:outline-none"
-              />
-              <span className="text-[10px] text-gray-400 dark:text-gray-600 font-mono border border-gray-200 dark:border-gray-700 rounded px-1 flex-shrink-0">⌘K</span>
-            </div>
-          </div>
-
-          {/* Right icons */}
-          <div className="flex items-center gap-3 ml-auto flex-shrink-0">
-            <button className="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">
-              <Bell size={18} />
-            </button>
-            <button
-              onClick={toggleTheme}
-              className="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-            >
-              {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
-            </button>
-          </div>
-        </header>
+        <StudentHeader breadcrumbs={[{ label: "Student" }, { label: "Dashboard" }]} />
 
         {/* ── Content ── */}
         <div className="flex-1 flex overflow-hidden">
@@ -268,19 +167,19 @@ export function StudentDashboardPage() {
                 </p>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0 pt-1">
-                <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-400 dark:hover:border-gray-500 hover:text-gray-700 dark:hover:text-gray-200 transition-all">
+                <button onClick={() => void loadDashboard()} disabled={loadingGroups || loadingAssignments || loadingSubmissions} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-400 dark:hover:border-gray-500 hover:text-gray-700 dark:hover:text-gray-200 transition-all disabled:opacity-50">
                   <RefreshCw size={13} />
                   Sync
                 </button>
-                <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-azure text-white hover:bg-french transition-colors">
+                <Link to="/groups/join" className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-azure text-white hover:bg-french transition-colors">
                   <Plus size={13} />
                   Join class
-                </button>
+                </Link>
               </div>
             </div>
 
             {/* Assignments panel */}
-            <div className="bg-white dark:bg-dark-surface border border-gray-200 dark:border-gray-800/60 rounded-2xl overflow-hidden">
+            <div id="assignments" className="bg-white dark:bg-dark-surface border border-gray-200 dark:border-gray-800/60 rounded-2xl overflow-hidden">
               {/* Panel header */}
               <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100 dark:border-gray-800/60">
                 <div className="flex items-center gap-2">
@@ -336,7 +235,7 @@ export function StudentDashboardPage() {
                 <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100 dark:border-gray-800/60 text-xs text-gray-400 dark:text-gray-500">
                   <span>Showing {Math.min(filteredAssignments.length, 8)} of {assignments.length}</span>
                   <Link
-                    to="/assignments"
+                    to="/dashboard#assignments"
                     className="flex items-center gap-0.5 text-yellow hover:text-gold transition-colors font-medium"
                   >
                     View all <ChevronRight size={13} />
@@ -350,10 +249,10 @@ export function StudentDashboardPage() {
           <aside className="w-72 flex-shrink-0 border-l border-gray-200 dark:border-gray-800/60 overflow-y-auto scrollbar-hide p-5 space-y-6 bg-white dark:bg-dark-bg">
 
             {/* My groups */}
-            <div>
+            <div id="groups">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-sm font-semibold text-gray-900 dark:text-white">My groups</span>
-                <button className="text-xs text-yellow hover:text-gold transition-colors font-medium">Manage</button>
+                <Link to="/groups" className="text-xs text-yellow hover:text-gold transition-colors font-medium">View all</Link>
               </div>
               <div className="space-y-0.5">
                 {loadingGroups ? (
@@ -375,7 +274,9 @@ export function StudentDashboardPage() {
               <div className="flex items-center justify-between mb-3">
                 <span className="text-sm font-semibold text-gray-900 dark:text-white">Recent submissions</span>
               </div>
-              {submissions.length === 0 ? (
+              {loadingSubmissions ? (
+                <div className="space-y-1">{[0, 1, 2].map((item) => <div key={item} className="h-14 rounded-xl bg-gray-100 dark:bg-dark-card animate-pulse" />)}</div>
+              ) : submissions.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-8 text-xs text-gray-400 dark:text-gray-600">
                   No submissions yet.
                 </div>
@@ -395,29 +296,6 @@ export function StudentDashboardPage() {
 }
 
 /* ── Sub-components ── */
-
-function SidebarIcon({
-  icon, label, to, active = false,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  to: string;
-  active?: boolean;
-}) {
-  return (
-    <Link
-      to={to}
-      title={label}
-      className={`w-10 h-10 flex items-center justify-center rounded-xl transition-colors ${
-        active
-          ? "text-yellow bg-yellow/10 dark:bg-yellow/10"
-          : "text-gray-400 dark:text-gray-600 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-dark-card"
-      }`}
-    >
-      {icon}
-    </Link>
-  );
-}
 
 function AssignmentRow({ assignment, index }: { assignment: Assignment; index: number }) {
   const now = new Date();
@@ -504,20 +382,20 @@ function AssignmentRow({ assignment, index }: { assignment: Assignment; index: n
 }
 
 function SubmissionRow({ submission: s }: { submission: RecentSubmission }) {
-  const style = VERDICT_STYLES[s.verdict];
+  const style = VERDICT_STYLES[s.executionStatus];
   return (
-    <div className="flex items-center gap-3 px-2 py-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-dark-card/60 transition-colors cursor-pointer group">
+    <Link to={`/assignment/${s.assignmentId}/submissions`} className="flex items-center gap-3 px-2 py-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-dark-card/60 transition-colors group">
       <div className={`w-9 h-9 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 ${style.bg} ${style.text}`}>
-        {s.verdict}
+        {s.executionStatus}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{s.title}</p>
+        <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{s.assignmentTitle}</p>
         <p className="text-[10px] text-gray-400 dark:text-gray-500 font-mono">
-          {s.language}{s.timeMs ? ` · ${s.timeMs}ms` : s.detail ? ` · ${s.detail}` : " · —"}
+          {s.language.toLowerCase()}{s.timeMs != null ? ` · ${s.timeMs}ms` : " · —"}
         </p>
       </div>
-      <span className="text-[10px] text-gray-400 dark:text-gray-600 flex-shrink-0">{s.timeAgo}</span>
-    </div>
+      <span className="text-[10px] text-gray-400 dark:text-gray-600 flex-shrink-0">{formatRelativeTime(s.createdAt)}</span>
+    </Link>
   );
 }
 
@@ -525,7 +403,7 @@ function GroupRow({ group, colorIndex }: { group: ClassGroup; colorIndex: number
   const color = GROUP_BADGE_COLORS[colorIndex % GROUP_BADGE_COLORS.length];
 
   return (
-    <div className="flex items-center gap-3 px-2 py-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-dark-card/60 transition-colors cursor-pointer group">
+    <Link to={`/groups/${group.id}`} className="flex items-center gap-3 px-2 py-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-dark-card/60 transition-colors group">
       <div
         className={`w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 ${color.bg} ${color.text}`}
       >
@@ -542,6 +420,6 @@ function GroupRow({ group, colorIndex }: { group: ClassGroup; colorIndex: number
         </p>
       </div>
       <ChevronRight size={15} className="text-gray-300 dark:text-gray-700 group-hover:text-gray-500 dark:group-hover:text-gray-400 transition-colors flex-shrink-0" />
-    </div>
+    </Link>
   );
 }

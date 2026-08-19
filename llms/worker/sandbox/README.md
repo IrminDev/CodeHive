@@ -76,7 +76,7 @@ Python:
 - `PYTHONDONTWRITEBYTECODE=1` prevents `__pycache__` writes
 
 C:
-- compile: `gcc -o program main.c -lm`
+- compile: `gcc -std=c2x -o program main.c -lm` using `gcc:13-bookworm`
 - execute: `./program` or `./program < input.txt`
 
 C++:
@@ -97,7 +97,8 @@ On executor initialization:
 Default images:
 - Java: eclipse-temurin:21-jdk-ubi10-minimal
 - Python: python:3.11-slim
-- C/C++: gcc:latest
+- C compile: gcc:13-bookworm; execution: irmindev/c-exec:latest (Debian 12 runtime)
+- C++: gcc:12
 
 ## Seccomp Profile
 File: `codehive-worker/src/main/resources/seccomp/sandbox-profile.json`

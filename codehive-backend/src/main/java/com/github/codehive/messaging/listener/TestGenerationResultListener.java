@@ -96,9 +96,13 @@ public class TestGenerationResultListener {
             logger.info("[WORKFLOW] Assignment validation completed - assignmentId={}, generatedOutputs={}",
                     assignment.getId(), result.getGeneratedCount());
         } else {
+            String failureMessage = result.getErrorMessage();
+            if (failureMessage == null || failureMessage.isBlank()) {
+                failureMessage = "Test output generation failed without diagnostic output.";
+            }
             if (revision != null) {
                 revision.setStatus(RevisionStatus.FAILED);
-                revision.setFailureMessage(result.getErrorMessage());
+                revision.setFailureMessage(failureMessage);
                 revision.getReferenceSolutionRevision().setStatus(RevisionStatus.FAILED);
             }
             if (assignment.getActiveTestSuiteRevision() == null) {
@@ -112,7 +116,7 @@ public class TestGenerationResultListener {
                         assignment.getId(), null));
             }
             logger.error("[WORKFLOW] Test generation failed for assignmentId={}, error={}",
-                    result.getAssignmentId(), result.getErrorMessage());
+                    result.getAssignmentId(), failureMessage);
         }
     }
 }
