@@ -169,6 +169,21 @@ class AssignmentControllerIntegrationTest {
                     .andExpect(jsonPath("$.data.content.length()").value(1))
                     .andExpect(jsonPath("$.data.totalPages").value(2));
         }
+
+        @Test
+        @DisplayName("filters assignment titles case-insensitively")
+        void titleFilter() throws Exception {
+            saveAssignment("Sliding Window Maximum");
+            saveAssignment("Graph Traversal");
+
+            mockMvc.perform(get("/api/assignments")
+                            .param("groupId", group.getId().toString())
+                            .param("query", "window")
+                            .header("Authorization", "Bearer " + teacherToken))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.totalElements").value(1))
+                    .andExpect(jsonPath("$.data.content[0].title").value("Sliding Window Maximum"));
+        }
     }
 
     // ── GET BY ID ────────────────────────────────────────────────────────────

@@ -48,4 +48,12 @@ public class CPPExecutor extends AbstractLanguageExecutor {
     protected String runCommand() {
         return "./program";
     }
+
+    @Override
+    protected boolean isMemoryLimitError(String stderr) {
+        if (stderr == null) return false;
+        String lower = stderr.toLowerCase();
+        return lower.contains("std::bad_alloc") || lower.contains("bad_alloc")
+                || lower.contains("cannot allocate memory");
+    }
 }

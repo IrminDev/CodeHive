@@ -11,6 +11,7 @@ Service files:
 - app/features/teacher/api/group.api.ts
 - app/features/teacher/api/student-work.api.ts
 - app/features/teacher/api/metrics.api.ts
+- app/features/teacher/api/dashboard.api.ts
 - app/features/teacher/api/client.ts
 
 Base URL strategy:
@@ -54,20 +55,28 @@ Behavior details:
 - Creates assignments with multipart metadata/reference/test files.
 - Retrieves and updates assignment metadata/schedules through multipart requests.
 - Deletes assignments logically.
+- Restores logically deleted assignments and supports server-side lifecycle, validation, and title filters.
+- Loads owner-only assignment validation/update/reevaluation management status.
 - Loads an owner-only complete clone-form snapshot.
 - Loads an owner-only read-only assignment preview with reference source, private test inputs, and generated expected outputs.
 - Submits a complete edited clone snapshot as JSON, including reference source and test inputs.
 - Converts backend wrapper responses to typed feature data and surfaces API messages on failure.
 
-## Student Dashboard Data
+## Student Assignment Data
 
 - Loads accessible groups from `GET /api/groups`.
-- Loads student-visible assignments per active enrolled group through `GET /api/assignments?groupId=...`.
+- Loads all student-visible assignments and progress in one request through `GET /api/assignments/mine`.
+- Aggregate rows include group context, current submission/latest verdict, returned grade, and published-feedback count. Archived active groups stay visible as read-only.
 - Loads recent definitive submission results from `GET /api/submissions/mine?limit=5`.
 - Loads one group and its assignments from `GET /api/groups/{groupId}` and
   `GET /api/assignments?groupId={groupId}`.
 - Loads current student submissions for group delivery flags from
-  `GET /api/submissions/mine/group/{groupId}`.
+  `GET /api/submissions/mine/group/{groupId}`. Dashboard uses these current verdicts
+  to distinguish open work, in-progress attempts, and accepted/done assignments.
+- Loads persisted assignment submission history from
+  `GET /api/submissions/mine/assignment/{assignmentId}`. Detailed report links are shown only when `reportAvailable` is true.
+- Loads student-visible feedback and deleted tombstones from `GET /api/assignments/{assignmentId}/my-feedback`.
+- Student API errors use `ApiError`, preserving HTTP status so report views can distinguish expired artifacts (`410`) from ordinary failures.
 
 ## Teacher Group API
 
@@ -78,6 +87,7 @@ Behavior details:
 ## Teacher Student-Work API
 
 - Lists assignment student-work aggregates and submission history.
+- Loads owner-only submission source, retained execution evidence, and grade audit history.
 - Saves draft grades and explicitly returns them to students.
 - Creates, lists, and logically deletes feedback.
 
@@ -85,6 +95,12 @@ Behavior details:
 
 - Loads group overview, per-assignment, and per-student metrics.
 - Loads detailed metrics for one assignment.
+
+## Teacher Dashboard API
+
+- Loads one action-center aggregate from `GET /api/teacher/dashboard`.
+- Includes owned active group/student/assignment counts, grading queue, validation issues,
+  upcoming lifecycle dates, and recent submissions.
 
 Teacher API modules share authenticated response/error parsing through
 `app/features/teacher/api/client.ts`.

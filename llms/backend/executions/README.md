@@ -62,13 +62,16 @@ The API returns 202 Accepted immediately — output generation is asynchronous.
 1. Worker publishes ExecutionReport.
 2. ExecutionResultListener consumes the report.
 3. ExecutionResultService loads execution by id.
-4. Status, timeMs, and memoryMb are updated in the executions table.
+4. Status, timeMs, and memoryMb are updated in the executions table. Worker memory
+   values are MiB; missing telemetry remains null instead of becoming zero.
 5. Client retrieves updated status via `GET /api/execution/check/{id}`.
 6. Client retrieves the full per-test-case report via `GET /api/execution/check/{id}/report`.
    - Fetches `report.json` from MinIO at `executions/{id}/report.json` or the
      corresponding practice-execution path.
    - Returns 404 with a clear message when execution is still PENDING.
    - Deserializes into `ExecutionReport` using Jackson ObjectMapper.
+   - Per-test results may include bounded `stderr` and `exitCode` diagnostics for
+     CE, RTE, and MLE. Private expected output and hidden input rules remain unchanged.
 
 ## Key Data Contracts
 Assignment creation request:

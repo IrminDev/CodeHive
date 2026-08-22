@@ -1,6 +1,7 @@
 package com.github.codehive.repository;
 
 import java.util.List;
+import java.util.Collection;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -10,10 +11,13 @@ import org.springframework.data.repository.query.Param;
 
 import com.github.codehive.model.dto.metrics.StudentGradeRow;
 import com.github.codehive.model.entity.AssignmentGrade;
+import com.github.codehive.model.enums.GradeStatus;
 
 public interface AssignmentGradeRepository extends JpaRepository<AssignmentGrade, UUID> {
     Optional<AssignmentGrade> findByStudentWorkId(UUID studentWorkId);
     List<AssignmentGrade> findByStudentWorkAssignmentId(UUID assignmentId);
+    List<AssignmentGrade> findByStudentWorkAssignmentIdAndStatus(UUID assignmentId, GradeStatus status);
+    List<AssignmentGrade> findByStudentWorkIdIn(Collection<UUID> studentWorkIds);
 
     @Query("""
             select new com.github.codehive.model.dto.metrics.StudentGradeRow(

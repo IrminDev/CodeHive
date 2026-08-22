@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { Link, useParams } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
 import {
   ArrowLeft, CalendarDays, ChevronRight, CircleCheck, CircleAlert, Clock3,
-  HardDrive, RefreshCw, UserRound, Users,
+  HardDrive, LogOut, RefreshCw, UserRound, Users,
 } from "lucide-react";
 
 import { listAssignments } from "../api/assignment.api";
-import { getGroup } from "../api/group.api";
+import { getGroup, leaveGroup } from "../api/group.api";
 import { listGroupSubmissions } from "../api/submission.api";
 import { StudentHeader } from "../components/StudentHeader";
 import { StudentSidebar } from "../components/StudentSidebar";
@@ -22,7 +22,7 @@ const LANG_ABBR: Record<Language, string> = {
   C: "C",
 };
 
-type DeliveryState = { label: string; detail: string; className: string };
+type DeliveryState = { label: string; detail: string; className: string; accepted: boolean };
 
 function formatDate(value?: string): string {
   if (!value) return "No date";
@@ -31,33 +31,66 @@ function formatDate(value?: string): string {
 
 function deliveryState(assignment: Assignment, submission?: GroupSubmission): DeliveryState {
   if (submission) {
-    return submission.deliveredLate
-      ? { label: "Delivered late", detail: `Submitted ${formatDate(submission.submittedAt)}`, className: "bg-orange-500/10 text-orange-500 border-orange-500/20" }
-      : { label: "Delivered", detail: `Submitted ${formatDate(submission.submittedAt)}`, className: "bg-green-500/10 text-green-500 border-green-500/20" };
+    const submitted = `Submitted ${formatDate(submission.submittedAt)}`;
+    const status = submission.executionStatus ?? "PENDING";
+    if (status === "AC") {
+      return {
+        label: submission.deliveredLate ? "Delivered late · accepted" : "Delivered · accepted",
+        detail: submitted,
+        className: "bg-green-500/10 text-green-500 border-green-500/20",
+        accepted: true,
+      };
+    }
+    if (status === "PENDING") {
+      return {
+        label: "Delivered · checking",
+        detail: submitted,
+        className: "bg-yellow/10 text-yellow border-yellow/20",
+        accepted: false,
+      };
+    }
+    const verdicts: Record<string, string> = {
+      WA: "Wrong answer",
+      CE: "Compilation error",
+      RTE: "Runtime error",
+      TLE: "Time limit exceeded",
+      MLE: "Memory limit exceeded",
+      OLE: "Output limit exceeded",
+    };
+    return {
+      label: `Delivered · ${verdicts[status] ?? status}`,
+      detail: `${submitted}${submission.deliveredLate ? " · late" : ""}`,
+      className: status === "TLE" ? "bg-orange-500/10 text-orange-500 border-orange-500/20" : "bg-red-500/10 text-red-500 border-red-500/20",
+      accepted: false,
+    };
   }
 
   const now = Date.now();
   if (assignment.closeDate && Date.parse(assignment.closeDate) <= now) {
-    return { label: "Closed · no submission", detail: `Closed ${formatDate(assignment.closeDate)}`, className: "bg-red-500/10 text-red-500 border-red-500/20" };
+    return { label: "Closed · no submission", detail: `Closed ${formatDate(assignment.closeDate)}`, className: "bg-red-500/10 text-red-500 border-red-500/20", accepted: false };
   }
   if (assignment.dueDate && Date.parse(assignment.dueDate) < now) {
-    return { label: "Late · not delivered", detail: `Due ${formatDate(assignment.dueDate)}`, className: "bg-orange-500/10 text-orange-500 border-orange-500/20" };
+    return { label: "Late · not delivered", detail: `Due ${formatDate(assignment.dueDate)}`, className: "bg-orange-500/10 text-orange-500 border-orange-500/20", accepted: false };
   }
   if (assignment.launchDate && Date.parse(assignment.launchDate) > now) {
-    return { label: "Not open yet", detail: `Opens ${formatDate(assignment.launchDate)}`, className: "bg-gray-500/10 text-gray-500 border-gray-500/20" };
+    return { label: "Not open yet", detail: `Opens ${formatDate(assignment.launchDate)}`, className: "bg-gray-500/10 text-gray-500 border-gray-500/20", accepted: false };
   }
   return assignment.dueDate
-    ? { label: "Not delivered", detail: `Due ${formatDate(assignment.dueDate)}`, className: "bg-yellow/10 text-yellow border-yellow/20" }
-    : { label: "Not delivered", detail: "No due date", className: "bg-yellow/10 text-yellow border-yellow/20" };
+    ? { label: "Not delivered", detail: `Due ${formatDate(assignment.dueDate)}`, className: "bg-yellow/10 text-yellow border-yellow/20", accepted: false }
+    : { label: "Not delivered", detail: "No due date", className: "bg-yellow/10 text-yellow border-yellow/20", accepted: false };
 }
 
 export function StudentGroupDetailPage() {
+  const navigate = useNavigate();
   const { groupId = "" } = useParams<{ groupId: string }>();
   const [group, setGroup] = useState<ClassGroup | null>(null);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [submissions, setSubmissions] = useState<GroupSubmission[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [leaving, setLeaving] = useState(false);
+  const [leaveError, setLeaveError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!groupId) {
@@ -87,6 +120,20 @@ export function StudentGroupDetailPage() {
   }, [groupId]);
 
   useEffect(() => { void load(); }, [load]);
+
+  async function leaveCurrentGroup() {
+    if (!group) return;
+    setLeaving(true);
+    setLeaveError(null);
+    try {
+      await leaveGroup(group.id);
+      navigate("/groups");
+    } catch (cause) {
+      setLeaveError(cause instanceof Error ? cause.message : "Could not leave this group.");
+    } finally {
+      setLeaving(false);
+    }
+  }
 
   const submissionByAssignment = useMemo(
     () => new Map(submissions.map((submission) => [submission.assignmentId, submission])),
@@ -127,7 +174,10 @@ export function StudentGroupDetailPage() {
                     <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{group.name}</h1>
                     <p className="max-w-2xl mt-2 text-sm leading-relaxed text-gray-500 dark:text-gray-400">{group.description || "No group description provided."}</p>
                   </div>
-                  <button onClick={() => void load()} className="inline-flex self-start items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-100 transition-colors"><RefreshCw size={13} /> Refresh</button>
+                  <div className="flex self-start items-center gap-2">
+                    <button onClick={() => void load()} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-100 transition-colors"><RefreshCw size={13} /> Refresh</button>
+                    <button onClick={() => { setLeaveError(null); setShowLeaveConfirm(true); }} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border border-red-500/30 text-red-500 hover:bg-red-500/10 transition-colors"><LogOut size={13} /> Leave class</button>
+                  </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6">
                   <DetailCard icon={<UserRound size={15} />} label="Teacher" value={group.ownerName || "—"} />
@@ -159,6 +209,25 @@ export function StudentGroupDetailPage() {
           )}
         </main>
       </div>
+
+      {showLeaveConfirm && group && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-dark-bg/50 backdrop-blur-sm p-4" role="dialog" aria-modal="true" aria-labelledby="leave-group-title">
+          <div className="w-full max-w-md rounded-2xl border border-gray-200 dark:border-gray-700/60 bg-white dark:bg-dark-card p-6 shadow-2xl">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-red-500/10 text-red-500 grid place-items-center flex-shrink-0"><LogOut size={19} /></div>
+              <div>
+                <h2 id="leave-group-title" className="text-lg font-semibold text-gray-900 dark:text-white">Leave {group.name}?</h2>
+                <p className="mt-1 text-sm leading-relaxed text-gray-500 dark:text-gray-400">You will lose access to this class and its assignments. Rejoining with the group code restores your enrollment history.</p>
+              </div>
+            </div>
+            {leaveError && <p className="mt-4 rounded-xl border border-red-500/20 bg-red-500/5 px-3 py-2 text-sm text-red-600 dark:text-red-400">{leaveError}</p>}
+            <div className="mt-6 flex justify-end gap-3">
+              <button disabled={leaving} onClick={() => setShowLeaveConfirm(false)} className="btn-outline">Cancel</button>
+              <button disabled={leaving} onClick={() => void leaveCurrentGroup()} className="inline-flex items-center gap-2 rounded-xl bg-red-500 px-5 py-3 text-sm font-semibold text-white hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-60">{leaving ? "Leaving…" : "Leave class"}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -173,7 +242,7 @@ function AssignmentItem({ assignment, index, state }: { assignment: Assignment; 
       <div className="flex-1 min-w-0">
         <div className="flex flex-wrap items-center gap-2">
           <h3 className="text-sm font-medium text-gray-800 dark:text-gray-100 group-hover:text-azure dark:group-hover:text-yellow transition-colors truncate">{assignment.title}</h3>
-          <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${state.className}`}>{state.label}</span>
+          <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full border ${state.className}`}>{state.accepted && <CircleCheck size={12} />}{state.label}</span>
         </div>
         <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 truncate">{state.detail}</p>
         <div className="flex flex-wrap items-center gap-3 mt-2 text-[10px] font-mono text-gray-400 dark:text-gray-500">

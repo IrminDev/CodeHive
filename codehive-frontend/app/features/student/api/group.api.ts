@@ -15,3 +15,7 @@ export async function listMyGroups(): Promise<ClassGroup[]> {
 export async function getGroup(groupId: string): Promise<ClassGroup> {
   return studentRequest<ClassGroup>(`/api/groups/${groupId}`);
 }
+
+export async function leaveGroup(groupId: string): Promise<void> {
+  await studentRequest<null>(`/api/groups/${groupId}/leave`, { method: "POST" });
+}

@@ -48,21 +48,25 @@ export type TestCaseResult = {
   executionTimeMs?: number
   memoryUsedMb?: number
   feedback?: string
+  stderr?: string
+  exitCode?: number
   expectedOutput?: string
   actualOutput?: string
 }
 
-export type Submission = {
-  id: string;
-  submissionNumber: number;
+export type StudentSubmissionHistory = {
+  submissionId: string;
   assignmentId: string;
-  language: string;
-  status: ExecutionStatus;
-  passedTests: number;
-  totalTests: number;
-  createdAt: string;
-  isLate: boolean;
+  language: Language;
+  submissionStatus: "SUBMITTED" | "WITHDRAWN";
+  submittedAt: string;
+  deliveredLate: boolean;
+  withdrawnAt?: string;
   executionId?: string;
+  executionStatus: ExecutionStatus;
+  timeMs?: number;
+  memoryMb?: number;
+  reportAvailable: boolean;
 }
 
 export type ExecutionReport = {

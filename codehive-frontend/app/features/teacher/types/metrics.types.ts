@@ -64,6 +64,8 @@ export interface AssignmentMetricsDetail extends AssignmentMetrics {
   perStudent: Array<{
     studentId: string;
     fullName: string;
+    enrollmentNumber: string;
+    workId?: string;
     workStatus: StudentWorkStatus;
     currentSubmissionId?: string;
     deliveredLate?: boolean;

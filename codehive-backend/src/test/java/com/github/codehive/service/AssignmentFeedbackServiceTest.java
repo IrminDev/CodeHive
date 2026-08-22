@@ -142,6 +142,26 @@ class AssignmentFeedbackServiceTest {
                 .containsExactly(FeedbackStatus.PUBLISHED, FeedbackStatus.DELETED);
     }
 
+    @Test
+    void listMineReturnsPublishedFeedbackAndDeletedTombstonesForAuthenticatedStudent() {
+        when(userRepository.findByEmail(student.getEmail())).thenReturn(Optional.of(student));
+        StudentAssignmentWork persistedWork = mock(StudentAssignmentWork.class);
+        UUID workId = UUID.fromString("00000000-0000-0000-0000-000000000008");
+        when(persistedWork.getId()).thenReturn(workId);
+        when(workRepository.findByAssignmentIdAndStudentId(ASSIGNMENT_ID, STUDENT_ID))
+                .thenReturn(Optional.of(persistedWork));
+        AssignmentFeedback published = feedback(work, teacher, "Visible", FeedbackStatus.PUBLISHED);
+        AssignmentFeedback deleted = feedback(work, teacher, "Removed", FeedbackStatus.DELETED);
+        when(feedbackRepository.findByStudentWorkIdOrderByCreatedAtAsc(workId))
+                .thenReturn(List.of(published, deleted));
+
+        List<AssignmentFeedbackDTO> result = service.listMine(ASSIGNMENT_ID, student.getEmail());
+
+        assertThat(result).extracting(AssignmentFeedbackDTO::status)
+                .containsExactly(FeedbackStatus.PUBLISHED, FeedbackStatus.DELETED);
+        assertThat(result).extracting(AssignmentFeedbackDTO::body).containsExactly("Visible", null);
+    }
+
     private AssignmentFeedback feedback(StudentAssignmentWork feedbackWork, User author, String body,
                                          FeedbackStatus status) {
         AssignmentFeedback feedback = new AssignmentFeedback();

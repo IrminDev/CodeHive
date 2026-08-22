@@ -2,8 +2,8 @@
 
 ## Routes
 
-- `/teacher` — dashboard.
-- `/teacher/assignments` — real assignment list filtered by active owned group.
+- `/teacher` — action dashboard with validation failures, grading queue, deadlines, and recent submissions.
+- `/teacher/assignments` — paginated assignment management across active, archived, and deleted groups.
 - `/teacher/create-assignment` — assignment form.
 - `/teacher/assignments/:assignmentId/clone` — editable clone form.
 - `/teacher/assignments/:assignmentId/edit` — metadata, schedule, and public-example update form.
@@ -11,10 +11,28 @@
 - `/teacher/groups` — owned active, archived, and deleted groups.
 - `/teacher/groups/create` — group creation form.
 - `/teacher/groups/:groupId` — roster, lifecycle, assignments, join code, and metrics.
-- `/teacher/grades` — student work, draft/returned grades, and feedback.
+- `/teacher/grades` — student work, submission evidence, execution reports, grade history, draft/returned grades, and feedback.
 - `/teacher/analytics` — group overview, assignment details, and student metrics.
+- `/teacher/notifications` — authenticated email notification preferences.
 
 All routes use `ProtectedRoute` with `Role.TEACHER`.
+
+## Application Shell
+
+Teacher pages use `TeacherShell`, matching student workspace geometry: fixed `w-14` icon rail,
+compact `h-12` breadcrumb header, one scrolling main region, and role-aware notification, theme,
+profile, and logout controls. `DashboardLayout` temporarily adapts legacy teacher pages into this
+shell while admin pages retain their existing layout. Shared teacher loading, empty, error, status,
+confirmation, field, and panel patterns live in `components/TeacherUI.tsx`.
+
+## Management Workflows
+
+- Assignment list filters by group, lifecycle, validation status, and title. Deleted records can be
+  restored; each assignment exposes preview, edit, revalidate, clone, grade, and management status.
+- Management status combines latest validation failure, update history, and latest reevaluation batch.
+- Grade review drawer exposes every attempt, retained source, execution evidence, and grade audit history.
+- Teacher dashboard aggregates owned active groups, students, assignments, grading queue, validation
+  problems, upcoming lifecycle dates, and recent submissions server-side.
 
 ## Clone Flow
 
@@ -74,8 +92,9 @@ create, clone-form, and clone requests.
 Other teacher API modules:
 
 - `group.api.ts` — owned group CRUD/lifecycle, roster, removal, and join-code rotation.
-- `student-work.api.ts` — student work, grades, and feedback.
+- `student-work.api.ts` — student work, evidence review, grade history, grades, and feedback.
 - `metrics.api.ts` — group/assignment/student performance aggregates.
+- `dashboard.api.ts` — teacher action-center aggregate.
 - `client.ts` — shared bearer-token and `SuccessResponse<T>` parsing.
 
 Typed contracts live under `app/features/teacher/types/` and mirror backend DTOs/enums.

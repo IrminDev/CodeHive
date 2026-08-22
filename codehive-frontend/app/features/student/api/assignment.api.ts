@@ -1,5 +1,5 @@
 import { studentRequest } from "./client";
-import type { Assignment, AssignmentPage } from "../types/assignment.types";
+import type { Assignment, AssignmentFeedback, AssignmentPage, StudentAssignmentOverview } from "../types/assignment.types";
 
 export async function getAssignment(id: string): Promise<Assignment> {
   return studentRequest<Assignment>(`/api/assignments/${id}`);
@@ -15,4 +15,12 @@ export async function listAssignmentsForGroups(groupIds: string[]): Promise<Assi
   return pages.flatMap((page) => page.content)
     .filter((assignment, index, items) => items.findIndex((item) => item.id === assignment.id) === index)
     .sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt));
+}
+
+export function listMyAssignmentOverviews(): Promise<StudentAssignmentOverview[]> {
+  return studentRequest<StudentAssignmentOverview[]>("/api/assignments/mine");
+}
+
+export function listMyAssignmentFeedback(assignmentId: string): Promise<AssignmentFeedback[]> {
+  return studentRequest<AssignmentFeedback[]>(`/api/assignments/${assignmentId}/my-feedback`);
 }

@@ -3,6 +3,8 @@ import type {
   AssignmentFeedback,
   AssignmentGrade,
   StudentAssignmentWork,
+  TeacherStudentWorkReview,
+  TeacherSubmissionEvidence,
 } from "../types/student-work.types";
 
 const assignmentPath = (assignmentId: string) =>
@@ -16,6 +18,16 @@ export function listStudentWork(assignmentId: string): Promise<StudentAssignment
 
 export function getStudentWork(assignmentId: string, studentId: string): Promise<StudentAssignmentWork> {
   return teacherRequest<StudentAssignmentWork>(`${studentPath(assignmentId, studentId)}/work`);
+}
+
+export function getStudentWorkReview(assignmentId: string, studentId: string): Promise<TeacherStudentWorkReview> {
+  return teacherRequest<TeacherStudentWorkReview>(`${studentPath(assignmentId, studentId)}/review`);
+}
+
+export function getSubmissionEvidence(submissionId: string): Promise<TeacherSubmissionEvidence> {
+  return teacherRequest<TeacherSubmissionEvidence>(
+    `/api/assignments/submissions/${encodeURIComponent(submissionId)}/teacher-review`,
+  );
 }
 
 export function createFeedback(
@@ -54,4 +66,11 @@ export function returnGrade(assignmentId: string, studentId: string): Promise<As
   return teacherRequest<AssignmentGrade>(`${studentPath(assignmentId, studentId)}/grade/return`, {
     method: "POST",
   });
+}
+
+export function returnAllDraftGrades(assignmentId: string): Promise<{ assignmentId: string; returnedCount: number }> {
+  return teacherRequest<{ assignmentId: string; returnedCount: number }>(
+    `${assignmentPath(assignmentId)}/grades/return-drafts`,
+    { method: "POST" },
+  );
 }

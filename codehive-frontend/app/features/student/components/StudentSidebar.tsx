@@ -1,10 +1,10 @@
-import { BookOpen, ClipboardList, Home, Users } from "lucide-react";
+import { BookOpen, ClipboardList, GraduationCap, Home, Users } from "lucide-react";
 import { Link } from "react-router";
 import type { ReactNode } from "react";
 
 import { useAuth } from "~/core/providers/AuthProvider";
 
-export type StudentNavigation = "dashboard" | "groups" | "join";
+export type StudentNavigation = "dashboard" | "groups" | "join" | "assignments" | "grades" | "notifications";
 
 export function StudentSidebar({ active }: { active: StudentNavigation }) {
   const { user } = useAuth();
@@ -21,7 +21,8 @@ export function StudentSidebar({ active }: { active: StudentNavigation }) {
         <SidebarLink icon={<Home size={20} />} label="Dashboard" to="/dashboard" active={active === "dashboard"} />
         <SidebarLink icon={<BookOpen size={20} />} label="My groups" to="/groups" active={active === "groups"} />
         <SidebarLink icon={<Users size={20} />} label="Join group" to="/groups/join" active={active === "join"} />
-        <SidebarLink icon={<ClipboardList size={20} />} label="Assignments" to="/dashboard#assignments" />
+        <SidebarLink icon={<ClipboardList size={20} />} label="Assignments" to="/assignments" active={active === "assignments"} />
+        <SidebarLink icon={<GraduationCap size={20} />} label="Grades" to="/grades" active={active === "grades"} />
       </nav>
       <div title={user?.name} className="w-9 h-9 rounded-full bg-azure flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
         {firstName.slice(0, 2).toUpperCase()}

@@ -1,10 +1,20 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router";
-import { Clock, Cpu, Scale } from "lucide-react";
+import { CheckCircle2, Clock, Cpu, History, RotateCcw, Scale, Sparkles } from "lucide-react";
 import { CodeEditor } from "~/shared/components/CodeEditor";
+import {
+  AssignmentDetailsPanel,
+  type AssignmentDetailsTab,
+} from "~/shared/components/AssignmentDetailsPanel";
+import {
+  AssignmentWorkspace,
+  type AssignmentWorkspacePane,
+} from "~/shared/components/AssignmentWorkspace";
 import { useAuth } from "~/core/providers/AuthProvider";
-import { getAssignment } from "../api/assignment.api";
-import type { Assignment, Language } from "../types/assignment.types";
+import { getAssignment, listMyAssignmentOverviews } from "../api/assignment.api";
+import { withdrawSubmission } from "../api/submission.api";
+import type { Assignment, AssignmentGrade, Language } from "../types/assignment.types";
+import type { GroupSubmission } from "../types/group-submission.types";
 import {
   submitExecution,
   getExecution,
@@ -74,15 +84,24 @@ const VERDICT_STYLES: Record<string, string> = {
   PENDING: "bg-azure/15 text-azure border-azure/30 animate-pulse",
 };
 
-type LeftTab = "problem" | "constraints" | "hints" | "mysubs";
-type TestTab = "testcases" | "output" | "stderr" | "verdict";
-type AiMessage = { role: "user" | "ai"; text: string };
+type TestTab = "testcases" | "verdict";
 
 function practiceInputs(assignment: Assignment): string[] {
   const samples = [...(assignment.sampleTestCases ?? [])]
     .sort((left, right) => left.order - right.order)
     .map((testCase) => testCase.input);
   return samples.length ? samples : [""];
+}
+
+function formatMemory(value?: number): string {
+  return value != null && value > 0 ? `${value}MB` : "—";
+}
+
+function executionDiagnostic(result?: TestCaseResult): string | null {
+  if (!result || ![ExecutionStatus.RTE, ExecutionStatus.MLE, ExecutionStatus.CE].includes(result.status)) return null;
+  if (result.stderr?.trim()) return result.stderr.trim();
+  if (result.exitCode != null) return `Process exited with code ${result.exitCode} without diagnostic output.`;
+  return null;
 }
 
 export function AssignmentPage() {
@@ -101,14 +120,19 @@ export function AssignmentPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [report, setReport] = useState<ExecutionReport | null>(null);
   const [execError, setExecError] = useState<string | null>(null);
+  const [lastExecutionType, setLastExecutionType] = useState<ExecutionType | null>(null);
+  const [currentSubmission, setCurrentSubmission] = useState<GroupSubmission | null>(null);
+  const [showWithdrawConfirm, setShowWithdrawConfirm] = useState(false);
+  const [withdrawing, setWithdrawing] = useState(false);
+  const [withdrawError, setWithdrawError] = useState<string | null>(null);
+  const [submissionMessage, setSubmissionMessage] = useState<string | null>(null);
+  const [showAcceptedModal, setShowAcceptedModal] = useState(false);
+  const [returnedGrade, setReturnedGrade] = useState<AssignmentGrade | null>(null);
 
-  const [leftTab, setLeftTab] = useState<LeftTab>("problem");
+  const [leftTab, setLeftTab] = useState<AssignmentDetailsTab>("assignment");
   const [testTab, setTestTab] = useState<TestTab>("testcases");
   const [selectedCase, setSelectedCase] = useState(0);
-
-  const [aiOpen, setAiOpen] = useState(false);
-  const [aiMessages, setAiMessages] = useState<AiMessage[]>([]);
-  const [aiInput, setAiInput] = useState("");
+  const [mobilePane, setMobilePane] = useState<AssignmentWorkspacePane>("editor");
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -116,8 +140,16 @@ export function AssignmentPage() {
     if (!id) return;
     setLoading(true);
     getAssignment(id)
-      .then((a) => {
+      .then(async (a) => {
         setAssignment(a);
+        try {
+          const overview = (await listMyAssignmentOverviews()).find((item) => item.assignment.id === a.id);
+          setCurrentSubmission(overview?.currentSubmission ?? null);
+          setReturnedGrade(overview?.grade ?? null);
+        } catch {
+          setCurrentSubmission(null);
+          setReturnedGrade(null);
+        }
         setTestCases(practiceInputs(a));
         setSelectedCase(0);
         if (a.allowedLanguages?.length > 0) {
@@ -129,6 +161,7 @@ export function AssignmentPage() {
         if (import.meta.env.DEV) {
           const mock: Assignment = {
             id: "preview",
+            groupId: "preview-group",
             title: "Two Sum",
             description:
               "Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.\n\nYou may assume that each input would have exactly one solution, and you may not use the same element twice.",
@@ -153,7 +186,8 @@ export function AssignmentPage() {
               input: "4\n2 7 11 15\n9\n",
             }],
             timeLimitMs: 1000,
-            memoryLimitMb: 256,
+      memoryLimitMb: 256,
+      maxPoints: 100,
             comparatorType: "EXACT_MATCH",
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
@@ -185,9 +219,12 @@ export function AssignmentPage() {
   async function runExecution(type: ExecutionType) {
     if (!assignment || !code.trim()) return;
     const isSub = type === ExecutionType.DEFINITIVE;
+    setLastExecutionType(type);
     if (isSub) setIsSubmitting(true); else setIsRunning(true);
     setReport(null);
     setExecError(null);
+    setSubmissionMessage(null);
+    setShowAcceptedModal(false);
 
     try {
       const dto = await submitExecution({
@@ -201,6 +238,16 @@ export function AssignmentPage() {
         executionType: type,
       });
 
+      if (isSub && dto.submissionId) {
+        setCurrentSubmission({
+          assignmentId: assignment.id,
+          submissionId: dto.submissionId,
+          submittedAt: dto.createdAt ?? new Date().toISOString(),
+          deliveredLate: !!assignment.dueDate && Date.now() > Date.parse(assignment.dueDate),
+          executionStatus: "PENDING",
+        });
+      }
+
       let attempts = 0;
       await new Promise<void>((resolve, reject) => {
         pollRef.current = setInterval(async () => {
@@ -209,7 +256,13 @@ export function AssignmentPage() {
             const updated = await getExecution(dto.id);
             if (updated.status !== ExecutionStatus.PENDING) {
               clearInterval(pollRef.current!);
+              if (isSub && dto.submissionId) {
+                setCurrentSubmission((current) => current && current.submissionId === dto.submissionId
+                  ? { ...current, executionStatus: updated.status as GroupSubmission["executionStatus"] }
+                  : current);
+              }
               try { setReport(await getExecutionReport(dto.id)); } catch { /* CE */ }
+              if (isSub && updated.status === ExecutionStatus.AC) setShowAcceptedModal(true);
               resolve();
             } else if (attempts >= 40) {
               clearInterval(pollRef.current!);
@@ -230,10 +283,20 @@ export function AssignmentPage() {
   function removeTestCase(i: number) { setTestCases((p) => p.filter((_, idx) => idx !== i)); }
   function updateTestCase(i: number, v: string) { setTestCases((p) => p.map((tc, idx) => idx === i ? v : tc)); }
 
-  function sendAiMessage() {
-    if (!aiInput.trim()) return;
-    setAiMessages((p) => [...p, { role: "user", text: aiInput.trim() }]);
-    setAiInput("");
+  async function withdrawCurrentSubmission() {
+    if (!currentSubmission) return;
+    setWithdrawing(true);
+    setWithdrawError(null);
+    try {
+      await withdrawSubmission(currentSubmission.submissionId);
+      setCurrentSubmission(null);
+      setShowWithdrawConfirm(false);
+      setSubmissionMessage("Current submission withdrawn. Review your code, then submit updated version.");
+    } catch (cause) {
+      setWithdrawError(cause instanceof Error ? cause.message : "Could not withdraw current submission.");
+    } finally {
+      setWithdrawing(false);
+    }
   }
 
   const allowedLangs = assignment?.allowedLanguages ?? (["PYTHON"] as Language[]);
@@ -249,7 +312,7 @@ export function AssignmentPage() {
   const isPastClose = !!assignment.closeDate && new Date(assignment.closeDate) < now;
   const isBeforeLaunch = !!assignment.launchDate && new Date(assignment.launchDate) > now;
   const isNotReady = !!assignment.validationStatus && assignment.validationStatus !== "READY";
-  const canSubmit = !isPastClose && !isBeforeLaunch && !isNotReady;
+  const canSubmit = !isPastClose && !isBeforeLaunch && !isNotReady && !currentSubmission;
   const canRun = !isBeforeLaunch && !isNotReady;
 
   const submitBlockReason = isBeforeLaunch
@@ -258,14 +321,11 @@ export function AssignmentPage() {
     ? "Assignment is still being processed. Try again shortly."
     : isPastClose
     ? "This assignment is closed — no further submissions."
+    : currentSubmission?.executionStatus === "PENDING"
+    ? "Submission is being evaluated. Results will appear shortly."
+    : currentSubmission
+    ? "Withdraw current submission to submit updated code."
     : null;
-
-  const LEFT_TABS: { id: LeftTab; label: string }[] = [
-    { id: "problem", label: "Problem" },
-    { id: "constraints", label: "Constraints" },
-    { id: "hints", label: "Hints" },
-    { id: "mysubs", label: "My subs" },
-  ];
 
   return (
     <div className="h-screen flex flex-col bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100 font-sans overflow-hidden">
@@ -286,7 +346,7 @@ export function AssignmentPage() {
         <div className="w-px h-4 bg-gray-300 dark:bg-gray-700 flex-shrink-0" />
 
         {/* Title + tags */}
-        <div className="flex items-center gap-2 min-w-0 flex-shrink-0 max-w-[240px]">
+        <div className="hidden sm:flex items-center gap-2 min-w-0 flex-shrink-0 max-w-[240px]">
           <svg width="9" height="9" viewBox="0 0 10 10" fill="currentColor" className="flex-shrink-0 text-azure">
               <polygon points="5,0 9.33,2.5 9.33,7.5 5,10 0.67,7.5 0.67,2.5" />
             </svg>
@@ -299,14 +359,42 @@ export function AssignmentPage() {
         </div>
 
         {/* Center: metrics */}
-        <div className="flex-1 flex items-center justify-center gap-4">
+        <div className="hidden md:flex flex-1 items-center justify-center gap-4">
           <MetricChip icon={<Clock className="w-3 h-3" />} label={`${assignment.timeLimitMs}ms`} />
           <MetricChip icon={<Cpu className="w-3 h-3" />} label={`${assignment.memoryLimitMb}MB`} />
           <MetricChip icon={<Scale className="w-3 h-3" />} label={comparatorLabel} />
         </div>
 
         {/* Right: language + actions */}
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="ml-auto flex items-center gap-1 sm:gap-2 flex-shrink-0">
+          <Link
+            to={`/assignment/${assignment.id}/submissions`}
+            title="Submission history"
+            aria-label="Submission history"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-azure hover:text-azure dark:hover:border-gray-400 dark:hover:text-gray-100 transition-all"
+          >
+            <History size={14} />
+            <span className="hidden xl:inline">History</span>
+          </Link>
+          <Link
+            to={`/grades?assignmentId=${assignment.id}`}
+            title={returnedGrade ? "View returned grade" : "View grade status"}
+            className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-azure hover:text-azure dark:hover:border-yellow dark:hover:text-yellow transition-all"
+          >
+            <Scale size={14} />
+            <span className="hidden xl:inline">{returnedGrade ? `${returnedGrade.value}/${returnedGrade.maxPoints} pts` : `${assignment.maxPoints} pts`}</span>
+          </Link>
+          {currentSubmission && currentSubmission.executionStatus !== "PENDING" && !isPastClose && (
+            <button
+              onClick={() => { setWithdrawError(null); setShowWithdrawConfirm(true); }}
+              disabled={isRunning || isSubmitting}
+              title="Withdraw current submission before submitting an updated version"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium border border-orange-500/30 text-orange-600 dark:text-orange-400 hover:bg-orange-500/10 disabled:opacity-50 transition-all"
+            >
+              <RotateCcw size={14} />
+              <span className="hidden lg:inline">Withdraw to update</span>
+            </button>
+          )}
           <select
             value={selectedLanguage}
             onChange={(e) => handleLanguageChange(e.target.value as Language)}
@@ -333,7 +421,7 @@ export function AssignmentPage() {
                 <path d="M8 5v14l11-7z" />
               </svg>
             )}
-            Run sample
+            <span className="hidden sm:inline">Run sample</span>
           </button>
 
           <button
@@ -348,8 +436,8 @@ export function AssignmentPage() {
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
               </svg>
             ) : null}
-            Submit
-            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <span className="hidden sm:inline">Submit</span>
+            <svg className="hidden sm:block w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </button>
@@ -371,259 +459,83 @@ export function AssignmentPage() {
           {submitBlockReason}
         </div>
       )}
-
-      {/* ── Mobile tabs ── */}
-      <div className="lg:hidden flex flex-shrink-0 border-b border-gray-200 dark:border-gray-800/60 bg-white dark:bg-dark-surface">
-        {(["problem", "editor", "tests"] as const).map((t) => (
-          <MobileTab key={t} label={t.charAt(0).toUpperCase() + t.slice(1)} active={false} onClick={() => {}} />
-        ))}
-      </div>
-
-      {/* ── Body ── */}
-      <div className="flex flex-1 min-h-0 overflow-hidden">
-
-        {/* ── Left panel: Problem ── */}
-        <div className="w-64 flex-shrink-0 flex flex-col bg-gray-50 dark:bg-dark-bg border-r border-gray-200 dark:border-gray-800/60 min-h-0">
-          {/* Left tabs */}
-          <div className="flex flex-shrink-0 border-b border-gray-200 dark:border-gray-800/60">
-            {LEFT_TABS.map(({ id: tab, label }) => (
-              <button
-                key={tab}
-                onClick={() => setLeftTab(tab)}
-                className={`flex-1 py-2.5 text-[10px] font-medium whitespace-nowrap transition-colors border-b-2 ${
-                  leftTab === tab
-                    ? "border-azure text-azure dark:border-yellow dark:text-yellow"
-                    : "border-transparent text-gray-400 hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-300"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-          {/* Left content */}
-          <div className="flex-1 overflow-y-auto scrollbar-hide p-4 space-y-4">
-            {leftTab === "problem" && <ProblemTab assignment={assignment} />}
-            {leftTab === "constraints" && <ConstraintsTab assignment={assignment} />}
-            {leftTab === "hints" && <HintsTab assignment={assignment} />}
-            {leftTab === "mysubs" && <MySubsTab />}
-          </div>
+      {submissionMessage && (
+        <div className="flex-shrink-0 flex items-center gap-2 px-4 py-2 text-xs font-medium bg-green-500/10 text-green-600 dark:text-green-400 border-b border-green-500/20">
+          <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="m5 13 4 4L19 7" /></svg>
+          {submissionMessage}
         </div>
+      )}
 
-        {/* ── Right: Editor + Tests ── */}
-        <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
-
-          {/* ── Editor ── */}
-          <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-
-            {/* File tab bar */}
-            <div className="h-9 flex-shrink-0 flex items-center border-b border-gray-200 dark:border-gray-800/60 bg-gray-100 dark:bg-dark-surface">
-              <div className="flex items-center h-full">
-                <div className="flex items-center gap-2 px-4 h-full border-r border-gray-200 dark:border-gray-800/60 border-t-2 border-t-azure dark:border-t-yellow bg-white dark:bg-dark-card text-gray-700 dark:text-gray-200 text-xs font-mono">
-                  <span className="w-2 h-2 rounded-full bg-azure dark:bg-yellow" />
-                  {filename}
-                </div>
-                <button className="flex items-center justify-center w-8 h-full text-gray-400 hover:text-gray-600 dark:text-gray-600 dark:hover:text-gray-400 transition-colors text-base">
-                  +
-                </button>
+      <AssignmentWorkspace
+        persistenceKey="codehive-student-assignment"
+        mobilePane={mobilePane}
+        onMobilePaneChange={setMobilePane}
+        assignmentPane={(
+          <AssignmentDetailsPanel
+            assignment={assignment}
+            tab={leftTab}
+            onTabChange={setLeftTab}
+            note={(
+              <div>
+                <p className="text-xs font-semibold text-yellow-700 dark:text-yellow">Grading notes</p>
+                <p className="mt-1 text-[11px] leading-relaxed text-gray-500 dark:text-gray-400">
+                  Practice mode compares your output against teacher reference solution. Run samples before submitting.
+                </p>
               </div>
-              <div className="ml-auto flex items-center gap-3 px-4 text-[10px] text-gray-400 dark:text-gray-600 font-mono">
-                <span>UTF-8</span>
-                <span>LF</span>
-                <span>Spaces: 4</span>
-              </div>
-            </div>
-
-            {/* Monaco */}
-            <div className="flex-1 min-h-0 overflow-hidden">
-              <CodeEditor
-                language={MONACO_LANG_MAP[selectedLanguage]}
-                value={code}
-                onChange={setCode}
-              />
-            </div>
-
-            {/* Editor status bar */}
-            <div className="h-6 flex-shrink-0 flex items-center justify-between px-3 bg-gray-50 dark:bg-dark-surface border-t border-gray-200 dark:border-gray-800/60 text-[10px] text-gray-400 dark:text-gray-600 font-mono">
-              <span className="flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                Saved
-              </span>
-              <div className="flex items-center gap-4">
-                <span>{langVersion}</span>
-                <span>auto-format: on</span>
-                <span className="text-gray-300 dark:text-yellow">⌘K to submit</span>
-              </div>
-            </div>
-          </div>
-
-          {/* ── Test Cases panel ── */}
-          <div className="h-56 flex-shrink-0 flex flex-col bg-white dark:bg-dark-surface border-t border-gray-200 dark:border-gray-800/60 overflow-hidden">
-
-            {/* Test panel header: tabs + pills */}
-            <div className="flex-shrink-0 flex items-center border-b border-gray-200 dark:border-gray-800/60 px-2">
-              <div className="flex">
-                {(["testcases", "output", "stderr", "verdict"] as TestTab[]).map((tab) => {
-                  const labels: Record<TestTab, string> = {
-                    testcases: "Test cases",
-                    output: "Output",
-                    stderr: "Stderr",
-                    verdict: "Verdict",
-                  };
-                  return (
-                    <button
-                      key={tab}
-                      onClick={() => setTestTab(tab)}
-                      className={`px-3 py-2 text-xs font-medium transition-colors border-b-2 ${
-                        testTab === tab
-                          ? "border-azure text-azure dark:border-yellow dark:text-yellow"
-                          : "border-transparent text-gray-400 hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-300"
-                      }`}
-                    >
-                      {labels[tab]}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {testTab === "testcases" && (
-                <div className="flex items-center gap-1.5 ml-3 overflow-x-auto flex-1 py-1.5">
-                  {testCases.map((_, i) => {
-                    const result = report?.testCaseResults?.[i];
-                    return (
-                      <button
-                        key={i}
-                        onClick={() => setSelectedCase(i)}
-                        className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-medium flex-shrink-0 transition-all border ${
-                          selectedCase === i
-                            ? "bg-gray-100 border-gray-300 text-gray-800 dark:bg-gray-700/60 dark:border-gray-600 dark:text-gray-200"
-                            : "border-transparent text-gray-400 hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-300"
-                        }`}
-                      >
-                        <span className={`w-1.5 h-1.5 rounded-full ${result ? (STATUS_DOT[result.status] ?? "bg-gray-400") : "bg-gray-300 dark:bg-gray-600"}`} />
-                        {String(i + 1).padStart(2, "0")}
-                      </button>
-                    );
-                  })}
-                  <button
-                    onClick={addTestCase}
-                    className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] text-gray-400 dark:text-gray-600 hover:text-gray-600 dark:hover:text-gray-400 transition-colors flex-shrink-0 border border-transparent hover:border-gray-300 dark:hover:border-gray-700"
-                  >
-                    + case
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Test content */}
-            <div className="flex-1 min-h-0 overflow-auto">
-              {testTab === "testcases" && (
-                <TestCasesContent
-                  testCases={testCases}
-                  selectedCase={selectedCase}
-                  report={report}
-                  execError={execError}
-                  onUpdate={updateTestCase}
-                  onRemove={removeTestCase}
-                />
-              )}
-              {testTab === "output" && (
-                <OutputContent result={report?.testCaseResults?.[selectedCase]} field="stdout" />
-              )}
-              {testTab === "stderr" && (
-                <OutputContent result={report?.testCaseResults?.[selectedCase]} field="stderr" />
-              )}
-              {testTab === "verdict" && (
-                <VerdictContent report={report} execError={execError} />
-              )}
-            </div>
-
-            {report && (
-              <ResultsStatusBar report={report} timeLimitMs={assignment.timeLimitMs} memoryLimitMb={assignment.memoryLimitMb} />
             )}
-          </div>
-        </div>
-      </div>
-
-      {/* ── Floating AI Assistant ── */}
-      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
-        {aiOpen && (
-          <div className="w-80 h-96 flex flex-col bg-white dark:bg-dark-card rounded-2xl border border-gray-200 dark:border-gray-700/60 shadow-2xl overflow-hidden">
-            {/* AI panel header */}
-            <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700/60 bg-gray-50 dark:bg-dark-surface">
-              <div className="flex items-center gap-2">
-                <span className="text-sm leading-none">✨</span>
-                <span className="text-xs font-semibold text-gray-700 dark:text-gray-200">AI Assistant</span>
-              </div>
-              <button
-                onClick={() => setAiOpen(false)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-3 space-y-2">
-              {aiMessages.length === 0 ? (
-                <div className="flex items-center justify-center h-full text-xs text-gray-400 dark:text-gray-500 text-center px-4">
-                  Ask me anything about this problem!
-                </div>
-              ) : (
-                aiMessages.map((m, i) => (
-                  <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-                    <div className={`max-w-[85%] px-3 py-2 rounded-xl text-xs leading-relaxed ${
-                      m.role === "user"
-                        ? "bg-azure text-white"
-                        : "bg-gray-100 dark:bg-dark-surface text-gray-700 dark:text-gray-300"
-                    }`}>
-                      {m.text}
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-
-            {/* Input */}
-            <div className="flex-shrink-0 flex items-center gap-2 p-3 border-t border-gray-200 dark:border-gray-700/60">
-              <input
-                value={aiInput}
-                onChange={(e) => setAiInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") sendAiMessage(); }}
-                placeholder="Ask a question…"
-                className="flex-1 text-xs bg-gray-100 dark:bg-dark-surface text-gray-800 dark:text-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-azure placeholder:text-gray-400 dark:placeholder:text-gray-600"
-              />
-              <button
-                onClick={sendAiMessage}
-                className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-lg bg-azure text-white hover:bg-french transition-colors"
-              >
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                </svg>
-              </button>
-            </div>
-          </div>
+          />
         )}
+        editorPane={(
+          <StudentEditorPane
+            filename={filename}
+            language={MONACO_LANG_MAP[selectedLanguage]}
+            languageVersion={langVersion}
+            value={code}
+            onChange={setCode}
+          />
+        )}
+        testsPane={(
+          <StudentTestsPane
+            assignment={assignment}
+            testCases={testCases}
+            selectedCase={selectedCase}
+            testTab={testTab}
+            report={report}
+            lastExecutionType={lastExecutionType}
+            execError={execError}
+            onSelectCase={setSelectedCase}
+            onTabChange={setTestTab}
+            onAdd={addTestCase}
+            onUpdate={updateTestCase}
+            onRemove={removeTestCase}
+          />
+        )}
+      />
 
-        {/* Toggle button — hexagon shape */}
-        <div className="filter drop-shadow-xl">
-          <button
-            onClick={() => setAiOpen((o) => !o)}
-            title="AI Assistant"
-            style={{ clipPath: "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)" }}
-            className={`w-12 h-12 flex items-center justify-center transition-all ${
-              aiOpen
-                ? "bg-azure text-white"
-                : "bg-yellow text-dark-bg"
-            }`}
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
-            </svg>
-          </button>
+      <button disabled title="AI Assistant — coming soon" aria-label="AI Assistant coming soon" className="fixed bottom-6 right-6 z-50 inline-flex items-center gap-2 rounded-xl border border-gray-200 dark:border-gray-700/60 bg-white/95 dark:bg-dark-card/95 px-3 py-2 text-xs font-medium text-gray-400 shadow-lg cursor-not-allowed"><Sparkles size={14} /> AI · Coming soon</button>
+
+      {showWithdrawConfirm && currentSubmission && (
+        <div className="fixed inset-0 z-[60] grid place-items-center bg-dark-bg/50 backdrop-blur-sm p-4" role="dialog" aria-modal="true" aria-labelledby="withdraw-submission-title">
+          <div className="w-full max-w-md rounded-2xl border border-gray-200 dark:border-gray-700/60 bg-white dark:bg-dark-card p-6 shadow-2xl">
+            <div className="w-10 h-10 rounded-xl bg-orange-500/10 text-orange-500 grid place-items-center"><RotateCcw size={19} /></div>
+            <h2 id="withdraw-submission-title" className="mt-4 text-lg font-semibold text-gray-900 dark:text-white">Withdraw current submission?</h2>
+            <p className="mt-2 text-sm leading-relaxed text-gray-500 dark:text-gray-400">Your submitted version and results stay in history, but it stops being active. You can then submit editor code as updated version.</p>
+            {withdrawError && <p className="mt-4 rounded-xl border border-red-500/20 bg-red-500/5 px-3 py-2 text-sm text-red-600 dark:text-red-400">{withdrawError}</p>}
+            <div className="mt-6 flex justify-end gap-3"><button onClick={() => setShowWithdrawConfirm(false)} disabled={withdrawing} className="btn-outline">Cancel</button><button onClick={() => void withdrawCurrentSubmission()} disabled={withdrawing} className="inline-flex items-center gap-2 rounded-xl bg-orange-500 px-5 py-3 text-sm font-semibold text-white hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60">{withdrawing ? "Withdrawing…" : "Withdraw submission"}</button></div>
+          </div>
         </div>
-      </div>
+      )}
+
+      {showAcceptedModal && (
+        <div className="fixed inset-0 z-[70] grid place-items-center bg-dark-bg/50 backdrop-blur-sm p-4" role="dialog" aria-modal="true" aria-labelledby="submission-accepted-title">
+          <div className="w-full max-w-md rounded-2xl border border-gray-200 dark:border-gray-700/60 bg-white dark:bg-dark-card p-6 shadow-2xl">
+            <div className="w-12 h-12 rounded-2xl bg-green-500/10 text-green-500 grid place-items-center"><CheckCircle2 size={25} /></div>
+            <h2 id="submission-accepted-title" className="mt-4 text-xl font-semibold text-gray-900 dark:text-white">Submission accepted</h2>
+            <p className="mt-2 text-sm leading-relaxed text-gray-500 dark:text-gray-400">All tests passed. Your current version is saved and available in submission history.</p>
+            <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-end"><button onClick={() => setShowAcceptedModal(false)} className="btn-outline">Keep working</button><Link to="/assignments" className="btn-outline text-center">My assignments</Link><Link to={`/assignment/${assignment.id}/submissions`} className="btn-primary text-center">View history</Link></div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -760,16 +672,112 @@ function HintsTab({ assignment }: { assignment: Assignment }) {
   );
 }
 
-function MySubsTab() {
-  return <EmptyState label="No submissions yet. Submit your code to see results here." />;
+/* ── Test panel contents ── */
+
+function StudentEditorPane({
+  filename,
+  language,
+  languageVersion,
+  value,
+  onChange,
+}: {
+  filename: string;
+  language: string;
+  languageVersion: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <section className="h-full min-h-0 flex flex-col overflow-hidden bg-white dark:bg-dark-card">
+      <div className="h-9 flex-shrink-0 flex items-center border-b border-gray-200 dark:border-gray-800/60 bg-gray-100 dark:bg-dark-surface">
+        <div className="flex items-center gap-2 px-4 h-full border-r border-gray-200 dark:border-gray-800/60 border-t-2 border-t-azure dark:border-t-yellow bg-white dark:bg-dark-card text-gray-700 dark:text-gray-200 text-xs font-mono">
+          <span className="w-2 h-2 rounded-full bg-azure dark:bg-yellow" />
+          {filename}
+        </div>
+        <div className="ml-auto hidden sm:flex items-center gap-3 px-4 text-[10px] text-gray-400 dark:text-gray-600 font-mono">
+          <span>UTF-8</span><span>LF</span><span>Spaces: 4</span>
+        </div>
+      </div>
+      <div className="flex-1 min-h-0 overflow-hidden">
+        <CodeEditor language={language} value={value} onChange={onChange} />
+      </div>
+      <div className="h-6 flex-shrink-0 flex items-center justify-between px-3 bg-gray-50 dark:bg-dark-surface border-t border-gray-200 dark:border-gray-800/60 text-[10px] text-gray-400 dark:text-gray-600 font-mono">
+        <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-green-500" />Saved</span>
+        <div className="flex items-center gap-4"><span>{languageVersion}</span><span>{value.split("\n").length} lines</span></div>
+      </div>
+    </section>
+  );
 }
 
-/* ── Test panel contents ── */
+function StudentTestsPane({
+  assignment,
+  testCases,
+  selectedCase,
+  testTab,
+  report,
+  lastExecutionType,
+  execError,
+  onSelectCase,
+  onTabChange,
+  onAdd,
+  onUpdate,
+  onRemove,
+}: {
+  assignment: Assignment;
+  testCases: string[];
+  selectedCase: number;
+  testTab: TestTab;
+  report: ExecutionReport | null;
+  lastExecutionType: ExecutionType | null;
+  execError: string | null;
+  onSelectCase: (index: number) => void;
+  onTabChange: (tab: TestTab) => void;
+  onAdd: () => void;
+  onUpdate: (index: number, value: string) => void;
+  onRemove: (index: number) => void;
+}) {
+  return (
+    <section className="h-full min-h-0 flex flex-col overflow-hidden bg-white dark:bg-dark-surface">
+      <div className="flex-shrink-0 flex items-center border-b border-gray-200 dark:border-gray-800/60 px-2">
+        <div className="flex">
+          {(["testcases", "verdict"] as TestTab[]).map((item) => (
+            <button key={item} onClick={() => onTabChange(item)} className={`px-3 py-2 text-xs font-medium border-b-2 transition-colors ${testTab === item ? "border-azure text-azure dark:border-yellow dark:text-yellow" : "border-transparent text-gray-400 hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-300"}`}>
+              {item === "testcases" ? "Test cases" : "Verdict"}
+            </button>
+          ))}
+        </div>
+        {testTab === "testcases" && (
+          <div className="flex items-center gap-1.5 ml-3 overflow-x-auto flex-1 py-1.5">
+            {testCases.map((_, index) => {
+              const result = lastExecutionType === ExecutionType.PRACTICE ? report?.testCaseResults?.[index] : undefined;
+              return (
+                <button key={index} onClick={() => onSelectCase(index)} className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-medium flex-shrink-0 border transition-colors ${selectedCase === index ? "bg-gray-100 border-gray-300 text-gray-800 dark:bg-gray-700/60 dark:border-gray-600 dark:text-gray-200" : "border-transparent text-gray-400 hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-300"}`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${result ? (STATUS_DOT[result.status] ?? "bg-gray-400") : "bg-gray-300 dark:bg-gray-600"}`} />
+                  {String(index + 1).padStart(2, "0")}
+                </button>
+              );
+            })}
+            <button onClick={onAdd} className="flex-shrink-0 rounded border border-transparent px-2 py-0.5 text-[10px] text-gray-400 transition-colors hover:border-gray-300 hover:text-gray-600 dark:text-gray-600 dark:hover:border-gray-700 dark:hover:text-gray-400">+ case</button>
+          </div>
+        )}
+      </div>
+      <div className="flex-1 min-h-0 overflow-auto">
+        {testTab === "testcases" ? (
+          <TestCasesContent testCases={testCases} selectedCase={selectedCase} report={report} showPracticeDiagnostics={lastExecutionType === ExecutionType.PRACTICE} execError={execError} onUpdate={onUpdate} onRemove={onRemove} />
+        ) : (
+          <VerdictContent report={report} execError={execError} />
+        )}
+      </div>
+      {report && <ResultsStatusBar report={report} timeLimitMs={assignment.timeLimitMs} memoryLimitMb={assignment.memoryLimitMb} />}
+    </section>
+  );
+}
 
 function TestCasesContent({
   testCases,
   selectedCase,
   report,
+  showPracticeDiagnostics,
   execError,
   onUpdate,
   onRemove,
@@ -777,13 +785,15 @@ function TestCasesContent({
   testCases: string[];
   selectedCase: number;
   report: ExecutionReport | null;
+  showPracticeDiagnostics: boolean;
   execError: string | null;
   onUpdate: (i: number, v: string) => void;
   onRemove: (i: number) => void;
 }) {
   const tc = testCases[selectedCase] ?? "";
-  const result = report?.testCaseResults?.[selectedCase];
+  const result = showPracticeDiagnostics ? report?.testCaseResults?.[selectedCase] : undefined;
   const hasResult = !!result;
+  const hasOutputDiagnostic = result?.expectedOutput !== undefined || result?.actualOutput !== undefined;
 
   return (
     <div className="h-full flex flex-col">
@@ -793,13 +803,12 @@ function TestCasesContent({
         </div>
       )}
       {report?.compilationError && (
-        <div className="px-4 py-2 text-xs text-yellow-700 dark:text-yellow-300 bg-yellow-500/10 border-b border-yellow-500/20 font-mono whitespace-pre-wrap flex-shrink-0">
+        <div className="px-4 py-2 text-xs text-red-600 dark:text-red-300 bg-red-500/10 border-b border-red-500/20 font-mono whitespace-pre-wrap flex-shrink-0">
           {report.compilationError}
         </div>
       )}
 
       {hasResult ? (
-        /* 3-column result view */
         <div className="flex flex-1 min-h-0 divide-x divide-gray-200 dark:divide-gray-800/60">
           <Column label="INPUT" headerRight={
             testCases.length > 1 ? (
@@ -813,31 +822,33 @@ function TestCasesContent({
             <pre className="text-xs font-mono text-gray-700 dark:text-gray-300 p-3 whitespace-pre-wrap">{tc || "—"}</pre>
           </Column>
 
-          <Column label="EXPECTED" headerRight={<span className="text-[10px] text-gray-400 dark:text-gray-600">reference solution</span>}>
-            <pre className="text-xs font-mono text-gray-700 dark:text-gray-300 p-3 whitespace-pre-wrap">
-              {(result as any).expectedOutput ?? "—"}
-            </pre>
-          </Column>
-
-          <Column
-            label="YOUR OUTPUT"
-            headerRight={
-              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${VERDICT_STYLES[result.status] ?? ""}`}>
-                {result.status}
-              </span>
-            }
-          >
-            <div className="p-3 space-y-2">
-              <pre className="text-xs font-mono text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
-                {(result as any).actualOutput ?? "—"}
-              </pre>
-              {result.executionTimeMs !== undefined && (
-                <p className="text-[10px] text-gray-400 dark:text-gray-600 font-mono">
-                  {result.executionTimeMs}ms · {result.memoryUsedMb ?? 0}MB
-                </p>
-              )}
-            </div>
-          </Column>
+          {hasOutputDiagnostic ? (
+            <>
+              <Column label="EXPECTED" headerRight={<span className="text-[10px] text-gray-400 dark:text-gray-600">reference solution</span>}>
+                <pre className="text-xs font-mono text-gray-700 dark:text-gray-300 p-3 whitespace-pre-wrap">
+                  {result.expectedOutput ?? "—"}
+                </pre>
+              </Column>
+              <Column
+                label="YOUR OUTPUT"
+                headerRight={<span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${VERDICT_STYLES[result.status] ?? ""}`}>{result.status}</span>}
+              >
+                <div className="p-3 space-y-2">
+                  <pre className="text-xs font-mono text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{result.actualOutput ?? "—"}</pre>
+                  {result.executionTimeMs !== undefined && <p className="text-[10px] text-gray-400 dark:text-gray-600 font-mono">{result.executionTimeMs}ms · {formatMemory(result.memoryUsedMb)}</p>}
+                  <ExecutionDiagnostic result={result} />
+                </div>
+              </Column>
+            </>
+          ) : (
+            <Column label="RESULT" headerRight={<span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${VERDICT_STYLES[result.status] ?? ""}`}>{result.status}</span>}>
+              <div className="p-3 space-y-2">
+                <p className="text-xs text-gray-600 dark:text-gray-300">{result.feedback ?? "Execution completed."}</p>
+                {result.executionTimeMs !== undefined && <p className="text-[10px] text-gray-400 dark:text-gray-600 font-mono">{result.executionTimeMs}ms · {formatMemory(result.memoryUsedMb)}</p>}
+                <ExecutionDiagnostic result={result} />
+              </div>
+            </Column>
+          )}
         </div>
       ) : (
         /* Input-only edit view */
@@ -862,6 +873,7 @@ function TestCasesContent({
           </div>
         </div>
       )}
+
     </div>
   );
 }
@@ -883,22 +895,6 @@ function Column({
       </div>
       <div className="flex-1 overflow-auto">{children}</div>
     </div>
-  );
-}
-
-function OutputContent({
-  result,
-  field,
-}: {
-  result?: TestCaseResult;
-  field: "stdout" | "stderr";
-}) {
-  const content = result ? ((result as any)[field] ?? "—") : null;
-  if (!result) return <EmptyState label="Run the code to see output." />;
-  return (
-    <pre className="p-3 text-xs font-mono text-gray-700 dark:text-gray-300 whitespace-pre-wrap h-full overflow-auto">
-      {content}
-    </pre>
   );
 }
 
@@ -924,19 +920,22 @@ function VerdictContent({ report, execError }: { report: ExecutionReport | null;
         </span>
       </div>
       {report.compilationError && (
-        <pre className="text-xs font-mono text-yellow-700 dark:text-yellow-300 bg-yellow-500/10 rounded p-2 whitespace-pre-wrap border border-yellow-500/20">
+        <pre className="text-xs font-mono text-red-700 dark:text-red-300 bg-red-500/10 rounded p-2 whitespace-pre-wrap border border-red-500/20">
           {report.compilationError}
         </pre>
       )}
       <div className="space-y-1.5">
         {report.testCaseResults?.map((r, i) => (
-          <div key={i} className="flex items-center gap-2 text-xs">
-            <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${STATUS_DOT[r.status] ?? "bg-gray-400"}`} />
-            <span className="text-gray-400 dark:text-gray-500 font-mono w-12">Case {i + 1}</span>
-            <span className={`font-medium ${r.status === "AC" ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>{r.status}</span>
-            {r.executionTimeMs !== undefined && (
-              <span className="text-gray-400 dark:text-gray-600 ml-auto font-mono">{r.executionTimeMs}ms</span>
-            )}
+          <div key={i} className="rounded-lg border border-gray-200 dark:border-gray-800/60 px-2.5 py-2">
+            <div className="flex items-center gap-2 text-xs">
+              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${STATUS_DOT[r.status] ?? "bg-gray-400"}`} />
+              <span className="text-gray-400 dark:text-gray-500 font-mono w-12">Case {i + 1}</span>
+              <span className={`font-medium ${r.status === "AC" ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>{r.status}</span>
+              <span className="text-gray-400 dark:text-gray-600 ml-auto font-mono">
+                {r.executionTimeMs == null ? "—" : `${r.executionTimeMs}ms`} · {formatMemory(r.memoryUsedMb)}
+              </span>
+            </div>
+            <ExecutionDiagnostic result={r} />
           </div>
         ))}
       </div>
@@ -978,12 +977,24 @@ function ResultsStatusBar({
         {report.maxExecutionTimeMs !== undefined && (
           <span>time {report.maxExecutionTimeMs}ms/{timeLimitMs}ms</span>
         )}
-        {report.maxMemoryUsedMb !== undefined && (
-          <span>mem {report.maxMemoryUsedMb?.toFixed(1)}MB/{memoryLimitMb}MB</span>
+        {report.maxMemoryUsedMb != null && report.maxMemoryUsedMb > 0 && (
+          <span>mem {report.maxMemoryUsedMb.toFixed(1)}MB/{memoryLimitMb}MB</span>
         )}
-        <span>exit 0</span>
       </div>
     </div>
+  );
+}
+
+function ExecutionDiagnostic({ result }: { result: TestCaseResult }) {
+  const diagnostic = executionDiagnostic(result);
+  if (!diagnostic) return null;
+  return (
+    <details className="mt-2 rounded-lg border border-red-500/20 bg-red-500/5 px-2.5 py-2">
+      <summary className="cursor-pointer text-[10px] font-semibold uppercase tracking-wide text-red-600 dark:text-red-400">
+        {result.status === ExecutionStatus.MLE ? "Memory diagnostic" : "Runtime diagnostic"}
+      </summary>
+      <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-words text-[11px] font-mono text-red-700 dark:text-red-300">{diagnostic}</pre>
+    </details>
   );
 }
 
@@ -1003,21 +1014,6 @@ function EmptyState({ label }: { label: string }) {
     <div className="flex items-center justify-center h-full text-xs text-gray-400 dark:text-gray-600 text-center px-4">
       {label}
     </div>
-  );
-}
-
-function MobileTab({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`flex-1 py-2 text-xs font-medium transition-colors ${
-        active
-          ? "text-azure dark:text-yellow border-b-2 border-azure dark:border-yellow"
-          : "text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-      }`}
-    >
-      {label}
-    </button>
   );
 }
 

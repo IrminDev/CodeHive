@@ -88,11 +88,23 @@ public class AssignmentService {
 
     @Transactional(readOnly = true)
     public Page<AssignmentDTO> listGroupAssignments(UUID groupId, int page, int size, String email) {
+        return listGroupAssignments(groupId, page, size, email, false, false, null, null);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<AssignmentDTO> listGroupAssignments(
+            UUID groupId, int page, int size, String email,
+            boolean includeDeleted, boolean deletedOnly, String query,
+            AssignmentValidationStatus validationStatus) {
         User user = requireUser(email);
         ClassGroup group = groupService.getGroupForAssignmentAccess(groupId, user);
         if (group.getOwner().getId().equals(user.getId())) {
-            return assignmentRepository.findByGroupIdAndIsActiveTrueOrderByCreatedAtDesc(
-                    groupId, PageRequest.of(page, size)).map(AssignmentMapper::toDTO);
+            // Keep this parameter non-null. PostgreSQL otherwise infers a nullable value used by
+            // lower(:query) as bytea and rejects it with "function lower(bytea) does not exist".
+            String normalizedQuery = query == null || query.isBlank() ? "" : query.trim();
+            return assignmentRepository.findTeacherManaged(
+                    groupId, includeDeleted || deletedOnly, deletedOnly, normalizedQuery,
+                    validationStatus, PageRequest.of(page, size)).map(AssignmentMapper::toDTO);
         }
         return assignmentRepository.findStudentVisible(groupId, AssignmentValidationStatus.READY,
                 Instant.now(), PageRequest.of(page, size)).map(AssignmentMapper::toDTO);
@@ -316,6 +328,18 @@ public class AssignmentService {
         }
         assignment.setIsActive(false);
         if (assignment.getDeletedAt() == null) assignment.setDeletedAt(Instant.now());
+    }
+
+    @Transactional
+    public AssignmentDTO restore(UUID id, String email) {
+        User teacher = requireUser(email);
+        Assignment assignment = requireAssignment(id);
+        groupService.requireOwnedWritableGroup(assignment.getGroup().getId(), teacher);
+        if (Boolean.TRUE.equals(assignment.getIsActive())) return AssignmentMapper.toDTO(assignment);
+        assignment.setIsActive(true);
+        assignment.setDeletedAt(null);
+        assignment.setUpdatedAt(java.time.LocalDateTime.now());
+        return AssignmentMapper.toDTO(assignmentRepository.save(assignment));
     }
 
     private Assignment baseAssignment(CreateAssignmentRequest request, ClassGroup group, User author) {

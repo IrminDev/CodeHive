@@ -56,7 +56,7 @@ public class ExecutionResultService {
             execution.setTimeMs(report.getMaxExecutionTimeMs());
         }
         
-        // Update memory (convert KB to MB, use max memory)
+        // Worker reports peak memory in MiB.
         if (report.getMaxMemoryUsedMb() != null) {
             execution.setMemoryMb(report.getMaxMemoryUsedMb());
         }

@@ -15,7 +15,8 @@ Primary classes:
 1. ExecutionRequestListener receives ExecutionJob from RabbitMQ.
 2. Listener delegates to TestExecutionService.executeJob.
 3. Service compile-checks the submission first; returns CE report immediately if it fails.
-4. Per-test results are aggregated in ExecutionReport.
+4. Per-test results are aggregated in ExecutionReport, including bounded stderr,
+   exit code, execution time, and best-observed per-test memory.
 5. Test artifacts (stdout.txt, stderr.txt) and report.json are uploaded to MinIO.
 6. Listener publishes final ExecutionReport to result queue.
 
@@ -61,15 +62,20 @@ active expected output. Any observable difference rejects the candidate.
 Both services perform a compile check before the main execution loop.
 - If compile fails (CE status), per-test execution is skipped entirely.
 - TestGenerationService additionally rejects if reference solution returns non-AC.
+- Python uses a static `compile(...)` preflight in the runtime image. Syntax and
+  indentation errors are therefore CE; exceptions raised while running valid code
+  remain RTE.
+- Assignment-validation failures include a sanitized, bounded compiler/runtime
+  diagnostic so the backend can persist it and include it in teacher email.
 
 ## Verdict Model
 Per-test verdicts represented by ExecutionStatus:
-- AC, WA, CE, RTE, TLE, MLE, PENDING
+- AC, WA, CE, RTE, TLE, MLE, OLE, PENDING
 
 Overall verdict in ExecutionReport derived by priority:
 1. CE if compilationError exists
 2. AC if all tests pass
-3. Otherwise: TLE > MLE > RTE > WA
+3. Otherwise: CE > TLE > MLE > OLE > RTE > WA
 
 ## Runtime Constraints
 Each run uses limits from the job payload:
@@ -77,6 +83,12 @@ Each run uses limits from the job payload:
 - memoryLimitMb
 
 Executors enforce limits via Docker container constraints and timeout guards.
+Each submission container has one memory tracker for its full session. It records:
+- `maxMemoryMb`: exact cgroup session peak, in MiB, for persisted execution metrics.
+- per-test memory: best observed test usage from live Docker stats and cgroup peak
+  changes. This is diagnostic and may be absent when no reliable sample exists.
+- cgroup OOM evidence, combined with exit code and language-specific managed-runtime
+  markers, for MLE classification.
 
 ## Failure Handling
 - Unhandled failures produce an error report/result that is still published to backend queue.

@@ -34,7 +34,7 @@ class ExecutionReportTest {
     @Test
     @DisplayName("UUID constructor stores executionId")
     void uuidConstructor() {
-        UUID id = UUID.randomUUID();
+        UUID id = UUID.fromString("00000000-0000-0000-0000-000000000001");
         ExecutionReport report = new ExecutionReport(id);
         assertThat(report.getExecutionId()).isEqualTo(id);
     }
@@ -94,6 +94,16 @@ class ExecutionReportTest {
         }
 
         @Test
+        @DisplayName("session peak overrides lower per-test observations")
+        void sessionPeakTrackedIndependently() {
+            ExecutionReport report = new ExecutionReport();
+            report.addTestCaseResult(tcr(ExecutionStatus.AC, 100L, 12L));
+            report.recordSessionPeakMemory(64L);
+
+            assertThat(report.getMaxMemoryUsedMb()).isEqualTo(64L);
+        }
+
+        @Test
         @DisplayName("null time and memory do not update stats")
         void nullTimeAndMemoryIgnored() {
             ExecutionReport report = new ExecutionReport();
@@ -114,6 +124,15 @@ class ExecutionReportTest {
         void compilationError() {
             ExecutionReport report = new ExecutionReport();
             report.setCompilationError("Main.java:3: error");
+            report.determineOverallStatus();
+            assertThat(report.getOverallStatus()).isEqualTo(ExecutionStatus.CE);
+        }
+
+        @Test
+        @DisplayName("per-test CE remains CE")
+        void perTestCompilationError() {
+            ExecutionReport report = new ExecutionReport();
+            report.addTestCaseResult(tcr(ExecutionStatus.CE, null, null));
             report.determineOverallStatus();
             assertThat(report.getOverallStatus()).isEqualTo(ExecutionStatus.CE);
         }

@@ -17,6 +17,8 @@ import type {
   Language,
 } from "../types/assignment.types";
 import type { TeacherGroup } from "../types/group.types";
+import { TeacherShell } from "../components/TeacherShell";
+import { TeacherEmpty, TeacherLoading } from "../components/TeacherUI";
 
 const LANGUAGES: Language[] = ["PYTHON", "JAVA", "CPP", "C"];
 
@@ -143,10 +145,10 @@ export function CloneAssignmentPage() {
   }
 
   if (loading) {
-    return <div className="min-h-screen bg-gray-50 dark:bg-dark-bg grid place-items-center text-gray-500">Loading clone form…</div>;
+    return <TeacherShell active="assignments" breadcrumbs={[{ label: "Teacher", to: "/teacher" }, { label: "Assignments", to: "/teacher/assignments" }, { label: "Clone" }]}><TeacherLoading rows={5} /></TeacherShell>;
   }
   if (!form) {
-    return <div className="min-h-screen bg-gray-50 dark:bg-dark-bg grid place-items-center text-gray-500">Clone form unavailable.</div>;
+    return <TeacherShell active="assignments" breadcrumbs={[{ label: "Teacher", to: "/teacher" }, { label: "Assignments", to: "/teacher/assignments" }, { label: "Clone" }]}><TeacherEmpty title="Clone unavailable" description="Assignment source could not be loaded or is no longer available." /></TeacherShell>;
   }
 
   return (

@@ -7,6 +7,7 @@ import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.repository.query.Param;
 
 import com.github.codehive.model.dto.metrics.SubmissionAttemptCount;
@@ -31,6 +32,27 @@ public interface SubmissionRepository extends JpaRepository<Submission, UUID> {
     List<Submission> findByAssignmentAndStudentOrderByCreatedAtDesc(Assignment assignment, User student);
 
     List<Submission> findByStudentIdOrderByCreatedAtDesc(UUID studentId);
+    List<Submission> findTop10ByAssignmentGroupOwnerIdOrderByCreatedAtDesc(UUID ownerId);
+
+    @Query("""
+            select submission
+            from Submission submission
+            where submission.assignment.group.owner.id = :ownerId
+              and submission.status = :status
+              and not exists (
+                  select 1
+                  from Submission newer
+                  where newer.assignment.id = submission.assignment.id
+                    and newer.student.id = submission.student.id
+                    and newer.status = :status
+                    and newer.createdAt > submission.createdAt
+              )
+            order by submission.createdAt desc
+            """)
+    List<Submission> findLatestSubmittedByAssignmentGroupOwnerId(
+            @Param("ownerId") UUID ownerId,
+            @Param("status") SubmissionStatus status,
+            Pageable pageable);
 
     List<Submission> findByStudentIdAndAssignmentGroupIdAndStatusOrderByCreatedAtDesc(
             UUID studentId, UUID groupId, SubmissionStatus status);

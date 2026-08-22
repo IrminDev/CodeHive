@@ -48,4 +48,10 @@ public class JavaExecutor extends AbstractLanguageExecutor {
     protected String runCommand() {
         return "java Main";
     }
+
+    @Override
+    protected boolean isMemoryLimitError(String stderr) {
+        return stderr != null && (stderr.contains("java.lang.OutOfMemoryError")
+                || stderr.contains("OutOfMemoryError:"));
+    }
 }

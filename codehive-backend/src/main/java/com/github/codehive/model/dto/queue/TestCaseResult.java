@@ -11,6 +11,8 @@ public class TestCaseResult {
     private Long executionTimeMs;
     private Long memoryUsedMb;
     private String feedback;
+    private String stderr;
+    private Integer exitCode;
     private String expectedOutput;
     private String actualOutput;
 
@@ -66,6 +68,22 @@ public class TestCaseResult {
 
     public void setFeedback(String feedback) {
         this.feedback = feedback;
+    }
+
+    public String getStderr() {
+        return stderr;
+    }
+
+    public void setStderr(String stderr) {
+        this.stderr = stderr;
+    }
+
+    public Integer getExitCode() {
+        return exitCode;
+    }
+
+    public void setExitCode(Integer exitCode) {
+        this.exitCode = exitCode;
     }
 
     public String getExpectedOutput() {

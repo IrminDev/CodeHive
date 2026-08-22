@@ -3,10 +3,13 @@ package com.github.codehive.model.dto;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+import com.github.codehive.model.enums.ExecutionStatus;
+
 /** Current definitive submission for one assignment in a student's group. */
 public record StudentGroupSubmissionDTO(
         UUID assignmentId,
         UUID submissionId,
         LocalDateTime submittedAt,
-        boolean deliveredLate
+        boolean deliveredLate,
+        ExecutionStatus executionStatus
 ) {}

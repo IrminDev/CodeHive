@@ -15,4 +15,5 @@ public interface AssignmentUpdateRepository extends JpaRepository<AssignmentUpda
     Optional<AssignmentUpdate> findByIdAndStatus(UUID id, AssignmentUpdateStatus status);
     List<AssignmentUpdate> findByStatusAndCompletedAtBefore(
             AssignmentUpdateStatus status, Instant completedAt);
+    List<AssignmentUpdate> findTop10ByAssignmentIdOrderByCreatedAtDesc(UUID assignmentId);
 }

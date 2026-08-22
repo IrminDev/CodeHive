@@ -2,6 +2,7 @@ import { API_BASE_URL } from "~/core/config/env";
 import { teacherAuthHeaders, teacherRequest } from "./client";
 import type {
   AssignmentPage,
+  AssignmentManagementStatus,
   AssignmentPreview,
   AssignmentUpdate,
   CloneAssignmentForm,
@@ -115,9 +116,19 @@ export function getTeacherAssignmentPreview(assignmentId: string): Promise<Assig
 export function getTeacherAssignmentPage(
   groupId: string,
   page = 0,
-  size = 100,
+  size = 20,
+  filters: {
+    query?: string;
+    validationStatus?: string;
+    includeDeleted?: boolean;
+    deletedOnly?: boolean;
+  } = {},
 ): Promise<AssignmentPage> {
   const params = new URLSearchParams({ groupId, page: String(page), size: String(size) });
+  if (filters.query) params.set("query", filters.query);
+  if (filters.validationStatus) params.set("validationStatus", filters.validationStatus);
+  if (filters.includeDeleted) params.set("includeDeleted", "true");
+  if (filters.deletedOnly) params.set("deletedOnly", "true");
   return teacherRequest<AssignmentPage>(`/api/assignments?${params}`).then((result) => ({
     ...result,
     content: result.content.map(normalizeAssignment),
@@ -125,7 +136,7 @@ export function getTeacherAssignmentPage(
 }
 
 export async function getTeacherAssignments(groupId: string): Promise<TeacherAssignment[]> {
-  return (await getTeacherAssignmentPage(groupId)).content;
+  return (await getTeacherAssignmentPage(groupId, 0, 100)).content;
 }
 
 export async function getActiveTeacherGroups(): Promise<TeacherGroup[]> {
@@ -165,4 +176,17 @@ export function deleteAssignment(assignmentId: string): Promise<void> {
   return teacherRequest<void>(`/api/assignments/${encodeURIComponent(assignmentId)}`, {
     method: "DELETE",
   });
+}
+
+export function restoreAssignment(assignmentId: string): Promise<TeacherAssignment> {
+  return teacherRequest<TeacherAssignment>(
+    `/api/assignments/${encodeURIComponent(assignmentId)}/restore`,
+    { method: "POST" },
+  ).then(normalizeAssignment);
+}
+
+export function getAssignmentManagementStatus(assignmentId: string): Promise<AssignmentManagementStatus> {
+  return teacherRequest<AssignmentManagementStatus>(
+    `/api/assignments/${encodeURIComponent(assignmentId)}/management-status`,
+  );
 }

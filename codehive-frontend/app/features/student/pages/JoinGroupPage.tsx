@@ -74,7 +74,10 @@ export function JoinGroupPage() {
   }
 
   async function handleJoin() {
-    if (filled === 0) return;
+    if (filled !== CODE_LENGTH) {
+      setError(`Enter all ${CODE_LENGTH} characters from your join code.`);
+      return;
+    }
     setJoining(true);
     setError(null);
     try {
@@ -133,7 +136,7 @@ export function JoinGroupPage() {
                     ref={el => { inputRefs.current[i] = el; }}
                     type="text"
                     inputMode="text"
-                    maxLength={2}
+                    maxLength={1}
                     value={ch}
                     onChange={e => handleChange(i, e.target.value)}
                     onKeyDown={e => handleKeyDown(i, e)}
@@ -154,7 +157,7 @@ export function JoinGroupPage() {
               {/* Join button */}
               <button
                 onClick={handleJoin}
-                disabled={joining || success}
+                disabled={joining || success || filled !== CODE_LENGTH}
                 className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold transition-all
                   ${success
                     ? "bg-green-600 text-white"

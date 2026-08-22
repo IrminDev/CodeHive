@@ -50,4 +50,9 @@ public class CExecutor extends AbstractLanguageExecutor {
     protected String runCommand() {
         return "./program";
     }
+
+    @Override
+    protected boolean isMemoryLimitError(String stderr) {
+        return stderr != null && stderr.toLowerCase().contains("cannot allocate memory");
+    }
 }

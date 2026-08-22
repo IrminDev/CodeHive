@@ -44,7 +44,9 @@ class TestExecutionServiceTest {
         when(storage.download("opaque/input")).thenReturn(stream("1\n"));
         when(storage.download("opaque/expected")).thenReturn(stream("2\n"));
         when(executor.prepare(any(), any(), any())).thenReturn(session);
-        when(executor.runTestCase(any(), any())).thenReturn(ExecutionResult.success("2\n", 10L, 20L));
+        ExecutionResult executionResult = ExecutionResult.success("2\n", 10L, 20L);
+        executionResult.setSessionPeakMemoryMb(36L);
+        when(executor.runTestCase(any(), any())).thenReturn(executionResult);
 
         ExecutionTestCaseInfo testCase = new ExecutionTestCaseInfo();
         testCase.setTestCaseId(TEST_CASE_ID);
@@ -64,6 +66,7 @@ class TestExecutionServiceTest {
         assertThat(report.getOverallStatus()).isEqualTo(ExecutionStatus.AC);
         assertThat(report.getTestCaseResults()).singleElement()
                 .extracting(result -> result.getTestCaseId()).isEqualTo(TEST_CASE_ID);
+        assertThat(report.getMaxMemoryUsedMb()).isEqualTo(36L);
         verify(storage).download("opaque/input");
         verify(storage).download("opaque/expected");
         verify(storage).upload("opaque/stdout", "2\n");
@@ -77,10 +80,14 @@ class TestExecutionServiceTest {
 
         result.setExpectedOutput(oversizedOutput);
         result.setActualOutput(oversizedOutput);
+        result.setStderr("\u001B[31m" + oversizedOutput + "\u0000");
 
         assertThat(result.getExpectedOutput()).hasSize(8 * 1024)
                 .endsWith("[Output truncated for artifact retention]");
         assertThat(result.getActualOutput()).hasSize(8 * 1024)
+                .endsWith("[Output truncated for artifact retention]");
+        assertThat(result.getStderr()).hasSize(8 * 1024)
+                .doesNotContain("\u001B", "\u0000")
                 .endsWith("[Output truncated for artifact retention]");
     }
 

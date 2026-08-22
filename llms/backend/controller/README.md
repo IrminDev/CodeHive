@@ -40,7 +40,7 @@ Error handling is centralized in:
 ### CheckExecutionController
 - `POST /api/execution/check` — creates execution and queues worker job.
 - `GET /api/execution/check/{id}` — polls execution status.
-- `GET /api/execution/check/{id}/report` — fetches the full execution report JSON from MinIO (per-test-case results, timing, memory, feedback). Returns 404 if the execution is still PENDING or the report is not available yet.
+- `GET /api/execution/check/{id}/report` — fetches the full execution report JSON from MinIO (per-test-case results, timing, memory, feedback). Returns 404 while unavailable and 410 after retained artifacts expire.
 
 ### AssignmentController
 - `POST /api/assignments` — multipart; creates assignment, uploads files, queues test generation.
@@ -55,6 +55,9 @@ Error handling is centralized in:
 - `POST /api/assignments/{id}/clone` accepts the complete edited clone snapshot, creates it
   in another owned active writable group, and queues output generation.
 - `DELETE /api/assignments/{id}` performs logical deletion.
+- `POST /api/assignments/{id}/restore` restores a logically deleted assignment.
+- Teacher assignment listings accept lifecycle, validation-status, and title-query filters with pagination.
+- `GET /api/assignments/{id}/management-status` returns validation failure, update history, and latest reevaluation progress.
 
 ### GroupController
 - Any user with `CREATE_GROUP` can create a group; teachers receive the scope by default.
@@ -66,8 +69,26 @@ Error handling is centralized in:
 
 - `GET /api/submissions/mine` is student-only and returns a bounded recent-submission feed with latest execution verdict and time.
 - `GET /api/submissions/mine/group/{groupId}` is student-only and returns the current
-  submitted work for accessible group assignments. It is used for delivery-state flags;
-  withdrawn work is excluded.
+  submitted work for accessible group assignments, including each current submission's
+  latest execution verdict. It is used for delivery-state flags; withdrawn work is excluded.
+- `GET /api/submissions/mine/assignment/{assignmentId}` is student-only and returns every
+  definitive attempt newest-first. Persisted verdict/time/memory summaries remain available
+  after report artifacts expire; `reportAvailable` controls links to detailed reports.
+
+### AssignmentStudentWorkController
+
+- `GET /api/assignments/mine` returns every currently accessible, published, READY assignment
+  for active enrollments, including archived read-only groups. Each row includes current work,
+  latest verdict, returned grade only, and visible-feedback count.
+- `GET /api/assignments/{assignmentId}/my-feedback` returns student-visible feedback for authenticated
+  student, including body-less deleted tombstones. Draft grades are never included in student views.
+- Teacher-owner review endpoints return assignment work, full submission timeline, grade audit history,
+  retained submission source, and execution-report availability without exposing data across groups.
+
+### TeacherDashboardController
+
+- `GET /api/teacher/dashboard` returns teacher-owned action data in one request: summary counts,
+  validation issues, grading queue, upcoming lifecycle dates, and recent submissions.
 
 ### AdminUserController
 - Lists and retrieves users with `VIEW_USERS`.

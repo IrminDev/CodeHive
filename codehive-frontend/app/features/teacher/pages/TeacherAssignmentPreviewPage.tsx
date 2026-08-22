@@ -1,14 +1,22 @@
-import { useEffect, useState } from "react";
-import type { ReactNode } from "react";
-import { useNavigate, useParams } from "react-router";
-import { ArrowLeft, CheckCircle2, Clock, Database, FileCode, Lock } from "lucide-react";
-import { sileo } from "sileo";
+import { useCallback, useEffect, useState } from "react";
+import { ArrowLeft, CircleAlert, Eye, Lock, RefreshCw } from "lucide-react";
+import { Link, useParams } from "react-router";
 
-import { DashboardLayout } from "~/shared/components/DashboardLayout";
 import { CodeEditor } from "~/shared/components/CodeEditor";
+import {
+  AssignmentDetailsPanel,
+  type AssignmentDetailsTab,
+} from "~/shared/components/AssignmentDetailsPanel";
+import {
+  AssignmentWorkspace,
+  type AssignmentWorkspacePane,
+} from "~/shared/components/AssignmentWorkspace";
 import { getTeacherAssignmentPreview } from "../api/assignment.api";
-import { TEACHER_NAV, TEACHER_SIDEBAR_ITEMS } from "../config/dashboard.config";
-import type { AssignmentPreview, Language } from "../types/assignment.types";
+import type {
+  AssignmentPreview,
+  AssignmentPreviewTestCase,
+  Language,
+} from "../types/assignment.types";
 
 const MONACO_LANGUAGE: Record<Language, string> = {
   PYTHON: "python",
@@ -17,109 +25,202 @@ const MONACO_LANGUAGE: Record<Language, string> = {
   C: "c",
 };
 
-function formatDate(value?: string) {
-  return value ? new Date(value).toLocaleString() : "Not set";
-}
+const LANGUAGE_FILE: Record<Language, string> = {
+  PYTHON: "solution.py",
+  JAVA: "Main.java",
+  CPP: "solution.cpp",
+  C: "solution.c",
+};
+
+const LANGUAGE_VERSION: Record<Language, string> = {
+  PYTHON: "Python 3.11",
+  JAVA: "Java 21",
+  CPP: "C++17",
+  C: "C11",
+};
 
 export function TeacherAssignmentPreviewPage() {
-  const navigate = useNavigate();
   const { assignmentId = "" } = useParams<{ assignmentId: string }>();
   const [preview, setPreview] = useState<AssignmentPreview | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [detailsTab, setDetailsTab] = useState<AssignmentDetailsTab>("assignment");
+  const [mobilePane, setMobilePane] = useState<AssignmentWorkspacePane>("assignment");
+  const [selectedTest, setSelectedTest] = useState(0);
 
-  useEffect(() => {
-    let cancelled = false;
-    void getTeacherAssignmentPreview(assignmentId)
-      .then((result) => { if (!cancelled) setPreview(result); })
-      .catch((error) => {
-        if (!cancelled) sileo.error({ title: error instanceof Error ? error.message : "Failed to load assignment preview." });
-      })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      setPreview(await getTeacherAssignmentPreview(assignmentId));
+    } catch (cause) {
+      setPreview(null);
+      setError(cause instanceof Error ? cause.message : "Failed to load assignment preview.");
+    } finally {
+      setLoading(false);
+    }
   }, [assignmentId]);
 
-  if (loading) return <div className="min-h-screen bg-gray-50 dark:bg-dark-bg grid place-items-center text-gray-500">Loading assignment preview…</div>;
-  if (!preview) return <div className="min-h-screen bg-gray-50 dark:bg-dark-bg grid place-items-center text-gray-500">Assignment preview unavailable.</div>;
+  useEffect(() => { void load(); }, [load]);
+
+  if (loading) return <PreviewLoading />;
+  if (!preview) return <PreviewError message={error ?? "Assignment preview is unavailable."} onRetry={() => void load()} />;
 
   const { assignment, referenceLanguage, referenceSolution, testCases } = preview;
-  const outputsReady = assignment.validationStatus === "READY";
-  const examples = assignment.examples ?? [];
 
   return (
-    <DashboardLayout logoLinkTo="/teacher" navLinks={TEACHER_NAV} sidebarItems={TEACHER_SIDEBAR_ITEMS}>
-      <div className="max-w-6xl mx-auto space-y-6">
-        <header className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-          <div className="flex items-start gap-4">
-            <button onClick={() => navigate("/teacher/assignments")} className="btn-outline p-2.5" aria-label="Back to assignments"><ArrowLeft size={16} /></button>
-            <div>
-              <p className="text-xs uppercase tracking-widest font-semibold text-azure dark:text-yellow">Teacher preview</p>
-              <h1 className="text-3xl font-bold mt-1">{assignment.title}</h1>
-              <p className="text-gray-500 mt-1">Read-only view of assignment details, reference solution, and generated test outputs.</p>
-            </div>
+    <div className="h-screen flex flex-col overflow-hidden bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100 font-sans">
+      <header className="h-14 flex-shrink-0 flex items-center gap-3 border-b border-gray-200 dark:border-gray-800/60 bg-gray-50 dark:bg-dark-surface px-3 sm:px-4">
+        <Link to="/teacher/assignments" aria-label="Back to assignments" className="w-9 h-9 grid place-items-center rounded-lg border border-gray-200 dark:border-gray-700 text-gray-500 hover:text-azure dark:hover:text-yellow transition-colors">
+          <ArrowLeft size={16} />
+        </Link>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className="hidden sm:inline text-[10px] uppercase tracking-widest font-semibold text-azure dark:text-yellow">Teacher preview</span>
+            <span className="inline-flex items-center gap-1 text-[10px] text-gray-400 dark:text-gray-500"><Eye size={11} /> Student-like layout</span>
           </div>
-          <span className={`self-start px-3 py-1 rounded-full text-xs font-semibold ${outputsReady ? "bg-green-500/15 text-green-600 dark:text-green-400" : "bg-yellow/15 text-yellow-700 dark:text-yellow"}`}>{assignment.validationStatus}</span>
-        </header>
+          <h1 className="truncate text-sm font-semibold text-gray-900 dark:text-white">{assignment.title}</h1>
+        </div>
+        <div className="hidden sm:flex items-center gap-2 text-[10px] font-mono text-gray-500 dark:text-gray-400">
+          <span>{referenceLanguage}</span>
+          <span>·</span>
+          <span>Read only</span>
+        </div>
+        <span className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold ${assignment.validationStatus === "READY" ? "bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20" : assignment.validationStatus === "FAILED" ? "bg-red-500/10 text-red-500 border-red-500/20" : "bg-yellow/10 text-yellow-700 dark:text-yellow border-yellow/20"}`}>
+          {assignment.validationStatus}
+        </span>
+      </header>
 
-        <section className="bg-white dark:bg-dark-card rounded-2xl border border-gray-200 dark:border-gray-700/40 p-6 grid gap-6 lg:grid-cols-[1.5fr_1fr]">
-          <div>
-            <h2 className="font-semibold text-lg">Problem</h2>
-            <p className="mt-3 whitespace-pre-wrap text-gray-600 dark:text-gray-300">{assignment.description}</p>
-            {assignment.tags.length > 0 && <div className="flex flex-wrap gap-2 mt-5">{assignment.tags.map((tag) => <span key={tag} className="px-2.5 py-1 rounded-full text-xs font-semibold bg-azure/10 text-azure dark:bg-yellow/10 dark:text-yellow">{tag}</span>)}</div>}
-          </div>
-          <div className="grid content-start gap-3 text-sm">
-            <Detail label="Time limit" value={`${assignment.timeLimitMs} ms`} icon={<Clock size={15} />} />
-            <Detail label="Memory limit" value={`${assignment.memoryLimitMb} MB`} icon={<Database size={15} />} />
-            <Detail label="Max points" value={String(assignment.maxPoints)} icon={<CheckCircle2 size={15} />} />
-            <Detail label="Comparator" value={assignment.comparatorType.replaceAll("_", " ")} icon={<FileCode size={15} />} />
-            <Detail label="Launch" value={formatDate(assignment.launchDate)} icon={<Clock size={15} />} />
-            <Detail label="Due" value={formatDate(assignment.dueDate)} icon={<Clock size={15} />} />
-          </div>
-        </section>
-
-        {(assignment.constraints.length > 0 || assignment.hints.length > 0 || examples.length > 0) && (
-          <section className="grid gap-6 lg:grid-cols-3">
-            <InfoList title="Constraints" items={assignment.constraints} />
-            <InfoList title="Hints" items={assignment.hints} />
-            <div className="bg-white dark:bg-dark-card rounded-2xl border border-gray-200 dark:border-gray-700/40 p-5">
-              <h2 className="font-semibold">Public examples</h2>
-              {examples.length === 0 ? <p className="mt-3 text-sm text-gray-500">No public examples.</p> : examples.map((example, index) => <div key={`${example.input}-${example.output}-${index}`} className="mt-3 text-sm"><p className="font-medium">Example {index + 1}</p><p className="mt-1 text-gray-500 whitespace-pre-wrap">{example.explanation}</p></div>)}
-            </div>
-          </section>
-        )}
-
-        <section className="bg-white dark:bg-dark-card rounded-2xl border border-gray-200 dark:border-gray-700/40 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700/40 flex items-center gap-2"><Lock size={16} className="text-gray-500" /><div><h2 className="font-semibold">Reference solution</h2><p className="text-xs text-gray-500 mt-0.5">{referenceLanguage} · read only</p></div></div>
-          <div className="h-[420px]"><CodeEditor value={referenceSolution} language={MONACO_LANGUAGE[referenceLanguage]} readOnly options={{ domReadOnly: true }} /></div>
-        </section>
-
-        <section className="bg-white dark:bg-dark-card rounded-2xl border border-gray-200 dark:border-gray-700/40 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700/40"><h2 className="font-semibold">Private test cases and generated outputs</h2><p className="text-sm text-gray-500 mt-1">Visible only to assignment owner. Inputs stay private from students.</p></div>
-          {!outputsReady && <div className="mx-6 mt-5 rounded-xl border border-yellow/30 bg-yellow/10 px-4 py-3 text-sm text-yellow-800 dark:text-yellow">Expected outputs appear here after worker validation reaches READY.</div>}
-          <div className="p-6 grid gap-5">
-            {testCases.map((testCase) => (
-              <article key={testCase.order} className="rounded-xl border border-gray-200 dark:border-gray-700/50 overflow-hidden">
-                <header className="px-4 py-3 bg-gray-50 dark:bg-dark-surface flex items-center justify-between"><h3 className="font-semibold text-sm">Test case {testCase.order}</h3>{testCase.sample && <span className="text-xs font-semibold text-azure dark:text-yellow">Public sample</span>}</header>
-                <div className="grid lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-gray-200 dark:divide-gray-700/50">
-                  <CodeBlock title="Input" value={testCase.input} />
-                  <CodeBlock title="Expected output" value={testCase.expectedOutput} unavailable={!outputsReady} />
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
+      <div className="flex items-center gap-2 border-b border-azure/20 dark:border-yellow/20 bg-azure/5 dark:bg-yellow/5 px-4 py-2 text-[11px] text-gray-600 dark:text-gray-300">
+        <Lock size={12} className="text-azure dark:text-yellow" />
+        Preview only. Reference solution and private expected outputs remain teacher-visible.
       </div>
-    </DashboardLayout>
+
+      <AssignmentWorkspace
+        persistenceKey="codehive-teacher-assignment-preview"
+        editorLabel="Reference"
+        mobilePane={mobilePane}
+        onMobilePaneChange={setMobilePane}
+        assignmentPane={(
+          <AssignmentDetailsPanel
+            assignment={assignment}
+            tab={detailsTab}
+            onTabChange={setDetailsTab}
+            note={(
+              <div>
+                <p className="text-xs font-semibold text-yellow-700 dark:text-yellow">Preview scope</p>
+                <p className="mt-1 text-[11px] leading-relaxed text-gray-500 dark:text-gray-400">This pane mirrors information students receive. Private tests remain in teacher-only Tests pane.</p>
+              </div>
+            )}
+          />
+        )}
+        editorPane={<ReferenceSolutionPane language={referenceLanguage} source={referenceSolution} />}
+        testsPane={(
+          <TeacherTestsPane
+            testCases={testCases}
+            selectedTest={selectedTest}
+            outputsReady={assignment.validationStatus === "READY"}
+            onSelect={setSelectedTest}
+          />
+        )}
+      />
+    </div>
   );
 }
 
-function Detail({ label, value, icon }: { label: string; value: string; icon: ReactNode }) {
-  return <div className="flex items-center justify-between gap-3"><span className="flex items-center gap-2 text-gray-500">{icon}{label}</span><strong className="text-right">{value}</strong></div>;
+function ReferenceSolutionPane({ language, source }: { language: Language; source: string }) {
+  return (
+    <section className="h-full min-h-0 flex flex-col overflow-hidden bg-white dark:bg-dark-card">
+      <div className="h-9 flex-shrink-0 flex items-center border-b border-gray-200 dark:border-gray-800/60 bg-gray-100 dark:bg-dark-surface">
+        <div className="flex items-center gap-2 px-4 h-full border-r border-gray-200 dark:border-gray-800/60 border-t-2 border-t-azure dark:border-t-yellow bg-white dark:bg-dark-card text-xs font-mono text-gray-700 dark:text-gray-200">
+          <Lock size={12} className="text-azure dark:text-yellow" />
+          {LANGUAGE_FILE[language]}
+        </div>
+        <span className="ml-auto px-4 text-[10px] font-mono text-gray-400 dark:text-gray-600">REFERENCE · READ ONLY</span>
+      </div>
+      <div className="flex-1 min-h-0 overflow-hidden">
+        <CodeEditor value={source} language={MONACO_LANGUAGE[language]} readOnly options={{ domReadOnly: true }} />
+      </div>
+      <div className="h-6 flex-shrink-0 flex items-center justify-between border-t border-gray-200 dark:border-gray-800/60 bg-gray-50 dark:bg-dark-surface px-3 text-[10px] font-mono text-gray-400 dark:text-gray-600">
+        <span className="flex items-center gap-1"><Lock size={10} />Protected reference</span>
+        <div className="flex items-center gap-4"><span>{LANGUAGE_VERSION[language]}</span><span>{source.split("\n").length} lines</span></div>
+      </div>
+    </section>
+  );
 }
 
-function InfoList({ title, items }: { title: string; items: string[] }) {
-  return <div className="bg-white dark:bg-dark-card rounded-2xl border border-gray-200 dark:border-gray-700/40 p-5"><h2 className="font-semibold">{title}</h2>{items.length === 0 ? <p className="mt-3 text-sm text-gray-500">None.</p> : <ul className="mt-3 space-y-2 text-sm text-gray-600 dark:text-gray-300">{items.map((item) => <li key={item}>• {item}</li>)}</ul>}</div>;
+function TeacherTestsPane({
+  testCases,
+  selectedTest,
+  outputsReady,
+  onSelect,
+}: {
+  testCases: AssignmentPreviewTestCase[];
+  selectedTest: number;
+  outputsReady: boolean;
+  onSelect: (index: number) => void;
+}) {
+  const selected = testCases[selectedTest];
+  return (
+    <section className="h-full min-h-0 flex flex-col overflow-hidden bg-white dark:bg-dark-surface">
+      <div className="flex-shrink-0 flex items-center gap-3 border-b border-gray-200 dark:border-gray-800/60 px-3">
+        <div className="border-b-2 border-azure dark:border-yellow px-1 py-2 text-xs font-medium text-azure dark:text-yellow">Private tests</div>
+        <div className="flex flex-1 items-center gap-1.5 overflow-x-auto py-1.5">
+          {testCases.map((testCase, index) => (
+            <button key={testCase.order} onClick={() => onSelect(index)} className={`flex flex-shrink-0 items-center gap-1.5 rounded border px-2 py-0.5 text-[10px] font-mono transition-colors ${selectedTest === index ? "border-gray-300 bg-gray-100 text-gray-800 dark:border-gray-600 dark:bg-gray-700/60 dark:text-gray-200" : "border-transparent text-gray-400 hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-300"}`}>
+              <span className={`h-1.5 w-1.5 rounded-full ${outputsReady ? "bg-green-500" : "bg-yellow"}`} />
+              {String(testCase.order).padStart(2, "0")}
+              {testCase.sample && <span className="text-azure dark:text-yellow">sample</span>}
+            </button>
+          ))}
+        </div>
+        <span className="hidden sm:inline text-[10px] text-gray-400 dark:text-gray-500">{testCases.length} cases</span>
+      </div>
+
+      {!selected ? (
+        <div className="flex flex-1 items-center justify-center text-xs text-gray-400 dark:text-gray-600">No test cases available.</div>
+      ) : (
+        <div className="flex flex-1 min-h-0 flex-col sm:flex-row divide-y sm:divide-x sm:divide-y-0 divide-gray-200 dark:divide-gray-800/60">
+          <TestValue label="Input" value={selected.input} detail={selected.sample ? "Public sample" : "Private input"} />
+          <TestValue label="Expected output" value={selected.expectedOutput} detail="Generated by worker validation" unavailable={!outputsReady} />
+        </div>
+      )}
+      <div className={`flex-shrink-0 border-t px-3 py-2 text-[10px] ${outputsReady ? "border-green-500/20 bg-green-500/5 text-green-600 dark:text-green-400" : "border-yellow/20 bg-yellow/5 text-yellow-700 dark:text-yellow"}`}>
+        {outputsReady ? "Expected outputs generated and ready for review." : "Expected outputs become available after successful validation."}
+      </div>
+    </section>
+  );
 }
 
-function CodeBlock({ title, value, unavailable = false }: { title: string; value?: string; unavailable?: boolean }) {
-  return <div className="p-4"><p className="text-xs uppercase tracking-widest text-gray-500 mb-2">{title}</p>{unavailable ? <p className="text-sm text-gray-500">Unavailable until validation completes.</p> : <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-gray-50 dark:bg-dark-surface p-3 text-sm font-mono">{value ?? ""}</pre>}</div>;
+function TestValue({ label, value, detail, unavailable = false }: { label: string; value?: string; detail: string; unavailable?: boolean }) {
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-800/60 px-3 py-1.5">
+        <span className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-600">{label}</span>
+        <span className="text-[10px] text-gray-400 dark:text-gray-600">{detail}</span>
+      </div>
+      {unavailable ? (
+        <div className="flex flex-1 items-center justify-center p-4 text-center text-xs text-gray-400 dark:text-gray-600">Unavailable until validation completes.</div>
+      ) : (
+        <pre className="flex-1 overflow-auto whitespace-pre-wrap break-words p-3 text-xs font-mono text-gray-700 dark:text-gray-300">{value ?? ""}</pre>
+      )}
+    </div>
+  );
+}
+
+function PreviewLoading() {
+  return <div className="h-screen grid place-items-center bg-white dark:bg-dark-bg text-gray-500"><div className="text-center"><RefreshCw size={24} className="mx-auto mb-3 animate-spin text-azure dark:text-yellow" /><p className="text-sm">Loading teacher preview…</p></div></div>;
+}
+
+function PreviewError({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div className="h-screen grid place-items-center bg-white dark:bg-dark-bg p-6 text-gray-900 dark:text-gray-100">
+      <div className="w-full max-w-md rounded-2xl border border-red-500/20 bg-red-500/5 p-8 text-center">
+        <CircleAlert size={28} className="mx-auto mb-3 text-red-500" />
+        <h1 className="font-semibold">Preview unavailable</h1>
+        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">{message}</p>
+        <div className="mt-5 flex justify-center gap-3"><Link to="/teacher/assignments" className="btn-outline">Back</Link><button onClick={onRetry} className="btn-primary">Try again</button></div>
+      </div>
+    </div>
+  );
 }

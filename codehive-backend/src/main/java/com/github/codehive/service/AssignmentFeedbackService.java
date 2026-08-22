@@ -91,6 +91,12 @@ public class AssignmentFeedbackService {
                 .stream().map(this::toDTO).toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<AssignmentFeedbackDTO> listMine(UUID assignmentId, String email) {
+        User student = requireUser(email);
+        return list(assignmentId, student.getId(), email);
+    }
+
     private Assignment requireOwnedAssignment(UUID id, User teacher) {
         Assignment assignment = assignmentRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Assignment not found: " + id));

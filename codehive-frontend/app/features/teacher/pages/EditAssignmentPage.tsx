@@ -27,6 +27,8 @@ import type {
   TestSuiteUpdateMode,
   UpdateAssignmentMetadata,
 } from "../types/assignment.types";
+import { TeacherShell } from "../components/TeacherShell";
+import { TeacherEmpty, TeacherLoading } from "../components/TeacherUI";
 
 const LANGUAGES: Array<{
   value: Language;
@@ -531,15 +533,11 @@ export function EditAssignmentPage({
 
   if (loading)
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-dark-bg grid place-items-center text-gray-500">
-        Loading assignment…
-      </div>
+      <TeacherShell active="assignments" breadcrumbs={[{ label: "Teacher", to: "/teacher" }, { label: "Assignments", to: "/teacher/assignments" }, { label: "Loading" }]}><TeacherLoading rows={6} /></TeacherShell>
     );
   if (!assignment)
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-dark-bg grid place-items-center text-gray-500">
-        Assignment not found.
-      </div>
+      <TeacherShell active="assignments" breadcrumbs={[{ label: "Teacher", to: "/teacher" }, { label: "Assignments" }]}><TeacherEmpty title="Assignment not found" description="Assignment was removed or is unavailable." /></TeacherShell>
     );
 
   const currentTests =

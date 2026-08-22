@@ -50,3 +50,46 @@ export interface StudentAssignmentWork {
   submissions: Submission[];
   updatedAt: string;
 }
+
+export interface TeacherExecutionEvidence {
+  id: string;
+  submissionId?: string;
+  executionType: "PRACTICE" | "DEFINITIVE";
+  status: "TLE" | "MLE" | "OLE" | "RTE" | "CE" | "WA" | "AC" | "PENDING";
+  timeMs?: number;
+  memoryMb?: number;
+  isOutdated: boolean;
+  createdAt: string;
+  artifactsExpireAt: string;
+}
+
+export interface TeacherSubmissionEvidence {
+  submissionId: string;
+  assignmentId: string;
+  studentId: string;
+  language: Language;
+  submittedAt: string;
+  deliveredLate: boolean;
+  status: SubmissionStatus;
+  withdrawnAt?: string;
+  sourceCode?: string;
+  execution?: TeacherExecutionEvidence;
+  reportAvailable: boolean;
+}
+
+export interface AssignmentGradeHistory {
+  id: string;
+  value?: number;
+  maxPoints?: number;
+  status?: GradeStatus;
+  reason: string;
+  actorId?: string;
+  actorName?: string;
+  createdAt: string;
+}
+
+export interface TeacherStudentWorkReview {
+  work: StudentAssignmentWork;
+  gradeHistory: AssignmentGradeHistory[];
+  submissions: TeacherSubmissionEvidence[];
+}

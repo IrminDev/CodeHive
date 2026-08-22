@@ -13,6 +13,8 @@ public class TestCaseResult {
     private Long executionTimeMs;
     private Long memoryUsedMb;
     private String feedback;
+    private String stderr;
+    private Integer exitCode;
     private String expectedOutput; // only set for PRACTICE WA
     private String actualOutput;   // only set for PRACTICE WA
 
@@ -71,6 +73,22 @@ public class TestCaseResult {
         this.feedback = feedback;
     }
 
+    public String getStderr() {
+        return stderr;
+    }
+
+    public void setStderr(String stderr) {
+        this.stderr = truncateDiagnostic(sanitizeDiagnostic(stderr));
+    }
+
+    public Integer getExitCode() {
+        return exitCode;
+    }
+
+    public void setExitCode(Integer exitCode) {
+        this.exitCode = exitCode;
+    }
+
     public String getExpectedOutput() {
         return expectedOutput;
     }
@@ -91,5 +109,12 @@ public class TestCaseResult {
         if (output == null || output.length() <= MAX_PERSISTED_DIAGNOSTIC_CHARS) return output;
         int end = MAX_PERSISTED_DIAGNOSTIC_CHARS - TRUNCATION_SUFFIX.length();
         return output.substring(0, end) + TRUNCATION_SUFFIX;
+    }
+
+    private String sanitizeDiagnostic(String output) {
+        if (output == null) return null;
+        return output
+                .replace("\u0000", "")
+                .replaceAll("\\u001B\\[[;?0-9]*[ -/]*[@-~]", "");
     }
 }

@@ -1,7 +1,6 @@
-import { useEffect, useState } from "react";
-import { sileo } from "sileo";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router";
 
-import { DashboardLayout } from "~/shared/components/DashboardLayout";
 import { listTeacherGroups } from "../api/group.api";
 import {
   getAssignmentMetrics,
@@ -9,7 +8,33 @@ import {
   listAssignmentMetrics,
   listStudentMetrics,
 } from "../api/metrics.api";
-import { TEACHER_NAV, TEACHER_SIDEBAR_ITEMS } from "../config/dashboard.config";
+import {
+  AssignmentAnalyticsDrawer,
+} from "../components/TeacherAnalyticsDrawer";
+import {
+  AnalyticsTabs,
+  AssignmentExplorer,
+  StudentExplorer,
+  assignmentNeedsAttention,
+  type AnalyticsTab,
+  type AssignmentAnalyticsFilter,
+  type AssignmentAnalyticsSort,
+  type StudentAnalyticsFilter,
+  type StudentAnalyticsSort,
+} from "../components/TeacherAnalyticsExplorer";
+import {
+  AnalyticsGroupContext,
+  AnalyticsOverview,
+  groupLifecycle,
+  type AnalyticsHealth,
+} from "../components/TeacherAnalyticsOverview";
+import { TeacherShell } from "../components/TeacherShell";
+import {
+  TeacherEmpty,
+  TeacherError,
+  TeacherLoading,
+  TeacherPageHeader,
+} from "../components/TeacherUI";
 import type { TeacherGroup } from "../types/group.types";
 import type {
   AssignmentMetrics,
@@ -18,91 +43,320 @@ import type {
   StudentMetrics,
 } from "../types/metrics.types";
 
-function percentage(value: number | null): string {
-  return value == null ? "—" : `${value.toFixed(2)}%`;
-}
-
 export function TeacherAnalyticsPage() {
+  const [params, setParams] = useSearchParams();
   const [groups, setGroups] = useState<TeacherGroup[]>([]);
-  const [groupId, setGroupId] = useState("");
   const [overview, setOverview] = useState<GroupMetricsOverview | null>(null);
   const [assignments, setAssignments] = useState<AssignmentMetrics[]>([]);
   const [students, setStudents] = useState<StudentMetrics[]>([]);
   const [detail, setDetail] = useState<AssignmentMetricsDetail | null>(null);
-  const [loading, setLoading] = useState(true);
+
+  const [groupsLoading, setGroupsLoading] = useState(true);
+  const [metricsLoading, setMetricsLoading] = useState(false);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [groupsError, setGroupsError] = useState<string>();
+  const [overviewError, setOverviewError] = useState<string>();
+  const [assignmentsError, setAssignmentsError] = useState<string>();
+  const [studentsError, setStudentsError] = useState<string>();
+  const [detailError, setDetailError] = useState<string>();
+  const [groupsRefreshVersion, setGroupsRefreshVersion] = useState(0);
+  const [refreshVersion, setRefreshVersion] = useState(0);
+  const [detailRefreshVersion, setDetailRefreshVersion] = useState(0);
+
+  const [assignmentQuery, setAssignmentQuery] = useState("");
+  const [assignmentFilter, setAssignmentFilter] = useState<AssignmentAnalyticsFilter>("all");
+  const [assignmentSort, setAssignmentSort] = useState<AssignmentAnalyticsSort>("attention");
+  const [studentQuery, setStudentQuery] = useState("");
+  const [studentFilter, setStudentFilter] = useState<StudentAnalyticsFilter>("all");
+  const [studentSort, setStudentSort] = useState<StudentAnalyticsSort>("risk");
+
+  const groupId = params.get("groupId") ?? "";
+  const assignmentId = params.get("assignmentId") ?? "";
+  const tab: AnalyticsTab = params.get("view") === "students" ? "students" : "assignments";
+
+  function updateParams(changes: Record<string, string | undefined>, replace = true) {
+    setParams((current) => {
+      const next = new URLSearchParams(current);
+      Object.entries(changes).forEach(([key, value]) => {
+        if (value) next.set(key, value);
+        else next.delete(key);
+      });
+      return next;
+    }, { replace });
+  }
 
   useEffect(() => {
     let cancelled = false;
-    void listTeacherGroups(false)
+    setGroupsLoading(true);
+    setGroupsError(undefined);
+    void listTeacherGroups(true)
       .then((items) => {
         if (cancelled) return;
-        const active = items.filter((group) => group.isActive);
-        setGroups(active);
-        setGroupId(active[0]?.id ?? "");
-        if (!active.length) setLoading(false);
+        setGroups(items);
+        setParams((current) => {
+          const existing = current.get("groupId");
+          if (existing && items.some((group) => group.id === existing)) return current;
+          const preferred = [...items].sort(compareGroupPriority)[0];
+          const next = new URLSearchParams(current);
+          if (preferred) next.set("groupId", preferred.id);
+          else next.delete("groupId");
+          next.delete("assignmentId");
+          return next;
+        }, { replace: true });
       })
-      .catch((error) => {
-        if (!cancelled) sileo.error({ title: error instanceof Error ? error.message : "Failed to load groups." });
-        setLoading(false);
+      .catch((cause) => {
+        if (!cancelled) setGroupsError(errorMessage(cause, "Could not load owned groups."));
+      })
+      .finally(() => {
+        if (!cancelled) setGroupsLoading(false);
       });
     return () => { cancelled = true; };
-  }, []);
+  }, [groupsRefreshVersion, setParams]);
 
   useEffect(() => {
-    if (!groupId) return;
+    if (!groupId) {
+      setOverview(null);
+      setAssignments([]);
+      setStudents([]);
+      return;
+    }
     let cancelled = false;
-    setLoading(true);
+    setMetricsLoading(true);
+    setOverview(null);
+    setAssignments([]);
+    setStudents([]);
+    setOverviewError(undefined);
+    setAssignmentsError(undefined);
+    setStudentsError(undefined);
     setDetail(null);
-    void Promise.all([
+
+    void Promise.allSettled([
       getGroupMetricsOverview(groupId),
       listAssignmentMetrics(groupId),
       listStudentMetrics(groupId),
-    ])
-      .then(([overviewResult, assignmentResult, studentResult]) => {
-        if (cancelled) return;
-        setOverview(overviewResult);
-        setAssignments(assignmentResult);
-        setStudents(studentResult);
-      })
-      .catch((error) => {
-        if (!cancelled) sileo.error({ title: error instanceof Error ? error.message : "Failed to load analytics." });
-      })
-      .finally(() => { if (!cancelled) setLoading(false); });
+    ]).then(([overviewResult, assignmentResult, studentResult]) => {
+      if (cancelled) return;
+      if (overviewResult.status === "fulfilled") setOverview(overviewResult.value);
+      else {
+        setOverview(null);
+        setOverviewError(errorMessage(overviewResult.reason, "Could not load group overview."));
+      }
+      if (assignmentResult.status === "fulfilled") setAssignments(assignmentResult.value);
+      else {
+        setAssignments([]);
+        setAssignmentsError(errorMessage(assignmentResult.reason, "Could not load assignment metrics."));
+      }
+      if (studentResult.status === "fulfilled") setStudents(studentResult.value);
+      else {
+        setStudents([]);
+        setStudentsError(errorMessage(studentResult.reason, "Could not load student metrics."));
+      }
+    }).finally(() => {
+      if (!cancelled) setMetricsLoading(false);
+    });
     return () => { cancelled = true; };
-  }, [groupId]);
+  }, [groupId, refreshVersion]);
 
-  async function showAssignment(assignmentId: string) {
-    try {
-      setDetail(await getAssignmentMetrics(assignmentId));
-    } catch (error) {
-      sileo.error({ title: error instanceof Error ? error.message : "Failed to load assignment metrics." });
+  useEffect(() => {
+    if (!assignmentId) {
+      setDetail(null);
+      setDetailError(undefined);
+      return;
     }
+    let cancelled = false;
+    setDetailLoading(true);
+    setDetailError(undefined);
+    void getAssignmentMetrics(assignmentId)
+      .then((result) => {
+        if (!cancelled) setDetail(result);
+      })
+      .catch((cause) => {
+        if (!cancelled) {
+          setDetail(null);
+          setDetailError(errorMessage(cause, "Could not load assignment detail."));
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setDetailLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [assignmentId, detailRefreshVersion]);
+
+  const selectedGroup = groups.find((group) => group.id === groupId);
+  const selectedAssignment = assignments.find((item) => item.assignmentId === assignmentId);
+  const assignmentTitles = useMemo(
+    () => new Map(assignments.map((item) => [item.assignmentId, item.title])),
+    [assignments],
+  );
+
+  const health = useMemo<AnalyticsHealth>(() => ({
+    overdueAssignments: assignments.filter((item) => item.overdue && item.missingCount > 0).length,
+    missingSubmissions: assignments.reduce((total, item) => total + item.missingCount, 0),
+    processingAssignments: overview?.assignments.processing ?? assignments.filter((item) => item.validationStatus === "PROCESSING").length,
+    failedAssignments: overview?.assignments.failed ?? assignments.filter((item) => item.validationStatus === "FAILED").length,
+    pendingGrades: assignments.reduce((total, item) => total + Math.max(0, item.submittedCount - item.draftGrades - item.returnedGrades), 0),
+  }), [assignments, overview]);
+
+  const visibleAssignments = useMemo(() => {
+    const query = assignmentQuery.trim().toLowerCase();
+    return assignments
+      .filter((item) => !query || item.title.toLowerCase().includes(query))
+      .filter((item) => {
+        if (assignmentFilter === "attention") return assignmentNeedsAttention(item);
+        if (assignmentFilter === "overdue") return item.overdue && item.missingCount > 0;
+        if (assignmentFilter === "grading") return item.submittedCount > item.draftGrades + item.returnedGrades;
+        return true;
+      })
+      .sort((left, right) => compareAssignments(left, right, assignmentSort));
+  }, [assignments, assignmentFilter, assignmentQuery, assignmentSort]);
+
+  const visibleStudents = useMemo(() => {
+    const query = studentQuery.trim().toLowerCase();
+    return students
+      .filter((student) => !query || student.fullName.toLowerCase().includes(query) || student.enrollmentNumber.toLowerCase().includes(query))
+      .filter((student) => {
+        if (studentFilter === "missing") return student.missingAssignmentIds.length > 0;
+        if (studentFilter === "late") return student.lateCount > 0;
+        if (studentFilter === "ungraded") return student.gradedAssignments < student.submittedCount;
+        if (studentFilter === "complete") return student.completionRate === 100;
+        return true;
+      })
+      .sort((left, right) => compareStudents(left, right, studentSort));
+  }, [studentFilter, studentQuery, studentSort, students]);
+
+  function selectGroup(nextGroupId: string) {
+    setAssignmentQuery("");
+    setStudentQuery("");
+    updateParams({ groupId: nextGroupId, assignmentId: undefined });
   }
 
   return (
-    <DashboardLayout logoLinkTo="/teacher" navLinks={TEACHER_NAV} sidebarItems={TEACHER_SIDEBAR_ITEMS}>
-      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-7">
-        <div><p className="text-xs uppercase tracking-widest font-semibold text-azure dark:text-yellow">Performance</p><h1 className="text-3xl font-bold mt-2">Analytics</h1><p className="text-gray-500 mt-1">Submission, punctuality, grading, and student metrics.</p></div>
-        <select value={groupId} onChange={(event) => setGroupId(event.target.value)} className="px-4 py-3 rounded-xl bg-white dark:bg-dark-surface border border-gray-200 dark:border-gray-700"><option value="">No group</option>{groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}</select>
-      </div>
+    <TeacherShell
+      active="analytics"
+      breadcrumbs={[{ label: "Teacher", to: "/teacher" }, { label: "Analytics" }]}
+      contentClassName="max-w-7xl"
+    >
+      <TeacherPageHeader
+        eyebrow="Performance"
+        title="Analytics"
+        description="Spot delivery risk, grading work, and student progress across current and historical classes."
+      />
 
-      {loading ? <div className="py-20 text-center text-gray-500">Loading analytics…</div> : !overview ? <div className="py-20 text-center text-gray-500">Select owned group.</div> : <div className="space-y-6">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[["Active students", overview.enrollment.active], ["Published assignments", overview.assignments.published], ["Submission rate", percentage(overview.overallSubmissionRate)], ["Average score", percentage(overview.overallAverageScore)]].map(([label, value]) => <div key={label as string} className="bg-white dark:bg-dark-card rounded-2xl border border-gray-200 dark:border-gray-700/40 p-5"><p className="text-xs uppercase tracking-widest text-gray-500">{label}</p><p className="text-2xl font-bold mt-2">{value}</p></div>)}
-        </div>
+      {groupsLoading ? (
+        <TeacherLoading rows={6} />
+      ) : groupsError ? (
+        <TeacherError message={groupsError} onRetry={() => setGroupsRefreshVersion((value) => value + 1)} />
+      ) : groups.length === 0 ? (
+        <TeacherEmpty title="No owned groups" description="Create a group before reviewing analytics." />
+      ) : (
+        <>
+          <AnalyticsGroupContext
+            groups={groups}
+            selected={selectedGroup}
+            generatedAt={overview?.generatedAt}
+            refreshing={metricsLoading}
+            onSelect={selectGroup}
+            onRefresh={() => setRefreshVersion((value) => value + 1)}
+          />
 
-        <section className="bg-white dark:bg-dark-card rounded-2xl border border-gray-200 dark:border-gray-700/40 overflow-hidden">
-          <header className="p-5 border-b border-gray-200 dark:border-gray-700/40"><h2 className="font-semibold">Assignment metrics</h2></header>
-          {assignments.length === 0 ? <p className="p-8 text-center text-gray-500">No assignments.</p> : <div className="overflow-x-auto"><table className="w-full text-sm"><thead className="text-left text-gray-500 bg-gray-50 dark:bg-dark-surface"><tr><th className="p-4">Assignment</th><th className="p-4">Submitted</th><th className="p-4">Rate</th><th className="p-4">On time</th><th className="p-4">Average</th><th className="p-4">Missing</th></tr></thead><tbody>{assignments.map((item) => <tr key={item.assignmentId} onClick={() => void showAssignment(item.assignmentId)} className="border-t border-gray-100 dark:border-gray-700/30 cursor-pointer hover:bg-gray-50 dark:hover:bg-dark-surface/40"><td className="p-4 font-medium">{item.title}</td><td className="p-4">{item.submittedCount}/{item.activeStudents}</td><td className="p-4">{percentage(item.submissionRate)}</td><td className="p-4">{percentage(item.onTimeRate)}</td><td className="p-4">{percentage(item.averageScore)}</td><td className="p-4">{item.missingCount}</td></tr>)}</tbody></table></div>}
-        </section>
+          {metricsLoading && !overview && !assignments.length && !students.length ? (
+            <TeacherLoading rows={6} />
+          ) : (
+            <div className="space-y-5">
+              {overview ? (
+                <AnalyticsOverview overview={overview} health={health} />
+              ) : overviewError ? (
+                <TeacherError message={overviewError} onRetry={() => setRefreshVersion((value) => value + 1)} />
+              ) : null}
 
-        {detail && <section className="bg-white dark:bg-dark-card rounded-2xl border border-azure/30 p-5"><div className="flex justify-between gap-4"><div><p className="text-xs uppercase tracking-widest text-gray-500">Selected assignment</p><h2 className="font-semibold text-lg mt-1">{detail.title}</h2></div><button onClick={() => setDetail(null)} className="text-sm text-gray-500">Close</button></div><div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-5 text-sm"><div><p className="text-gray-500">Attempts</p><strong>{detail.averageAttempts ?? "—"}</strong></div><div><p className="text-gray-500">Late</p><strong>{detail.lateCount}</strong></div><div><p className="text-gray-500">Draft grades</p><strong>{detail.draftGrades}</strong></div><div><p className="text-gray-500">Returned grades</p><strong>{detail.returnedGrades}</strong></div></div></section>}
+              <div>
+                <AnalyticsTabs
+                  value={tab}
+                  assignments={assignments.length}
+                  students={students.length}
+                  onChange={(value) => updateParams({ view: value })}
+                />
+                {tab === "assignments" ? (
+                  <AssignmentExplorer
+                    assignments={visibleAssignments}
+                    query={assignmentQuery}
+                    filter={assignmentFilter}
+                    sort={assignmentSort}
+                    error={assignmentsError}
+                    onQuery={setAssignmentQuery}
+                    onFilter={setAssignmentFilter}
+                    onSort={setAssignmentSort}
+                    onOpen={(id) => updateParams({ assignmentId: id }, false)}
+                    onRetry={() => setRefreshVersion((value) => value + 1)}
+                  />
+                ) : (
+                  <StudentExplorer
+                    students={visibleStudents}
+                    query={studentQuery}
+                    filter={studentFilter}
+                    sort={studentSort}
+                    groupId={groupId}
+                    assignmentTitles={assignmentTitles}
+                    error={studentsError}
+                    onQuery={setStudentQuery}
+                    onFilter={setStudentFilter}
+                    onSort={setStudentSort}
+                    onRetry={() => setRefreshVersion((value) => value + 1)}
+                  />
+                )}
+              </div>
+            </div>
+          )}
+        </>
+      )}
 
-        <section className="bg-white dark:bg-dark-card rounded-2xl border border-gray-200 dark:border-gray-700/40 overflow-hidden">
-          <header className="p-5 border-b border-gray-200 dark:border-gray-700/40"><h2 className="font-semibold">Student metrics</h2></header>
-          {students.length === 0 ? <p className="p-8 text-center text-gray-500">No active students.</p> : <div className="overflow-x-auto"><table className="w-full text-sm"><thead className="text-left text-gray-500 bg-gray-50 dark:bg-dark-surface"><tr><th className="p-4">Student</th><th className="p-4">Enrollment</th><th className="p-4">Completion</th><th className="p-4">Average</th><th className="p-4">Late</th><th className="p-4">Attempts</th></tr></thead><tbody>{students.map((item) => <tr key={item.studentId} className="border-t border-gray-100 dark:border-gray-700/30"><td className="p-4 font-medium">{item.fullName}</td><td className="p-4 font-mono">{item.enrollmentNumber}</td><td className="p-4">{percentage(item.completionRate)}</td><td className="p-4">{percentage(item.averageScore)}</td><td className="p-4">{item.lateCount}</td><td className="p-4">{item.totalAttempts}</td></tr>)}</tbody></table></div>}
-        </section>
-      </div>}
-    </DashboardLayout>
+      {assignmentId && (
+        <AssignmentAnalyticsDrawer
+          assignment={selectedAssignment}
+          detail={detail}
+          groupId={groupId}
+          loading={detailLoading}
+          error={detailError}
+          onClose={() => updateParams({ assignmentId: undefined })}
+          onRetry={() => setDetailRefreshVersion((value) => value + 1)}
+        />
+      )}
+    </TeacherShell>
   );
+}
+
+function compareGroupPriority(left: TeacherGroup, right: TeacherGroup): number {
+  const priority = { active: 0, archived: 1, deleted: 2 };
+  const lifecycleDifference = priority[groupLifecycle(left)] - priority[groupLifecycle(right)];
+  return lifecycleDifference || Date.parse(right.updatedAt) - Date.parse(left.updatedAt);
+}
+
+function compareAssignments(left: AssignmentMetrics, right: AssignmentMetrics, sort: AssignmentAnalyticsSort): number {
+  if (sort === "title") return left.title.localeCompare(right.title);
+  if (sort === "completion") return nullableDescending(left.submissionRate, right.submissionRate);
+  if (sort === "missing") return right.missingCount - left.missingCount || left.title.localeCompare(right.title);
+  return Number(assignmentNeedsAttention(right)) - Number(assignmentNeedsAttention(left))
+    || Number(right.overdue) - Number(left.overdue)
+    || right.missingCount - left.missingCount
+    || left.title.localeCompare(right.title);
+}
+
+function compareStudents(left: StudentMetrics, right: StudentMetrics, sort: StudentAnalyticsSort): number {
+  if (sort === "name") return left.fullName.localeCompare(right.fullName);
+  if (sort === "completion") return nullableDescending(left.completionRate, right.completionRate);
+  if (sort === "score") return nullableDescending(left.averageScore, right.averageScore);
+  const leftRisk = left.missingAssignmentIds.length * 3 + left.lateCount + Math.max(0, left.submittedCount - left.gradedAssignments);
+  const rightRisk = right.missingAssignmentIds.length * 3 + right.lateCount + Math.max(0, right.submittedCount - right.gradedAssignments);
+  return rightRisk - leftRisk || left.fullName.localeCompare(right.fullName);
+}
+
+function nullableDescending(left: number | null, right: number | null): number {
+  if (left == null && right == null) return 0;
+  if (left == null) return 1;
+  if (right == null) return -1;
+  return right - left;
+}
+
+function errorMessage(cause: unknown, fallback: string): string {
+  return cause instanceof Error ? cause.message : fallback;
 }

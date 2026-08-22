@@ -17,13 +17,19 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.github.codehive.model.dto.AssignmentFeedbackDTO;
 import com.github.codehive.model.dto.AssignmentGradeDTO;
+import com.github.codehive.model.dto.BulkGradeReturnDTO;
 import com.github.codehive.model.dto.StudentAssignmentWorkDTO;
+import com.github.codehive.model.dto.StudentAssignmentOverviewDTO;
+import com.github.codehive.model.dto.TeacherStudentWorkReviewDTO;
+import com.github.codehive.model.dto.TeacherSubmissionEvidenceDTO;
 import com.github.codehive.model.request.assignment.CreateFeedbackRequest;
 import com.github.codehive.model.request.assignment.GradeAssignmentRequest;
 import com.github.codehive.model.response.SuccessResponse;
 import com.github.codehive.service.AssignmentFeedbackService;
 import com.github.codehive.service.AssignmentGradeService;
 import com.github.codehive.service.StudentWorkQueryService;
+import com.github.codehive.service.StudentAssignmentOverviewService;
+import com.github.codehive.service.TeacherStudentReviewService;
 
 import jakarta.validation.Valid;
 import io.swagger.v3.oas.annotations.Operation;
@@ -37,13 +43,29 @@ public class AssignmentStudentWorkController {
     private final AssignmentFeedbackService feedbackService;
     private final AssignmentGradeService gradeService;
     private final StudentWorkQueryService queryService;
+    private final StudentAssignmentOverviewService overviewService;
+    private final TeacherStudentReviewService teacherReviewService;
 
     public AssignmentStudentWorkController(AssignmentFeedbackService feedbackService,
                                            AssignmentGradeService gradeService,
-                                           StudentWorkQueryService queryService) {
+                                           StudentWorkQueryService queryService,
+                                           StudentAssignmentOverviewService overviewService,
+                                           TeacherStudentReviewService teacherReviewService) {
         this.feedbackService = feedbackService;
         this.gradeService = gradeService;
         this.queryService = queryService;
+        this.overviewService = overviewService;
+        this.teacherReviewService = teacherReviewService;
+    }
+
+    @GetMapping("/mine")
+    @PreAuthorize("hasAuthority('STUDENT')")
+    @Operation(summary = "List assignments with the authenticated student's progress")
+    @ApiResponse(responseCode = "200", description = "Student assignment overview retrieved")
+    public ResponseEntity<SuccessResponse<List<StudentAssignmentOverviewDTO>>> mine(
+            Authentication authentication) {
+        return ResponseEntity.ok(new SuccessResponse<>("Student assignment overview retrieved.",
+                overviewService.listMine(authentication.getName())));
     }
 
     @GetMapping("/{assignmentId}/student-work")
@@ -63,6 +85,23 @@ public class AssignmentStudentWorkController {
             Authentication authentication) {
         return ResponseEntity.ok(new SuccessResponse<>("Student work retrieved.",
                 queryService.get(assignmentId, studentId, authentication.getName())));
+    }
+
+    @GetMapping("/{assignmentId}/students/{studentId}/review")
+    @Operation(summary = "Get owner-only submission and grade evidence for one student")
+    public ResponseEntity<SuccessResponse<TeacherStudentWorkReviewDTO>> reviewStudentWork(
+            @PathVariable UUID assignmentId, @PathVariable UUID studentId,
+            Authentication authentication) {
+        return ResponseEntity.ok(new SuccessResponse<>("Student work review retrieved.",
+                teacherReviewService.get(assignmentId, studentId, authentication.getName())));
+    }
+
+    @GetMapping("/submissions/{submissionId}/teacher-review")
+    @Operation(summary = "Get owner-only submission source and latest execution evidence")
+    public ResponseEntity<SuccessResponse<TeacherSubmissionEvidenceDTO>> reviewSubmission(
+            @PathVariable UUID submissionId, Authentication authentication) {
+        return ResponseEntity.ok(new SuccessResponse<>("Submission evidence retrieved.",
+                teacherReviewService.getSubmission(submissionId, authentication.getName())));
     }
 
     @GetMapping("/{assignmentId}/my-work")
@@ -95,6 +134,16 @@ public class AssignmentStudentWorkController {
                 feedbackService.list(assignmentId, studentId, authentication.getName())));
     }
 
+    @GetMapping("/{assignmentId}/my-feedback")
+    @PreAuthorize("hasAuthority('STUDENT')")
+    @Operation(summary = "List the authenticated student's visible assignment feedback")
+    @ApiResponse(responseCode = "200", description = "Feedback retrieved")
+    public ResponseEntity<SuccessResponse<List<AssignmentFeedbackDTO>>> myFeedback(
+            @PathVariable UUID assignmentId, Authentication authentication) {
+        return ResponseEntity.ok(new SuccessResponse<>("Feedback retrieved.",
+                feedbackService.listMine(assignmentId, authentication.getName())));
+    }
+
     @DeleteMapping("/feedback/{feedbackId}")
     @Operation(summary = "Logically delete assignment feedback")
     @ApiResponse(responseCode = "200", description = "Feedback deleted")
@@ -122,6 +171,15 @@ public class AssignmentStudentWorkController {
             Authentication authentication) {
         return ResponseEntity.ok(new SuccessResponse<>("Grade returned.",
                 gradeService.returnGrade(assignmentId, studentId, authentication.getName())));
+    }
+
+    @PostMapping("/{assignmentId}/grades/return-drafts")
+    @Operation(summary = "Return every draft grade for an assignment")
+    @ApiResponse(responseCode = "200", description = "Draft grades returned")
+    public ResponseEntity<SuccessResponse<BulkGradeReturnDTO>> returnDraftGrades(
+            @PathVariable UUID assignmentId, Authentication authentication) {
+        return ResponseEntity.ok(new SuccessResponse<>("Draft grades returned.",
+                gradeService.returnAllDrafts(assignmentId, authentication.getName())));
     }
 
     @GetMapping("/{assignmentId}/my-grade")

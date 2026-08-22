@@ -1,4 +1,4 @@
-import { Bell, ChevronRight, LogOut, Moon, Search, Sun } from "lucide-react";
+import { Bell, ChevronRight, LogOut, Moon, Sun } from "lucide-react";
 import { Link } from "react-router";
 
 import { useAuth } from "~/core/providers/AuthProvider";
@@ -28,16 +28,8 @@ export function StudentHeader({ breadcrumbs }: { breadcrumbs: StudentBreadcrumb[
         ))}
       </nav>
 
-      <div className="hidden sm:block flex-1 max-w-sm mx-auto">
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white dark:bg-dark-card border border-gray-200 dark:border-gray-700/60">
-          <Search size={13} className="text-gray-400 dark:text-gray-500 flex-shrink-0" />
-          <input type="text" placeholder="Search assignments, groups..." className="flex-1 bg-transparent text-xs text-gray-700 dark:text-gray-300 placeholder:text-gray-400 dark:placeholder:text-gray-600 focus:outline-none" />
-          <span className="text-[10px] text-gray-400 dark:text-gray-600 font-mono border border-gray-200 dark:border-gray-700 rounded px-1 flex-shrink-0">⌘K</span>
-        </div>
-      </div>
-
       <div className="flex items-center gap-3 ml-auto flex-shrink-0">
-        <button className="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors" aria-label="Notifications"><Bell size={18} /></button>
+        <Link to="/notifications" className="text-gray-400 dark:text-gray-500 hover:text-azure dark:hover:text-yellow transition-colors" aria-label="Notification settings" title="Notification settings"><Bell size={18} /></Link>
         <button onClick={toggleTheme} className="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors" aria-label="Toggle theme">
           {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
         </button>

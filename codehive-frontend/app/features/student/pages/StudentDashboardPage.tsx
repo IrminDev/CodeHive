@@ -1,17 +1,19 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
 import {
-  ChevronRight, Clock, HardDrive, Plus, RefreshCw,
+  CheckCircle2, ChevronRight, Clock, HardDrive, Plus, RefreshCw,
 } from "lucide-react";
 import { useAuth } from "~/core/providers/AuthProvider";
 import { listMyGroups } from "../api/group.api";
-import { listAssignmentsForGroups } from "../api/assignment.api";
+import { listMyAssignmentOverviews } from "../api/assignment.api";
 import { listRecentSubmissions } from "../api/submission.api";
 import { StudentHeader } from "../components/StudentHeader";
 import { StudentSidebar } from "../components/StudentSidebar";
 import type { Assignment, Language } from "../types/assignment.types";
 import type { ClassGroup } from "../types/group.types";
+import type { GroupSubmission } from "../types/group-submission.types";
 import type { RecentSubmission, SubmissionResultStatus } from "../types/submission.types";
+import { assignmentProgress, type AssignmentProgress } from "../utils/assignment-progress";
 
 const LANG_ABBR: Record<Language, string> = {
   PYTHON: "PY",
@@ -20,7 +22,7 @@ const LANG_ABBR: Record<Language, string> = {
   C: "C",
 };
 
-type FilterTab = "all" | "pending" | "inprogress" | "done";
+type FilterTab = "all" | "open" | "inprogress" | "done";
 
 function getGreeting(): string {
   const h = new Date().getHours();
@@ -79,24 +81,33 @@ export function StudentDashboardPage() {
   const [loadingSubmissions, setLoadingSubmissions] = useState(true);
   const [filterTab, setFilterTab] = useState<FilterTab>("all");
   const [submissions, setSubmissions] = useState<RecentSubmission[]>([]);
+  const [currentSubmissions, setCurrentSubmissions] = useState<GroupSubmission[]>([]);
+  const [assignmentError, setAssignmentError] = useState<string | null>(null);
 
   const loadDashboard = useCallback(async () => {
     setLoadingGroups(true);
     setLoadingAssignments(true);
     setLoadingSubmissions(true);
+    setAssignmentError(null);
     try {
       const groupItems = (await listMyGroups()).filter((group) => group.isActive && !group.archived);
       setGroups(groupItems);
       const [assignmentResult, submissionResult] = await Promise.allSettled([
-        listAssignmentsForGroups(groupItems.map((group) => group.id)),
+        listMyAssignmentOverviews(),
         listRecentSubmissions(),
       ]);
-      setAssignments(assignmentResult.status === "fulfilled" ? assignmentResult.value : []);
+      setAssignments(assignmentResult.status === "fulfilled" ? assignmentResult.value.map((item) => item.assignment) : []);
+      if (assignmentResult.status === "rejected") {
+        setAssignmentError(assignmentResult.reason instanceof Error ? assignmentResult.reason.message : "Could not load assignments.");
+      }
       setSubmissions(submissionResult.status === "fulfilled" ? submissionResult.value : []);
+      setCurrentSubmissions(assignmentResult.status === "fulfilled" ? assignmentResult.value.flatMap((item) => item.currentSubmission ? [item.currentSubmission] : []) : []);
     } catch {
       setGroups([]);
       setAssignments([]);
       setSubmissions([]);
+      setCurrentSubmissions([]);
+      setAssignmentError("Could not load dashboard assignments.");
     } finally {
       setLoadingGroups(false);
       setLoadingAssignments(false);
@@ -108,28 +119,17 @@ export function StudentDashboardPage() {
 
   const totalPending = groups.filter((g) => g.isActive && !g.archived).length;
   const firstName = user?.name?.split(" ")[0] ?? "Student";
+  const submissionByAssignment = useMemo(
+    () => new Map(currentSubmissions.map((submission) => [submission.assignmentId, submission])),
+    [currentSubmissions],
+  );
 
   const filteredAssignments = useMemo(() => {
-    const now = new Date();
-    if (filterTab === "pending")
-      return assignments.filter((a) => a.isActive && (!a.dueDate || new Date(a.dueDate) > now));
-    if (filterTab === "inprogress")
-      return assignments.filter(
-        (a) =>
-          a.isActive &&
-          !!a.dueDate &&
-          new Date(a.dueDate) < now &&
-          (!a.closeDate || new Date(a.closeDate) > now),
-      );
-    if (filterTab === "done")
-      return assignments.filter(
-        (a) =>
-          !a.isActive ||
-          (!!a.closeDate && new Date(a.closeDate) < now) ||
-          (!a.closeDate && !!a.dueDate && new Date(a.dueDate) < now),
-      );
+    if (filterTab === "open") return assignments.filter((assignment) => assignmentProgress(assignment, submissionByAssignment.get(assignment.id)) === "open");
+    if (filterTab === "inprogress") return assignments.filter((assignment) => assignmentProgress(assignment, submissionByAssignment.get(assignment.id)) === "inprogress");
+    if (filterTab === "done") return assignments.filter((assignment) => assignmentProgress(assignment, submissionByAssignment.get(assignment.id)) === "done");
     return assignments;
-  }, [assignments, filterTab]);
+  }, [assignments, filterTab, submissionByAssignment]);
 
   return (
     <div className="h-screen flex overflow-hidden bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100 font-sans">
@@ -189,10 +189,10 @@ export function StudentDashboardPage() {
                   </span>
                 </div>
                 <div className="flex items-center gap-0.5">
-                  {(["all", "pending", "inprogress", "done"] as FilterTab[]).map((tab) => {
+                  {(["all", "open", "inprogress", "done"] as FilterTab[]).map((tab) => {
                     const labels: Record<FilterTab, string> = {
                       all: "All",
-                      pending: "Pending",
+                      open: "Open",
                       inprogress: "In progress",
                       done: "Done",
                     };
@@ -220,13 +220,15 @@ export function StudentDashboardPage() {
                     <div key={n} className="h-16 rounded-xl bg-gray-100 dark:bg-dark-card animate-pulse" />
                   ))}
                 </div>
+              ) : assignmentError ? (
+                <div className="py-12 px-5 text-center"><p className="text-sm text-red-500">{assignmentError}</p><button onClick={() => void loadDashboard()} className="mt-3 text-xs font-semibold text-azure dark:text-yellow">Try again</button></div>
               ) : filteredAssignments.length === 0 ? (
                 <div className="py-16 text-center text-sm text-gray-400 dark:text-gray-600">
                   No assignments found.
                 </div>
               ) : (
                 filteredAssignments.slice(0, 8).map((a, i) => (
-                  <AssignmentRow key={a.id} assignment={a} index={i} />
+                  <AssignmentRow key={a.id} assignment={a} submission={submissionByAssignment.get(a.id)} index={i} />
                 ))
               )}
 
@@ -235,7 +237,7 @@ export function StudentDashboardPage() {
                 <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100 dark:border-gray-800/60 text-xs text-gray-400 dark:text-gray-500">
                   <span>Showing {Math.min(filteredAssignments.length, 8)} of {assignments.length}</span>
                   <Link
-                    to="/dashboard#assignments"
+                    to="/assignments"
                     className="flex items-center gap-0.5 text-yellow hover:text-gold transition-colors font-medium"
                   >
                     View all <ChevronRight size={13} />
@@ -297,21 +299,20 @@ export function StudentDashboardPage() {
 
 /* ── Sub-components ── */
 
-function AssignmentRow({ assignment, index }: { assignment: Assignment; index: number }) {
+function AssignmentRow({ assignment, submission, index }: { assignment: Assignment; submission?: GroupSubmission; index: number }) {
   const now = new Date();
   const isPastClose = !!assignment.closeDate && new Date(assignment.closeDate) < now;
   const isPastDue = !isPastClose && !!assignment.dueDate && new Date(assignment.dueDate) < now;
-  const isBeforeLaunch = !!assignment.launchDate && new Date(assignment.launchDate) > now;
 
-  const stateBadge = !assignment.isActive
-    ? null
-    : isPastClose
-    ? { label: "closed", className: "bg-red-500/10 text-red-400 border-red-500/20" }
-    : isPastDue
-    ? { label: "late", className: "bg-orange-500/10 text-orange-400 border-orange-500/20" }
-    : isBeforeLaunch
-    ? { label: "upcoming", className: "bg-gray-500/10 text-gray-400 border-gray-500/20" }
-    : { label: "open", className: "bg-green-500/10 text-green-400 border-green-500/20" };
+  const progress = assignmentProgress(assignment, submission);
+  const stateBadges: Record<AssignmentProgress, { label: string; className: string; accepted?: boolean }> = {
+    done: { label: "done", className: "bg-green-500/10 text-green-500 border-green-500/20", accepted: true },
+    inprogress: { label: "in progress", className: "bg-azure/10 text-azure dark:text-yellow border-azure/20 dark:border-yellow/20" },
+    open: { label: "open", className: "bg-azure/10 text-azure dark:text-yellow border-azure/20 dark:border-yellow/20" },
+    closed: { label: "closed", className: "bg-red-500/10 text-red-500 border-red-500/20" },
+    upcoming: { label: "upcoming", className: "bg-gray-500/10 text-gray-500 border-gray-500/20" },
+  };
+  const stateBadge = stateBadges[progress];
 
   return (
     <Link
@@ -334,11 +335,9 @@ function AssignmentRow({ assignment, index }: { assignment: Assignment; index: n
           <span className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate group-hover:text-azure dark:group-hover:text-yellow transition-colors">
             {assignment.title}
           </span>
-          {stateBadge && (
-            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-md border flex-shrink-0 ${stateBadge.className}`}>
-              {stateBadge.label}
-            </span>
-          )}
+          <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-md border flex-shrink-0 ${stateBadge.className}`}>
+            {stateBadge.accepted && <CheckCircle2 size={11} />}{stateBadge.label}
+          </span>
         </div>
         <div className="flex items-center gap-3 text-[10px] text-gray-400 dark:text-gray-500 font-mono">
           <span className="flex items-center gap-1">

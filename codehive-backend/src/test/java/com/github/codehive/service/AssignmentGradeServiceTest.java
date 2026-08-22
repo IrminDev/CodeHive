@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
 import java.util.Optional;
+import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -50,6 +51,8 @@ class AssignmentGradeServiceTest {
     private Assignment assignment;
     private StudentAssignmentWork work;
     private NotificationDomainEventPublisher notificationPublisher;
+    private StudentAssignmentWorkService workService;
+    private UserRepository userRepository;
     private AssignmentGradeService service;
 
     @BeforeEach
@@ -58,10 +61,11 @@ class AssignmentGradeServiceTest {
         historyRepository = mock(AssignmentGradeHistoryRepository.class);
         assignmentRepository = mock(AssignmentRepository.class);
         workRepository = mock(StudentAssignmentWorkRepository.class);
-        UserRepository userRepository = mock(UserRepository.class);
+        userRepository = mock(UserRepository.class);
         notificationPublisher = mock(NotificationDomainEventPublisher.class);
+        workService = mock(StudentAssignmentWorkService.class);
         service = new AssignmentGradeService(gradeRepository, historyRepository, assignmentRepository,
-                workRepository, userRepository, notificationPublisher);
+                workRepository, userRepository, notificationPublisher, workService);
         teacher = user("teacher@example.com", UUID.fromString("00000000-0000-0000-0000-000000000004"), Role.TEACHER);
         student = user("student@example.com", STUDENT_ID, Role.STUDENT);
         assignment = new Assignment();
@@ -109,6 +113,36 @@ class AssignmentGradeServiceTest {
     }
 
     @Test
+    void saveDraftCreatesMissingWorkForZeroGrade() {
+        when(workRepository.findByAssignmentIdAndStudentId(ASSIGNMENT_ID, STUDENT_ID))
+                .thenReturn(Optional.empty());
+        when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(student));
+        when(workService.getOrCreate(assignment, student)).thenReturn(work);
+        when(gradeRepository.findByStudentWorkId(work.getId())).thenReturn(Optional.empty());
+        when(gradeRepository.save(any(AssignmentGrade.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        AssignmentGradeDTO result = service.saveDraft(ASSIGNMENT_ID, STUDENT_ID,
+                BigDecimal.ZERO, teacher.getEmail());
+
+        assertThat(result.value()).isEqualByComparingTo(BigDecimal.ZERO);
+        verify(workService).getOrCreate(assignment, student);
+    }
+
+    @Test
+    void saveDraftRejectsNonZeroGradeWhenStudentHasNoWork() {
+        when(workRepository.findByAssignmentIdAndStudentId(ASSIGNMENT_ID, STUDENT_ID))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.saveDraft(ASSIGNMENT_ID, STUDENT_ID,
+                BigDecimal.ONE, teacher.getEmail()))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("only receive a zero");
+
+        verify(userRepository, never()).findById(any());
+        verify(gradeRepository, never()).save(any());
+    }
+
+    @Test
     void returnGradePublishesNotificationAndRecordsReturnedAuditEntry() {
         AssignmentGrade grade = new AssignmentGrade();
         grade.setStudentWork(work);
@@ -130,6 +164,40 @@ class AssignmentGradeServiceTest {
     }
 
     @Test
+    void returnAllDraftsReturnsEachDraftAndPublishesNotifications() {
+        AssignmentGrade first = draft(work, "80.00");
+        StudentAssignmentWork secondWork = mock(StudentAssignmentWork.class);
+        User secondStudent = user("second@example.com",
+                UUID.fromString("00000000-0000-0000-0000-000000000006"), Role.STUDENT);
+        when(secondWork.getAssignment()).thenReturn(assignment);
+        when(secondWork.getStudent()).thenReturn(secondStudent);
+        AssignmentGrade second = draft(secondWork, "90.00");
+        when(gradeRepository.findByStudentWorkAssignmentIdAndStatus(ASSIGNMENT_ID, GradeStatus.DRAFT))
+                .thenReturn(List.of(first, second));
+
+        var result = service.returnAllDrafts(ASSIGNMENT_ID, teacher.getEmail());
+
+        assertThat(result.assignmentId()).isEqualTo(ASSIGNMENT_ID);
+        assertThat(result.returnedCount()).isEqualTo(2);
+        assertThat(first.getStatus()).isEqualTo(GradeStatus.RETURNED);
+        assertThat(second.getStatus()).isEqualTo(GradeStatus.RETURNED);
+        verify(historyRepository, org.mockito.Mockito.times(2)).save(any(AssignmentGradeHistory.class));
+        verify(notificationPublisher, org.mockito.Mockito.times(2)).publish(any(NotificationDomainEvent.class));
+    }
+
+    @Test
+    void returnAllDraftsIsIdempotentWhenNoDraftsRemain() {
+        when(gradeRepository.findByStudentWorkAssignmentIdAndStatus(ASSIGNMENT_ID, GradeStatus.DRAFT))
+                .thenReturn(List.of());
+
+        var result = service.returnAllDrafts(ASSIGNMENT_ID, teacher.getEmail());
+
+        assertThat(result.returnedCount()).isZero();
+        verify(historyRepository, never()).save(any());
+        verify(notificationPublisher, never()).publish(any());
+    }
+
+    @Test
     void clearGradeDeletesCurrentGradeOnlyAfterRecordingReason() {
         AssignmentGrade grade = new AssignmentGrade();
         grade.setStudentWork(work);
@@ -148,5 +216,14 @@ class AssignmentGradeServiceTest {
         User user = new User("Test", "User", id.toString(), email, "password", role);
         user.setId(id);
         return user;
+    }
+
+    private AssignmentGrade draft(StudentAssignmentWork studentWork, String value) {
+        AssignmentGrade grade = new AssignmentGrade();
+        grade.setStudentWork(studentWork);
+        grade.setValue(new BigDecimal(value));
+        grade.setMaxPointsSnapshot(new BigDecimal("100.00"));
+        grade.setStatus(GradeStatus.DRAFT);
+        return grade;
     }
 }

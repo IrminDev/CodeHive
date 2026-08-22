@@ -13,6 +13,7 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.Page;
 import org.springframework.security.access.AccessDeniedException;
 
 import com.github.codehive.messaging.producer.TestGenerationRequestProducer;
@@ -141,6 +142,66 @@ class AssignmentServiceTest {
                 .isInstanceOf(AccessDeniedException.class);
 
         assertThat(assignment.getIsActive()).isTrue();
+    }
+
+    @Test
+    void restoreReactivatesDeletedAssignmentInWritableOwnedGroup() {
+        Assignment assignment = assignment();
+        assignment.setIsActive(false);
+        assignment.setDeletedAt(java.time.Instant.parse("2026-08-20T12:00:00Z"));
+        when(assignmentRepository.findById(ASSIGNMENT_ID)).thenReturn(Optional.of(assignment));
+        when(userRepository.findByEmail(owner.getEmail())).thenReturn(Optional.of(owner));
+        when(groupService.requireOwnedWritableGroup(GROUP_ID, owner)).thenReturn(group);
+        when(assignmentRepository.save(assignment)).thenReturn(assignment);
+
+        var result = service.restore(ASSIGNMENT_ID, owner.getEmail());
+
+        assertThat(result.getId()).isEqualTo(ASSIGNMENT_ID);
+        assertThat(assignment.getIsActive()).isTrue();
+        assertThat(assignment.getDeletedAt()).isNull();
+        verify(assignmentRepository).save(assignment);
+    }
+
+    @Test
+    void restoreRejectsGroupThatIsNotWritableWithoutChangingAssignment() {
+        Assignment assignment = assignment();
+        assignment.setIsActive(false);
+        when(assignmentRepository.findById(ASSIGNMENT_ID)).thenReturn(Optional.of(assignment));
+        when(userRepository.findByEmail(owner.getEmail())).thenReturn(Optional.of(owner));
+        when(groupService.requireOwnedWritableGroup(GROUP_ID, owner))
+                .thenThrow(new ValidationException("Archived groups are read-only"));
+
+        assertThatThrownBy(() -> service.restore(ASSIGNMENT_ID, owner.getEmail()))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("read-only");
+
+        assertThat(assignment.getIsActive()).isFalse();
+        verify(assignmentRepository, never()).save(assignment);
+    }
+
+    @Test
+    void ownerListingNormalizesMissingTitleQueryToEmptyString() {
+        when(userRepository.findByEmail(owner.getEmail())).thenReturn(Optional.of(owner));
+        when(groupService.getGroupForAssignmentAccess(GROUP_ID, owner)).thenReturn(group);
+        when(assignmentRepository.findTeacherManaged(
+                org.mockito.ArgumentMatchers.eq(GROUP_ID),
+                org.mockito.ArgumentMatchers.eq(false),
+                org.mockito.ArgumentMatchers.eq(false),
+                org.mockito.ArgumentMatchers.eq(""),
+                org.mockito.ArgumentMatchers.isNull(),
+                org.mockito.ArgumentMatchers.any()))
+                .thenReturn(Page.empty());
+
+        var result = service.listGroupAssignments(GROUP_ID, 0, 20, owner.getEmail());
+
+        assertThat(result).isEmpty();
+        verify(assignmentRepository).findTeacherManaged(
+                org.mockito.ArgumentMatchers.eq(GROUP_ID),
+                org.mockito.ArgumentMatchers.eq(false),
+                org.mockito.ArgumentMatchers.eq(false),
+                org.mockito.ArgumentMatchers.eq(""),
+                org.mockito.ArgumentMatchers.isNull(),
+                org.mockito.ArgumentMatchers.any());
     }
 
     private Assignment assignment() {

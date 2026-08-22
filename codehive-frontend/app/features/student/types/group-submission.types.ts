@@ -3,4 +3,5 @@ export interface GroupSubmission {
   submissionId: string;
   submittedAt: string;
   deliveredLate: boolean;
+  executionStatus: "AC" | "WA" | "TLE" | "MLE" | "OLE" | "RTE" | "CE" | "PENDING";
 }

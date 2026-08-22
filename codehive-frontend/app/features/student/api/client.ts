@@ -4,6 +4,13 @@ import { getAuthToken } from "~/core/storage/token.storage";
 type SuccessResponse<T> = { data: T; message?: string };
 type ErrorResponse = { message?: string; error?: string; errors?: string[] };
 
+export class ApiError extends Error {
+  constructor(message: string, public readonly status: number, public readonly details?: string[]) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
 export function studentAuthHeaders(json = false): HeadersInit {
   const token = getAuthToken();
   return {
@@ -20,7 +27,7 @@ export async function studentRequest<T>(path: string, init: RequestInit = {}): P
   const body = await response.json().catch(() => ({}));
   if (!response.ok) {
     const err = body as ErrorResponse;
-    throw new Error(err.message ?? err.error ?? `HTTP ${response.status}`);
+    throw new ApiError(err.message ?? err.error ?? `HTTP ${response.status}`, response.status, err.errors);
   }
   return (body as SuccessResponse<T>).data;
 }

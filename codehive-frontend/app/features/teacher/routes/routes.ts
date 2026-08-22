@@ -37,4 +37,5 @@ export const teacherRoutes = [
   ),
   route("teacher/grades", "features/teacher/routes/teacher.grades.tsx"),
   route("teacher/analytics", "features/teacher/routes/teacher.analytics.tsx"),
+  route("teacher/notifications", "features/teacher/routes/teacher.notifications.tsx"),
 ] satisfies RouteConfig;

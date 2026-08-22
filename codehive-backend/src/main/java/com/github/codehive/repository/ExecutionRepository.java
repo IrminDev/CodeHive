@@ -53,6 +53,14 @@ public interface ExecutionRepository extends JpaRepository<Execution, UUID> {
 
     Optional<Execution> findTopBySubmissionIdOrderByCreatedAtDesc(UUID submissionId);
 
+    @Query("""
+            select execution from Execution execution
+            where execution.submission.id in :submissionIds and execution.isOutdated = false
+            order by execution.createdAt desc
+            """)
+    List<Execution> findLatestCandidatesBySubmissionIds(
+            @Param("submissionIds") Collection<UUID> submissionIds);
+
     boolean existsBySubmissionIdAndTestSuiteRevisionId(UUID submissionId, UUID testSuiteRevisionId);
 
     boolean existsByTestSuiteRevisionIdAndStatus(UUID testSuiteRevisionId, ExecutionStatus status);

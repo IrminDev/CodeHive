@@ -143,3 +143,24 @@ export interface AssignmentUpdate {
   createdAt: string;
   completedAt?: string;
 }
+
+export interface ReevaluationBatch {
+  id: string;
+  assignmentId: string;
+  testSuiteRevisionId: string;
+  status: "DISPATCHING" | "PROCESSING" | "COMPLETED" | "COMPLETED_WITH_FAILURES";
+  total: number;
+  queued: number;
+  completed: number;
+  failed: number;
+  createdAt: string;
+  completedAt?: string;
+}
+
+export interface AssignmentManagementStatus {
+  assignmentId: string;
+  validationStatus: AssignmentValidationStatus;
+  validationFailureMessage?: string;
+  updates: AssignmentUpdate[];
+  reevaluation?: ReevaluationBatch;
+}

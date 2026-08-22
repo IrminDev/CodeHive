@@ -1,16 +1,13 @@
 import { useRef, useState, useEffect } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import {
-  Home, BookOpen, Plus, GraduationCap, Users, Settings, Bell,
-  Sun, Moon, ChevronRight, ArrowLeft, X, Check, Info,
+  BookOpen, Plus, ArrowLeft, ChevronRight, X, Check, Info,
 } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
 import { CodeEditor } from "~/shared/components/CodeEditor";
 import { sileo } from "sileo";
-import { useTheme } from "~/core/providers/ThemeProvider";
-import { useAuth } from "~/core/providers/AuthProvider";
 import { createAssignment, getActiveTeacherGroups } from "../api/assignment.api";
 import type { AssignmentExample, Language, ComparatorType, TeacherGroup } from "../api/assignment.api";
+import { TeacherShell } from "../components/TeacherShell";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -77,42 +74,28 @@ function CharacterCount({ value, max }: { value: string; max: number }) {
 
 // ─── Shared components ────────────────────────────────────────────────────────
 
-function SidebarIcon({ icon: Icon, to, active = false, label }: {
-  icon: LucideIcon; to: string; active?: boolean; label: string;
-}) {
-  return (
-    <Link to={to} title={label}
-      className={`w-9 h-9 flex items-center justify-center rounded-xl transition-colors ${
-        active ? "text-yellow bg-yellow/10" : "text-gray-500 hover:text-white hover:bg-white/5"
-      }`}
-    >
-      <Icon size={18} />
-    </Link>
-  );
-}
-
 function SectionCard({ number, title, badge, children }: {
   number: string; title: string; badge?: string; children: React.ReactNode;
 }) {
   return (
-    <div className="bg-dark-card rounded-2xl border border-gray-700/30 overflow-hidden">
-      <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-700/30">
-        <span className="text-sm font-mono font-semibold text-gray-600">{number}</span>
-        <span className="text-sm font-semibold text-white">{title}</span>
+    <div className="bg-white dark:bg-dark-surface rounded-2xl border border-gray-200 dark:border-gray-800/60 overflow-hidden">
+      <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100 dark:border-gray-800/60">
+        <span className="text-sm font-mono font-semibold text-gray-400 dark:text-gray-600">{number}</span>
+        <span className="text-sm font-semibold text-gray-900 dark:text-white">{title}</span>
         {badge && (
-          <span className="px-2 py-0.5 rounded-full text-xs text-gray-400 bg-dark-surface border border-gray-700/50">
+          <span className="px-2 py-0.5 rounded-full text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-dark-card border border-gray-200 dark:border-gray-700/60">
             {badge}
           </span>
         )}
       </div>
-      <div className="p-6">{children}</div>
+      <div className="p-5 lg:p-6">{children}</div>
     </div>
   );
 }
 
 function FieldLabel({ children, htmlFor }: { children: React.ReactNode; htmlFor?: string }) {
   return (
-    <label htmlFor={htmlFor} className="block text-sm font-medium text-gray-300 mb-2">
+    <label htmlFor={htmlFor} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
       {children}
     </label>
   );
@@ -126,8 +109,8 @@ function StyledInput({ id, value, onChange, placeholder, required, type = "text"
     <input
       id={id} type={type} value={value} onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder} required={required} min={min} max={max} step={step} maxLength={maxLength}
-      className="w-full px-4 py-3 rounded-xl border border-gray-700/50 bg-dark-surface text-white
-                 placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-azure
+      className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-dark-card text-gray-900 dark:text-white
+                 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-azure dark:focus:ring-yellow
                  focus:border-transparent transition-all text-sm"
     />
   );
@@ -139,8 +122,8 @@ function StyledSelect({ id, value, onChange, children }: {
   return (
     <select
       id={id} value={value} onChange={(e) => onChange(e.target.value)}
-      className="w-full px-4 py-3 rounded-xl border border-gray-700/50 bg-dark-surface text-white
-                 focus:outline-none focus:ring-2 focus:ring-azure focus:border-transparent
+      className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-dark-card text-gray-900 dark:text-white
+                 focus:outline-none focus:ring-2 focus:ring-azure dark:focus:ring-yellow focus:border-transparent
                  transition-all text-sm appearance-none cursor-pointer"
     >
       {children}
@@ -156,7 +139,7 @@ function TabBtn({ active, onClick, children }: {
       className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
         active
           ? "bg-azure text-white shadow-sm"
-          : "text-gray-400 hover:bg-dark-surface hover:text-white"
+          : "text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-dark-card hover:text-gray-900 dark:hover:text-white"
       }`}
     >
       {children}
@@ -205,7 +188,7 @@ function UploadZone({ file, onFile, accept, hint }: {
       onClick={() => ref.current?.click()}
       onDragOver={(e) => e.preventDefault()}
       onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) onFile(f); }}
-      className="border-2 border-dashed border-gray-700 rounded-xl p-6 text-center cursor-pointer
+      className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-xl p-6 text-center cursor-pointer
                  hover:border-azure/50 transition-colors"
     >
       <input ref={ref} type="file" accept={accept} className="hidden"
@@ -216,7 +199,7 @@ function UploadZone({ file, onFile, accept, hint }: {
             <BookOpen size={16} className="text-azure" />
           </div>
           <div className="text-left">
-            <p className="text-sm font-medium text-white">{file.name}</p>
+            <p className="text-sm font-medium text-gray-900 dark:text-white">{file.name}</p>
             <p className="text-xs text-gray-500">{(file.size / 1024).toFixed(1)} KB</p>
           </div>
           <button type="button" onClick={(e) => { e.stopPropagation(); onFile(null); }}
@@ -242,12 +225,6 @@ function UploadZone({ file, onFile, accept, hint }: {
 export function CreateAssignmentPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { theme, toggleTheme } = useTheme();
-  const { user } = useAuth();
-
-  const initials = user?.name
-    ? user.name.split(" ").slice(0, 2).map((n: string) => n[0]).join("").toUpperCase()
-    : "MH";
 
   // ── Form state ──
   const [title, setTitle]             = useState("");
@@ -535,74 +512,20 @@ export function CreateAssignmentPage() {
   const STEPS = ["Basics", "Config", "Solution", "Tests", "Examples"];
 
   return (
-    <div className="h-screen flex overflow-hidden bg-dark-bg text-white">
-      {/* ── Sidebar ── */}
-      <aside className="w-14 bg-dark-surface flex flex-col items-center py-3 gap-1 flex-shrink-0">
-        <Link to="/teacher" className="mb-3">
-          <div
-            className="w-8 h-8 bg-yellow flex items-center justify-center text-imperial font-bold text-[10px]"
-            style={{ clipPath: "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)" }}
-          >
-            {"</>"}
-          </div>
-        </Link>
-        <nav className="flex flex-col items-center gap-1 flex-1">
-          <SidebarIcon icon={Home}          to="/teacher"                   label="Dashboard" />
-          <SidebarIcon icon={BookOpen}      to="/teacher/assignments"       label="Assignments" />
-          <SidebarIcon icon={Plus}          to="/teacher/create-assignment" active label="Create" />
-          <SidebarIcon icon={GraduationCap} to="/teacher/grades"           label="Grades" />
-          <SidebarIcon icon={Users}         to="/teacher/groups"           label="Groups" />
-        </nav>
-        <div className="flex flex-col items-center gap-2">
-          <button className="w-9 h-9 flex items-center justify-center rounded-xl text-gray-500 hover:text-white hover:bg-white/5 transition-colors">
-            <Settings size={16} />
-          </button>
-          <div className="w-8 h-8 rounded-full bg-yellow flex items-center justify-center text-imperial text-xs font-bold">
-            {initials}
-          </div>
-        </div>
-      </aside>
-
-      {/* ── Right side ── */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Header */}
-        <header className="h-12 bg-dark-surface flex items-center px-6 gap-3 flex-shrink-0">
-          <div className="flex items-center gap-1.5 text-sm text-gray-400 mr-auto">
-            <span>Teacher</span>
-            <ChevronRight size={14} className="text-gray-600" />
-            <span className="text-white font-medium">Create assignment</span>
-          </div>
-          <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-dark-card border border-gray-700/50 text-gray-400 w-72">
-            <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <span className="flex-1 text-xs">Search assignments, groups...</span>
-            <kbd className="text-xs bg-dark-surface px-1.5 py-0.5 rounded text-gray-500">⌘K</kbd>
-          </div>
-          <button className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors">
-            <Bell size={16} />
-          </button>
-          <button onClick={toggleTheme}
-            className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors">
-            {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
-          </button>
-        </header>
-
-        <div className="flex-1 min-h-0">
-          <form onSubmit={handleSubmit}
-            className="h-full overflow-y-auto scrollbar-hide px-6 sm:px-8 py-7 min-w-0">
+    <TeacherShell active="assignments" breadcrumbs={[{ label: "Teacher", to: "/teacher" }, { label: "Assignments", to: "/teacher/assignments" }, { label: "Create" }]} contentClassName="max-w-5xl">
+          <form onSubmit={handleSubmit} className="min-w-0">
             {/* Page header */}
             <div className="flex items-start gap-4 mb-8">
               <button type="button" onClick={() => navigate("/teacher")}
-                className="w-9 h-9 flex items-center justify-center rounded-xl border border-gray-700/50
-                           text-gray-400 hover:text-white hover:border-gray-600 transition-all flex-shrink-0 mt-1">
+                className="w-9 h-9 flex items-center justify-center rounded-xl border border-gray-200 dark:border-gray-700
+                           text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all flex-shrink-0 mt-1">
                 <ArrowLeft size={16} />
               </button>
               <div className="flex-1 min-w-0">
-                <div className="inline-flex items-center px-3 py-1 rounded-full bg-dark-card border border-gray-700/50 text-xs text-gray-300 font-semibold tracking-widest mb-1 uppercase">
+                <div className="inline-flex items-center px-3 py-1 rounded-full bg-gray-100 dark:bg-dark-card border border-gray-200 dark:border-gray-700/60 text-xs text-gray-600 dark:text-gray-300 font-semibold tracking-widest mb-1 uppercase">
                   New Assignment
                 </div>
-                <h1 className="text-2xl font-bold text-white">Create assignment</h1>
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Create assignment</h1>
               </div>
               {/* Stepper */}
               <div className="hidden lg:flex items-center gap-2 flex-shrink-0 pt-2">
@@ -612,7 +535,7 @@ export function CreateAssignmentPage() {
                       <span className={`text-xs font-bold ${i === 0 ? "text-azure" : "text-gray-600"}`}>
                         {i + 1}.
                       </span>
-                      <span className={`text-xs font-medium ${i === 0 ? "text-white" : "text-gray-600"}`}>
+                      <span className={`text-xs font-medium ${i === 0 ? "text-gray-900 dark:text-white" : "text-gray-400 dark:text-gray-600"}`}>
                         {step}
                       </span>
                     </div>
@@ -1018,9 +941,7 @@ export function CreateAssignmentPage() {
               </div>
             </div>
           </form>
-        </div>
-      </div>
-    </div>
+    </TeacherShell>
   );
 }
 
