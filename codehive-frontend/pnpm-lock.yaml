@@ -54,8 +54,8 @@ importers:
         specifier: ^19.1.1
         version: 19.2.6(react@19.2.6)
       react-resizable-panels:
-        specifier: ^4.11.0
-        version: 4.11.0(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+        specifier: ^4.12.3
+        version: 4.12.3(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       react-router:
         specifier: ^7.13.1
         version: 7.15.0(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
@@ -1653,8 +1653,8 @@ packages:
       '@types/react':
         optional: true
 
-  react-resizable-panels@4.11.0:
-    resolution: {integrity: sha512-LPk/AkFDGkg7SsbOyL93ojrE6E7lhrxxDwnYNjfmnSeI6BE7Sje6dB24PXgZk8DeugdeXNk1LO+ohRqIjhxiLw==}
+  react-resizable-panels@4.12.3:
+    resolution: {integrity: sha512-GHMJWnDXui/3RX4bT+cgBP+N3N2nkwcoZATr/2xLFpqQQe7TlBrE0cGM0dUa9ceT7A90tUrSRsiqgRG+g0/2AA==}
     peerDependencies:
       react: ^18.0.0 || ^19.0.0
       react-dom: ^18.0.0 || ^19.0.0
@@ -1788,6 +1788,7 @@ packages:
   tsconfck@3.1.6:
     resolution: {integrity: sha512-ks6Vjr/jEw0P1gmOVwutM3B7fWxoWBL2KRDb1JfqGVawBmO5UsvmWOQFGHBPl5yxYz4eERr19E6L7NMv+Fej4w==}
     engines: {node: ^18 || >=20}
+    deprecated: unmaintained
     hasBin: true
     peerDependencies:
       typescript: ^5.0.0
@@ -3316,7 +3317,7 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.2.14
 
-  react-resizable-panels@4.11.0(react-dom@19.2.6(react@19.2.6))(react@19.2.6):
+  react-resizable-panels@4.12.3(react-dom@19.2.6(react@19.2.6))(react@19.2.6):
     dependencies:
       react: 19.2.6
       react-dom: 19.2.6(react@19.2.6)
