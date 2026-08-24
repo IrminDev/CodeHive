@@ -306,6 +306,25 @@ class AdminUserControllerIntegrationTest {
                 .content("{\"status\":\"" + status + "\",\"reason\":\"" + reason + "\"}"));
     }
 
+    @Test
+    void adminWithoutUpdateScopeCannotUpdateUser() throws Exception {
+        // This admin holds VIEW_USERS/MANAGE_USER_STATUS but not UPDATE_USERS/UPDATE_ADMINS.
+        User limitedAdmin = new User("Limited", "Admin", "2026630009", "limited-admin@example.com",
+                passwordEncoder.encode("Pass123!"), Role.ADMIN);
+        limitedAdmin.addScope(Scope.VIEW_USERS);
+        limitedAdmin.addScope(Scope.MANAGE_USER_STATUS);
+        limitedAdmin = userRepository.save(limitedAdmin);
+        String limitedToken = jwtUtil.generateToken(Map.of("role", "ADMIN"), limitedAdmin.getEmail());
+
+        mockMvc.perform(patch("/api/admin/users/{id}", student.getId())
+                        .header("Authorization", "Bearer " + limitedToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"New\",\"lastName\":\"Name\","
+                                + "\"enrollmentNumber\":\"2026630003\",\"email\":\"new@example.com\","
+                                + "\"reason\":\"Attempt unscoped profile update\"}"))
+                .andExpect(status().isForbidden());
+    }
+
     private void assertThatUserIsInactive() {
         org.assertj.core.api.Assertions.assertThat(userRepository.findById(student.getId()).orElseThrow().getIsActive())
                 .isFalse();

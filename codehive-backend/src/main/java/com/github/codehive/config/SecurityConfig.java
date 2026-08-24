@@ -1,6 +1,7 @@
 package com.github.codehive.config;
 import java.util.List;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -27,6 +28,9 @@ public class SecurityConfig {
     private final UserDetailsServiceImplementation userDetailsService;
     private final JWTAuthenticationFilter jwtAuthenticationFilter;
 
+    @Value("${frontend.url:http://localhost:5173}")
+    private String frontendOrigins;
+
     public SecurityConfig(UserDetailsServiceImplementation userDetailsService, JWTAuthenticationFilter jwtAuthenticationFilter) {
         this.userDetailsService = userDetailsService;
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
@@ -39,7 +43,7 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(
                 request -> {
                     var corsConfig = new org.springframework.web.cors.CorsConfiguration();
-                    corsConfig.addAllowedOriginPattern("*");
+                    corsConfig.setAllowedOrigins(List.of(frontendOrigins.split("\\s*,\\s*")));
                     corsConfig.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE"));
                     corsConfig.setAllowedHeaders(List.of("*"));
                     corsConfig.setAllowCredentials(true);

@@ -68,8 +68,10 @@ public class CsvRegistrationService {
                 .orElseThrow(() -> new com.github.codehive.model.exception.EntityNotFoundException(
                         "Authenticated user not found"));
         String taskId = UUID.randomUUID().toString();
-        webSocketHandler.queueTask(taskId, requester.getId(),
-                () -> selfProvider.getObject().processAsync(csvData, taskId, requester.getId()));
+        // Bind the task to its submitter, then run the import now on the async executor;
+        // the websocket is only a progress channel and never triggers the import.
+        webSocketHandler.registerTask(taskId, requester.getId());
+        selfProvider.getObject().processAsync(csvData, taskId, requester.getId());
         if (adminAuditService != null) {
             adminAuditService.success(requester, null, AdminAuditAction.CSV_REGISTRATION_SUBMITTED,
                     "Bulk account registration submitted", "taskId=" + taskId);
@@ -183,17 +185,17 @@ public class CsvRegistrationService {
         }
 
         if (!csvEmails.add(email)) {
-            return "Row " + rowNumber + ": Duplicate email '" + email + "' in CSV";
+            return "Row " + rowNumber + ": Duplicate email in CSV";
         }
         if (!csvEnrollments.add(enrollmentNumber)) {
-            return "Row " + rowNumber + ": Duplicate enrollment number '" + enrollmentNumber + "' in CSV";
+            return "Row " + rowNumber + ": Duplicate enrollment number in CSV";
         }
 
         if (userRepository.findByEmail(email).isPresent()) {
-            return "Row " + rowNumber + ": Email '" + email + "' is already registered";
+            return "Row " + rowNumber + ": Email is already registered";
         }
         if (userRepository.findByEnrollmentNumber(enrollmentNumber).isPresent()) {
-            return "Row " + rowNumber + ": Enrollment number '" + enrollmentNumber + "' is already registered";
+            return "Row " + rowNumber + ": Enrollment number is already registered";
         }
 
         String rawPassword = PasswordGenerator.generate();

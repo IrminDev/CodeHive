@@ -1,11 +1,14 @@
 package com.github.codehive.controller;
 
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -18,6 +21,7 @@ import com.github.codehive.model.entity.Assignment;
 import com.github.codehive.model.entity.ClassGroup;
 import com.github.codehive.model.entity.GroupEnrollment;
 import com.github.codehive.model.entity.Execution;
+import com.github.codehive.model.entity.Submission;
 import com.github.codehive.model.entity.ReferenceSolutionRevision;
 import com.github.codehive.model.entity.TestCase;
 import com.github.codehive.model.entity.TestSuiteRevision;
@@ -411,6 +415,57 @@ class CheckExecutionControllerIntegrationTest {
                     .andExpect(jsonPath("$.data.testCaseResults[0].stderr")
                             .value("Traceback: division by zero"))
                     .andExpect(jsonPath("$.data.testCaseResults[0].exitCode").value(1));
+        }
+
+        @Test
+        @DisplayName("hides private expected outputs from the student on a definitive report")
+        void definitiveReportRedactsPrivateOutputsForStudent() throws Exception {
+            Execution exec = definitiveExecutionWithReport();
+
+            mockMvc.perform(get("/api/execution/check/{id}/report", exec.getId())
+                            .header("Authorization", "Bearer " + studentToken))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.testCaseResults[0].status").value("WA"))
+                    .andExpect(content().string(not(containsString("SECRET_EXPECTED_99"))))
+                    .andExpect(content().string(not(containsString("Line 1 mismatch"))));
+        }
+
+        @Test
+        @DisplayName("keeps private expected outputs for the group owner on a definitive report")
+        void definitiveReportKeepsPrivateOutputsForOwner() throws Exception {
+            Execution exec = definitiveExecutionWithReport();
+
+            mockMvc.perform(get("/api/execution/check/{id}/report", exec.getId())
+                            .header("Authorization", "Bearer " + teacherToken))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.testCaseResults[0].expectedOutput").value("SECRET_EXPECTED_99"));
+        }
+
+        private Execution definitiveExecutionWithReport() throws Exception {
+            Submission submission = submissionRepository.saveAndFlush(
+                    new Submission(assignment, student, Language.JAVA, false));
+            Execution exec = new Execution(ExecutionType.DEFINITIVE);
+            exec.setUser(student);
+            exec.setSubmission(submission);
+            exec.setStatus(ExecutionStatus.WA);
+            executionRepository.saveAndFlush(exec);
+
+            String reportJson = """
+                    {
+                      "executionId":"%s",
+                      "overallStatus":"WA",
+                      "testCaseResults":[
+                        {"testCaseNumber":1,"status":"WA","executionTimeMs":50,"memoryUsedMb":8,
+                         "feedback":"Line 1 mismatch: expected 'SECRET_EXPECTED_99', got 'ACTUAL'",
+                         "expectedOutput":"SECRET_EXPECTED_99","actualOutput":"ACTUAL"}
+                      ],
+                      "totalTests":1,"passedTests":0,"failedTests":1,
+                      "totalExecutionTimeMs":50,"maxExecutionTimeMs":50,"maxMemoryUsedMb":8,"compilationError":null
+                    }
+                    """.formatted(exec.getId());
+            when(objectStorageService.download(anyString()))
+                    .thenReturn(new ByteArrayInputStream(reportJson.getBytes()));
+            return exec;
         }
 
         @Test

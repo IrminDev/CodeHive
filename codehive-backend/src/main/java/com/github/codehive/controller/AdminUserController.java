@@ -75,6 +75,7 @@ public class AdminUserController {
         return ResponseEntity.ok(new SuccessResponse<>("User retrieved successfully", userService.get(id)));
     }
 
+    @PreAuthorize("hasAuthority('ADMIN') and hasAnyAuthority('UPDATE_USERS', 'UPDATE_ADMINS')")
     @PatchMapping("/{id}")
     @Operation(summary = "Update user profile")
     public ResponseEntity<SuccessResponse<AdminUserDetailDTO>> update(
@@ -93,6 +94,7 @@ public class AdminUserController {
                 userService.updateRole(id, request, authentication.getName())));
     }
 
+    @PreAuthorize("hasAuthority('ADMIN') and hasAnyAuthority('MANAGE_USER_STATUS', 'MANAGE_ADMIN_STATUS')")
     @PatchMapping("/{id}/status")
     @Operation(summary = "Block, unblock, or delete user")
     public ResponseEntity<SuccessResponse<AdminUserDetailDTO>> updateStatus(

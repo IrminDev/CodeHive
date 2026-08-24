@@ -13,6 +13,8 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import org.hibernate.annotations.ColumnDefault;
+
 import com.github.codehive.model.enums.Role;
 import com.github.codehive.model.enums.Scope;
 
@@ -78,6 +80,11 @@ public class User implements UserDetails {
     private Long rateLimitViolationCount;
 
     private Instant lastRateLimitViolationAt;
+
+    // Bumped on every password change so previously issued JWTs stop authenticating.
+    @Column(nullable = false)
+    @ColumnDefault("0")
+    private int tokenVersion = 0;
 
     @ElementCollection(targetClass = Scope.class)
     @Enumerated(EnumType.STRING)
@@ -199,6 +206,14 @@ public class User implements UserDetails {
     public void setRateLimitViolationCount(Long rateLimitViolationCount) { this.rateLimitViolationCount = rateLimitViolationCount; }
     public Instant getLastRateLimitViolationAt() { return lastRateLimitViolationAt; }
     public void setLastRateLimitViolationAt(Instant lastRateLimitViolationAt) { this.lastRateLimitViolationAt = lastRateLimitViolationAt; }
+
+    public int getTokenVersion() {
+        return tokenVersion;
+    }
+
+    public void setTokenVersion(int tokenVersion) {
+        this.tokenVersion = tokenVersion;
+    }
 
     public boolean isApplicationVisible() {
         return Boolean.TRUE.equals(isActive);

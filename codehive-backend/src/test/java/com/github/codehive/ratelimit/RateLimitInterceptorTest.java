@@ -1,5 +1,6 @@
 package com.github.codehive.ratelimit;
 
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.verify;
 
@@ -51,6 +52,42 @@ class RateLimitInterceptorTest {
         verify(incidentService).record(USER_ID, "test.strict", "POST", "/api/demo/{id}", "correlation-1");
     }
 
+    @Test
+    void spoofedForwardedForDoesNotGrantAFreshBucket() throws Exception {
+        RateLimitInterceptor interceptor = new RateLimitInterceptor(new RateLimitService(), incidentService);
+        HandlerMethod handler = handler();
+
+        interceptor.preHandle(anonymousRequest(null), new MockHttpServletResponse(), handler);
+
+        // The header is client-controlled, so it must not buy a second budget from the same peer.
+        assertThatThrownBy(() -> interceptor.preHandle(
+                anonymousRequest("1.2.3.4"), new MockHttpServletResponse(), handler))
+                .isInstanceOf(RateLimitExceededException.class);
+    }
+
+    @Test
+    void distinctEndpointsDoNotShareABucket() throws Exception {
+        RateLimitInterceptor interceptor = new RateLimitInterceptor(new RateLimitService(), incidentService);
+        Method other = Fixture.class.getDeclaredMethod("otherLimited");
+        HandlerMethod otherHandler = new HandlerMethod(new Fixture(), other);
+
+        interceptor.preHandle(anonymousRequest(null), new MockHttpServletResponse(), handler());
+
+        // Exhausting one endpoint must leave the other endpoint's budget untouched.
+        assertThatCode(() -> interceptor.preHandle(
+                anonymousRequest(null), new MockHttpServletResponse(), otherHandler))
+                .doesNotThrowAnyException();
+    }
+
+    private MockHttpServletRequest anonymousRequest(String forwardedFor) {
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/demo/123");
+        request.setRemoteAddr("10.0.0.5");
+        if (forwardedFor != null) {
+            request.addHeader("X-Forwarded-For", forwardedFor);
+        }
+        return request;
+    }
+
     private HandlerMethod handler() throws NoSuchMethodException {
         Method method = Fixture.class.getDeclaredMethod("limited");
         return new HandlerMethod(new Fixture(), method);
@@ -59,5 +96,8 @@ class RateLimitInterceptorTest {
     private static class Fixture {
         @RateLimit(key = "test.strict", limit = 1, duration = 60)
         public void limited() {}
+
+        @RateLimit(key = "test.other", limit = 1, duration = 60)
+        public void otherLimited() {}
     }
 }

@@ -15,13 +15,31 @@ import javax.crypto.SecretKey;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import jakarta.annotation.PostConstruct;
+
 @Component
 public class JwtUtil {
+    private static final int MIN_SECRET_BYTES = 32;
+
     @Value("${security.jwt.secret}")
-    private String secret;    
+    private String secret;
 
     @Value("${security.jwt.expiration}")
     private Long expiration;
+
+    @PostConstruct
+    void validateSecret() {
+        byte[] keyBytes;
+        try {
+            keyBytes = Base64.getDecoder().decode(secret == null ? "" : secret);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalStateException("security.jwt.secret must be a Base64-encoded value", e);
+        }
+        if (keyBytes.length < MIN_SECRET_BYTES) {
+            throw new IllegalStateException(
+                    "security.jwt.secret must decode to at least 256 bits (32 bytes); set JWT_SECRET");
+        }
+    }
 
     public String generateToken(Map<String, Object> claims, String email) {
         long nowMillis = System.currentTimeMillis();
@@ -60,6 +78,11 @@ public class JwtUtil {
         } catch (ExpiredJwtException e) {
             throw e;
         }
+    }
+
+    public int extractTokenVersion(String token) {
+        Integer version = extractClaim(token, claims -> claims.get("tokenVersion", Integer.class));
+        return version == null ? 0 : version;
     }
 
     public boolean isTokenValid(String token, String email){

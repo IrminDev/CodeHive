@@ -28,10 +28,10 @@ public class CsvProgressWebSocketHandler extends TextWebSocketHandler {
     private static final Logger logger = LoggerFactory.getLogger(CsvProgressWebSocketHandler.class);
 
     private static final String TASK_ID_ATTRIBUTE = "taskId";
-    private static final long PENDING_TASK_TTL_MINUTES = 5;
+    private static final long TASK_OWNER_TTL_MINUTES = 10;
 
     private final Map<String, WebSocketSession> taskSessions = new ConcurrentHashMap<>();
-    private final Map<String, PendingTask> pendingTasks = new ConcurrentHashMap<>();
+    private final Map<String, UUID> taskOwners = new ConcurrentHashMap<>();
     private final ObjectMapper objectMapper;
     private final ScheduledExecutorService cleanupScheduler = Executors.newSingleThreadScheduledExecutor();
 
@@ -44,8 +44,8 @@ public class CsvProgressWebSocketHandler extends TextWebSocketHandler {
         String taskId = message.getPayload().trim();
         UUID authenticatedUserId = (UUID) session.getAttributes()
                 .get(WebSocketTicketHandshakeInterceptor.USER_ID_ATTRIBUTE);
-        PendingTask pendingTask = pendingTasks.get(taskId);
-        if (pendingTask == null || !pendingTask.ownerId().equals(authenticatedUserId)) {
+        UUID owner = isValidTaskId(taskId) ? taskOwners.get(taskId) : null;
+        if (owner == null || !owner.equals(authenticatedUserId)) {
             try {
                 session.close(CloseStatus.POLICY_VIOLATION);
             } catch (IOException exception) {
@@ -53,19 +53,24 @@ public class CsvProgressWebSocketHandler extends TextWebSocketHandler {
             }
             return;
         }
+        // One subscription per session: drop the previous mapping so the map can't grow unbounded.
+        String previous = (String) session.getAttributes().get(TASK_ID_ATTRIBUTE);
+        if (previous != null && !previous.equals(taskId)) {
+            taskSessions.remove(previous, session);
+        }
         session.getAttributes().put(TASK_ID_ATTRIBUTE, taskId);
         taskSessions.put(taskId, session);
-        pendingTasks.remove(taskId, pendingTask);
-        pendingTask.task().run();
     }
 
-    public void queueTask(String taskId, UUID ownerId, Runnable task) {
-        PendingTask pendingTask = new PendingTask(ownerId, task);
-        pendingTasks.put(taskId, pendingTask);
-
+    /**
+     * Binds a task to the admin that submitted it, so only that admin can subscribe to its
+     * progress. The import itself runs on the async executor and does not wait for a subscriber.
+     */
+    public void registerTask(String taskId, UUID ownerId) {
+        taskOwners.put(taskId, ownerId);
         cleanupScheduler.schedule(
-                () -> pendingTasks.remove(taskId, pendingTask),
-                PENDING_TASK_TTL_MINUTES,
+                () -> taskOwners.remove(taskId, ownerId),
+                TASK_OWNER_TTL_MINUTES,
                 TimeUnit.MINUTES);
     }
 
@@ -73,8 +78,19 @@ public class CsvProgressWebSocketHandler extends TextWebSocketHandler {
     public void afterConnectionClosed(@NonNull WebSocketSession session, @NonNull CloseStatus status) {
         String taskId = (String) session.getAttributes().get(TASK_ID_ATTRIBUTE);
         if (taskId != null) {
-            taskSessions.remove(taskId);
-            pendingTasks.remove(taskId);
+            taskSessions.remove(taskId, session);
+        }
+    }
+
+    private static boolean isValidTaskId(String value) {
+        if (value.length() != 36) {
+            return false;
+        }
+        try {
+            UUID.fromString(value);
+            return true;
+        } catch (IllegalArgumentException e) {
+            return false;
         }
     }
 
@@ -91,9 +107,8 @@ public class CsvProgressWebSocketHandler extends TextWebSocketHandler {
     }
 
     public void completeTask(String taskId) {
+        taskOwners.remove(taskId);
         WebSocketSession session = taskSessions.remove(taskId);
-        pendingTasks.remove(taskId);
-
         if (session != null && session.isOpen()) {
             try {
                 session.close(CloseStatus.NORMAL);
@@ -107,6 +122,4 @@ public class CsvProgressWebSocketHandler extends TextWebSocketHandler {
     public void shutdownScheduler() {
         cleanupScheduler.shutdownNow();
     }
-
-    private record PendingTask(UUID ownerId, Runnable task) {}
 }

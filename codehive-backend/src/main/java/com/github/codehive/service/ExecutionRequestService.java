@@ -17,6 +17,7 @@ import com.github.codehive.model.dto.ExecutionDTO;
 import com.github.codehive.model.dto.queue.ExecutionJob;
 import com.github.codehive.model.dto.queue.ExecutionReport;
 import com.github.codehive.model.dto.queue.ExecutionTestCaseInfo;
+import com.github.codehive.model.dto.queue.TestCaseResult;
 import com.github.codehive.model.entity.Assignment;
 import com.github.codehive.model.entity.Execution;
 import com.github.codehive.model.entity.ReferenceSolutionRevision;
@@ -170,7 +171,7 @@ public class ExecutionRequestService {
     public ExecutionDTO getExecutionById(UUID id, String authenticatedEmail) {
         Execution execution = executionRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Execution not found with id: " + id));
-        authorizeExecutionRead(execution, authenticatedEmail);
+        authorizeExecutionRead(execution, requireAuthenticatedUser(authenticatedEmail));
         return ExecutionMapper.toDTO(execution);
     }
 
@@ -179,7 +180,8 @@ public class ExecutionRequestService {
         Execution execution = executionRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Execution not found with id: " + id));
 
-        authorizeExecutionRead(execution, authenticatedEmail);
+        User reader = requireAuthenticatedUser(authenticatedEmail);
+        authorizeExecutionRead(execution, reader);
         if (execution.getArtifactsPurgedAt() != null || (execution.getArtifactsExpireAt() != null
                 && !Instant.now().isBefore(execution.getArtifactsExpireAt()))) {
             throw new ArtifactExpiredException("Detailed artifacts for execution " + id
@@ -189,7 +191,12 @@ public class ExecutionRequestService {
                 ? ObjectKeyBuilder.practiceExecutionReport(id)
                 : ObjectKeyBuilder.executionReport(id);
         try (InputStream reportStream = objectStorageService.download(reportKey)) {
-            return objectMapper.readValue(reportStream, ExecutionReport.class);
+            ExecutionReport report = objectMapper.readValue(reportStream, ExecutionReport.class);
+            // Definitive runs use the teacher's private test suite; keep expected outputs owner-only.
+            if (execution.getExecutionType() == ExecutionType.DEFINITIVE && !isGroupOwner(execution, reader)) {
+                redactPrivateOutputs(report);
+            }
+            return report;
         } catch (Exception e) {
             if (execution.getStatus() != null && execution.getStatus().name().equals("PENDING")) {
                 throw new EntityNotFoundException("Report not available yet: execution " + id + " is still pending");
@@ -326,13 +333,28 @@ public class ExecutionRequestService {
         }
     }
 
-    private void authorizeExecutionRead(Execution execution, String authenticatedEmail) {
-        User user = userRepository.findByEmail(authenticatedEmail)
+    private User requireAuthenticatedUser(String authenticatedEmail) {
+        return userRepository.findByEmail(authenticatedEmail)
                 .orElseThrow(() -> new EntityNotFoundException("Authenticated user not found"));
+    }
+
+    private void authorizeExecutionRead(Execution execution, User user) {
         if (execution.getUser() != null && execution.getUser().getId().equals(user.getId())) return;
-        if (execution.getSubmission() != null
-                && execution.getSubmission().getAssignment().getGroup().getOwner().getId()
-                    .equals(user.getId())) return;
+        if (isGroupOwner(execution, user)) return;
         throw new AccessDeniedException("You cannot access this execution");
+    }
+
+    private boolean isGroupOwner(Execution execution, User user) {
+        return execution.getSubmission() != null
+                && execution.getSubmission().getAssignment().getGroup().getOwner().getId().equals(user.getId());
+    }
+
+    private void redactPrivateOutputs(ExecutionReport report) {
+        if (report.getTestCaseResults() == null) return;
+        for (TestCaseResult result : report.getTestCaseResults()) {
+            result.setExpectedOutput(null);
+            result.setActualOutput(null);
+            result.setFeedback(null);
+        }
     }
 }
