@@ -2,6 +2,7 @@ package com.github.codehive.websocket;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -30,7 +31,7 @@ public class CsvProgressWebSocketHandler extends TextWebSocketHandler {
     private static final long PENDING_TASK_TTL_MINUTES = 5;
 
     private final Map<String, WebSocketSession> taskSessions = new ConcurrentHashMap<>();
-    private final Map<String, Runnable> pendingTasks = new ConcurrentHashMap<>();
+    private final Map<String, PendingTask> pendingTasks = new ConcurrentHashMap<>();
     private final ObjectMapper objectMapper;
     private final ScheduledExecutorService cleanupScheduler = Executors.newSingleThreadScheduledExecutor();
 
@@ -41,19 +42,29 @@ public class CsvProgressWebSocketHandler extends TextWebSocketHandler {
     @Override
     protected void handleTextMessage(@NonNull WebSocketSession session, @NonNull TextMessage message) {
         String taskId = message.getPayload().trim();
+        UUID authenticatedUserId = (UUID) session.getAttributes()
+                .get(WebSocketTicketHandshakeInterceptor.USER_ID_ATTRIBUTE);
+        PendingTask pendingTask = pendingTasks.get(taskId);
+        if (pendingTask == null || !pendingTask.ownerId().equals(authenticatedUserId)) {
+            try {
+                session.close(CloseStatus.POLICY_VIOLATION);
+            } catch (IOException exception) {
+                logger.debug("Failed to close unauthorized CSV progress session", exception);
+            }
+            return;
+        }
         session.getAttributes().put(TASK_ID_ATTRIBUTE, taskId);
         taskSessions.put(taskId, session);
-        Runnable task = pendingTasks.remove(taskId);
-        if (task != null) {
-            task.run();
-        }
+        pendingTasks.remove(taskId, pendingTask);
+        pendingTask.task().run();
     }
 
-    public void queueTask(String taskId, Runnable task) {
-        pendingTasks.put(taskId, task);
+    public void queueTask(String taskId, UUID ownerId, Runnable task) {
+        PendingTask pendingTask = new PendingTask(ownerId, task);
+        pendingTasks.put(taskId, pendingTask);
 
         cleanupScheduler.schedule(
-                () -> pendingTasks.remove(taskId, task),
+                () -> pendingTasks.remove(taskId, pendingTask),
                 PENDING_TASK_TTL_MINUTES,
                 TimeUnit.MINUTES);
     }
@@ -96,4 +107,6 @@ public class CsvProgressWebSocketHandler extends TextWebSocketHandler {
     public void shutdownScheduler() {
         cleanupScheduler.shutdownNow();
     }
+
+    private record PendingTask(UUID ownerId, Runnable task) {}
 }

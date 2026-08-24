@@ -2,10 +2,11 @@ package com.github.codehive.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -14,7 +15,10 @@ import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.spring6.SpringTemplateEngine;
 
 import com.github.codehive.notification.EmailTemplateRenderer;
+import com.github.codehive.model.enums.NotificationType;
+import com.github.codehive.notification.NotificationCallout;
 import com.github.codehive.notification.NotificationEmailContent;
+import com.github.codehive.notification.NotificationFact;
 
 class EmailTemplateConfigTest {
     private final EmailTemplateRenderer renderer = new EmailTemplateRenderer(
@@ -23,12 +27,13 @@ class EmailTemplateConfigTest {
     @Test
     void rendersBrandedNotificationAsHtmlAndPlainText() {
         NotificationEmailContent content = new NotificationEmailContent(
+                NotificationType.ASSIGNMENT_PUBLISHED,
                 "New assignment",
-                "NEW ASSIGNMENT",
-                "Arrays are now available",
                 "A new programming exercise was published.",
-                "Assignment details",
-                List.of("Group: Algorithms", "Due: July 25"),
+                java.util.List.of(
+                        new NotificationFact("Group", "Algorithms"),
+                        new NotificationFact("Due", "July 25")),
+                null,
                 "Open assignment",
                 "https://codehive.example/assignment/1");
 
@@ -36,12 +41,45 @@ class EmailTemplateConfigTest {
 
         assertThat(rendered.html())
                 .contains("Code<span")
-                .contains("Arrays are now available")
+                .contains("New assignment available")
                 .contains("background:#00509D");
         assertThat(rendered.text())
                 .contains("NEW ASSIGNMENT")
-                .contains("Group: Algorithms")
+                .contains("Group", "Algorithms")
                 .contains("Manage notification preferences");
+    }
+
+    @ParameterizedTest
+    @EnumSource(NotificationType.class)
+    void rendersDedicatedHtmlAndTextTemplateForEveryNotificationType(NotificationType type) {
+        var rendered = renderer.renderNotification(new NotificationEmailContent(
+                type,
+                "Subject",
+                "Action-specific summary",
+                java.util.List.of(new NotificationFact("Group", "Algorithms")),
+                new NotificationCallout("Next step", "Open CodeHive for details."),
+                "Open CodeHive",
+                "https://codehive.example"));
+
+        assertThat(rendered.html())
+                .contains("Action-specific summary", "Algorithms", "Open CodeHive")
+                .doesNotContain("Timezone:", "America/Mexico_City", "Not configured");
+        assertThat(rendered.text())
+                .contains("Action-specific summary", "Algorithms", "Open CodeHive")
+                .doesNotContain("Timezone:", "America/Mexico_City", "Not configured");
+    }
+
+    @Test
+    void rendersConciseTestNotificationWithoutTimezone() {
+        var rendered = renderer.render("notifications/test-notification", Map.of(
+                "name", "Ada",
+                "ctaUrl", "https://codehive.example",
+                "ctaLabel", "Open CodeHive"));
+
+        assertThat(rendered.html()).contains("Email notifications are working", "Ada")
+                .doesNotContain("Timezone:", "America/Mexico_City");
+        assertThat(rendered.text()).contains("Email notifications are working", "Ada")
+                .doesNotContain("Timezone:", "America/Mexico_City");
     }
 
     @Test

@@ -4,42 +4,43 @@ import java.util.EnumSet;
 import java.util.Set;
 
 public enum NotificationType {
-    STUDENT_ENROLLED(Role.TEACHER, false, null),
-    STUDENT_LEFT(Role.TEACHER, false, null),
-    ASSIGNMENT_SUBMITTED(Role.TEACHER, false, null),
-    LATE_ASSIGNMENT_SUBMITTED(Role.TEACHER, false, null),
-    ASSIGNMENT_DUE_SOON(Role.TEACHER, true, 1440),
-    ASSIGNMENT_CLOSE_SOON(Role.TEACHER, true, 1440),
-    ASSIGNMENT_VALIDATION_FAILED(Role.TEACHER, false, null),
-    ASSIGNMENT_READY(Role.TEACHER, false, null),
-    ASSIGNMENT_GRADES_CLEARED(Role.TEACHER, false, null),
+    STUDENT_ENROLLED(NotificationAudience.OWNER, false, null),
+    STUDENT_LEFT(NotificationAudience.OWNER, false, null),
+    STUDENT_ENROLLMENT_CANCELLED(NotificationAudience.OWNER, false, null),
+    ASSIGNMENT_SUBMITTED(NotificationAudience.OWNER, false, null),
+    LATE_ASSIGNMENT_SUBMITTED(NotificationAudience.OWNER, false, null),
+    ASSIGNMENT_DUE_SOON(NotificationAudience.OWNER, true, 1440),
+    ASSIGNMENT_CLOSE_SOON(NotificationAudience.OWNER, true, 1440),
+    ASSIGNMENT_VALIDATION_FAILED(NotificationAudience.OWNER, false, null),
+    ASSIGNMENT_READY(NotificationAudience.OWNER, false, null),
+    ASSIGNMENT_GRADES_CLEARED(NotificationAudience.OWNER, false, null),
 
-    ASSIGNMENT_PUBLISHED(Role.STUDENT, false, null),
-    ASSIGNMENT_DUE_SOON_NO_SUBMISSION(Role.STUDENT, true, 1440),
-    ASSIGNMENT_CLOSE_SOON_NO_SUBMISSION(Role.STUDENT, true, 120),
-    ASSIGNMENT_RESCHEDULED(Role.STUDENT, false, null),
-    ASSIGNMENT_UPDATED(Role.STUDENT, false, null),
-    ASSIGNMENT_TESTS_UPDATED(Role.STUDENT, false, null),
-    SUBMISSION_EVALUATED(Role.STUDENT, false, null),
-    SUBMISSION_REEVALUATED(Role.STUDENT, false, null),
-    FEEDBACK_RECEIVED(Role.STUDENT, false, null),
-    GRADE_RETURNED(Role.STUDENT, false, null),
-    REMOVED_FROM_GROUP(Role.STUDENT, false, null),
-    GROUP_ARCHIVED(Role.STUDENT, false, null);
+    ASSIGNMENT_PUBLISHED(NotificationAudience.STUDENT, false, null),
+    ASSIGNMENT_DUE_SOON_NO_SUBMISSION(NotificationAudience.STUDENT, true, 1440),
+    ASSIGNMENT_CLOSE_SOON_NO_SUBMISSION(NotificationAudience.STUDENT, true, 120),
+    ASSIGNMENT_RESCHEDULED(NotificationAudience.STUDENT, false, null),
+    ASSIGNMENT_UPDATED(NotificationAudience.STUDENT, false, null),
+    ASSIGNMENT_TESTS_UPDATED(NotificationAudience.STUDENT, false, null),
+    SUBMISSION_EVALUATED(NotificationAudience.STUDENT, false, null),
+    SUBMISSION_REEVALUATED(NotificationAudience.STUDENT, false, null),
+    FEEDBACK_RECEIVED(NotificationAudience.STUDENT, false, null),
+    GRADE_RETURNED(NotificationAudience.STUDENT, false, null),
+    REMOVED_FROM_GROUP(NotificationAudience.STUDENT, false, null),
+    GROUP_ARCHIVED(NotificationAudience.STUDENT, false, null);
 
     public static final Set<Integer> ALLOWED_LEAD_MINUTES = Set.of(120, 1440, 2880, 10080);
 
-    private final Role audience;
+    private final NotificationAudience audience;
     private final boolean reminder;
     private final Integer defaultLeadMinutes;
 
-    NotificationType(Role audience, boolean reminder, Integer defaultLeadMinutes) {
+    NotificationType(NotificationAudience audience, boolean reminder, Integer defaultLeadMinutes) {
         this.audience = audience;
         this.reminder = reminder;
         this.defaultLeadMinutes = defaultLeadMinutes;
     }
 
-    public Role getAudience() {
+    public NotificationAudience getAudience() {
         return audience;
     }
 
@@ -51,10 +52,15 @@ public enum NotificationType {
         return defaultLeadMinutes;
     }
 
-    public static Set<NotificationType> forRole(Role role) {
+    public static Set<NotificationType> forUser(com.github.codehive.model.entity.User user) {
         EnumSet<NotificationType> result = EnumSet.noneOf(NotificationType.class);
         for (NotificationType type : values()) {
-            if (type.audience == role) result.add(type);
+            if (type.audience == NotificationAudience.STUDENT && user.getRole() == Role.STUDENT) {
+                result.add(type);
+            }
+            if (type.audience == NotificationAudience.OWNER && user.canManageGroups()) {
+                result.add(type);
+            }
         }
         return result;
     }

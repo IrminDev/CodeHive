@@ -1,6 +1,5 @@
-import { ProtectedRoute } from "~/core/components/ProtectedRoute";
+import { ManagerRoute } from "../components/ManagerRoute";
 import { TeacherDashboardPage } from "../pages/TeacherDashboardPage";
-import { Role } from "~/shared/types/model/User";
 
 export function meta() {
   return [
@@ -11,8 +10,8 @@ export function meta() {
 
 export default function Teacher() {
   return (
-    <ProtectedRoute roles={[Role.TEACHER]}>
+    <ManagerRoute>
       <TeacherDashboardPage />
-    </ProtectedRoute>
+    </ManagerRoute>
   );
 }

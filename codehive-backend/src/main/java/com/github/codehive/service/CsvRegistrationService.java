@@ -17,12 +17,14 @@ import org.apache.commons.csv.CSVRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.github.codehive.model.entity.User;
 import com.github.codehive.model.enums.Role;
+import com.github.codehive.model.enums.AdminAuditAction;
 import com.github.codehive.model.response.auth.CsvProgressMessage;
 import com.github.codehive.model.response.auth.CsvProgressMessage.Status;
 import com.github.codehive.repository.UserRepository;
@@ -43,6 +45,7 @@ public class CsvRegistrationService {
     private final MailSenderService mailSenderService;
     private final CsvProgressWebSocketHandler webSocketHandler;
     private final ObjectProvider<CsvRegistrationService> selfProvider;
+    private AdminAuditService adminAuditService;
 
     public CsvRegistrationService(UserRepository userRepository, PasswordEncoder passwordEncoder,
                                    MailSenderService mailSenderService, CsvProgressWebSocketHandler webSocketHandler,
@@ -54,14 +57,28 @@ public class CsvRegistrationService {
         this.selfProvider = selfProvider;
     }
 
-    public String submitCsvJob(byte[] csvData) {
+    @Autowired
+    void setAdminAuditService(AdminAuditService adminAuditService) {
+        this.adminAuditService = adminAuditService;
+    }
+
+    public String submitCsvJob(byte[] csvData, String requesterEmail) {
+        User requester = userRepository.findByEmail(requesterEmail)
+                .filter(User::canParticipate)
+                .orElseThrow(() -> new com.github.codehive.model.exception.EntityNotFoundException(
+                        "Authenticated user not found"));
         String taskId = UUID.randomUUID().toString();
-        webSocketHandler.queueTask(taskId, () -> selfProvider.getObject().processAsync(csvData, taskId));
+        webSocketHandler.queueTask(taskId, requester.getId(),
+                () -> selfProvider.getObject().processAsync(csvData, taskId, requester.getId()));
+        if (adminAuditService != null) {
+            adminAuditService.success(requester, null, AdminAuditAction.CSV_REGISTRATION_SUBMITTED,
+                    "Bulk account registration submitted", "taskId=" + taskId);
+        }
         return taskId;
     }
 
     @Async
-    public void processAsync(byte[] csvData, String taskId) {
+    public void processAsync(byte[] csvData, String taskId, UUID requesterId) {
         try {
             List<CSVRecord> records = parseRecords(csvData);
             int totalRows = records.size();
@@ -94,11 +111,21 @@ public class CsvRegistrationService {
 
             String summary = "CSV processing completed. " + successCount + " succeeded, " + errorCount + " failed.";
             sendProgress(taskId, Status.COMPLETED, totalRows, totalRows, successCount, errorCount, summary);
+            auditCompletion(requesterId, taskId, successCount, errorCount);
 
         } catch (Exception e) {
             logger.error("Error processing CSV task {}", taskId, e);
             sendProgress(taskId, Status.COMPLETED, 0, 0, 0, 0, "Error processing CSV: " + e.getMessage());
+            auditCompletion(requesterId, taskId, 0, 1);
         }
+    }
+
+    private void auditCompletion(UUID requesterId, String taskId, int successCount, int errorCount) {
+        if (adminAuditService == null) return;
+        userRepository.findById(requesterId).ifPresent(requester -> adminAuditService.success(
+                requester, null, AdminAuditAction.CSV_REGISTRATION_COMPLETED,
+                "Bulk account registration completed",
+                "taskId=" + taskId + ", success=" + successCount + ", errors=" + errorCount));
     }
 
     private List<CSVRecord> parseRecords(byte[] csvData) throws Exception {

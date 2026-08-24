@@ -24,6 +24,8 @@ import com.github.codehive.model.entity.User;
 import com.github.codehive.model.enums.EnrollmentStatus;
 import com.github.codehive.model.enums.NotificationType;
 import com.github.codehive.model.enums.Role;
+import com.github.codehive.model.enums.Scope;
+import com.github.codehive.model.enums.GroupDeletionReason;
 import com.github.codehive.model.exception.EntityNotFoundException;
 import com.github.codehive.model.exception.ValidationException;
 import com.github.codehive.model.request.group.CreateGroupRequest;
@@ -61,6 +63,7 @@ class GroupServiceTest {
 
         owner = new User("Grace", "Hopper", "TEA-001", OWNER_EMAIL, "encoded", Role.TEACHER);
         owner.setId(OWNER_ID);
+        owner.addScope(Scope.CREATE_GROUP);
         student = new User("Ada", "Lovelace", "STU-001", STUDENT_EMAIL, "encoded", Role.STUDENT);
         student.setId(STUDENT_ID);
         group = new ClassGroup("Algorithms", "", owner, "CODE1234");
@@ -68,6 +71,8 @@ class GroupServiceTest {
 
         when(userRepository.findByEmail(OWNER_EMAIL)).thenReturn(Optional.of(owner));
         when(userRepository.findByEmail(STUDENT_EMAIL)).thenReturn(Optional.of(student));
+        when(userRepository.findByEmailForUpdate(OWNER_EMAIL)).thenReturn(Optional.of(owner));
+        when(userRepository.findByEmailForUpdate(STUDENT_EMAIL)).thenReturn(Optional.of(student));
         when(groupRepository.findById(GROUP_ID)).thenReturn(Optional.of(group));
     }
 
@@ -150,6 +155,17 @@ class GroupServiceTest {
         assertThatThrownBy(() -> service.restore(GROUP_ID, OWNER_EMAIL))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("not deleted");
+    }
+
+    @Test
+    void restoreRejectsTerminalLifecycleDeletion() {
+        group.setIsActive(false);
+        group.setArchived(true);
+        group.setDeletionReason(GroupDeletionReason.SCOPE_REVOKED);
+
+        assertThatThrownBy(() -> service.restore(GROUP_ID, OWNER_EMAIL))
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessageContaining("Group not found");
     }
 
     @Test

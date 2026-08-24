@@ -47,6 +47,7 @@ public class StudentWorkQueryService {
         User teacher = requireUser(email);
         requireOwnedAssignment(assignmentId, teacher);
         return workRepository.findByAssignmentId(assignmentId).stream()
+                .filter(work -> work.getStudent().canParticipate())
                 .map(work -> toDTO(work, true)).toList();
     }
 
@@ -61,6 +62,9 @@ public class StudentWorkQueryService {
         }
         StudentAssignmentWork work = workRepository.findByAssignmentIdAndStudentId(assignmentId, studentId)
                 .orElseThrow(() -> new EntityNotFoundException("Student assignment work not found"));
+        if (!work.getStudent().canParticipate()) {
+            throw new EntityNotFoundException("Student assignment work not found");
+        }
         return toDTO(work, ownerView);
     }
 
@@ -96,7 +100,7 @@ public class StudentWorkQueryService {
     private Assignment requireOwnedAssignment(UUID id, User teacher) {
         Assignment assignment = assignmentRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Assignment not found: " + id));
-        if (!assignment.getGroup().getOwner().getId().equals(teacher.getId())) {
+        if (!teacher.canManageGroups() || !assignment.getGroup().getOwner().getId().equals(teacher.getId())) {
             throw new AccessDeniedException("Only the assignment owner can view the gradebook");
         }
         return assignment;

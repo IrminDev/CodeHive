@@ -58,16 +58,12 @@ public class MailSenderService{
     }
 
     public void sendTestNotificationEmail(String to, String name) {
-        NotificationEmailContent content = new NotificationEmailContent(
-                "Your CodeHive notifications are ready",
-                "TEST EMAIL",
-                "Email notifications are working",
-                "Hi " + name + ", this message confirms that CodeHive can send notifications to your account.",
-                "Current defaults",
-                java.util.List.of("Language: English", "Timezone: America/Mexico_City"),
-                "Open CodeHive",
-                frontendUrl);
-        sendNotificationEmail(to, content);
+        EmailTemplateRenderer.RenderedEmail rendered = templateRenderer.render(
+                "notifications/test-notification", java.util.Map.of(
+                        "name", name,
+                        "ctaUrl", frontendUrl,
+                        "ctaLabel", "Open CodeHive"));
+        sendMimeMessage(to, "Your CodeHive notifications are ready", rendered);
     }
 
     @Deprecated

@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.github.codehive.model.dto.TeacherDashboardDTO;
 import com.github.codehive.model.response.SuccessResponse;
 import com.github.codehive.service.TeacherDashboardService;
+import com.github.codehive.ratelimit.RateLimit;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -24,6 +25,8 @@ public class TeacherDashboardController {
     }
 
     @GetMapping("/dashboard")
+    @RateLimit(key = "teacher.dashboard", limit = 30, duration = 60,
+            message = "Too many dashboard requests")
     @Operation(summary = "Get teacher dashboard action center")
     public ResponseEntity<SuccessResponse<TeacherDashboardDTO>> dashboard(Authentication authentication) {
         return ResponseEntity.ok(new SuccessResponse<>("Teacher dashboard retrieved.",

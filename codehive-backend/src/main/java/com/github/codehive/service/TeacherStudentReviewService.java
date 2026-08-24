@@ -57,6 +57,9 @@ public class TeacherStudentReviewService {
         User teacher = requireUser(email);
         StudentAssignmentWork work = workRepository.findByAssignmentIdAndStudentId(assignmentId, studentId)
                 .orElseThrow(() -> new EntityNotFoundException("Student assignment work not found"));
+        if (!work.getStudent().canParticipate()) {
+            throw new EntityNotFoundException("Student assignment work not found");
+        }
         authorizeOwner(work, teacher);
         List<TeacherSubmissionEvidenceDTO> submissions = submissionRepository
                 .findByAssignmentAndStudentOrderByCreatedAtDesc(work.getAssignment(), work.getStudent())
@@ -73,7 +76,11 @@ public class TeacherStudentReviewService {
         User teacher = requireUser(email);
         Submission submission = submissionRepository.findById(submissionId)
                 .orElseThrow(() -> new EntityNotFoundException("Submission not found: " + submissionId));
-        if (!submission.getAssignment().getGroup().getOwner().getId().equals(teacher.getId())) {
+        if (!submission.getStudent().canParticipate()) {
+            throw new EntityNotFoundException("Submission not found: " + submissionId);
+        }
+        if (!teacher.canManageGroups()
+                || !submission.getAssignment().getGroup().getOwner().getId().equals(teacher.getId())) {
             throw new AccessDeniedException("Only the assignment owner can inspect this submission");
         }
         return evidence(submission, true);
@@ -96,10 +103,12 @@ public class TeacherStudentReviewService {
 
     private AssignmentGradeHistoryDTO gradeHistory(AssignmentGradeHistory history) {
         User actor = history.getActor();
-        String actorName = actor == null ? null : (actor.getName() + " " + actor.getLastName()).trim();
+        boolean actorVisible = actor != null && actor.isApplicationVisible();
+        String actorName = actor == null ? null : actorVisible
+                ? (actor.getName() + " " + actor.getLastName()).trim() : "Deleted user";
         return new AssignmentGradeHistoryDTO(
                 history.getId(), history.getValue(), history.getMaxPoints(), history.getStatus(),
-                history.getReason(), actor == null ? null : actor.getId(), actorName, history.getCreatedAt());
+                history.getReason(), actorVisible ? actor.getId() : null, actorName, history.getCreatedAt());
     }
 
     private String readSource(Submission submission) {
@@ -112,7 +121,8 @@ public class TeacherStudentReviewService {
     }
 
     private void authorizeOwner(StudentAssignmentWork work, User teacher) {
-        if (!work.getAssignment().getGroup().getOwner().getId().equals(teacher.getId())) {
+        if (!teacher.canManageGroups()
+                || !work.getAssignment().getGroup().getOwner().getId().equals(teacher.getId())) {
             throw new AccessDeniedException("Only the assignment owner can inspect student work");
         }
     }

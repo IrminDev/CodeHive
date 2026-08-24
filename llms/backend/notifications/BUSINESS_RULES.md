@@ -20,8 +20,8 @@ síncrona porque pertenecen a flujos interactivos existentes.
 ## Reglas generales
 
 1. Toda notificación tiene exactamente un tipo definido en `NotificationType`.
-2. Cada tipo pertenece exclusivamente al rol `TEACHER` o `STUDENT`.
-3. Un usuario solo puede consultar o modificar preferencias correspondientes a su propio rol.
+2. Cada tipo pertenece a audiencia `OWNER` o `STUDENT`.
+3. Estudiante con `CREATE_GROUP` recibe ambos catálogos; profesor recibe `OWNER`; estudiante sin scope recibe `STUDENT`; admin ninguno.
 4. La identidad del usuario que administra preferencias se obtiene del contexto de autenticación; la API no acepta un identificador de usuario proporcionado por el cliente.
 5. Todos los tipos disponibles para el rol están habilitados por defecto.
 6. Un usuario inactivo no recibe notificaciones, aunque sus preferencias estén habilitadas.
@@ -30,18 +30,19 @@ síncrona porque pertenecen a flujos interactivos existentes.
 9. Las preferencias se verifican al publicar el mensaje y nuevamente antes de enviar el correo. Por ello, un usuario puede deshabilitar un correo que ya se encuentre pendiente en la cola.
 10. La configuración predeterminada usa `America/Mexico_City` y `en-US`.
 11. Actualmente solo se admite contenido en inglés y locale `en-US`.
-12. Las fechas se almacenan como `Instant` y se presentan usando la zona horaria IANA configurada por el destinatario.
+12. Las fechas se presentan usando la zona horaria IANA configurada por el destinatario, pero el identificador de zona no se repite dentro del correo.
 13. Cada correo contiene una alternativa HTML y una alternativa de texto plano.
 14. Las credenciales y el servidor SMTP son los existentes en `spring.mail.*`; no se crea otro cliente ni otra cuenta.
 15. Los eventos de dominio se enrutan después de que la transacción de negocio termina correctamente.
 16. Si la transacción de negocio se revierte, su notificación no se publica.
 
-## Catálogo para profesores
+## Catálogo para propietarios
 
 | Tipo | Disparador | Destinatario |
 |---|---|---|
-| `STUDENT_ENROLLED` | Un estudiante entra mediante código o reactiva su inscripción | Propietario del grupo, si tiene rol `TEACHER` |
-| `STUDENT_LEFT` | Un estudiante sale voluntariamente | Propietario del grupo, si tiene rol `TEACHER` |
+| `STUDENT_ENROLLED` | Un estudiante entra mediante código o reactiva su inscripción | Propietario habilitado |
+| `STUDENT_LEFT` | Un estudiante sale voluntariamente | Propietario habilitado |
+| `STUDENT_ENROLLMENT_CANCELLED` | Administración cancela inscripción por ciclo de vida | Propietario habilitado |
 | `ASSIGNMENT_SUBMITTED` | Se crea una entrega definitiva dentro del plazo | Propietario del grupo, si tiene rol `TEACHER` |
 | `LATE_ASSIGNMENT_SUBMITTED` | Se crea una entrega definitiva después de `dueDate` y antes de `closeDate` | Propietario del grupo, si tiene rol `TEACHER` |
 | `ASSIGNMENT_DUE_SOON` | Una tarea entra en la ventana configurada antes de `dueDate` | Propietario del grupo, si tiene rol `TEACHER` |
@@ -55,7 +56,7 @@ Reglas adicionales:
 2. Los recordatorios del profesor no dependen de la cantidad de entregas recibidas.
 3. Los resultados duplicados del worker no vuelven a producir `ASSIGNMENT_READY` o `ASSIGNMENT_VALIDATION_FAILED` cuando la tarea ya se encuentra en el mismo estado.
 4. `GROUP_ACTIVITY_DIGEST` y `NO_SUBMISSIONS_SUMMARY` no forman parte del catálogo.
-5. Un propietario con otro rol y scope `CREATE_GROUP` puede administrar el grupo, pero no recibe tipos reservados a `TEACHER`.
+5. Un propietario estudiante con `CREATE_GROUP` recibe tipos `OWNER`, incluidos recordatorios, además de tipos `STUDENT` por sus inscripciones.
 
 ## Catálogo para estudiantes
 
@@ -114,8 +115,8 @@ Formatos de clave implementados:
 
 ## Entrega, reintentos y errores
 
-1. Todo mensaje nuevo usa `schemaVersion = 1` y `attempt = 0`.
-2. Un mensaje con versión de esquema no soportada pasa directamente a la cola de errores.
+1. Todo mensaje nuevo usa `schemaVersion = 2`, `attempt = 0` y puede incluir `resourceId` para identificar el recurso exacto que disparó el correo.
+2. El consumidor acepta versiones `1` y `2`. Un mensaje con otra versión pasa directamente a la cola de errores; un mensaje v1 usa contenido reducido cuando no existe contexto exacto.
 3. Si el destinatario no existe, está inactivo o deshabilitó el tipo, el consumidor descarta el mensaje sin enviar correo.
 4. Si falla la consulta de datos, la construcción del contenido o SMTP, el mensaje incrementa `attempt`.
 5. Un mensaje fallido espera cinco minutos antes de regresar a la cola principal.

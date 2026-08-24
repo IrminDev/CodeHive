@@ -18,6 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.github.codehive.model.entity.User;
 import com.github.codehive.model.enums.NotificationType;
 import com.github.codehive.model.enums.Role;
+import com.github.codehive.model.enums.Scope;
 import com.github.codehive.model.exception.ValidationException;
 import com.github.codehive.model.request.notification.UpdateNotificationPreferenceRequest;
 import com.github.codehive.model.request.notification.UpdateNotificationSettingsRequest;
@@ -61,7 +62,7 @@ class NotificationPreferenceServiceTest {
         assertThat(result.locale()).isEqualTo("en-US");
         assertThat(result.preferences())
                 .extracting(preference -> preference.type())
-                .containsExactlyInAnyOrderElementsOf(NotificationType.forRole(Role.STUDENT));
+                .containsExactlyInAnyOrderElementsOf(NotificationType.forUser(student));
         assertThat(result.preferences())
                 .extracting(preference -> preference.type())
                 .doesNotContain(NotificationType.ASSIGNMENT_VALIDATION_FAILED);
@@ -79,7 +80,23 @@ class NotificationPreferenceServiceTest {
 
         assertThatThrownBy(() -> service.update(student.getEmail(), request))
                 .isInstanceOf(ValidationException.class)
-                .hasMessageContaining("not available for this role");
+                .hasMessageContaining("not available for this account");
+    }
+
+    @Test
+    void scopedStudentReceivesStudentAndOwnerCatalogs() {
+        student.addScope(Scope.CREATE_GROUP);
+        when(userRepository.findByEmail(student.getEmail())).thenReturn(Optional.of(student));
+        when(settingsRepository.findByUserId(USER_ID)).thenReturn(Optional.empty());
+        when(preferenceRepository.findByUserId(USER_ID)).thenReturn(List.of());
+
+        var result = service.getForUser(student.getEmail());
+
+        assertThat(result.preferences()).extracting(preference -> preference.type())
+                .contains(NotificationType.ASSIGNMENT_PUBLISHED, NotificationType.STUDENT_ENROLLED);
+        assertThat(result.preferences()).extracting(preference -> preference.audience())
+                .contains(com.github.codehive.model.enums.NotificationAudience.STUDENT,
+                        com.github.codehive.model.enums.NotificationAudience.OWNER);
     }
 
     @Test

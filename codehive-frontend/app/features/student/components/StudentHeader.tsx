@@ -1,8 +1,9 @@
-import { Bell, ChevronRight, LogOut, Moon, Sun } from "lucide-react";
+import { Bell, ChevronRight, LogOut, Moon, Settings, Sun } from "lucide-react";
 import { Link } from "react-router";
 
 import { useAuth } from "~/core/providers/AuthProvider";
 import { useTheme } from "~/core/providers/ThemeProvider";
+import { Scope } from "~/shared/types/model/User";
 
 export interface StudentBreadcrumb {
   label: string;
@@ -10,7 +11,7 @@ export interface StudentBreadcrumb {
 }
 
 export function StudentHeader({ breadcrumbs }: { breadcrumbs: StudentBreadcrumb[] }) {
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
 
   return (
@@ -29,6 +30,9 @@ export function StudentHeader({ breadcrumbs }: { breadcrumbs: StudentBreadcrumb[
       </nav>
 
       <div className="flex items-center gap-3 ml-auto flex-shrink-0">
+        {user?.scopes?.includes(Scope.CREATE_GROUP) && (
+          <Link to="/teacher" className="text-gray-400 dark:text-gray-500 hover:text-azure dark:hover:text-yellow transition-colors" aria-label="Manage groups" title="Manage groups"><Settings size={18} /></Link>
+        )}
         <Link to="/notifications" className="text-gray-400 dark:text-gray-500 hover:text-azure dark:hover:text-yellow transition-colors" aria-label="Notification settings" title="Notification settings"><Bell size={18} /></Link>
         <button onClick={toggleTheme} className="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors" aria-label="Toggle theme">
           {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}

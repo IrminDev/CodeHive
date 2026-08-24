@@ -1,6 +1,5 @@
-import { ProtectedRoute } from "~/core/components/ProtectedRoute";
+import { ManagerRoute } from "../components/ManagerRoute";
 import { CloneAssignmentPage } from "../pages/CloneAssignmentPage";
-import { Role } from "~/shared/types/model/User";
 
 export function meta() {
   return [
@@ -11,8 +10,8 @@ export function meta() {
 
 export default function TeacherCloneAssignment() {
   return (
-    <ProtectedRoute roles={[Role.TEACHER]}>
+    <ManagerRoute>
       <CloneAssignmentPage />
-    </ProtectedRoute>
+    </ManagerRoute>
   );
 }

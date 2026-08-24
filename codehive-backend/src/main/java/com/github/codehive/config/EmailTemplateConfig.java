@@ -19,7 +19,7 @@ public class EmailTemplateConfig {
         htmlResolver.setTemplateMode(TemplateMode.HTML);
         htmlResolver.setCharacterEncoding("UTF-8");
         htmlResolver.setCheckExistence(true);
-        htmlResolver.setResolvablePatterns(Set.of("email/html/*"));
+        htmlResolver.setResolvablePatterns(Set.of("email/html/**"));
 
         ClassLoaderTemplateResolver textResolver = new ClassLoaderTemplateResolver();
         textResolver.setPrefix("templates/");
@@ -27,7 +27,7 @@ public class EmailTemplateConfig {
         textResolver.setTemplateMode(TemplateMode.TEXT);
         textResolver.setCharacterEncoding("UTF-8");
         textResolver.setCheckExistence(true);
-        textResolver.setResolvablePatterns(Set.of("email/text/*"));
+        textResolver.setResolvablePatterns(Set.of("email/text/**"));
 
         SpringTemplateEngine engine = new SpringTemplateEngine();
         engine.addTemplateResolver(htmlResolver);

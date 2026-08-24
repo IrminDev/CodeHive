@@ -28,6 +28,7 @@ import com.github.codehive.model.response.auth.AuthResponse;
 import com.github.codehive.ratelimit.RateLimit;
 import com.github.codehive.service.AuthService;
 import com.github.codehive.service.CsvRegistrationService;
+import com.github.codehive.websocket.WebSocketTicketService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirements;
@@ -44,10 +45,13 @@ import jakarta.validation.Valid;
 public class AuthController {
     private final AuthService authService;
     private final CsvRegistrationService csvRegistrationService;
+    private final WebSocketTicketService webSocketTicketService;
 
-        public AuthController(AuthService authService, CsvRegistrationService csvRegistrationService) {
+    public AuthController(AuthService authService, CsvRegistrationService csvRegistrationService,
+                          WebSocketTicketService webSocketTicketService) {
         this.authService = authService;
         this.csvRegistrationService = csvRegistrationService;
+        this.webSocketTicketService = webSocketTicketService;
     }
 
     @Operation(summary = "Get current user", description = "Returns the authenticated user's information based on the JWT token")
@@ -76,7 +80,7 @@ public class AuthController {
             @ApiResponse(responseCode = "429", description = "Too many requests",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
-    @RateLimit(limit = 5, duration = 60, message = "Too many login attempts. Please try again in 1 minute.")
+    @RateLimit(key = "auth.login", limit = 5, duration = 60, message = "Too many login attempts. Please try again in 1 minute.")
     @PostMapping("/login")
     public ResponseEntity<SuccessResponse<AuthResponse>> login(@Valid @RequestBody LoginRequest loginRequest) {
         AuthResponse authResponse = authService.login(loginRequest);
@@ -99,7 +103,7 @@ public class AuthController {
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     @PreAuthorize("hasAuthority('ADMIN') and hasAnyAuthority('CREATE_USERS', 'CREATE_ADMINS')")
-    @RateLimit(limit = 3, duration = 300, message = "Too many registration attempts. Please try again in 5 minutes.")
+    @RateLimit(key = "auth.signup", limit = 3, duration = 300, message = "Too many registration attempts. Please try again in 5 minutes.")
     @PostMapping("/signup")
     public ResponseEntity<SuccessResponse<UserDTO>> signup(@Valid @RequestBody SignUpRequest signUpRequest,
                                                             Authentication authentication) {
@@ -119,17 +123,33 @@ public class AuthController {
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     @PreAuthorize("hasAuthority('ADMIN') and hasAuthority('CREATE_USERS')")
+    @RateLimit(key = "auth.signup.csv", limit = 2, duration = 600,
+            message = "Too many bulk registration uploads")
     @PostMapping(value = "/signup/csv", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<SuccessResponse<Map<String, String>>> signupFromCsv(
-            @RequestParam("file") MultipartFile file) throws IOException {
+            @RequestParam("file") MultipartFile file, Authentication authentication) throws IOException {
         if (file.isEmpty()) {
             throw new ValidationException("CSV file is empty");
         }
         byte[] csvData = file.getBytes();
-        String taskId = csvRegistrationService.submitCsvJob(csvData);        
+        String taskId = csvRegistrationService.submitCsvJob(csvData, authentication.getName());
         Map<String, String> taskInfo = Map.of("taskId", taskId);
         SuccessResponse<Map<String, String>> response = new SuccessResponse<>("CSV processing started", taskInfo);
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
+    }
+
+    @PostMapping("/websocket-ticket")
+    @RateLimit(key = "auth.websocket-ticket", limit = 10, duration = 60,
+            message = "Too many WebSocket ticket requests")
+    @Operation(summary = "Issue a one-time WebSocket ticket",
+            description = "Returns a 60-second, single-use ticket for the CSV progress WebSocket handshake.")
+    public ResponseEntity<SuccessResponse<Map<String, Object>>> websocketTicket(
+            Authentication authentication) {
+        UserDTO user = authService.getUserByEmail(authentication.getName());
+        Map<String, Object> ticket = Map.of(
+                "ticket", webSocketTicketService.issue(user.getId()),
+                "expiresInSeconds", WebSocketTicketService.TTL_SECONDS);
+        return ResponseEntity.ok(new SuccessResponse<>("WebSocket ticket issued", ticket));
     }
 
     @Operation(summary = "Update password", description = "Update the authenticated user's password")

@@ -140,7 +140,7 @@ export async function getTeacherAssignments(groupId: string): Promise<TeacherAss
 }
 
 export async function getActiveTeacherGroups(): Promise<TeacherGroup[]> {
-  const groups = await teacherRequest<TeacherGroup[]>("/api/groups");
+  const groups = await teacherRequest<TeacherGroup[]>("/api/groups?relationship=OWNED");
   return groups.filter((group) => group.isActive && !group.archived);
 }
 

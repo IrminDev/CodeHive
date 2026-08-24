@@ -10,6 +10,7 @@ import java.util.UUID;
 import java.util.stream.Stream;
 
 import org.springframework.stereotype.Service;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.PageRequest;
 
@@ -66,6 +67,9 @@ public class TeacherDashboardService {
     public TeacherDashboardDTO get(String email) {
         User teacher = userRepository.findByEmail(email)
                 .orElseThrow(() -> new EntityNotFoundException("Authenticated user not found"));
+        if (!teacher.canManageGroups()) {
+            throw new AccessDeniedException("CREATE_GROUP is required to access group management");
+        }
         List<ClassGroup> groups = groupRepository.findByOwnerIdAndIsActiveTrueOrderByCreatedAtDesc(teacher.getId())
                 .stream().filter(group -> !Boolean.TRUE.equals(group.getArchived())).toList();
         List<Assignment> assignments = groups.stream()
@@ -73,13 +77,15 @@ public class TeacherDashboardService {
                 .toList();
         List<UUID> assignmentIds = assignments.stream().map(Assignment::getId).toList();
         List<StudentAssignmentWork> works = assignmentIds.isEmpty()
-                ? List.of() : workRepository.findByAssignmentIdIn(assignmentIds);
+                ? List.of() : workRepository.findByAssignmentIdIn(assignmentIds).stream()
+                        .filter(work -> work.getStudent().canParticipate()).toList();
         Map<UUID, AssignmentGrade> grades = new HashMap<>();
         if (!works.isEmpty()) gradeRepository.findByStudentWorkIdIn(works.stream().map(StudentAssignmentWork::getId).toList())
                 .forEach(grade -> grades.put(grade.getStudentWork().getId(), grade));
 
         long activeStudents = groups.stream().mapToLong(group -> enrollmentRepository
-                .findByGroupIdAndStatusOrderByJoinedAtAsc(group.getId(), EnrollmentStatus.ACTIVE).size()).sum();
+                .findByGroupIdAndStatusOrderByJoinedAtAsc(group.getId(), EnrollmentStatus.ACTIVE).stream()
+                .filter(enrollment -> enrollment.getStudent().canParticipate()).count()).sum();
         long needsGrading = works.stream().filter(work -> work.getStatus() == StudentWorkStatus.SUBMITTED)
                 .filter(work -> {
                     AssignmentGrade grade = grades.get(work.getId());
@@ -123,6 +129,7 @@ public class TeacherDashboardService {
         List<TeacherDashboardDTO.RecentSubmission> recent = submissionRepository
                 .findLatestSubmittedByAssignmentGroupOwnerId(
                         teacher.getId(), SubmissionStatus.SUBMITTED, PageRequest.of(0, 10)).stream()
+                .filter(submission -> submission.getStudent().canParticipate())
                 .map(this::recentSubmission).toList();
 
         return new TeacherDashboardDTO(

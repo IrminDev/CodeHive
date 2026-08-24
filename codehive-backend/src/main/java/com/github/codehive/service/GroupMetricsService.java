@@ -210,7 +210,8 @@ public class GroupMetricsService {
 
         List<GroupEnrollment> activeEnrollments = enrollmentRepository
                 .findByGroupIdAndStatusOrderByJoinedAtAsc(
-                        assignment.getGroup().getId(), EnrollmentStatus.ACTIVE);
+                        assignment.getGroup().getId(), EnrollmentStatus.ACTIVE).stream()
+                .filter(enrollment -> enrollment.getStudent().canParticipate()).toList();
         Set<UUID> activeStudentIds = activeEnrollments.stream()
                 .map(enrollment -> enrollment.getStudent().getId()).collect(Collectors.toSet());
 
@@ -373,7 +374,8 @@ public class GroupMetricsService {
      */
     private GroupSnapshot loadGroupSnapshot(ClassGroup group) {
         List<GroupEnrollment> activeEnrollments = enrollmentRepository
-                .findByGroupIdAndStatusOrderByJoinedAtAsc(group.getId(), EnrollmentStatus.ACTIVE);
+                .findByGroupIdAndStatusOrderByJoinedAtAsc(group.getId(), EnrollmentStatus.ACTIVE).stream()
+                .filter(enrollment -> enrollment.getStudent().canParticipate()).toList();
         Set<UUID> activeStudentIds = activeEnrollments.stream()
                 .map(enrollment -> enrollment.getStudent().getId()).collect(Collectors.toSet());
 
@@ -415,7 +417,7 @@ public class GroupMetricsService {
         User user = requireUser(email);
         ClassGroup group = groupRepository.findById(groupId)
                 .orElseThrow(() -> new EntityNotFoundException("Group not found: " + groupId));
-        if (!group.getOwner().getId().equals(user.getId())) {
+        if (!user.canManageGroups() || !group.getOwner().getId().equals(user.getId())) {
             throw new AccessDeniedException("Only the group owner can view its metrics");
         }
         return group;
@@ -426,7 +428,7 @@ public class GroupMetricsService {
         Assignment assignment = assignmentRepository.findById(assignmentId)
                 .filter(found -> Boolean.TRUE.equals(found.getIsActive()))
                 .orElseThrow(() -> new EntityNotFoundException("Assignment not found: " + assignmentId));
-        if (!assignment.getGroup().getOwner().getId().equals(user.getId())) {
+        if (!user.canManageGroups() || !assignment.getGroup().getOwner().getId().equals(user.getId())) {
             throw new AccessDeniedException("Only the group owner can view assignment metrics");
         }
         return assignment;

@@ -39,6 +39,7 @@ import com.github.codehive.service.AssignmentUpdateService;
 import com.github.codehive.service.TeacherAssignmentStatusService;
 import com.github.codehive.model.enums.AssignmentValidationStatus;
 import com.github.codehive.model.enums.AssignmentUpdateStatus;
+import com.github.codehive.ratelimit.RateLimit;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -67,6 +68,8 @@ public class AssignmentController {
     }
 
     @PatchMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @RateLimit(key = "assignments.update", limit = 10, duration = 60,
+            message = "Too many assignment updates")
     @Operation(summary = "Update assignment metadata, reference solution, or test suite")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Metadata updated immediately"),
@@ -156,6 +159,8 @@ public class AssignmentController {
         )
     })
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @RateLimit(key = "assignments.create", limit = 5, duration = 60,
+            message = "Too many assignment creation requests")
     public ResponseEntity<SuccessResponse<AssignmentDTO>> createAssignment(
             @Valid @RequestPart("metadata") CreateAssignmentRequest metadata,
             @RequestPart("referenceSolution") MultipartFile referenceSolution,
@@ -187,6 +192,8 @@ public class AssignmentController {
             @ApiResponse(responseCode = "404", description = "Assignment not found", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     @GetMapping("/{id}/clone-form")
+    @RateLimit(key = "assignments.clone-form", limit = 20, duration = 60,
+            message = "Too many assignment artifact requests")
     public ResponseEntity<SuccessResponse<CloneAssignmentFormDTO>> getCloneForm(
             @PathVariable UUID id, Authentication authentication) {
         return ResponseEntity.ok(new SuccessResponse<>("Assignment clone form retrieved.",
@@ -210,6 +217,8 @@ public class AssignmentController {
             @ApiResponse(responseCode = "404", description = "Assignment or group not found", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     @PostMapping("/{id}/clone")
+    @RateLimit(key = "assignments.clone", limit = 5, duration = 60,
+            message = "Too many assignment clone requests")
     public ResponseEntity<SuccessResponse<AssignmentDTO>> cloneAssignment(
             @PathVariable UUID id, @Valid @RequestBody CloneAssignmentRequest request,
             Authentication authentication) {

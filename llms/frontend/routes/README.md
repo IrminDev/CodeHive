@@ -13,6 +13,10 @@ Current route map:
 - /forgot-password -> app/routes/forgot-password.tsx
 - /reset-password -> app/routes/reset-password.tsx
 - /admin -> app/routes/admin.tsx
+- /admin/users -> features/admin/routes/admin.users.tsx
+- /admin/users/:userId -> features/admin/routes/admin.users.$userId.tsx
+- /admin/incidents -> features/admin/routes/admin.incidents.tsx
+- /admin/audit -> features/admin/routes/admin.audit.tsx
 - /admin/create-user -> app/routes/admin.create-user.tsx
 - /admin/csv-upload -> app/routes/admin.csv-upload.tsx
 - /teacher -> features/teacher/routes/teacher.dashboard.tsx
@@ -26,7 +30,7 @@ Current route map:
 - /teacher/groups/:groupId -> features/teacher/routes/teacher.groups.$groupId.tsx
 - /teacher/grades -> features/teacher/routes/teacher.grades.tsx
 - /teacher/analytics -> features/teacher/routes/teacher.analytics.tsx
-- /teacher/notifications -> features/teacher/routes/teacher.notifications.tsx
+- /teacher/notifications -> compatibility redirect to /notifications
 - /groups -> features/student/routes/student.groups.tsx
 - /groups/join -> features/student/routes/student.join-group.tsx
 - /groups/:groupId -> features/student/routes/student.group.tsx
@@ -67,8 +71,9 @@ Routes map to page modules under app/pages:
 
 ## Guarding Strategy
 Role-sensitive routes rely on ProtectedRoute.
-- Admin, teacher, and student areas use role-specific guards.
+- Admin and student areas use role-specific guards. Management uses `ManagerRoute` (`STUDENT|TEACHER` plus `CREATE_GROUP`).
 - Role checks occur client-side using /api/auth/me.
+- Admin routes also use scope checks; `SUPER_ADMIN` satisfies every requested scope.
 
 ## Extension Guidance
 - Add new path entries in app/routes.ts first.

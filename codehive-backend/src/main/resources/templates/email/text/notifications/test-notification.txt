@@ -1,0 +1,7 @@
+CodeHive — TEST EMAIL
+
+Email notifications are working
+
+Hi [(${name})], CodeHive can deliver notifications to this address.
+
+[(${ctaLabel})]: [(${ctaUrl})]

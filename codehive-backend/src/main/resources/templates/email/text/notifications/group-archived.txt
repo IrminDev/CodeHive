@@ -1,0 +1,18 @@
+CodeHive — GROUP ARCHIVED
+
+Group archived
+
+[(${summary})]
+
+[# th:if="${!facts.isEmpty()}"]Details
+[# th:each="fact : ${facts}"]- [(${fact.label})]: [(${fact.value})]
+[/]
+[/]
+[# th:if="${callout != null}"]
+[(${callout.title})]
+[(${callout.body})]
+[/]
+
+[(${ctaLabel})]: [(${ctaUrl})]
+
+Manage notification preferences: [(${preferencesUrl})]

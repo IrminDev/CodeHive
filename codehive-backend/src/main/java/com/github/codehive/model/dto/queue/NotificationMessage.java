@@ -13,12 +13,13 @@ public record NotificationMessage(
         UUID groupId,
         UUID assignmentId,
         UUID submissionId,
+        UUID resourceId,
         Instant occurredAt,
         int attempt,
         int schemaVersion
 ) {
     public NotificationMessage nextAttempt() {
         return new NotificationMessage(notificationId, type, recipientId, actorId, groupId,
-                assignmentId, submissionId, occurredAt, attempt + 1, schemaVersion);
+                assignmentId, submissionId, resourceId, occurredAt, attempt + 1, schemaVersion);
     }
 }

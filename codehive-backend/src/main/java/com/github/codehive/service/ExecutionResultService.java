@@ -82,7 +82,8 @@ public class ExecutionResultService {
                         execution.getSubmission().getStudent().getId(),
                         execution.getSubmission().getAssignment().getGroup().getId(),
                         execution.getSubmission().getAssignment().getId(),
-                        execution.getSubmission().getId()));
+                        execution.getSubmission().getId(),
+                        execution.getId()));
             }
         }
 

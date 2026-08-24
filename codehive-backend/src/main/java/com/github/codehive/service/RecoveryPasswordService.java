@@ -47,7 +47,7 @@ public class RecoveryPasswordService {
         }
 
         // If user exists and is active, send the email
-        if (user != null && user.getIsActive()) {
+        if (user != null && user.canParticipate()) {
             // Invalidate all previous unused tokens for this user
             passwordResetTokenRepository.findByUserAndUsedFalse(user).forEach(oldToken -> {
                 oldToken.setUsed(true);
@@ -88,6 +88,10 @@ public class RecoveryPasswordService {
 
         // Update user password
         User user = passwordResetToken.getUser();
+        if (!user.canParticipate()) {
+            throw new com.github.codehive.model.exception.recovery.InvalidRecoveryTokenException(
+                    "Invalid password reset token");
+        }
         user.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);
 

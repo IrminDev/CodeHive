@@ -255,6 +255,8 @@ class GroupMetricsControllerIntegrationTest {
 
     @Test
     void studentOwnerSeesMetricsOfTheirOwnGroup() throws Exception {
+        ada.addScope(com.github.codehive.model.enums.Scope.CREATE_GROUP);
+        userRepository.save(ada);
         ClassGroup ownedByStudent = groupRepository.save(
                 new ClassGroup("Peer Study", "", ada, "PEERMET1"));
 

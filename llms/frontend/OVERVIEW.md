@@ -38,6 +38,9 @@ Build and serve:
 Type safety:
 - npm run typecheck
 
+Tests:
+- npm test
+
 ## Project Folder Structure
 Runtime module structure (codehive-frontend/app):
 - root.tsx: Root app shell and provider wiring.

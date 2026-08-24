@@ -42,7 +42,7 @@ public class RecoveryPasswordController {
             @ApiResponse(responseCode = "429", description = "Too many requests",
                     content = @Content(schema = @Schema(implementation = com.github.codehive.model.response.ErrorResponse.class)))
     })
-    @RateLimit(limit = 3, duration = 300, message = "Too many password reset requests. Please try again in 5 minutes.")
+    @RateLimit(key = "password.forgot", limit = 3, duration = 300, message = "Too many password reset requests. Please try again in 5 minutes.")
     @PostMapping("/forgot")
     public ResponseEntity<SuccessResponse<MessageResponse>> forgotPassword(
             @Valid @RequestBody ForgotPasswordRequest request) {
@@ -73,7 +73,7 @@ public class RecoveryPasswordController {
                     content = @Content(schema = @Schema(implementation = com.github.codehive.model.response.ErrorResponse.class)))
     })
     
-    @RateLimit(limit = 5, duration = 300, message = "Too many password reset attempts. Please try again in 5 minutes.")
+    @RateLimit(key = "password.reset", limit = 5, duration = 300, message = "Too many password reset attempts. Please try again in 5 minutes.")
     @PostMapping("/reset")
     public ResponseEntity<SuccessResponse<MessageResponse>> resetPassword(
             @Valid @RequestBody RecoveryPasswordRequest request) {

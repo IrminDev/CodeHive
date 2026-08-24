@@ -9,6 +9,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import com.github.codehive.model.exception.EntityNotFoundException;
 import com.github.codehive.model.exception.ArtifactExpiredException;
 import com.github.codehive.model.exception.ValidationException;
+import com.github.codehive.model.exception.RoleTransitionConflictException;
 import com.github.codehive.model.exception.auth.AlreadyRegisteredEmailException;
 import com.github.codehive.model.exception.auth.AlreadyRegisteredEnrollmentNumberException;
 import com.github.codehive.model.exception.auth.ExpiredJWTException;
@@ -51,6 +53,12 @@ public class GlobalExceptionHandler {
             ErrorResponse errorResponse = new ErrorResponse(ex.getMessage(), "Validation error");
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
         }
+    }
+
+    @ExceptionHandler(RoleTransitionConflictException.class)
+    public ResponseEntity<ErrorResponse> handleRoleTransitionConflict(RoleTransitionConflictException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ErrorResponse(ex.getMessage(), ex.getBlockers()));
     }
 
     @ExceptionHandler(IncorrectCredentialsException.class)
@@ -127,7 +135,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(com.github.codehive.ratelimit.RateLimitExceededException.class)
     public ResponseEntity<ErrorResponse> handleRateLimitExceeded(com.github.codehive.ratelimit.RateLimitExceededException ex) {
         ErrorResponse errorResponse = new ErrorResponse(ex.getMessage(), "Rate limit exceeded");
-        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(errorResponse);
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header("Retry-After", Long.toString(ex.getRetryAfterSeconds()))
+                .header("X-RateLimit-Limit", Integer.toString(ex.getLimit()))
+                .header("X-RateLimit-Policy", ex.getPolicy())
+                .body(errorResponse);
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
@@ -148,6 +160,12 @@ public class GlobalExceptionHandler {
         }
         ErrorResponse errorResponse = new ErrorResponse("Unsupported Media Type", message);
         return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE).body(errorResponse);
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleMethodNotSupported(HttpRequestMethodNotSupportedException ex) {
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED)
+                .body(new ErrorResponse("Request method is not supported", ex.getMessage()));
     }
 
     @ExceptionHandler(AccessDeniedException.class)

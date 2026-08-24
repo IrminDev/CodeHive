@@ -9,7 +9,7 @@ export async function joinGroup(code: string): Promise<ClassGroup> {
 }
 
 export async function listMyGroups(): Promise<ClassGroup[]> {
-  return studentRequest<ClassGroup[]>("/api/groups");
+  return studentRequest<ClassGroup[]>("/api/groups?relationship=ENROLLED");
 }
 
 export async function getGroup(groupId: string): Promise<ClassGroup> {

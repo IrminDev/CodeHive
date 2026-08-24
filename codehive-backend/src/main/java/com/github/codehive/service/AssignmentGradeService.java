@@ -68,6 +68,7 @@ public class AssignmentGradeService {
         }
         StudentAssignmentWork work = workRepository.findByAssignmentIdAndStudentId(assignmentId, studentId)
                 .orElseGet(() -> createMissingWorkForZeroGrade(assignment, studentId, value));
+        requireVisibleStudent(work);
         AssignmentGrade grade = gradeRepository.findByStudentWorkId(work.getId())
                 .orElseGet(AssignmentGrade::new);
         boolean created = grade.getId() == null;
@@ -89,6 +90,7 @@ public class AssignmentGradeService {
         User teacher = requireUser(email);
         requireOwnedAssignment(assignmentId, teacher);
         StudentAssignmentWork work = requireWork(assignmentId, studentId);
+        requireVisibleStudent(work);
         AssignmentGrade grade = gradeRepository.findByStudentWorkId(work.getId())
                 .orElseThrow(() -> new EntityNotFoundException("No draft grade exists"));
         grade.setStatus(GradeStatus.RETURNED);
@@ -97,7 +99,8 @@ public class AssignmentGradeService {
         record(grade, GradeChangeReason.RETURNED, teacher);
         notificationPublisher.publish(NotificationDomainEvent.of(
                 NotificationType.GRADE_RETURNED, teacher.getId(), work.getStudent().getId(),
-                work.getAssignment().getGroup().getId(), work.getAssignment().getId(), null));
+                work.getAssignment().getGroup().getId(), work.getAssignment().getId(), null,
+                grade.getId()));
         return toDTO(grade);
     }
 
@@ -106,7 +109,8 @@ public class AssignmentGradeService {
         User teacher = requireUser(email);
         requireOwnedAssignment(assignmentId, teacher);
         List<AssignmentGrade> drafts = gradeRepository
-                .findByStudentWorkAssignmentIdAndStatus(assignmentId, GradeStatus.DRAFT);
+                .findByStudentWorkAssignmentIdAndStatus(assignmentId, GradeStatus.DRAFT).stream()
+                .filter(grade -> grade.getStudentWork().getStudent().canParticipate()).toList();
         Instant returnedAt = Instant.now();
         drafts.forEach(grade -> {
             grade.setStatus(GradeStatus.RETURNED);
@@ -116,7 +120,7 @@ public class AssignmentGradeService {
             StudentAssignmentWork work = grade.getStudentWork();
             notificationPublisher.publish(NotificationDomainEvent.of(
                     NotificationType.GRADE_RETURNED, teacher.getId(), work.getStudent().getId(),
-                    work.getAssignment().getGroup().getId(), assignmentId, null));
+                    work.getAssignment().getGroup().getId(), assignmentId, null, grade.getId()));
         });
         return new BulkGradeReturnDTO(assignmentId, drafts.size());
     }
@@ -165,7 +169,7 @@ public class AssignmentGradeService {
     private Assignment requireOwnedAssignment(UUID id, User teacher) {
         Assignment assignment = assignmentRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Assignment not found: " + id));
-        if (!assignment.getGroup().getOwner().getId().equals(teacher.getId())) {
+        if (!teacher.canManageGroups() || !assignment.getGroup().getOwner().getId().equals(teacher.getId())) {
             throw new AccessDeniedException("Only the assignment owner can grade it");
         }
         return assignment;
@@ -182,8 +186,15 @@ public class AssignmentGradeService {
             throw new ValidationException("Students without a submission can only receive a zero grade");
         }
         User student = userRepository.findById(studentId)
+                .filter(User::canParticipate)
                 .orElseThrow(() -> new EntityNotFoundException("Student not found: " + studentId));
         return workService.getOrCreate(assignment, student);
+    }
+
+    private void requireVisibleStudent(StudentAssignmentWork work) {
+        if (!work.getStudent().canParticipate()) {
+            throw new EntityNotFoundException("Student assignment work not found");
+        }
     }
 
     private User requireUser(String email) {

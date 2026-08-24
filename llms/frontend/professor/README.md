@@ -13,9 +13,9 @@
 - `/teacher/groups/:groupId` — roster, lifecycle, assignments, join code, and metrics.
 - `/teacher/grades` — student work, submission evidence, execution reports, grade history, draft/returned grades, and feedback.
 - `/teacher/analytics` — group overview, assignment details, and student metrics.
-- `/teacher/notifications` — authenticated email notification preferences.
+- `/teacher/notifications` — compatibility redirect to canonical `/notifications`.
 
-All routes use `ProtectedRoute` with `Role.TEACHER`.
+Management routes use `ManagerRoute`: role `STUDENT` or `TEACHER` plus scope `CREATE_GROUP`. Existing `/teacher/**` URLs remain stable; visible UI calls workspace “Management”. Group queries use `relationship=OWNED`.
 
 ## Application Shell
 
@@ -30,7 +30,8 @@ confirmation, field, and panel patterns live in `components/TeacherUI.tsx`.
 - Assignment list filters by group, lifecycle, validation status, and title. Deleted records can be
   restored; each assignment exposes preview, edit, revalidate, clone, grade, and management status.
 - Management status combines latest validation failure, update history, and latest reevaluation batch.
-- Grade review drawer exposes every attempt, retained source, execution evidence, and grade audit history.
+- Grade review drawer exposes every attempt, retained source, grade audit history, and a dedicated
+  report tab with aggregate verdict, resource use, compiler/runtime diagnostics, and per-test results.
 - Teacher dashboard aggregates owned active groups, students, assignments, grading queue, validation
   problems, upcoming lifecycle dates, and recent submissions server-side.
 
