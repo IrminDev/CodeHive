@@ -24,8 +24,8 @@ importers:
         specifier: ^1.1.13
         version: 1.1.13(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       '@react-router/node':
-        specifier: ^7.13.1
-        version: 7.15.0(react-router@7.15.0(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(typescript@5.9.3)
+        specifier: ^8.3.0
+        version: 8.3.0(react-router@7.15.0(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(typescript@5.9.3)
       '@react-router/serve':
         specifier: ^7.13.1
         version: 7.15.0(react-router@7.15.0(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(typescript@5.9.3)
@@ -799,6 +799,16 @@ packages:
       typescript:
         optional: true
 
+  '@react-router/node@8.3.0':
+    resolution: {integrity: sha512-qw5ibcolE1OcwngiEw6t7LR11Hi6yWEDvj6cfvaYROX+w18JPxc0YSmsdn3Wlc9TOX+Qo8FVcxbXRdc9vojn2w==}
+    engines: {node: '>=22.22.0'}
+    peerDependencies:
+      react-router: 8.3.0
+      typescript: ^5.1.0 || ^6.0.0 || ^7.0.0
+    peerDependenciesMeta:
+      typescript:
+        optional: true
+
   '@react-router/serve@7.15.0':
     resolution: {integrity: sha512-0XtYmwc11vWdYn2zeEXx9E3u0I6TH3bm4uDaMdsyI09S6hl6uc98vBkTSXg7Znm3qR82R/jjtn3LvV2QEZ193w==}
     engines: {node: '>=20.0.0'}
@@ -808,6 +818,9 @@ packages:
 
   '@remix-run/node-fetch-server@0.13.1':
     resolution: {integrity: sha512-dOL+A/C84EA47gO/ps52KGrVSiYy96512rwtbXmJfWKYFm1FbrbjA3jao1hcIfao+jwVNEaZ1kTMwFjiino+HQ==}
+
+  '@remix-run/node-fetch-server@0.13.3':
+    resolution: {integrity: sha512-UfjOXed/DQteaM5VyTfqTeGpHwyL2J5aoRGY6cydip4tt1ehNNeSwuXCC7AEGE0RWBs/7bgKxYkL/B/+UDe4AA==}
 
   '@rollup/rollup-android-arm-eabi@4.60.3':
     resolution: {integrity: sha512-x35CNW/ANXG3hE/EZpRU8MXX1JDN86hBb2wMGAtltkz7pc6cxgjpy1OMMfDosOQ+2hWqIkag/fGok1Yady9nGw==}
@@ -1788,6 +1801,7 @@ packages:
   tsconfck@3.1.6:
     resolution: {integrity: sha512-ks6Vjr/jEw0P1gmOVwutM3B7fWxoWBL2KRDb1JfqGVawBmO5UsvmWOQFGHBPl5yxYz4eERr19E6L7NMv+Fej4w==}
     engines: {node: ^18 || >=20}
+    deprecated: unmaintained
     hasBin: true
     peerDependencies:
       typescript: ^5.0.0
@@ -2596,6 +2610,13 @@ snapshots:
     optionalDependencies:
       typescript: 5.9.3
 
+  '@react-router/node@8.3.0(react-router@7.15.0(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(typescript@5.9.3)':
+    dependencies:
+      '@remix-run/node-fetch-server': 0.13.3
+      react-router: 7.15.0(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+    optionalDependencies:
+      typescript: 5.9.3
+
   '@react-router/serve@7.15.0(react-router@7.15.0(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(typescript@5.9.3)':
     dependencies:
       '@mjackson/node-fetch-server': 0.2.0
@@ -2612,6 +2633,8 @@ snapshots:
       - typescript
 
   '@remix-run/node-fetch-server@0.13.1': {}
+
+  '@remix-run/node-fetch-server@0.13.3': {}
 
   '@rollup/rollup-android-arm-eabi@4.60.3':
     optional: true
