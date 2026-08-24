@@ -45,7 +45,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: worker-test-results
           path: codehive-worker/build/reports/tests/test/
@@ -82,7 +82,7 @@ jobs:
 
       - name: Upload build artifact
         if: github.event_name == 'push'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: codehive-worker-jar
           path: codehive-worker/build/libs/*.jar
