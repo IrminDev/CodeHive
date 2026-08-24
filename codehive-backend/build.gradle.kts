@@ -56,7 +56,7 @@ dependencies {
 	testRuntimeOnly("com.h2database:h2")
 
 	// Minio
-	implementation("io.minio:minio:8.6.0")
+	implementation("io.minio:minio:9.0.3")
 
 	// RabbitMQ
 	implementation("org.springframework.boot:spring-boot-starter-amqp")
