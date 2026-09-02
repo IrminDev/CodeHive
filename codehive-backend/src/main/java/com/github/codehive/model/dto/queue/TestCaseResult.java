@@ -13,6 +13,8 @@ public class TestCaseResult {
     private String feedback;
     private String stderr;
     private Integer exitCode;
+    // Present only for PRACTICE test cases. Definitive results keep private
+    // expected output and student stdout out of the report payload.
     private String expectedOutput;
     private String actualOutput;
 

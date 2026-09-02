@@ -15,8 +15,10 @@ public class TestCaseResult {
     private String feedback;
     private String stderr;
     private Integer exitCode;
-    private String expectedOutput; // only set for PRACTICE WA
-    private String actualOutput;   // only set for PRACTICE WA
+    // Set only for PRACTICE test cases after reference execution succeeds.
+    // Definitive results never expose private expected output or student stdout.
+    private String expectedOutput;
+    private String actualOutput;
 
     public TestCaseResult() {
     }

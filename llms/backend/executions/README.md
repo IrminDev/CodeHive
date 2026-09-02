@@ -71,7 +71,9 @@ The API returns 202 Accepted immediately — output generation is asynchronous.
    - Returns 404 with a clear message when execution is still PENDING.
    - Deserializes into `ExecutionReport` using Jackson ObjectMapper.
    - Per-test results may include bounded `stderr` and `exitCode` diagnostics for
-     CE, RTE, and MLE. Private expected output and hidden input rules remain unchanged.
+     CE, RTE, and MLE. PRACTICE results also include bounded expected output and
+     captured stdout after successful reference execution; DEFINITIVE results keep
+     private expected output and hidden input rules unchanged.
 
 ## Key Data Contracts
 Assignment creation request:

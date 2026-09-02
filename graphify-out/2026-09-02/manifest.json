@@ -3453,25 +3453,5 @@
     "mtime": 1788327272.1014204,
     "ast_hash": "dde90ed4e6aafad8e6c111c5a39d6628",
     "semantic_hash": ""
-  },
-  "codehive-testing-files/assignments/first-missing-positive/reference.cpp": {
-    "mtime": 1788382998.5534065,
-    "ast_hash": "1ee30b9dc2e5773f4f6c775d1f10e855",
-    "semantic_hash": ""
-  },
-  "codehive-testing-files/assignments/first-missing-positive/verdicts/wa/main.cpp": {
-    "mtime": 1788382999.6343853,
-    "ast_hash": "1bbd5ab3a9b95fdb74c5f50def2d01c2",
-    "semantic_hash": ""
-  },
-  "codehive-testing-files/assignments/first-missing-positive/README.md": {
-    "mtime": 1788382998.3784099,
-    "ast_hash": "e9763b68e1b07bb54b628d6dfe532593",
-    "semantic_hash": ""
-  },
-  "codehive-testing-files/assignments/first-missing-positive/verdicts/README.md": {
-    "mtime": 1788382999.4053898,
-    "ast_hash": "765ad1b7c1a8b7a131ef80a4fa603571",
-    "semantic_hash": ""
   }
 }

@@ -10,7 +10,7 @@ public class CExecutor extends AbstractLanguageExecutor {
     // Bookworm matches the Debian 12 execution image, preserving glibc compatibility.
     private static final String COMPILE_IMAGE = "gcc:13-bookworm";
     private static final String EXEC_IMAGE = "irmindev/c-exec:latest";
-    private static final long PIDS_LIMIT = 32L;
+    private static final long PIDS_LIMIT = 8L;
 
     public CExecutor(DockerClient dockerClient) {
         super(dockerClient);

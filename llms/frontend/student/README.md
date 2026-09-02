@@ -52,9 +52,10 @@ shows every available example with input, output, and explanation. The practice 
 starts with sample inputs ordered by their test-case order; when no samples exist, it starts
 with one blank editable case.
 
-The workspace exposes expected and actual output only for a practice run that fails. Definitive
-submissions retain aggregate verdicts and per-case statuses without mapping private tests onto
-visible inputs or exposing their expected output.
+The workspace exposes expected output and captured student stdout for every practice test case
+whose reference execution succeeds, including non-AC verdicts. Definitive submissions retain
+aggregate verdicts and per-case statuses without mapping private tests onto visible inputs or
+exposing their expected output or stdout.
 
 The workspace header links to `/assignment/{id}/submissions` for complete definitive submission
 history; this avoids a duplicate partial history panel beside problem content.

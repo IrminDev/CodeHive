@@ -38,6 +38,9 @@ PRACTICE:
 - Uses inline `testCases` list from ExecutionJob.
 - Runs reference solution on each input to produce expected output.
 - Runs submission and compares.
+- After reference execution succeeds, retains bounded expected output and captured
+  student stdout for every case in `ExecutionReport`, including non-AC verdicts.
+  These fields are never populated for DEFINITIVE results.
 
 ## Test Generation Flow (TestGenerationService)
 Triggered by TestGenerationJob after a teacher creates an assignment.

@@ -34,7 +34,7 @@ public final class SandboxConstants {
     public static final long COMPILE_MEMORY_BYTES = 512 * 1024 * 1024L;  // 512 MB
 
     // --- Run container resource caps ---
-    public static final long CPU_QUOTA = 100000L;                        // 1 CPU core
+    public static final long CPU_QUOTA = 50000L;                        // 1 CPU core
 
     // --- TmpFs mount options (used as Map values for withTmpFs) ---
     public static final String RUN_TMPFS_TMP = "size=33554432,noexec,nosuid,mode=1777";   // 32 MB
