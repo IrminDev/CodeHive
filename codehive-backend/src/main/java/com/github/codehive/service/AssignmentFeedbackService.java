@@ -51,7 +51,6 @@ public class AssignmentFeedbackService {
         User teacher = requireUser(email);
         Assignment assignment = requireOwnedAssignment(assignmentId, teacher);
         User student = userRepository.findById(studentId)
-                .filter(User::canParticipate)
                 .orElseThrow(() -> new EntityNotFoundException("Student not found: " + studentId));
         StudentAssignmentWork work = workService.getOrCreate(assignment, student);
         AssignmentFeedback feedback = new AssignmentFeedback();
@@ -61,7 +60,7 @@ public class AssignmentFeedbackService {
         feedback = feedbackRepository.save(feedback);
         notificationPublisher.publish(NotificationDomainEvent.of(
                 NotificationType.FEEDBACK_RECEIVED, teacher.getId(), student.getId(),
-                assignment.getGroup().getId(), assignment.getId(), null, feedback.getId()));
+                assignment.getGroup().getId(), assignment.getId(), null));
         return toDTO(feedback);
     }
 
@@ -82,16 +81,12 @@ public class AssignmentFeedbackService {
         User caller = requireUser(email);
         Assignment assignment = assignmentRepository.findById(assignmentId)
                 .orElseThrow(() -> new EntityNotFoundException("Assignment not found: " + assignmentId));
-        boolean owner = caller.canManageGroups()
-                && assignment.getGroup().getOwner().getId().equals(caller.getId());
+        boolean owner = assignment.getGroup().getOwner().getId().equals(caller.getId());
         if (!owner && !caller.getId().equals(studentId)) {
             throw new AccessDeniedException("Students can only view their own feedback");
         }
         StudentAssignmentWork work = workRepository.findByAssignmentIdAndStudentId(assignmentId, studentId)
                 .orElseThrow(() -> new EntityNotFoundException("Student assignment work not found"));
-        if (!work.getStudent().canParticipate()) {
-            throw new EntityNotFoundException("Student assignment work not found");
-        }
         return feedbackRepository.findByStudentWorkIdOrderByCreatedAtAsc(work.getId())
                 .stream().map(this::toDTO).toList();
     }
@@ -105,7 +100,7 @@ public class AssignmentFeedbackService {
     private Assignment requireOwnedAssignment(UUID id, User teacher) {
         Assignment assignment = assignmentRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Assignment not found: " + id));
-        if (!teacher.canManageGroups() || !assignment.getGroup().getOwner().getId().equals(teacher.getId())) {
+        if (!assignment.getGroup().getOwner().getId().equals(teacher.getId())) {
             throw new AccessDeniedException("Only the assignment owner can manage feedback");
         }
         return assignment;

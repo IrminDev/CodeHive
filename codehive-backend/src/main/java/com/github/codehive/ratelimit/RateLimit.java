@@ -14,9 +14,6 @@ import java.lang.annotation.Target;
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface RateLimit {
-    /** Stable policy identifier used for independent buckets and incident reports. */
-    String key() default "";
-
     /**
      * Maximum number of requests allowed within the duration
      */

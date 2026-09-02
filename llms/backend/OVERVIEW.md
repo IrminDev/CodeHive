@@ -66,7 +66,6 @@ Runtime module structure (codehive-backend/src/main/java/com/github/codehive):
 - messaging: Queue listeners/producers for execution and test generation.
 - ratelimit: Request throttling via @RateLimit annotation and aspect.
 - websocket: CSV progress streaming.
-- admin: backend admin lifecycle, resource inspection, monitoring, audit, and rate-limit incident contracts.
 - utils: ObjectKeyBuilder, FileExtensionUtil, JwtUtil, PasswordGenerator.
 
 Testing structure:

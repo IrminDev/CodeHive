@@ -49,10 +49,6 @@ class TeacherAssignmentStatusServiceTest {
                 reevaluationRepository, revisionRepository, userRepository);
 
         User owner = user(OWNER_ID, "owner@example.com");
-        owner.setRole(com.github.codehive.model.enums.Role.TEACHER);
-        owner.setIsActive(true);
-        owner.setBlocked(false);
-        owner.addScope(com.github.codehive.model.enums.Scope.CREATE_GROUP);
         ClassGroup group = new ClassGroup();
         group.setOwner(owner);
         assignment = new Assignment();

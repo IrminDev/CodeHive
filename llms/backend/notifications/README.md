@@ -51,10 +51,7 @@ This is an in-process producer/consumer design: the producer and consumer are Sp
 | Retry queue | `codehive_notification_email_retry_queue` | Holds messages for five minutes, then dead-letters them back to the main exchange |
 | Dead-letter queue | `codehive_notification_email_dlq` | Messages that exhausted retries or have an unsupported schema |
 
-New `NotificationMessage` records use schema version `2` and carry an optional
-`resourceId` for the exact enrollment, assignment update, test-suite revision,
-execution, feedback, or grade that triggered the email. Consumers accept versions `1` and `2`; version
-`1` messages render reduced content when exact context is unavailable.
+`NotificationMessage.schemaVersion` is currently `1`. Changes to this DTO are queue contract changes even though the producer and consumer currently deploy together.
 
 ## Preference Model
 
@@ -88,7 +85,7 @@ Teacher notifications:
 
 For `ASSIGNMENT_VALIDATION_FAILED`, the teacher email includes the failed revision's
 stored worker diagnostic (compiler stderr or generation error). Rendering is bounded
-to 2,000 characters and 20 lines, strips control characters, and indicates when the
+to 12,000 characters and 80 lines, strips control characters, and indicates when the
 displayed output was truncated. Full bounded output remains in the failed revision.
 
 Student notifications:
@@ -137,11 +134,7 @@ Changing a reminder lead time creates a distinct dispatch key. This allows one r
 - Email is checked again when the consumer receives a message, so a user can disable a notification after it was queued and before it is sent.
 - Domain events are routed only after the transaction commits.
 - Archived or logically deleted groups are excluded from scheduled publication and reminders.
-- Dates use the recipient's configured timezone without displaying the redundant
-  IANA timezone identifier in each email.
-- Every `NotificationType` has dedicated HTML and plain-text templates. Shared
-  layout fragments provide branding while each type keeps event-specific copy,
-  facts, callouts, and deep links.
+- Deadline dates in emails use the recipient's timezone.
 - Email content and date wording are English (`en-US`).
 - Both HTML and plain-text MIME alternatives are sent.
 - SMTP credentials continue to come from the existing `spring.mail.*` configuration.

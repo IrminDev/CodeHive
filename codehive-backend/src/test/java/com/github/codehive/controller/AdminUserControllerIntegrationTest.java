@@ -1,12 +1,12 @@
 package com.github.codehive.controller;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.util.Map;
-import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -20,15 +20,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.github.codehive.model.entity.User;
-import com.github.codehive.model.entity.ClassGroup;
-import com.github.codehive.model.entity.GroupEnrollment;
 import com.github.codehive.model.enums.Role;
 import com.github.codehive.model.enums.Scope;
-import com.github.codehive.model.enums.EnrollmentStatus;
-import com.github.codehive.model.enums.GroupDeletionReason;
 import com.github.codehive.repository.UserRepository;
-import com.github.codehive.repository.ClassGroupRepository;
-import com.github.codehive.repository.GroupEnrollmentRepository;
 import com.github.codehive.utils.JwtUtil;
 
 @SpringBootTest
@@ -38,8 +32,6 @@ import com.github.codehive.utils.JwtUtil;
 class AdminUserControllerIntegrationTest {
     @Autowired private MockMvc mockMvc;
     @Autowired private UserRepository userRepository;
-    @Autowired private ClassGroupRepository groupRepository;
-    @Autowired private GroupEnrollmentRepository enrollmentRepository;
     @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private JwtUtil jwtUtil;
 
@@ -54,44 +46,25 @@ class AdminUserControllerIntegrationTest {
         admin.addScope(Scope.VIEW_USERS);
         admin.addScope(Scope.MANAGE_USER_STATUS);
         admin.addScope(Scope.MANAGE_SCOPES);
-        admin.addScope(Scope.UPDATE_USERS);
-        admin.addScope(Scope.CHECK_ANALYTICS);
-        admin.addScope(Scope.VIEW_AUDIT_LOG);
+        admin.addScope(Scope.CREATE_GROUP);
         admin = userRepository.save(admin);
 
-        student = new User("Test", "Student", "2026630002", "managed-student@example.com",
-                passwordEncoder.encode("Pass123!"), Role.STUDENT);
-        student = userRepository.save(student);
+        student = userRepository.save(new User("Test", "Student", "2026630002", "managed-student@example.com",
+                passwordEncoder.encode("Pass123!"), Role.STUDENT));
         adminToken = jwtUtil.generateToken(Map.of("role", "ADMIN"), admin.getEmail());
     }
 
     @Test
-    void scopedAdminListsAndDeletesNonAdminUser() throws Exception {
+    void scopedAdminListsAndDeactivatesNonAdminUser() throws Exception {
         mockMvc.perform(get("/api/admin/users").header("Authorization", "Bearer " + adminToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.content").isArray());
 
-        mockMvc.perform(patch("/api/admin/users/{id}/status", student.getId())
-                        .header("Authorization", "Bearer " + adminToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"status\":\"DELETED\",\"reason\":\"Confirmed account removal request\"}"))
+        mockMvc.perform(delete("/api/admin/users/{id}", student.getId())
+                        .header("Authorization", "Bearer " + adminToken))
                 .andExpect(status().isOk());
 
         assertThatUserIsInactive();
-    }
-
-    @Test
-    void listsEnrolledGroupsUsingGroupCreationDateSort() throws Exception {
-        ClassGroup group = groupRepository.save(new ClassGroup(
-                "Enrolled group", "Admin resource inspection", admin, "DEFGHJKM"));
-        enrollmentRepository.save(new GroupEnrollment(group, student));
-
-        mockMvc.perform(get("/api/admin/users/{id}/groups", student.getId())
-                        .param("relationship", "ENROLLED")
-                        .header("Authorization", "Bearer " + adminToken))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.content[0].id").value(group.getId().toString()))
-                .andExpect(jsonPath("$.data.content[0].relationship").value("ENROLLED"));
     }
 
     @Test
@@ -99,35 +72,29 @@ class AdminUserControllerIntegrationTest {
         mockMvc.perform(patch("/api/admin/users/{id}/scopes", student.getId())
                         .header("Authorization", "Bearer " + adminToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"grant\":[\"CREATE_GROUP\"],\"revoke\":[],"
-                                + "\"reason\":\"Teacher needs group creation\"}"))
+                        .content("{\"grant\":[\"CREATE_GROUP\"],\"revoke\":[]}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.user.scopes[0]").value("CREATE_GROUP"));
+                .andExpect(jsonPath("$.data.scopes[0]").value("CREATE_GROUP"));
 
         mockMvc.perform(patch("/api/admin/users/{id}/scopes", student.getId())
                         .header("Authorization", "Bearer " + adminToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"grant\":[\"CREATE_ADMINS\"],\"revoke\":[],"
-                                + "\"reason\":\"Attempt unsupported delegation\"}"))
+                        .content("{\"grant\":[\"CREATE_ADMINS\"],\"revoke\":[]}"))
                 .andExpect(status().isForbidden());
     }
 
     @Test
     void administratorCannotManageSelf() throws Exception {
-        mockMvc.perform(patch("/api/admin/users/{id}/status", admin.getId())
-                        .header("Authorization", "Bearer " + adminToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"status\":\"DELETED\",\"reason\":\"Attempt own account deletion\"}"))
+        mockMvc.perform(delete("/api/admin/users/{id}", admin.getId())
+                        .header("Authorization", "Bearer " + adminToken))
                 .andExpect(status().isForbidden());
     }
 
     @Test
-    void deletionInvalidatesAnExistingJwt() throws Exception {
+    void deactivationInvalidatesAnExistingJwt() throws Exception {
         String studentToken = jwtUtil.generateToken(Map.of("role", "STUDENT"), student.getEmail());
-        mockMvc.perform(patch("/api/admin/users/{id}/status", student.getId())
-                        .header("Authorization", "Bearer " + adminToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"status\":\"DELETED\",\"reason\":\"Confirmed account removal request\"}"))
+        mockMvc.perform(delete("/api/admin/users/{id}", student.getId())
+                        .header("Authorization", "Bearer " + adminToken))
                 .andExpect(status().isOk());
 
         mockMvc.perform(get("/api/auth/me").header("Authorization", "Bearer " + studentToken))

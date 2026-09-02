@@ -2,7 +2,6 @@ package com.github.codehive.websocket;
 
 import java.io.IOException;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -32,6 +31,7 @@ public class CsvProgressWebSocketHandler extends TextWebSocketHandler {
 
     private final Map<String, WebSocketSession> taskSessions = new ConcurrentHashMap<>();
     private final Map<String, UUID> taskOwners = new ConcurrentHashMap<>();
+    private final Map<String, Runnable> pendingTasks = new ConcurrentHashMap<>();
     private final ObjectMapper objectMapper;
     private final ScheduledExecutorService cleanupScheduler = Executors.newSingleThreadScheduledExecutor();
 
@@ -60,6 +60,15 @@ public class CsvProgressWebSocketHandler extends TextWebSocketHandler {
         }
         session.getAttributes().put(TASK_ID_ATTRIBUTE, taskId);
         taskSessions.put(taskId, session);
+        Runnable task = pendingTasks.remove(taskId);
+        if (task != null) {
+            task.run();
+        }
+    }
+
+    public void queueTask(String taskId, Runnable task) {
+        pendingTasks.put(taskId, task);
+
     }
 
     /**

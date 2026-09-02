@@ -51,7 +51,7 @@ public class NotificationDomainEventRouter {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void route(NotificationDomainEvent event) {
         switch (event.type()) {
-            case STUDENT_ENROLLED, STUDENT_LEFT, STUDENT_ENROLLMENT_CANCELLED -> routeGroupOwner(event);
+            case STUDENT_ENROLLED, STUDENT_LEFT -> routeGroupOwner(event);
             case ASSIGNMENT_READY, ASSIGNMENT_VALIDATION_FAILED, ASSIGNMENT_GRADES_CLEARED ->
                     routeAssignmentOwner(event);
             case ASSIGNMENT_SUBMITTED, LATE_ASSIGNMENT_SUBMITTED -> routeSubmissionToOwner(event);
@@ -116,7 +116,7 @@ public class NotificationDomainEventRouter {
         UUID messageId = NotificationDispatchService.deterministicId(event.eventId(), recipient.getId());
         NotificationMessage message = new NotificationMessage(
                 messageId, event.type(), recipient.getId(), event.actorId(), event.groupId(),
-                event.assignmentId(), event.submissionId(), event.resourceId(), event.occurredAt(), 0, 2);
+                event.assignmentId(), event.submissionId(), event.occurredAt(), 0, 1);
         if (deduplicate) {
             String key = event.type() + ":" + event.assignmentId() + ":" + recipient.getId();
             dispatchService.sendOnceIfEnabled(key, recipient, message);

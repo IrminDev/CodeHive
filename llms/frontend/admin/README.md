@@ -1,64 +1,66 @@
-# Frontend Admin Workspace
+# Frontend Admin Implementation
 
-## Shell and routes
+## Scope
+This document explains the admin-facing frontend implementation currently available in codehive-frontend.
 
-All admin pages use `app/features/admin/components/AdminShell.tsx`, matching the compact authenticated shell in `DESIGN.md` and teacher pages. Sidebar items are permission-aware and ordered Overview, Users, Incidents, Audit.
+## Route Entry Points
+Admin routes are declared in app/routes.ts:
+- /admin
+- /admin/create-user
+- /admin/csv-upload
 
-Routes:
+Route modules:
+- app/routes/admin.tsx
+- app/routes/admin.create-user.tsx
+- app/routes/admin.csv-upload.tsx
 
-- `/admin` — overview; statistics load only with `CHECK_ANALYTICS`.
-- `/admin/users` — list with `VIEW_USERS`, or registration action center with `CREATE_USERS`/`CREATE_ADMINS`.
-- `/admin/users/:userId` — user detail and read-only associated resources; requires `VIEW_USERS`.
-- `/admin/create-user` — requires `CREATE_USERS` or `CREATE_ADMINS`; role choices match held scope.
-- `/admin/csv-upload` — requires `CREATE_USERS`.
-- `/admin/incidents` — requires `VIEW_USERS`.
-- `/admin/audit` — requires `VIEW_AUDIT_LOG`.
+Each admin route wraps pages with:
+- ThemeProvider
+- ProtectedRoute roles={[Role.ADMIN]}
 
-`SUPER_ADMIN` is treated as every effective scope in `AuthProvider`, `ProtectedRoute`, admin navigation, and mutation helpers, matching backend authorities.
+This guarantees role-gated rendering for admin pages.
 
-## Data and operations
+## Admin Pages
+Page implementations:
+- app/pages/admin/AdminDashboardPage.tsx
+- app/pages/admin/CreateUserPage.tsx
+- app/pages/admin/CsvUploadPage.tsx
 
-`app/features/admin/api/admin.api.ts` contains typed methods for every `/api/admin/**` contract plus WebSocket ticket issuance. `AdminApiError` preserves backend blocker arrays and rate-limit response headers.
+### AdminDashboardPage
+- Entry navigation to create-user and csv-upload features.
+- Theme toggle and quick placeholders for summary metrics.
 
-User list state is URL-backed: search, role, active/blocked status, sort, direction, page, and size. Deleted users are not offered because backend intentionally hides soft-deleted identities.
+### CreateUserPage
+- Form to create one user account.
+- Calls AuthService.signUp.
+- Handles loading, success, and error states.
 
-User detail provides:
+Input model aligns with backend signup contract:
+- role
+- name
+- fatherLastName
+- motherLastName
+- enrollmentNumber
+- email
 
-- Resource counts and lifetime rate-limit totals.
-- Lazy tabs for group, assignment, submission, and execution metadata.
-- Owned/enrolled and authored/participated relationship switches.
-- Focused profile, role, scope, block, unblock, and delete dialogs.
-- Mandatory 10–500 character audit reasons.
-- Typed email/enrollment confirmation for deletion.
-- Explicit warnings/acknowledgements for enrollment cancellation and terminal group deletion.
-- Typed email/enrollment confirmation before revoking `CREATE_GROUP` from student with owned groups.
-- Teacher `CREATE_GROUP` is mandatory; admins cannot receive it.
+### CsvUploadPage
+- Uploads CSV through AuthService.uploadCsv.
+- Uses backend taskId and WebSocket subscription to stream progress.
+- Shows processed/success/failure counts and row-level errors.
+- Handles WebSocket lifecycle with cleanup on unmount.
 
-Group resources remain read-only. `MANAGE_GROUPS` is never delegable. Source code, execution reports, expected output, and private tests are never requested from admin pages.
+## Dependencies and Contracts
+Service dependency:
+- app/services/AuthService.ts
 
-## Lifecycle UX
+Type dependency:
+- app/types (Role, SignUpRequest, CsvProgressMessage, response wrappers)
 
-- Blocking warns that active owned groups are archived.
-- Unblocking warns that groups remain archived.
-- Deleting warns that the account and active owned groups are soft-deleted and cannot be restored.
-- Successful deletion returns to visible user list.
-- Student-to-nonstudent changes cancel active enrollments; rejoin is never automatic.
-- Promotion to admin and student scope revocation terminally soft-delete owned groups while preserving admin read-only history and deletion reason.
+## Security and Access Pattern
+- Admin route protection is enforced in frontend by ProtectedRoute.
+- Backend still remains source of truth for authorization.
 
-## Monitoring
-
-Overview uses Recharts for role, assignment validation, and execution-verdict distributions. Metric cards and textual chart values remain accessible without color. Date ranges support 7/30/90-day presets and custom inclusive-through dates serialized to backend's exclusive `to` instant.
-
-Incident and audit filters are URL-backed. Audit rows preserve backend redaction for deleted users and never link null identities. HTTP 429 errors show retry and policy metadata when returned.
-
-## CSV progress security
-
-CSV flow uploads file, requests `POST /api/auth/websocket-ticket`, connects to `/ws/csv-progress?ticket=...`, then sends task ID. Sockets close on completion, error, replacement, or unmount. Ticket expiry, malformed messages, and premature closes surface explicit errors.
-
-## Verification
-
-- `npm test`
-- `npm run typecheck`
-- `npm run build`
-
-Vitest uses jsdom and React Testing Library. Current focused tests cover admin API envelope/errors and permission rules.
+## Extension Guidance
+- Keep admin flows under app/pages/admin and app/routes/admin.*.
+- Reuse AuthService and typed contracts instead of duplicating fetch logic.
+- For new admin features, include role-gated route wrappers by default.

@@ -26,13 +26,12 @@ Propietario (User autorizado con CREATE_GROUP)
 3. Un grupo contiene un código de unión aleatorio de ocho caracteres, en mayúsculas y con caracteres no ambiguos. El código debe ser único sin distinguir mayúsculas de minúsculas.
 4. Solo un usuario con rol `STUDENT` puede unirse mediante código. Un profesor no puede inscribirse en un grupo, ni siquiera en uno propio.
 5. Las inscripciones no se eliminan físicamente. La combinación `(grupo, estudiante)` es única y conserva el historial.
-6. Una inscripción puede estar en los estados `ACTIVE`, `LEFT`, `REMOVED` o `CANCELLED`. `CANCELLED` registra cancelación administrativa por cambio de rol o eliminación de cuenta.
+6. Una inscripción puede estar en los estados `ACTIVE`, `LEFT` o `REMOVED`.
 7. Cuando un estudiante que salió o fue removido vuelve a unirse, se reactiva su misma inscripción y se actualiza su fecha de unión.
-8. El propietario con rol `STUDENT` o `TEACHER` y scope `CREATE_GROUP`, y los estudiantes con inscripción `ACTIVE`, pueden consultar estudiantes activos. Solo ese propietario habilitado puede administrar grupo y roster.
+8. El propietario y los estudiantes con una inscripción `ACTIVE` pueden consultar la lista de estudiantes activos del grupo. Solo el propietario, independientemente de su rol, puede actualizar el grupo, remover estudiantes, archivar, desarchivar, eliminar lógicamente, restaurar o rotar el código de unión. Consultar la lista no concede acceso a tareas, entregas, retroalimentación ni calificaciones de otros estudiantes. La lista expone de cada estudiante únicamente su identificador, nombre completo y boleta; nunca correo, scopes ni banderas de cuenta.
 9. El código de unión se devuelve al propietario y nunca a usuarios que acceden únicamente mediante inscripción.
 10. Un estudiante propietario no puede inscribirse en su propio grupo.
-11. Un propietario habilitado puede crear, actualizar, clonar y eliminar tareas; revisar entregas; calificar; publicar retroalimentación; consultar métricas y dashboard. Autorización exige `CREATE_GROUP`, rol `STUDENT` o `TEACHER`, y propiedad. Autoconsultas siguen reservadas a `STUDENT`.
-12. `GET /api/groups` acepta `relationship=ACCESSIBLE|OWNED|ENROLLED`. Gestión usa `OWNED`; espacio estudiantil usa `ENROLLED`.
+11. El propietario de un grupo, independientemente de su rol, tiene sobre las tareas de ese grupo las mismas capacidades que un docente: crear, actualizar, clonar, eliminar tareas, calificar y dar retroalimentación. La autorización de `GroupController`, `GroupMetricsController`, `AssignmentController` y `AssignmentStudentWorkController` es uniforme y se basa exclusivamente en `group.owner.id == caller.id`, sin comprobaciones de rol adicionales. Las vistas de autoconsulta (`my-work`, `my-grade`) siguen reservadas al rol `STUDENT`, ya que un propietario no genera entregas propias.
 
 ### Ciclo de vida de grupos
 
@@ -44,10 +43,6 @@ Propietario (User autorizado con CREATE_GROUP)
 6. La eliminación lógica notifica a los estudiantes con inscripción activa (evento `GROUP_ARCHIVED`), igual que archivar el grupo explícitamente.
 7. Restaurar solo es válido sobre un grupo eliminado lógicamente (`isActive = false`). Intentar restaurar un grupo activo se rechaza.
 8. Un código de unión que pertenece a un grupo eliminado lógicamente se trata como si no existiera: el sistema no distingue "código inexistente" de "código de un grupo eliminado" para no revelar el historial del grupo a quien no es su propietario.
-9. `deletionReason=null` o `OWNER_REQUEST` permite restauración. `SCOPE_REVOKED`, `ROLE_CHANGED_TO_ADMIN` y `ACCOUNT_DELETED` son terminales: preservan historial/admin, se ocultan al propietario y no se restauran.
-10. Revocar `CREATE_GROUP` a estudiante terminalmente elimina todos sus grupos. Reasignar scope no los restaura.
-11. `CREATE_GROUP` es obligatorio para profesores, no revocable. Administradores no pueden recibirlo.
-12. Cambio `STUDENT` a rol no estudiante cancela inscripciones activas. Regresar a `STUDENT` requiere unión explícita por código.
 
 ### Tareas y ejemplos
 

@@ -24,13 +24,11 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.beans.factory.annotation.Autowired;
 
 import com.github.codehive.model.dto.UserDTO;
 import com.github.codehive.model.entity.User;
 import com.github.codehive.model.enums.Role;
 import com.github.codehive.model.enums.Scope;
-import com.github.codehive.model.enums.AdminAuditAction;
 import com.github.codehive.model.exception.auth.AlreadyRegisteredEmailException;
 import com.github.codehive.model.exception.auth.AlreadyRegisteredEnrollmentNumberException;
 import com.github.codehive.model.exception.auth.IncorrectCredentialsException;
@@ -50,7 +48,6 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final MailSenderService mailSenderService;
-    private AdminAuditService adminAuditService;
 
     // Regex pattern for email validation
     private static final Pattern EMAIL_PATTERN = Pattern.compile(
@@ -66,11 +63,6 @@ public class AuthService {
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
         this.mailSenderService = mailSenderService;
-    }
-
-    @Autowired
-    void setAdminAuditService(AdminAuditService adminAuditService) {
-        this.adminAuditService = adminAuditService;
     }
 
     /**
@@ -98,7 +90,7 @@ public class AuthService {
         String encodedPassword = user != null ? user.getPassword() : DUMMY_HASH;
         boolean passwordMatches = passwordEncoder.matches(loginRequest.getPassword(), encodedPassword);
 
-        if (user == null || !user.canParticipate() || !passwordMatches) {
+        if (user == null || !user.canParticipate() || !passwordMatches || !user.getIsActive()) {
             throw new IncorrectCredentialsException("Invalid credentials");
         }
 
@@ -144,20 +136,13 @@ public class AuthService {
     public UserDTO registerAuthorized(SignUpRequest request, String requesterEmail) {
         User requester = userRepository.findByEmail(requesterEmail)
                 .orElseThrow(() -> new IncorrectCredentialsException("User not found"));
-        if (!requester.canParticipate()) throw new AccessDeniedException("Account is unavailable");
         Scope required = request.getRole() == Role.ADMIN ? Scope.CREATE_ADMINS : Scope.CREATE_USERS;
         boolean authorized = requester.getAuthorities().stream()
                 .anyMatch(authority -> authority.getAuthority().equals(required.name()));
         if (requester.getRole() != Role.ADMIN || !authorized) {
             throw new AccessDeniedException("Missing scope: " + required.name());
         }
-        UserDTO registered = register(request);
-        if (adminAuditService != null) {
-            User target = userRepository.findById(registered.getId()).orElse(null);
-            adminAuditService.success(requester, target, AdminAuditAction.USER_CREATED,
-                    "Account created by administrator", "role=" + request.getRole());
-        }
-        return registered;
+        return register(request);
     }
 
     @Transactional

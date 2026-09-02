@@ -11,7 +11,6 @@ public enum Scope {
     UPDATE_ADMINS,
     MANAGE_ADMIN_STATUS,
     MANAGE_SCOPES,
-    VIEW_AUDIT_LOG,
     SUPER_ADMIN,
     MANAGE_GROUPS
 }

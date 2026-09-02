@@ -26,7 +26,6 @@ import com.github.codehive.model.entity.User;
 import com.github.codehive.model.enums.FeedbackStatus;
 import com.github.codehive.model.enums.NotificationType;
 import com.github.codehive.model.enums.Role;
-import com.github.codehive.model.enums.Scope;
 import com.github.codehive.notification.NotificationDomainEventPublisher;
 import com.github.codehive.notification.event.NotificationDomainEvent;
 import com.github.codehive.repository.AssignmentFeedbackRepository;
@@ -129,7 +128,6 @@ class AssignmentFeedbackServiceTest {
         StudentAssignmentWork persistedWork = mock(StudentAssignmentWork.class);
         UUID workId = UUID.fromString("00000000-0000-0000-0000-000000000007");
         when(persistedWork.getId()).thenReturn(workId);
-        when(persistedWork.getStudent()).thenReturn(student);
         when(workRepository.findByAssignmentIdAndStudentId(ASSIGNMENT_ID, STUDENT_ID))
                 .thenReturn(Optional.of(persistedWork));
         AssignmentFeedback published = feedback(work, teacher, "Visible", FeedbackStatus.PUBLISHED);
@@ -150,7 +148,6 @@ class AssignmentFeedbackServiceTest {
         StudentAssignmentWork persistedWork = mock(StudentAssignmentWork.class);
         UUID workId = UUID.fromString("00000000-0000-0000-0000-000000000008");
         when(persistedWork.getId()).thenReturn(workId);
-        when(persistedWork.getStudent()).thenReturn(student);
         when(workRepository.findByAssignmentIdAndStudentId(ASSIGNMENT_ID, STUDENT_ID))
                 .thenReturn(Optional.of(persistedWork));
         AssignmentFeedback published = feedback(work, teacher, "Visible", FeedbackStatus.PUBLISHED);
@@ -178,7 +175,6 @@ class AssignmentFeedbackServiceTest {
     private User user(UUID id, String email, Role role) {
         User user = new User("Test", "User", id.toString(), email, "password", role);
         user.setId(id);
-        if (role == Role.TEACHER) user.addScope(Scope.CREATE_GROUP);
         return user;
     }
 }

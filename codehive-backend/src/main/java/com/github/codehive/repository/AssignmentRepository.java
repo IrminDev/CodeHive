@@ -94,26 +94,4 @@ public interface AssignmentRepository extends JpaRepository<Assignment, UUID> {
     List<Assignment> findByGroupIdAndIsActiveTrueOrderByCreatedAtDesc(UUID groupId);
 
     List<Assignment> findByIsActiveFalseAndDeletedAtIsNull();
-    Page<Assignment> findByAuthorId(UUID authorId, Pageable pageable);
-    long countByAuthorId(UUID authorId);
-    long countByAuthorIdAndIsActiveTrue(UUID authorId);
-    long countByAuthorIdAndValidationStatus(UUID authorId, AssignmentValidationStatus status);
-    long countByIsActiveTrueAndAuthorIsActiveTrue();
-    long countByIsActiveTrueAndValidationStatusAndAuthorIsActiveTrue(AssignmentValidationStatus status);
-    long countByCreatedAtBetweenAndAuthorIsActiveTrue(
-            java.time.LocalDateTime from, java.time.LocalDateTime to);
-
-    @Query("""
-            select count(a) from Assignment a
-            where a.isActive = true and a.author.isActive = true and a.author.blocked = false
-              and a.group.isActive = true and a.group.archived = false
-            """)
-    long countOperationallyActive();
-
-    @Query("""
-            select count(a) from Assignment a
-            where a.isActive = true and a.validationStatus = :status
-              and a.author.isActive = true and a.author.blocked = false
-            """)
-    long countVisibleByValidationStatus(@Param("status") AssignmentValidationStatus status);
 }

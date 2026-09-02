@@ -22,7 +22,6 @@ import com.github.codehive.model.entity.ClassGroup;
 import com.github.codehive.model.entity.User;
 import com.github.codehive.model.enums.AssignmentValidationStatus;
 import com.github.codehive.model.enums.Role;
-import com.github.codehive.model.enums.Scope;
 import com.github.codehive.model.exception.EntityNotFoundException;
 import com.github.codehive.model.exception.ValidationException;
 import com.github.codehive.model.request.assignment.CreateAssignmentRequest;
@@ -216,7 +215,6 @@ class AssignmentServiceTest {
     private User user(UUID id, String email, Role role) {
         User user = new User("Test", "User", id.toString(), email, "password", role);
         user.setId(id);
-        if (role == Role.TEACHER) user.addScope(Scope.CREATE_GROUP);
         return user;
     }
 }

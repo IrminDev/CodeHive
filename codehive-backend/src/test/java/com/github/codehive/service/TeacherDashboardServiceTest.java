@@ -52,10 +52,6 @@ class TeacherDashboardServiceTest {
                 workRepository, gradeRepository, submissionRepository, executionRepository);
 
         User teacher = user(TEACHER_ID, "teacher@example.com", "Teacher", "One");
-        teacher.setRole(com.github.codehive.model.enums.Role.TEACHER);
-        teacher.setIsActive(true);
-        teacher.setBlocked(false);
-        teacher.addScope(com.github.codehive.model.enums.Scope.CREATE_GROUP);
         User student = user(STUDENT_ID, "student@example.com", "Student", "One");
         ClassGroup group = new ClassGroup();
         group.setId(GROUP_ID);

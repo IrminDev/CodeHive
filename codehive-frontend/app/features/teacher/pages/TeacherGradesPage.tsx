@@ -11,6 +11,7 @@ import {
   Users,
 } from "lucide-react";
 import { sileo } from "sileo";
+import { getExecutionReport } from "~/features/student/api/execution.api";
 import type { ExecutionReport } from "~/features/student/types/execution.types";
 import { listTeacherGroups } from "../api/group.api";
 import {
@@ -22,7 +23,6 @@ import {
   deleteFeedback,
   getStudentWorkReview,
   getSubmissionEvidence,
-  getSubmissionReport,
   listFeedback,
   returnAllDraftGrades,
   returnGrade,
@@ -56,7 +56,7 @@ import type {
 } from "../types/student-work.types";
 
 type StudentFilter = "all" | "to-grade" | "draft" | "returned" | "missing";
-type ReviewTab = "code" | "report" | "history";
+type ReviewTab = "code" | "tests" | "history";
 
 export function TeacherGradesPage() {
   const [params, setParams] = useSearchParams();
@@ -76,7 +76,6 @@ export function TeacherGradesPage() {
     null,
   );
   const [report, setReport] = useState<ExecutionReport | null>(null);
-  const [reportError, setReportError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<AssignmentFeedback[]>([]);
   const [feedbackBody, setFeedbackBody] = useState("");
   const [gradeValue, setGradeValue] = useState("");
@@ -184,23 +183,14 @@ export function TeacherGradesPage() {
   }, [loadDetail]);
   const inspect = useCallback(async (id: string) => {
     setReviewLoading(true);
-    setEvidence(null);
-    setReport(null);
-    setReportError(null);
     try {
       const item = await getSubmissionEvidence(id);
       setEvidence(item);
-      if (item.reportAvailable && item.execution?.id) {
-        try {
-          setReport(await getSubmissionReport(item.execution.id));
-        } catch (cause) {
-          setReportError(
-            cause instanceof Error
-              ? cause.message
-              : "Could not load submission report.",
-          );
-        }
-      }
+      setReport(
+        item.reportAvailable && item.execution?.id
+          ? await getExecutionReport(item.execution.id)
+          : null,
+      );
     } catch (cause) {
       sileo.error({
         title:
@@ -214,7 +204,6 @@ export function TeacherGradesPage() {
     setReview(null);
     setEvidence(null);
     setReport(null);
-    setReportError(null);
     setFeedback([]);
     setTab("code");
     setGradeValue(student?.grade == null ? "" : String(student.grade.value));
@@ -482,7 +471,6 @@ export function TeacherGradesPage() {
                 review={review}
                 evidence={evidence}
                 report={report}
-                reportError={reportError}
                 feedback={feedback}
                 feedbackBody={feedbackBody}
                 gradeValue={gradeValue}

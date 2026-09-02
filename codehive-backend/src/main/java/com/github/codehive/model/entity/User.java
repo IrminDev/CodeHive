@@ -1,7 +1,6 @@
 package com.github.codehive.model.entity;
 
 import java.time.LocalDateTime;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashSet;
@@ -27,15 +26,12 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
 @Entity
-@Table(name = "users", indexes = {
-        @Index(name = "idx_users_admin_status_role", columnList = "is_active,blocked,role")
-})
+@Table(name = "users")
 public class User implements UserDetails {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -97,8 +93,6 @@ public class User implements UserDetails {
         this.scopes = new ArrayList<>();
         this.isActive = true;
         this.temporaryPassword = false;
-        this.blocked = false;
-        this.rateLimitViolationCount = 0L;
     }
 
     public User(String name, String lastName, String enrollmentNumber, String email, String password, Role role) {
@@ -111,8 +105,6 @@ public class User implements UserDetails {
         this.createdAt = LocalDateTime.now();
         this.isActive = true;
         this.temporaryPassword = false;
-        this.blocked = false;
-        this.rateLimitViolationCount = 0L;
         this.scopes = new ArrayList<>();
     }
 
@@ -245,12 +237,6 @@ public class User implements UserDetails {
         return scopes != null && scopes.contains(scope);
     }
 
-    public boolean canManageGroups() {
-        return canParticipate()
-                && (role == Role.STUDENT || role == Role.TEACHER)
-                && hasScope(Scope.CREATE_GROUP);
-    }
-
     @PrePersist
     void applyDefaultScopes() {
         if (role == Role.TEACHER) {
@@ -286,7 +272,7 @@ public class User implements UserDetails {
 
     @Override
     public boolean isAccountNonLocked() {
-        return !Boolean.TRUE.equals(blocked);
+        return isActive;
     }
 
     @Override
@@ -296,6 +282,6 @@ public class User implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return Boolean.TRUE.equals(isActive);
+        return isActive;
     }
 }
