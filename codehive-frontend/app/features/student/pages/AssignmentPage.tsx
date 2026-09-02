@@ -793,7 +793,7 @@ function TestCasesContent({
   const tc = testCases[selectedCase] ?? "";
   const result = showPracticeDiagnostics ? report?.testCaseResults?.[selectedCase] : undefined;
   const hasResult = !!result;
-  const hasOutputDiagnostic = result?.expectedOutput !== undefined || result?.actualOutput !== undefined;
+  const hasPracticeOutputs = result?.expectedOutput !== undefined || result?.actualOutput !== undefined;
 
   return (
     <div className="h-full flex flex-col">
@@ -822,11 +822,11 @@ function TestCasesContent({
             <pre className="text-xs font-mono text-gray-700 dark:text-gray-300 p-3 whitespace-pre-wrap">{tc || "—"}</pre>
           </Column>
 
-          {hasOutputDiagnostic ? (
+          {hasPracticeOutputs ? (
             <>
               <Column label="EXPECTED" headerRight={<span className="text-[10px] text-gray-400 dark:text-gray-600">reference solution</span>}>
                 <pre className="text-xs font-mono text-gray-700 dark:text-gray-300 p-3 whitespace-pre-wrap">
-                  {result.expectedOutput ?? "—"}
+                  {result.expectedOutput ?? "Expected output unavailable"}
                 </pre>
               </Column>
               <Column
@@ -834,7 +834,7 @@ function TestCasesContent({
                 headerRight={<span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${VERDICT_STYLES[result.status] ?? ""}`}>{result.status}</span>}
               >
                 <div className="p-3 space-y-2">
-                  <pre className="text-xs font-mono text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{result.actualOutput ?? "—"}</pre>
+                  <pre className="text-xs font-mono text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{result.actualOutput ?? "No output captured"}</pre>
                   {result.executionTimeMs !== undefined && <p className="text-[10px] text-gray-400 dark:text-gray-600 font-mono">{result.executionTimeMs}ms · {formatMemory(result.memoryUsedMb)}</p>}
                   <ExecutionDiagnostic result={result} />
                 </div>

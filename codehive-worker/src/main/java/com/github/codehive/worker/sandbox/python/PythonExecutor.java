@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 @Component("PYTHON")
 public class PythonExecutor extends AbstractLanguageExecutor {
     private static final String EXEC_IMAGE = "irmindev/python-exec:latest";
-    private static final long PIDS_LIMIT = 64L;
+    private static final long PIDS_LIMIT = 16L;
 
     public PythonExecutor(DockerClient dockerClient) {
         super(dockerClient);

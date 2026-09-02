@@ -406,7 +406,7 @@ public abstract class AbstractLanguageExecutor implements LanguageExecutor {
                     memoryMeasurement.testPeakMemoryMb());
         }
 
-        enrichExecutionResult(result, memoryMeasurement, stderr, exitCode, executionTime);
+        enrichExecutionResult(result, memoryMeasurement, stdout, stderr, exitCode, executionTime);
         cleanupBetweenRuns(session);
         return result;
     }
@@ -452,7 +452,10 @@ public abstract class AbstractLanguageExecutor implements LanguageExecutor {
 
     private void enrichExecutionResult(ExecutionResult result,
                                        ContainerMemoryTracker.MemoryMeasurement memory,
-                                       String stderr, Long exitCode, long executionTime) {
+                                       String stdout, String stderr, Long exitCode, long executionTime) {
+        // Preserve stdout from failed runs for PRACTICE result diagnostics. Do not
+        // replace the explicit OLE truncation marker created above.
+        if (result.getOutput() == null) result.setOutput(stdout);
         if (result.getMemoryUsedMb() == null) result.setMemoryUsedMb(memory.testPeakMemoryMb());
         result.setSessionPeakMemoryMb(memory.sessionPeakMemoryMb());
         if (result.getExecutionTimeMs() == null) result.setExecutionTimeMs(executionTime);

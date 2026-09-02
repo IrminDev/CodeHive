@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component;
 public class JavaExecutor extends AbstractLanguageExecutor {
     private static final String COMPILE_IMAGE = "eclipse-temurin:21-jdk-ubi10-minimal";
     private static final String EXEC_IMAGE = "irmindev/java-exec:latest";
-    private static final long PIDS_LIMIT = 64L;
+    private static final long PIDS_LIMIT = 16L;
 
     public JavaExecutor(DockerClient dockerClient) {
         super(dockerClient);

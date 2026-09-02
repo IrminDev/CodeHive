@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component;
 public class CPPExecutor extends AbstractLanguageExecutor {
     private static final String COMPILE_IMAGE = "gcc:12";
     private static final String EXEC_IMAGE = "irmindev/cpp-exec:latest";
-    private static final long PIDS_LIMIT = 32L;
+    private static final long PIDS_LIMIT = 8L;
 
     public CPPExecutor(DockerClient dockerClient) {
         super(dockerClient);

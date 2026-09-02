@@ -211,6 +211,10 @@ public class TestExecutionService {
                         result.getMemoryUsedMb()
                     );
                     copyDiagnostics(result, testResult);
+                    // Practice inputs belong to the requesting student, so retain
+                    // bounded expected and captured stdout for every completed case.
+                    testResult.setExpectedOutput(expectedOutput);
+                    testResult.setActualOutput(result.getOutput());
 
                     if (result.getStatus() == ExecutionStatus.AC) {
                         OutputComparatorService.ComparisonResult comparison =
@@ -222,8 +226,6 @@ public class TestExecutionService {
                         if (!comparison.matches()) {
                             testResult.setStatus(ExecutionStatus.WA);
                             testResult.setFeedback(comparison.getFeedback());
-                            testResult.setExpectedOutput(expectedOutput);
-                            testResult.setActualOutput(result.getOutput());
                         } else {
                             testResult.setFeedback("Passed");
                         }

@@ -66,11 +66,78 @@ class TestExecutionServiceTest {
         assertThat(report.getOverallStatus()).isEqualTo(ExecutionStatus.AC);
         assertThat(report.getTestCaseResults()).singleElement()
                 .extracting(result -> result.getTestCaseId()).isEqualTo(TEST_CASE_ID);
+        assertThat(report.getTestCaseResults()).singleElement().satisfies(result -> {
+            assertThat(result.getExpectedOutput()).isNull();
+            assertThat(result.getActualOutput()).isNull();
+        });
         assertThat(report.getMaxMemoryUsedMb()).isEqualTo(36L);
         verify(storage).download("opaque/input");
         verify(storage).download("opaque/expected");
         verify(storage).upload("opaque/stdout", "2\n");
         verify(storage).upload(org.mockito.ArgumentMatchers.eq("opaque/report"), any(String.class));
+    }
+
+    @Test
+    void practiceExecutionRetainsExpectedAndCapturedOutputForEveryCase() throws Exception {
+        LanguageExecutorFactory factory = mock(LanguageExecutorFactory.class);
+        ObjectStorageService storage = mock(ObjectStorageService.class);
+        OutputComparatorService comparator = new OutputComparatorService();
+        LanguageExecutor studentExecutor = mock(LanguageExecutor.class);
+        LanguageExecutor referenceExecutor = mock(LanguageExecutor.class);
+        ContainerSession studentSession = new ContainerSession("student", null, 1000, 128);
+        ContainerSession referenceSession = new ContainerSession("reference", null, 1000, 128);
+
+        when(factory.getExecutor(Language.JAVA)).thenReturn(studentExecutor);
+        when(factory.getExecutor(Language.PYTHON)).thenReturn(referenceExecutor);
+        when(storage.download("student-source")).thenReturn(stream("class Main {}"));
+        when(storage.download("reference-source")).thenReturn(stream("print('reference')"));
+        when(studentExecutor.prepare(any(), any(), any())).thenReturn(studentSession);
+        when(referenceExecutor.prepare(any(), any(), any())).thenReturn(referenceSession);
+        when(referenceExecutor.runTestCase(any(), any()))
+                .thenReturn(ExecutionResult.success("one\n", 10L, 20L))
+                .thenReturn(ExecutionResult.success("two\n", 10L, 20L))
+                .thenReturn(ExecutionResult.success("three\n", 10L, 20L));
+
+        ExecutionResult runtimeError = ExecutionResult.runtimeError("boom", 1, 12L);
+        runtimeError.setOutput("partial output\n");
+        when(studentExecutor.runTestCase(any(), any()))
+                .thenReturn(ExecutionResult.success("one\n", 11L, 21L))
+                .thenReturn(runtimeError)
+                .thenReturn(ExecutionResult.success("wrong\n", 13L, 22L));
+
+        ExecutionTestCaseInfo first = new ExecutionTestCaseInfo();
+        first.setOrder(1);
+        first.setInlineInput("first\n");
+        ExecutionTestCaseInfo second = new ExecutionTestCaseInfo();
+        second.setOrder(2);
+        second.setInlineInput("second\n");
+        ExecutionTestCaseInfo third = new ExecutionTestCaseInfo();
+        third.setOrder(3);
+        third.setInlineInput("third\n");
+        ExecutionJob job = new ExecutionJob(
+                EXECUTION_ID, "student-source", "reference-source", Language.JAVA,
+                ExecutionType.PRACTICE, List.of(first, second, third), 1000L, 128L,
+                ComparatorType.EXACT_MATCH, "practice/report", Language.PYTHON, null,
+                "PRACTICE");
+
+        ExecutionReport report = new TestExecutionService(factory, storage, comparator).executeJob(job);
+
+        assertThat(report.getTestCaseResults()).hasSize(3);
+        assertThat(report.getTestCaseResults().get(0)).satisfies(result -> {
+            assertThat(result.getStatus()).isEqualTo(ExecutionStatus.AC);
+            assertThat(result.getExpectedOutput()).isEqualTo("one\n");
+            assertThat(result.getActualOutput()).isEqualTo("one\n");
+        });
+        assertThat(report.getTestCaseResults().get(1)).satisfies(result -> {
+            assertThat(result.getStatus()).isEqualTo(ExecutionStatus.RTE);
+            assertThat(result.getExpectedOutput()).isEqualTo("two\n");
+            assertThat(result.getActualOutput()).isEqualTo("partial output\n");
+        });
+        assertThat(report.getTestCaseResults().get(2)).satisfies(result -> {
+            assertThat(result.getStatus()).isEqualTo(ExecutionStatus.WA);
+            assertThat(result.getExpectedOutput()).isEqualTo("three\n");
+            assertThat(result.getActualOutput()).isEqualTo("wrong\n");
+        });
     }
 
     @Test

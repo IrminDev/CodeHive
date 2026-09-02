@@ -50,8 +50,8 @@ export type TestCaseResult = {
   feedback?: string
   stderr?: string
   exitCode?: number
-  expectedOutput?: string
-  actualOutput?: string
+  expectedOutput?: string | null
+  actualOutput?: string | null
 }
 
 export type StudentSubmissionHistory = {
