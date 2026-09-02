@@ -18,9 +18,6 @@ public class UpdateUserRequest {
     @NotBlank @Email @Size(max = 100)
     private String email;
 
-    @NotBlank @Size(min = 10, max = 500)
-    private String reason;
-
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
     public String getLastName() { return lastName; }
@@ -29,6 +26,4 @@ public class UpdateUserRequest {
     public void setEnrollmentNumber(String enrollmentNumber) { this.enrollmentNumber = enrollmentNumber; }
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
-    public String getReason() { return reason; }
-    public void setReason(String reason) { this.reason = reason; }
 }

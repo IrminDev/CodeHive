@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-08-23T03:25:22.336617+00:00",
+  "generated_at": "2026-08-13T00:50:30.540185+00:00",
   "nodes": {
     "codehive_backend_src_main_java_com_github_codehive_controller_groupcontroller_groupcontroller_students": {
-      "code_fingerprint": "b9086fef38683b10fda50b6826f77e1a4361d29ec1a53d0e1bf0307ce9bd3438",
+      "code_fingerprint": "5b0fa1174250c7e14ddce54ac211f4c39947dfac16766999f49e1df330551c9b",
       "label": ".students()",
       "last": "2026-07-29T04:19:22.505172+00:00",
       "provenance": [
@@ -17,45 +17,13 @@
           "q": "Does the list of students in a same group is only visible for the teacher or other students can see it?"
         }
       ],
-      "score": 1.123374896,
+      "score": 1.418884937,
       "source_file": "codehive-backend/src/main/java/com/github/codehive/controller/GroupController.java",
       "status": "preferred",
       "uses": 2
     },
-    "codehive_backend_src_main_java_com_github_codehive_model_dto_teachersubmissionevidencedto_teachersubmissionevidencedto": {
-      "code_fingerprint": "88743773afed3854b421d92b84e971b493b03eabda26ee7ae15a0edd0bbca9c1",
-      "label": "TeacherSubmissionEvidenceDTO",
-      "last": "2026-08-23T03:00:47.340162+00:00",
-      "provenance": [
-        {
-          "date": "2026-08-23T03:00:47.340162+00:00",
-          "outcome": "useful",
-          "q": "Add a section for a teacher to also check the submission report from a student submission in TeacherGradesPage.tsx"
-        }
-      ],
-      "score": 0.999605637,
-      "source_file": "codehive-backend/src/main/java/com/github/codehive/model/dto/TeacherSubmissionEvidenceDTO.java",
-      "status": "tentative",
-      "uses": 1
-    },
-    "codehive_backend_src_main_java_com_github_codehive_model_enums_notificationtype_notificationtype": {
-      "code_fingerprint": "4f7a96d8cac0d575bf8954bb5b2ef532138116da18fdedcc0307213eb6e65890",
-      "label": "NotificationType",
-      "last": "2026-08-23T00:26:58.347439+00:00",
-      "provenance": [
-        {
-          "date": "2026-08-23T00:26:58.347439+00:00",
-          "outcome": "useful",
-          "q": "Implement approved plan for scoped students managing groups, assignments, grading, notifications, and admin role/scope lifecycle"
-        }
-      ],
-      "score": 0.997141655,
-      "source_file": "codehive-backend/src/main/java/com/github/codehive/model/enums/NotificationType.java",
-      "status": "tentative",
-      "uses": 1
-    },
     "codehive_backend_src_main_java_com_github_codehive_model_request_assignment_updateassignmentrequest_updateassignmentrequest": {
-      "code_fingerprint": "b1eb8b9049deb4f42213663ffdbe99ce06fb2207ba2a96b9f1952a9cf02ade52",
+      "code_fingerprint": "6774bc6a7dc42d2ee368e496257c3f61180433a4fd61890b51cf602e8350e4eb",
       "label": "UpdateAssignmentRequest",
       "last": "2026-07-29T05:00:38.009394+00:00",
       "provenance": [
@@ -65,13 +33,13 @@
           "q": "Update teacher due-date flow so qualifying late submissions become on time and past dates are rejected."
         }
       ],
-      "score": 0.562089507,
+      "score": 0.709950291,
       "source_file": "codehive-backend/src/main/java/com/github/codehive/model/request/assignment/UpdateAssignmentRequest.java",
       "status": "tentative",
       "uses": 1
     },
     "codehive_backend_src_main_java_com_github_codehive_repository_submissionrepository_submissionrepository": {
-      "code_fingerprint": "5795a9c0b251ab17de872856fdbef55f8a6f1b3be930806de9da7d354f4d4111",
+      "code_fingerprint": "d24fff84a78c0b43a8316bcc77177dd706200ce527fd22db08947da09aa9aa90",
       "label": "SubmissionRepository",
       "last": "2026-07-29T05:00:38.009394+00:00",
       "provenance": [
@@ -81,13 +49,13 @@
           "q": "Update teacher due-date flow so qualifying late submissions become on time and past dates are rejected."
         }
       ],
-      "score": 0.562089507,
+      "score": 0.709950291,
       "source_file": "codehive-backend/src/main/java/com/github/codehive/repository/SubmissionRepository.java",
       "status": "tentative",
       "uses": 1
     },
     "codehive_backend_src_main_java_com_github_codehive_service_assignmentservice": {
-      "code_fingerprint": "b3c8ef23306e4c13f2d4d28cce378f1a5aa6763787a7b1e9493634de54e5ab76",
+      "code_fingerprint": "bc26bfe4491f14109f3beef57821ca1495f5024ae931a8d03fe7466fc316fe7f",
       "label": "AssignmentService.java",
       "last": "2026-08-02T21:15:58.918591+00:00",
       "provenance": [
@@ -97,13 +65,13 @@
           "q": "Describe sequence diagrams for group creation, joining a group, creating assignments and submissions, grading, and feedback, including methods, parameters, source, and destination"
         }
       ],
-      "score": 0.626237858,
+      "score": 0.790973224,
       "source_file": "codehive-backend/src/main/java/com/github/codehive/service/AssignmentService.java",
       "status": "tentative",
       "uses": 1
     },
     "codehive_backend_src_main_java_com_github_codehive_service_assignmentservice_assignmentservice_publishgeneration": {
-      "code_fingerprint": "b3c8ef23306e4c13f2d4d28cce378f1a5aa6763787a7b1e9493634de54e5ab76",
+      "code_fingerprint": "bc26bfe4491f14109f3beef57821ca1495f5024ae931a8d03fe7466fc316fe7f",
       "label": ".publishGeneration()",
       "last": "2026-07-29T04:28:00.251566+00:00",
       "provenance": [
@@ -113,13 +81,13 @@
           "q": "When an assignment is cloned, what is expected to be done in the frontend? The teacher will only update the dates?"
         }
       ],
-      "score": 0.561795308,
+      "score": 0.709578701,
       "source_file": "codehive-backend/src/main/java/com/github/codehive/service/AssignmentService.java",
       "status": "tentative",
       "uses": 1
     },
     "codehive_backend_src_main_java_com_github_codehive_service_assignmentupdateservice_assignmentupdateservice_applymetadata": {
-      "code_fingerprint": "1e8783c4d18040a2dc391dafa4f3ea7cfef629fd78894f1490dd76db07def8df",
+      "code_fingerprint": "2f9fdf5bce6874f09944f2d7f7c568d07971b72728d789a8013eeb51ff0e3d98",
       "label": ".applyMetadata()",
       "last": "2026-07-29T04:51:24.936284+00:00",
       "provenance": [
@@ -129,13 +97,13 @@
           "q": "What happen when a teacher updates the delivery date after a submission of a student that was delivered late? Does the delivery of the student is updated as delivered on time? And does it exist any mechanism to validate for a teacher not to update the dates with a day previous to the current date?"
         }
       ],
-      "score": 0.562006379,
+      "score": 0.709845296,
       "source_file": "codehive-backend/src/main/java/com/github/codehive/service/AssignmentUpdateService.java",
       "status": "tentative",
       "uses": 1
     },
     "codehive_backend_src_main_java_com_github_codehive_service_assignmentupdateservice_assignmentupdateservice_validateproposeddates": {
-      "code_fingerprint": "1e8783c4d18040a2dc391dafa4f3ea7cfef629fd78894f1490dd76db07def8df",
+      "code_fingerprint": "2f9fdf5bce6874f09944f2d7f7c568d07971b72728d789a8013eeb51ff0e3d98",
       "label": ".validateProposedDates()",
       "last": "2026-07-29T04:51:24.936284+00:00",
       "provenance": [
@@ -145,13 +113,13 @@
           "q": "What happen when a teacher updates the delivery date after a submission of a student that was delivered late? Does the delivery of the student is updated as delivered on time? And does it exist any mechanism to validate for a teacher not to update the dates with a day previous to the current date?"
         }
       ],
-      "score": 0.562006379,
+      "score": 0.709845296,
       "source_file": "codehive-backend/src/main/java/com/github/codehive/service/AssignmentUpdateService.java",
       "status": "tentative",
       "uses": 1
     },
     "codehive_backend_src_main_java_com_github_codehive_service_executionrequestservice": {
-      "code_fingerprint": "11d0b8233e66e0058fd2b6141721964f12571af49fc87398bf9ac368e8b9dc09",
+      "code_fingerprint": "7de92585b818519d85d68bdd78e1922518fc5e77abb26b67cb9eb59b35d39aa5",
       "label": "ExecutionRequestService.java",
       "last": "2026-08-02T21:15:58.918591+00:00",
       "provenance": [
@@ -161,13 +129,13 @@
           "q": "Describe sequence diagrams for group creation, joining a group, creating assignments and submissions, grading, and feedback, including methods, parameters, source, and destination"
         }
       ],
-      "score": 0.626237858,
+      "score": 0.790973224,
       "source_file": "codehive-backend/src/main/java/com/github/codehive/service/ExecutionRequestService.java",
       "status": "tentative",
       "uses": 1
     },
     "codehive_backend_src_main_java_com_github_codehive_service_executionrequestservice_executionrequestservice_requestexecution": {
-      "code_fingerprint": "11d0b8233e66e0058fd2b6141721964f12571af49fc87398bf9ac368e8b9dc09",
+      "code_fingerprint": "7de92585b818519d85d68bdd78e1922518fc5e77abb26b67cb9eb59b35d39aa5",
       "label": ".requestExecution()",
       "last": "2026-07-29T04:51:24.936284+00:00",
       "provenance": [
@@ -177,39 +145,29 @@
           "q": "What happen when a teacher updates the delivery date after a submission of a student that was delivered late? Does the delivery of the student is updated as delivered on time? And does it exist any mechanism to validate for a teacher not to update the dates with a day previous to the current date?"
         }
       ],
-      "score": 0.562006379,
+      "score": 0.709845296,
       "source_file": "codehive-backend/src/main/java/com/github/codehive/service/ExecutionRequestService.java",
       "status": "tentative",
       "uses": 1
     },
     "codehive_backend_src_main_java_com_github_codehive_service_groupservice_groupservice": {
-      "code_fingerprint": "b582e13a7bf475ab39829a2e2e3aca37c7e57d9665eaefbddb34be86e6dd102e",
+      "code_fingerprint": "f99a3961bc35995cd975906624d0ddcbe115a79451010dd78d7b4a75426c61ae",
       "label": "GroupService",
-      "last": "2026-08-23T00:26:58.347439+00:00",
+      "last": "2026-08-02T21:15:58.918591+00:00",
       "provenance": [
-        {
-          "date": "2026-08-23T00:26:58.347439+00:00",
-          "outcome": "useful",
-          "q": "Implement approved plan for scoped students managing groups, assignments, grading, notifications, and admin role/scope lifecycle"
-        },
-        {
-          "date": "2026-08-13T01:10:40.827830+00:00",
-          "outcome": "useful",
-          "q": "Search controllers and create frontend teacher API services, types, and page integrations for teacher actions"
-        },
         {
           "date": "2026-08-02T21:15:58.918591+00:00",
           "outcome": "useful",
           "q": "Describe sequence diagrams for group creation, joining a group, creating assignments and submissions, grading, and feedback, including methods, parameters, source, and destination"
         }
       ],
-      "score": 2.415366593,
+      "score": 0.790973224,
       "source_file": "codehive-backend/src/main/java/com/github/codehive/service/GroupService.java",
-      "status": "preferred",
-      "uses": 3
+      "status": "tentative",
+      "uses": 1
     },
     "codehive_backend_src_main_java_com_github_codehive_service_groupservice_groupservice_liststudents": {
-      "code_fingerprint": "b582e13a7bf475ab39829a2e2e3aca37c7e57d9665eaefbddb34be86e6dd102e",
+      "code_fingerprint": "f99a3961bc35995cd975906624d0ddcbe115a79451010dd78d7b4a75426c61ae",
       "label": ".listStudents()",
       "last": "2026-07-29T04:19:22.505172+00:00",
       "provenance": [
@@ -224,90 +182,10 @@
           "q": "Does the list of students in a same group is only visible for the teacher or other students can see it?"
         }
       ],
-      "score": 1.123374896,
+      "score": 1.418884937,
       "source_file": "codehive-backend/src/main/java/com/github/codehive/service/GroupService.java",
       "status": "preferred",
       "uses": 2
-    },
-    "codehive_backend_src_main_java_com_github_codehive_service_notificationpreferenceservice_notificationpreferenceservice": {
-      "code_fingerprint": "65c645a777fa9bed0874ef4356924a55d9406cd5a61ca52bc041928a70e2d6de",
-      "label": "NotificationPreferenceService",
-      "last": "2026-08-23T00:26:58.347439+00:00",
-      "provenance": [
-        {
-          "date": "2026-08-23T00:26:58.347439+00:00",
-          "outcome": "useful",
-          "q": "Implement approved plan for scoped students managing groups, assignments, grading, notifications, and admin role/scope lifecycle"
-        }
-      ],
-      "score": 0.997141655,
-      "source_file": "codehive-backend/src/main/java/com/github/codehive/service/NotificationPreferenceService.java",
-      "status": "tentative",
-      "uses": 1
-    },
-    "codehive_backend_src_main_java_com_github_codehive_service_teacherstudentreviewservice_teacherstudentreviewservice": {
-      "code_fingerprint": "967f6a004d66f915d8dbcba22ace2c8b75a7b437be15b12638f5b6c7f60c8954",
-      "label": "TeacherStudentReviewService",
-      "last": "2026-08-23T03:00:47.340162+00:00",
-      "provenance": [
-        {
-          "date": "2026-08-23T03:00:47.340162+00:00",
-          "outcome": "useful",
-          "q": "Add a section for a teacher to also check the submission report from a student submission in TeacherGradesPage.tsx"
-        }
-      ],
-      "score": 0.999605637,
-      "source_file": "codehive-backend/src/main/java/com/github/codehive/service/TeacherStudentReviewService.java",
-      "status": "tentative",
-      "uses": 1
-    },
-    "codehive_frontend_app_features_student_components_studentsidebar": {
-      "code_fingerprint": "72600dbd617d618a7c393c2c1c39eda735b5c4879f7288f68c7b6e9cf4132138",
-      "label": "StudentSidebar.tsx",
-      "last": "2026-08-23T00:31:15.238069+00:00",
-      "provenance": [
-        {
-          "date": "2026-08-23T00:31:15.238069+00:00",
-          "outcome": "useful",
-          "q": "I recommend to move the manage groups option in the header, as the student dashboard button is there"
-        }
-      ],
-      "score": 0.997210158,
-      "source_file": "codehive-frontend/app/features/student/components/StudentSidebar.tsx",
-      "status": "tentative",
-      "uses": 1
-    },
-    "codehive_frontend_app_features_teacher_api_assignment_api": {
-      "code_fingerprint": "56dddbda0c25a465e2d94058b93faa1dfd51c08e2c90712add693b196bc7fc38",
-      "label": "teacher/api/assignment.api.ts",
-      "last": "2026-08-13T01:10:40.827830+00:00",
-      "provenance": [
-        {
-          "date": "2026-08-13T01:10:40.827830+00:00",
-          "outcome": "useful",
-          "q": "Search controllers and create frontend teacher API services, types, and page integrations for teacher actions"
-        }
-      ],
-      "score": 0.79198708,
-      "source_file": "codehive-frontend/app/features/teacher/api/assignment.api.ts",
-      "status": "tentative",
-      "uses": 1
-    },
-    "codehive_frontend_app_features_teacher_pages_teachergradespage": {
-      "code_fingerprint": "69070b3ce37f8ea3d59e924b819cfd010618bb481beb70679cfb278e626fdbf0",
-      "label": "TeacherGradesPage.tsx",
-      "last": "2026-08-23T03:00:47.340162+00:00",
-      "provenance": [
-        {
-          "date": "2026-08-23T03:00:47.340162+00:00",
-          "outcome": "useful",
-          "q": "Add a section for a teacher to also check the submission report from a student submission in TeacherGradesPage.tsx"
-        }
-      ],
-      "score": 0.999605637,
-      "source_file": "codehive-frontend/app/features/teacher/pages/TeacherGradesPage.tsx",
-      "status": "tentative",
-      "uses": 1
     }
   },
   "version": 1

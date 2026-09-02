@@ -46,7 +46,7 @@ public class NotificationEmailListener {
     @RabbitListener(queues = RabbitConfig.NOTIFICATION_EMAIL_QUEUE)
     public void handle(NotificationMessage message) {
         try {
-            if (message.schemaVersion() != 1 && message.schemaVersion() != 2) {
+            if (message.schemaVersion() != 1) {
                 logger.error("[NOTIFICATION] Unsupported schema version={} id={}",
                         message.schemaVersion(), message.notificationId());
                 producer.deadLetter(message);
@@ -54,18 +54,17 @@ public class NotificationEmailListener {
             }
             User recipient = userRepository.findById(message.recipientId()).orElse(null);
             if (recipient == null || !preferenceService.isEnabled(recipient, message.type())) {
-                logger.info("[NOTIFICATION] Skipped type={} schema={} recipient={} id={}",
-                        message.type(), message.schemaVersion(), message.recipientId(), message.notificationId());
+                logger.info("[NOTIFICATION] Skipped type={} recipient={} id={}",
+                        message.type(), message.recipientId(), message.notificationId());
                 return;
             }
             NotificationEmailContent content = strategyRegistry.get(message.type()).build(message, recipient);
             mailSenderService.sendNotificationEmail(recipient.getEmail(), content);
-            logger.info("[NOTIFICATION] Sent type={} schema={} recipient={} id={}",
-                    message.type(), message.schemaVersion(), message.recipientId(), message.notificationId());
+            logger.info("[NOTIFICATION] Sent type={} recipient={} id={}",
+                    message.type(), message.recipientId(), message.notificationId());
         } catch (Exception exception) {
-            logger.error("[NOTIFICATION] Delivery failed type={} schema={} recipient={} id={} attempt={}",
-                    message.type(), message.schemaVersion(), message.recipientId(), message.notificationId(),
-                    message.attempt(), exception);
+            logger.error("[NOTIFICATION] Delivery failed type={} recipient={} id={} attempt={}",
+                    message.type(), message.recipientId(), message.notificationId(), message.attempt(), exception);
             NotificationMessage retry = message.nextAttempt();
             if (retry.attempt() >= maxAttempts) {
                 producer.deadLetter(retry);

@@ -10,7 +10,7 @@ import { useNavigate } from "react-router";
 
 import { AuthService } from "~/features/auth/services/auth.service";
 import { getAuthToken, removeAuthToken } from "~/core/storage/token.storage";
-import { Scope, type Role, type User } from "~/shared/types/model/User";
+import type { Role, Scope, User } from "~/shared/types/model/User";
 
 interface AuthContextType {
 	user: User | null;
@@ -58,7 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	const hasRole = useCallback((role: Role) => user?.role === role, [user]);
 
 	const hasScope = useCallback(
-		(scope: Scope) => user?.scopes?.includes(Scope.SUPER_ADMIN) || user?.scopes?.includes(scope) || false,
+		(scope: Scope) => user?.scopes?.includes(scope) ?? false,
 		[user]
 	);
 
@@ -68,7 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	);
 
 	const hasAnyScope = useCallback(
-		(...scopes: Scope[]) => user?.scopes?.includes(Scope.SUPER_ADMIN) || scopes.some((s) => user?.scopes?.includes(s) ?? false),
+		(...scopes: Scope[]) => scopes.some((s) => user?.scopes?.includes(s) ?? false),
 		[user]
 	);
 
@@ -104,3 +104,4 @@ export function useAuth(): AuthContextType {
 	}
 	return context;
 }
+

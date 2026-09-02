@@ -53,10 +53,6 @@ class TeacherStudentReviewServiceTest {
                 mock(AssignmentGradeHistoryRepository.class), userRepository, objectStorageService);
 
         User owner = user(OWNER_ID, "owner@example.com");
-        owner.setRole(com.github.codehive.model.enums.Role.TEACHER);
-        owner.setIsActive(true);
-        owner.setBlocked(false);
-        owner.addScope(com.github.codehive.model.enums.Scope.CREATE_GROUP);
         User student = user(STUDENT_ID, "student@example.com");
         ClassGroup group = new ClassGroup();
         group.setOwner(owner);

@@ -4,12 +4,8 @@ import java.time.LocalDateTime;
 import java.time.Instant;
 import java.util.UUID;
 
-import com.github.codehive.model.enums.GroupDeletionReason;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -46,10 +42,6 @@ public class ClassGroup {
     private Boolean isActive;
 
     private Instant deletedAt;
-
-    @Enumerated(EnumType.STRING)
-    @Column(length = 40)
-    private GroupDeletionReason deletionReason;
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -88,8 +80,6 @@ public class ClassGroup {
     public void setIsActive(Boolean isActive) { this.isActive = isActive; }
     public Instant getDeletedAt() { return deletedAt; }
     public void setDeletedAt(Instant deletedAt) { this.deletedAt = deletedAt; }
-    public GroupDeletionReason getDeletionReason() { return deletionReason; }
-    public void setDeletionReason(GroupDeletionReason deletionReason) { this.deletionReason = deletionReason; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }

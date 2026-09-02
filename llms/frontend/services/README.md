@@ -13,8 +13,6 @@ Service files:
 - app/features/teacher/api/metrics.api.ts
 - app/features/teacher/api/dashboard.api.ts
 - app/features/teacher/api/client.ts
-- app/features/admin/api/admin.api.ts
-- app/features/admin/api/client.ts
 
 Base URL strategy:
 - Uses VITE_API_URL when provided.
@@ -117,10 +115,6 @@ Services consume and return typed contracts from app/types:
 - Parse JSON response.
 - If response not ok, throw Error using backend message/error fields.
 - Let page or route components handle user-facing error display.
-
-Admin requests use `AdminApiError`, preserving HTTP status, validation/blocker details,
-`Retry-After`, and `X-RateLimit-Policy`. Admin list filters serialize through one query
-builder and all read methods accept `AbortSignal` for stale-request cancellation.
 
 ## Re-export Pattern
 app/services/index.ts re-exports service singletons for concise imports:

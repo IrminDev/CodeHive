@@ -51,7 +51,7 @@ public class JWTAuthenticationFilter extends OncePerRequestFilter {
 
         UserDetails userDetails = userDetailsService.loadUserByUsername(email);
 
-        if (userDetails == null || !userDetails.isEnabled() || !userDetails.isAccountNonLocked()) {
+        if (userDetails == null || !userDetails.isEnabled()) {
             logger.debug("User details not found for email: {}", email);
             filterChain.doFilter(request, response);
             return;

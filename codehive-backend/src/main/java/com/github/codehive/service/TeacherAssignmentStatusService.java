@@ -48,7 +48,7 @@ public class TeacherAssignmentStatusService {
                 .orElseThrow(() -> new EntityNotFoundException("Assignment not found: " + assignmentId));
         User teacher = userRepository.findByEmail(email)
                 .orElseThrow(() -> new EntityNotFoundException("Authenticated user not found"));
-        if (!teacher.canManageGroups() || !assignment.getGroup().getOwner().getId().equals(teacher.getId())) {
+        if (!assignment.getGroup().getOwner().getId().equals(teacher.getId())) {
             throw new AccessDeniedException("Only the assignment owner can view management status");
         }
 

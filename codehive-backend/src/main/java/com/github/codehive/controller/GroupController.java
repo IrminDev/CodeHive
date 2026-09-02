@@ -19,7 +19,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.github.codehive.model.dto.EnrollmentDTO;
 import com.github.codehive.model.dto.GroupDTO;
-import com.github.codehive.model.enums.GroupRelationship;
 import com.github.codehive.model.request.group.CreateGroupRequest;
 import com.github.codehive.model.request.group.JoinGroupRequest;
 import com.github.codehive.model.request.group.UpdateGroupRequest;
@@ -52,8 +51,6 @@ public class GroupController {
             @ApiResponse(responseCode = "403", description = "Missing CREATE_GROUP", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     @PostMapping
-    @RateLimit(key = "groups.create", limit = 10, duration = 60,
-            message = "Too many group creation requests")
     @PreAuthorize("hasAuthority('CREATE_GROUP')")
     public ResponseEntity<SuccessResponse<GroupDTO>> create(@Valid @RequestBody CreateGroupRequest request,
                                                             Authentication authentication) {
@@ -65,11 +62,9 @@ public class GroupController {
     @ApiResponse(responseCode = "200", description = "Groups retrieved")
     @GetMapping
     public ResponseEntity<SuccessResponse<List<GroupDTO>>> list(
-            @RequestParam(defaultValue = "false") boolean includeDeleted,
-            @RequestParam(defaultValue = "ACCESSIBLE") GroupRelationship relationship,
-            Authentication authentication) {
+            @RequestParam(defaultValue = "false") boolean includeDeleted, Authentication authentication) {
         return ResponseEntity.ok(new SuccessResponse<>("Groups retrieved successfully",
-                groupService.listMine(authentication.getName(), includeDeleted, relationship)));
+                groupService.listMine(authentication.getName(), includeDeleted)));
     }
 
     @Operation(summary = "Get a group", description = "Returns an owned or actively enrolled group. Join codes are visible only to owners.")
@@ -106,7 +101,7 @@ public class GroupController {
     })
     @PostMapping("/join")
     @PreAuthorize("hasAuthority('STUDENT')")
-    @RateLimit(key = "groups.join", limit = 10, duration = 60, message = "Too many group join attempts")
+    @RateLimit(limit = 10, duration = 60, message = "Too many group join attempts")
     public ResponseEntity<SuccessResponse<GroupDTO>> join(@Valid @RequestBody JoinGroupRequest request,
                                                            Authentication authentication) {
         return ResponseEntity.ok(new SuccessResponse<>("Joined group successfully",
@@ -190,8 +185,6 @@ public class GroupController {
             @ApiResponse(responseCode = "403", description = "Caller is not the owner", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     @PostMapping("/{id}/join-code/rotate")
-    @RateLimit(key = "groups.join-code.rotate", limit = 10, duration = 300,
-            message = "Too many join-code rotations")
     public ResponseEntity<SuccessResponse<GroupDTO>> rotateJoinCode(@PathVariable UUID id,
                                                                     Authentication authentication) {
         return stateResponse("Join code rotated successfully",

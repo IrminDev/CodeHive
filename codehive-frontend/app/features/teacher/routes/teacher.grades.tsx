@@ -1,5 +1,6 @@
 import type { Route } from "./+types/teacher.grades";
-import { ManagerRoute } from "../components/ManagerRoute";
+import { ProtectedRoute } from "~/core/components/ProtectedRoute";
+import { Role } from "~/shared/types/model/User";
 import { TeacherGradesPage } from "../pages/TeacherGradesPage";
 
 export function meta({}: Route.MetaArgs) {
@@ -10,5 +11,5 @@ export function meta({}: Route.MetaArgs) {
 }
 
 export default function TeacherGrades() {
-  return <ManagerRoute><TeacherGradesPage /></ManagerRoute>;
+  return <ProtectedRoute roles={[Role.TEACHER]}><TeacherGradesPage /></ProtectedRoute>;
 }

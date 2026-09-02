@@ -16,7 +16,6 @@ import { Link } from "react-router";
 import { useAuth } from "~/core/providers/AuthProvider";
 import { useTheme } from "~/core/providers/ThemeProvider";
 import { ProfileSettingsModal } from "~/shared/components/ProfileSettingsModal";
-import { Role } from "~/shared/types/model/User";
 
 export type TeacherNavigation =
   | "dashboard"
@@ -82,8 +81,7 @@ function TeacherHeader({ breadcrumbs }: { breadcrumbs: TeacherBreadcrumb[] }) {
         </nav>
 
         <div className="flex items-center gap-1 sm:gap-2 ml-auto flex-shrink-0">
-          {user?.role === Role.STUDENT && <HeaderLink to="/dashboard" label="Student workspace"><GraduationCap size={18} /></HeaderLink>}
-          <HeaderLink to="/notifications" label="Notification settings"><Bell size={18} /></HeaderLink>
+          <HeaderLink to="/teacher/notifications" label="Notification settings"><Bell size={18} /></HeaderLink>
           <button onClick={toggleTheme} className="w-9 h-9 grid place-items-center rounded-lg text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-dark-card transition-colors" aria-label="Toggle theme">
             {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
           </button>
@@ -103,12 +101,12 @@ function TeacherHeader({ breadcrumbs }: { breadcrumbs: TeacherBreadcrumb[] }) {
 function TeacherSidebar({ active }: { active: TeacherNavigation }) {
   return (
     <aside className="w-14 flex-shrink-0 flex flex-col items-center py-4 gap-1 bg-gray-50 dark:bg-dark-surface border-r border-gray-200 dark:border-gray-800/60">
-      <Link to="/teacher" className="mb-4 flex-shrink-0" aria-label="Group management dashboard">
+      <Link to="/teacher" className="mb-4 flex-shrink-0" aria-label="Teacher dashboard">
         <div style={{ clipPath: "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)" }} className="w-9 h-9 bg-yellow grid place-items-center">
           <span className="text-dark-bg font-bold text-sm leading-none">&lt;/&gt;</span>
         </div>
       </Link>
-      <nav className="flex flex-col items-center gap-1 flex-1 w-full px-2" aria-label="Group management navigation">
+      <nav className="flex flex-col items-center gap-1 flex-1 w-full px-2" aria-label="Teacher navigation">
         <SidebarLink icon={<Home size={20} />} label="Dashboard" to="/teacher" active={active === "dashboard"} />
         <SidebarLink icon={<BookOpen size={20} />} label="Assignments" to="/teacher/assignments" active={active === "assignments"} />
         <SidebarLink icon={<Users size={20} />} label="Groups" to="/teacher/groups" active={active === "groups"} />

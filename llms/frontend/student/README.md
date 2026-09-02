@@ -5,7 +5,7 @@
 - `/dashboard` — student dashboard.
 - `/assignments` — full student assignment list with class, current verdict, deadlines, limits, and filters.
 - `/grades` — all accessible assignments with returned grades, awaiting/not-submitted states, points, and published feedback.
-- `/groups` — active joined groups (`relationship=ENROLLED`).
+- `/groups` — all accessible student groups.
 - `/groups/join` — join a group with an eight-character code.
 - `/groups/:groupId` — authorized group detail with assignments and student delivery status.
 - `/assignment/:id` — assignment workspace.
@@ -40,9 +40,10 @@ future join with the code restores historical enrollment.
 
 ## Notification Settings
 
-`/notifications` is canonical student/teacher page for email notification preferences. It uses
+`/notifications` is a student-only page for email notification preferences. It uses
 `GET` and `PUT /api/notification-preferences`, supports reset and test-email actions,
-and exposes backend-provided audience catalog, reminder timing, timezone, and master switch. Scoped students receive student plus owner preferences. Student header exposes Manage groups when `CREATE_GROUP` exists.
+and exposes the backend-provided role-specific notification catalog, reminder timing,
+timezone, and master email switch. Student header notification controls link here.
 
 ## Assignment Workspace
 

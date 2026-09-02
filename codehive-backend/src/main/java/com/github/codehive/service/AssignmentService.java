@@ -179,7 +179,7 @@ public class AssignmentService {
     public AssignmentDTO cloneAssignment(UUID sourceId, CloneAssignmentRequest request, String email) {
         User teacher = requireUser(email);
         Assignment source = requireAssignment(sourceId);
-        if (!teacher.canManageGroups() || !source.getGroup().getOwner().getId().equals(teacher.getId())) {
+        if (!source.getGroup().getOwner().getId().equals(teacher.getId())) {
             throw new AccessDeniedException("Only the source assignment owner can clone it");
         }
         ClassGroup target = groupService.requireOwnedWritableGroup(request.getTargetGroupId(), teacher);
@@ -244,7 +244,7 @@ public class AssignmentService {
     public CloneAssignmentFormDTO getCloneForm(UUID sourceId, String email) {
         User teacher = requireUser(email);
         Assignment source = requireAssignment(sourceId);
-        if (!teacher.canManageGroups() || !source.getGroup().getOwner().getId().equals(teacher.getId())) {
+        if (!source.getGroup().getOwner().getId().equals(teacher.getId())) {
             throw new AccessDeniedException("Only the source assignment owner can clone it");
         }
 
@@ -293,7 +293,7 @@ public class AssignmentService {
     public AssignmentPreviewDTO getTeacherPreview(UUID assignmentId, String email) {
         User teacher = requireUser(email);
         Assignment assignment = requireAssignment(assignmentId);
-        if (!teacher.canManageGroups() || !assignment.getGroup().getOwner().getId().equals(teacher.getId())) {
+        if (!assignment.getGroup().getOwner().getId().equals(teacher.getId())) {
             throw new AccessDeniedException("Only the assignment owner can preview it");
         }
 
@@ -323,7 +323,7 @@ public class AssignmentService {
     public void softDelete(UUID id, String email) {
         User teacher = requireUser(email);
         Assignment assignment = requireAssignment(id);
-        if (!teacher.canManageGroups() || !assignment.getGroup().getOwner().getId().equals(teacher.getId())) {
+        if (!assignment.getGroup().getOwner().getId().equals(teacher.getId())) {
             throw new AccessDeniedException("Only the group owner can delete this assignment");
         }
         assignment.setIsActive(false);

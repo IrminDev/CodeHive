@@ -75,7 +75,6 @@ public class CheckExecutionController {
         }
     )
     @RateLimit(
-        key = "executions.submit",
         limit = 10,
         duration = 60,
         message = "Too many execution requests. Please try again in 1 minute."
@@ -164,8 +163,6 @@ public class CheckExecutionController {
         }
     )
     @GetMapping("/check/{id}/report")
-    @RateLimit(key = "executions.report", limit = 30, duration = 60,
-            message = "Too many execution report requests")
     public ResponseEntity<SuccessResponse<ExecutionReport>> getExecutionReport(
         @Parameter(
             description = "Execution ID",

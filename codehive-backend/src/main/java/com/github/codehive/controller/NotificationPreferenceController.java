@@ -71,7 +71,7 @@ public class NotificationPreferenceController {
             description = "Sends a branded test email to the authenticated user's registered address.")
     @ApiResponse(responseCode = "200", description = "Test email sent")
     @PostMapping("/test-email")
-    @RateLimit(key = "notifications.test-email", limit = 3, duration = 300, message = "Too many test email requests")
+    @RateLimit(limit = 3, duration = 300, message = "Too many test email requests")
     public ResponseEntity<SuccessResponse<Void>> testEmail(Authentication authentication) {
         com.github.codehive.model.dto.UserDTO user = authService.getUserByEmail(authentication.getName());
         mailSenderService.sendTestNotificationEmail(user.getEmail(), user.getName());

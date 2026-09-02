@@ -35,8 +35,7 @@ Service implementation: codehive-backend/src/main/java/com/github/codehive/servi
 1. Admin uploads CSV to /api/auth/signup/csv.
 2. Controller validates file and creates taskId.
 3. CsvRegistrationService.processAsync parses and validates rows.
-4. Client obtains a one-time ticket from `POST /api/auth/websocket-ticket`.
-5. Progress is streamed through `/ws/csv-progress?ticket=...`; ticket and CSV task must belong to same authenticated user.
+4. Progress is streamed through WebSocket channel /ws/csv-progress.
 5. Each valid row creates a user and queues its welcome email without waiting for SMTP.
 
 Welcome-email failures are logged with the recipient address and do not roll back

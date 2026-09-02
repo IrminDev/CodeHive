@@ -85,7 +85,7 @@ public class TestGenerationResultListener {
                 notificationPublisher.publish(NotificationDomainEvent.of(
                         NotificationType.ASSIGNMENT_READY,
                         null, assignment.getAuthor().getId(), assignment.getGroup().getId(),
-                        assignment.getId(), null, revision != null ? revision.getId() : null));
+                        assignment.getId(), null));
             }
             if (assignment.getLaunchDate() == null || !Instant.now().isBefore(assignment.getLaunchDate())) {
                 notificationPublisher.publish(NotificationDomainEvent.of(
@@ -113,7 +113,7 @@ public class TestGenerationResultListener {
                 notificationPublisher.publish(NotificationDomainEvent.of(
                         NotificationType.ASSIGNMENT_VALIDATION_FAILED,
                         null, assignment.getAuthor().getId(), assignment.getGroup().getId(),
-                        assignment.getId(), null, revision != null ? revision.getId() : null));
+                        assignment.getId(), null));
             }
             logger.error("[WORKFLOW] Test generation failed for assignmentId={}, error={}",
                     result.getAssignmentId(), failureMessage);

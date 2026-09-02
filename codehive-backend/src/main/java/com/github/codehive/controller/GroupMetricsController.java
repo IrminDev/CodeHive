@@ -16,7 +16,6 @@ import com.github.codehive.model.dto.metrics.StudentMetricsDTO;
 import com.github.codehive.model.response.ErrorResponse;
 import com.github.codehive.model.response.SuccessResponse;
 import com.github.codehive.service.GroupMetricsService;
-import com.github.codehive.ratelimit.RateLimit;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -48,8 +47,6 @@ public class GroupMetricsController {
             @ApiResponse(responseCode = "404", description = "Group not found", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     @GetMapping("/api/groups/{groupId}/metrics/overview")
-    @RateLimit(key = "metrics.group-overview", limit = 30, duration = 60,
-            message = "Too many metrics requests")
     public ResponseEntity<SuccessResponse<GroupMetricsOverviewDTO>> overview(
             @Parameter(description = "Group ID") @PathVariable UUID groupId,
             Authentication authentication) {
@@ -65,8 +62,6 @@ public class GroupMetricsController {
             @ApiResponse(responseCode = "404", description = "Group not found", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     @GetMapping("/api/groups/{groupId}/metrics/assignments")
-    @RateLimit(key = "metrics.group-assignments", limit = 30, duration = 60,
-            message = "Too many metrics requests")
     public ResponseEntity<SuccessResponse<List<AssignmentMetricsDTO>>> assignmentMetrics(
             @Parameter(description = "Group ID") @PathVariable UUID groupId,
             Authentication authentication) {
@@ -82,8 +77,6 @@ public class GroupMetricsController {
             @ApiResponse(responseCode = "404", description = "Group not found", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     @GetMapping("/api/groups/{groupId}/metrics/students")
-    @RateLimit(key = "metrics.group-students", limit = 30, duration = 60,
-            message = "Too many metrics requests")
     public ResponseEntity<SuccessResponse<List<StudentMetricsDTO>>> studentMetrics(
             @Parameter(description = "Group ID") @PathVariable UUID groupId,
             Authentication authentication) {
@@ -99,8 +92,6 @@ public class GroupMetricsController {
             @ApiResponse(responseCode = "404", description = "Assignment not found or logically deleted", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     @GetMapping("/api/assignments/{assignmentId}/metrics")
-    @RateLimit(key = "metrics.assignment", limit = 30, duration = 60,
-            message = "Too many metrics requests")
     public ResponseEntity<SuccessResponse<AssignmentMetricsDetailDTO>> assignmentDetail(
             @Parameter(description = "Assignment ID") @PathVariable UUID assignmentId,
             Authentication authentication) {

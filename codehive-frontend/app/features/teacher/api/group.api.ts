@@ -13,7 +13,7 @@ export function createGroup(payload: CreateGroupPayload): Promise<TeacherGroup> 
 }
 
 export function listTeacherGroups(includeDeleted = false): Promise<TeacherGroup[]> {
-  return teacherRequest<TeacherGroup[]>(`/api/groups?relationship=OWNED&includeDeleted=${includeDeleted}`);
+  return teacherRequest<TeacherGroup[]>(`/api/groups?includeDeleted=${includeDeleted}`);
 }
 
 export function getTeacherGroup(groupId: string): Promise<TeacherGroup> {

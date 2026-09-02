@@ -6,6 +6,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -34,8 +35,6 @@ class NotificationEmailListenerTest {
             UUID.fromString("00000000-0000-0000-0000-000000000010");
     private static final UUID RECIPIENT_ID =
             UUID.fromString("00000000-0000-0000-0000-000000000001");
-    private static final UUID RESOURCE_ID =
-            UUID.fromString("00000000-0000-0000-0000-000000000030");
 
     @Mock
     private UserRepository userRepository;
@@ -65,8 +64,7 @@ class NotificationEmailListenerTest {
     void rendersAndSendsEnabledNotification() {
         NotificationMessage message = message(0, 1);
         NotificationEmailContent content = new NotificationEmailContent(
-                NotificationType.ASSIGNMENT_PUBLISHED,
-                "Subject", "Message", java.util.List.of(), null, "Open", "/");
+                "Subject", "BADGE", "Title", "Message", "Details", List.of(), "Open", "/");
         when(userRepository.findById(RECIPIENT_ID)).thenReturn(Optional.of(recipient));
         when(preferenceService.isEnabled(recipient, message.type())).thenReturn(true);
         when(strategyRegistry.get(message.type())).thenReturn(strategy);
@@ -92,24 +90,8 @@ class NotificationEmailListenerTest {
     }
 
     @Test
-    void acceptsSchemaTwoNotificationWithResourceContext() {
-        NotificationMessage message = message(0, 2, RESOURCE_ID);
-        NotificationEmailContent content = new NotificationEmailContent(
-                NotificationType.ASSIGNMENT_PUBLISHED,
-                "Subject", "Message", java.util.List.of(), null, "Open", "/");
-        when(userRepository.findById(RECIPIENT_ID)).thenReturn(Optional.of(recipient));
-        when(preferenceService.isEnabled(recipient, message.type())).thenReturn(true);
-        when(strategyRegistry.get(message.type())).thenReturn(strategy);
-        when(strategy.build(message, recipient)).thenReturn(content);
-
-        listener.handle(message);
-
-        verify(mailSenderService).sendNotificationEmail(recipient.getEmail(), content);
-    }
-
-    @Test
     void retriesTransientDeliveryFailureWithIncrementedAttempt() {
-        NotificationMessage message = message(0, 2, RESOURCE_ID);
+        NotificationMessage message = message(0, 1);
         when(userRepository.findById(RECIPIENT_ID)).thenReturn(Optional.of(recipient));
         when(preferenceService.isEnabled(recipient, message.type())).thenReturn(true);
         when(strategyRegistry.get(message.type())).thenThrow(new IllegalStateException("temporary"));
@@ -120,13 +102,11 @@ class NotificationEmailListenerTest {
         verify(producer).retry(captor.capture());
         verify(producer, never()).deadLetter(any());
         org.assertj.core.api.Assertions.assertThat(captor.getValue().attempt()).isEqualTo(1);
-        org.assertj.core.api.Assertions.assertThat(captor.getValue().resourceId()).isEqualTo(RESOURCE_ID);
-        org.assertj.core.api.Assertions.assertThat(captor.getValue().schemaVersion()).isEqualTo(2);
     }
 
     @Test
     void deadLettersUnsupportedSchemaImmediately() {
-        NotificationMessage message = message(0, 3);
+        NotificationMessage message = message(0, 2);
 
         listener.handle(message);
 
@@ -135,10 +115,6 @@ class NotificationEmailListenerTest {
     }
 
     private NotificationMessage message(int attempt, int schemaVersion) {
-        return message(attempt, schemaVersion, null);
-    }
-
-    private NotificationMessage message(int attempt, int schemaVersion, UUID resourceId) {
         return new NotificationMessage(
                 NOTIFICATION_ID,
                 NotificationType.ASSIGNMENT_PUBLISHED,
@@ -147,7 +123,6 @@ class NotificationEmailListenerTest {
                 null,
                 UUID.fromString("00000000-0000-0000-0000-000000000020"),
                 null,
-                resourceId,
                 Instant.parse("2026-07-24T12:00:00Z"),
                 attempt,
                 schemaVersion);

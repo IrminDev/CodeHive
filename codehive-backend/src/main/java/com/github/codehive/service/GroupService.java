@@ -17,8 +17,6 @@ import com.github.codehive.model.entity.ClassGroup;
 import com.github.codehive.model.entity.GroupEnrollment;
 import com.github.codehive.model.entity.User;
 import com.github.codehive.model.enums.EnrollmentStatus;
-import com.github.codehive.model.enums.GroupDeletionReason;
-import com.github.codehive.model.enums.GroupRelationship;
 import com.github.codehive.model.enums.Role;
 import com.github.codehive.model.exception.EntityNotFoundException;
 import com.github.codehive.model.exception.ValidationException;
@@ -54,8 +52,7 @@ public class GroupService {
 
     @Transactional
     public GroupDTO create(CreateGroupRequest request, String email) {
-        User owner = requireUserForUpdate(email);
-        requireManager(owner);
+        User owner = requireUser(email);
         ClassGroup group = groupRepository.save(new ClassGroup(
                 request.getName().trim(), request.getDescription(), owner, generateJoinCode()));
         return GroupMapper.toDTO(group, true);
@@ -63,30 +60,17 @@ public class GroupService {
 
     @Transactional(readOnly = true)
     public List<GroupDTO> listMine(String email, boolean includeDeleted) {
-        return listMine(email, includeDeleted, GroupRelationship.ACCESSIBLE);
-    }
-
-    @Transactional(readOnly = true)
-    public List<GroupDTO> listMine(String email, boolean includeDeleted, GroupRelationship relationship) {
         User user = requireUser(email);
         Map<UUID, GroupDTO> groups = new LinkedHashMap<>();
-        if (relationship != GroupRelationship.ENROLLED) {
-            if (relationship == GroupRelationship.OWNED) requireManager(user);
-            if (user.canManageGroups()) {
-                List<ClassGroup> owned = includeDeleted
-                        ? groupRepository.findByOwnerIdOrderByCreatedAtDesc(user.getId())
-                        : groupRepository.findByOwnerIdAndIsActiveTrueOrderByCreatedAtDesc(user.getId());
-                owned.stream().filter(group -> !isTerminallyDeleted(group))
-                        .forEach(group -> groups.put(group.getId(), GroupMapper.toDTO(group, true)));
-            }
-        }
-        if (relationship != GroupRelationship.OWNED && user.getRole() == Role.STUDENT) {
+        List<ClassGroup> owned = includeDeleted
+                ? groupRepository.findByOwnerIdOrderByCreatedAtDesc(user.getId())
+                : groupRepository.findByOwnerIdAndIsActiveTrueOrderByCreatedAtDesc(user.getId());
+        owned.forEach(group -> groups.put(group.getId(), GroupMapper.toDTO(group, true)));
+        if (user.getRole() == Role.STUDENT) {
             enrollmentRepository.findByStudentIdAndStatus(user.getId(), EnrollmentStatus.ACTIVE).stream()
                     .map(GroupEnrollment::getGroup)
                     .filter(group -> Boolean.TRUE.equals(group.getIsActive()))
                     .forEach(group -> groups.putIfAbsent(group.getId(), GroupMapper.toDTO(group, false)));
-        } else if (relationship == GroupRelationship.ENROLLED) {
-            throw new AccessDeniedException("Only students can list enrolled groups");
         }
         return groups.values().stream()
                 .sorted((left, right) -> right.getCreatedAt().compareTo(left.getCreatedAt()))
@@ -100,12 +84,7 @@ public class GroupService {
         boolean owner = group.getOwner().getId().equals(user.getId());
         boolean enrolled = enrollmentRepository.existsByGroupIdAndStudentIdAndStatus(
                 id, user.getId(), EnrollmentStatus.ACTIVE);
-        if (owner) {
-            requireManager(user);
-            if (isTerminallyDeleted(group)) throw new EntityNotFoundException("Group not found: " + id);
-        } else if (!enrolled) {
-            throw new AccessDeniedException("You cannot access this group");
-        }
+        if (!owner && !enrolled) throw new AccessDeniedException("You cannot access this group");
         if (!owner && !Boolean.TRUE.equals(group.getIsActive())) {
             throw new EntityNotFoundException("Group not found: " + id);
         }
@@ -124,7 +103,7 @@ public class GroupService {
 
     @Transactional
     public GroupDTO join(String joinCode, String email) {
-        User student = requireUserForUpdate(email);
+        User student = requireUser(email);
         if (student.getRole() != Role.STUDENT) {
             throw new AccessDeniedException("Only students can join groups");
         }
@@ -146,11 +125,10 @@ public class GroupService {
         enrollment.setStatus(EnrollmentStatus.ACTIVE);
         enrollment.setJoinedAt(LocalDateTime.now());
         enrollment.setEndedAt(null);
-        GroupEnrollment savedEnrollment = enrollmentRepository.save(enrollment);
-        if (savedEnrollment != null) enrollment = savedEnrollment;
+        enrollmentRepository.save(enrollment);
         notificationPublisher.publish(NotificationDomainEvent.of(
                 NotificationType.STUDENT_ENROLLED, student.getId(), student.getId(),
-                group.getId(), null, null, enrollment.getId()));
+                group.getId(), null, null));
         return GroupMapper.toDTO(group, false);
     }
 
@@ -158,8 +136,7 @@ public class GroupService {
     public List<EnrollmentDTO> listStudents(UUID id, String email) {
         requireStudentListAccess(id, email);
         return enrollmentRepository.findByGroupIdAndStatusOrderByJoinedAtAsc(id, EnrollmentStatus.ACTIVE)
-                .stream().filter(enrollment -> enrollment.getStudent().canParticipate())
-                .map(GroupMapper::toDTO).toList();
+                .stream().map(GroupMapper::toDTO).toList();
     }
 
     @Transactional
@@ -172,7 +149,7 @@ public class GroupService {
         enrollment.setEndedAt(LocalDateTime.now());
         notificationPublisher.publish(NotificationDomainEvent.of(
                 NotificationType.REMOVED_FROM_GROUP, group.getOwner().getId(), studentId,
-                group.getId(), null, null, enrollment.getId()));
+                group.getId(), null, null));
     }
 
     @Transactional
@@ -185,7 +162,7 @@ public class GroupService {
         enrollment.setEndedAt(LocalDateTime.now());
         notificationPublisher.publish(NotificationDomainEvent.of(
                 NotificationType.STUDENT_LEFT, student.getId(), student.getId(),
-                id, null, null, enrollment.getId()));
+                id, null, null));
     }
 
     @Transactional
@@ -208,7 +185,6 @@ public class GroupService {
         group.setIsActive(false);
         group.setArchived(true);
         if (group.getDeletedAt() == null) group.setDeletedAt(java.time.Instant.now());
-        group.setDeletionReason(GroupDeletionReason.OWNER_REQUEST);
         touch(group);
         notificationPublisher.publish(NotificationDomainEvent.of(
                 NotificationType.GROUP_ARCHIVED, group.getOwner().getId(), null,
@@ -221,13 +197,9 @@ public class GroupService {
         if (Boolean.TRUE.equals(group.getIsActive())) {
             throw new ValidationException("Group is not deleted");
         }
-        if (group.getDeletionReason() != null && group.getDeletionReason().isTerminal()) {
-            throw new ValidationException("This group was deleted by an account lifecycle change and cannot be restored");
-        }
         group.setIsActive(true);
         group.setArchived(true);
         group.setDeletedAt(null);
-        group.setDeletionReason(null);
         touch(group);
         return GroupMapper.toDTO(group, true);
     }
@@ -242,10 +214,8 @@ public class GroupService {
     }
 
     public ClassGroup requireOwnedWritableGroup(UUID id, User owner) {
-        User lockedOwner = requireUserForUpdate(owner.getEmail());
-        requireManager(lockedOwner);
         ClassGroup group = requireGroup(id);
-        if (!group.getOwner().getId().equals(lockedOwner.getId())) {
+        if (!group.getOwner().getId().equals(owner.getId())) {
             throw new AccessDeniedException("Only the group owner can perform this action");
         }
         requireWritable(group);
@@ -254,11 +224,7 @@ public class GroupService {
 
     public ClassGroup getGroupForAssignmentAccess(UUID id, User user) {
         ClassGroup group = requireGroup(id);
-        if (group.getOwner().getId().equals(user.getId())) {
-            requireManager(user);
-            if (isTerminallyDeleted(group)) throw new EntityNotFoundException("Group not found: " + id);
-            return group;
-        }
+        if (group.getOwner().getId().equals(user.getId())) return group;
         boolean enrolled = user.getRole() == Role.STUDENT
                 && enrollmentRepository.existsByGroupIdAndStudentIdAndStatus(
                         id, user.getId(), EnrollmentStatus.ACTIVE);
@@ -269,24 +235,18 @@ public class GroupService {
     }
 
     private ClassGroup requireOwnedGroup(UUID id, String email) {
-        User owner = requireUserForUpdate(email);
-        requireManager(owner);
+        User owner = requireUser(email);
         ClassGroup group = requireGroup(id);
         if (!group.getOwner().getId().equals(owner.getId())) {
             throw new AccessDeniedException("Only the group owner can perform this action");
         }
-        if (isTerminallyDeleted(group)) throw new EntityNotFoundException("Group not found: " + id);
         return group;
     }
 
     private void requireStudentListAccess(UUID id, String email) {
         User user = requireUser(email);
         ClassGroup group = requireGroup(id);
-        if (group.getOwner().getId().equals(user.getId())) {
-            requireManager(user);
-            if (isTerminallyDeleted(group)) throw new EntityNotFoundException("Group not found: " + id);
-            return;
-        }
+        if (group.getOwner().getId().equals(user.getId())) return;
 
         boolean activelyEnrolled = user.getRole() == Role.STUDENT
                 && enrollmentRepository.existsByGroupIdAndStudentIdAndStatus(
@@ -309,24 +269,9 @@ public class GroupService {
                 .orElseThrow(() -> new EntityNotFoundException("Authenticated user not found"));
     }
 
-    private User requireUserForUpdate(String email) {
-        return userRepository.findByEmailForUpdate(email)
-                .orElseThrow(() -> new EntityNotFoundException("Authenticated user not found"));
-    }
-
     private void requireWritable(ClassGroup group) {
         if (!Boolean.TRUE.equals(group.getIsActive())) throw new ValidationException("Group is deleted");
         if (Boolean.TRUE.equals(group.getArchived())) throw new ValidationException("Group is archived and read-only");
-    }
-
-    private void requireManager(User user) {
-        if (!user.canManageGroups()) {
-            throw new AccessDeniedException("CREATE_GROUP is required to manage groups");
-        }
-    }
-
-    private boolean isTerminallyDeleted(ClassGroup group) {
-        return group.getDeletionReason() != null && group.getDeletionReason().isTerminal();
     }
 
     private void touch(ClassGroup group) { group.setUpdatedAt(LocalDateTime.now()); }

@@ -28,7 +28,6 @@ import com.github.codehive.model.enums.GradeChangeReason;
 import com.github.codehive.model.enums.GradeStatus;
 import com.github.codehive.model.enums.NotificationType;
 import com.github.codehive.model.enums.Role;
-import com.github.codehive.model.enums.Scope;
 import com.github.codehive.model.exception.ValidationException;
 import com.github.codehive.notification.NotificationDomainEventPublisher;
 import com.github.codehive.notification.event.NotificationDomainEvent;
@@ -216,7 +215,6 @@ class AssignmentGradeServiceTest {
     private User user(String email, UUID id, Role role) {
         User user = new User("Test", "User", id.toString(), email, "password", role);
         user.setId(id);
-        if (role == Role.TEACHER) user.addScope(Scope.CREATE_GROUP);
         return user;
     }
 

@@ -206,16 +206,13 @@ actorId        : UUID?
 groupId        : UUID?
 assignmentId   : UUID?
 submissionId   : UUID?
-resourceId     : UUID?
 occurredAt     : Instant
 attempt        : int
 schemaVersion  : int
 ```
 
-`resourceId` identifica el recurso exacto cuando existe: inscripción, actualización
-de tarea, revisión del conjunto de pruebas, ejecución, feedback o calificación. Los mensajes v1 no lo contienen y
-deben generar una variante reducida sin consultar un recurso "más reciente" que
-pueda pertenecer a otro evento.
+Los IDs opcionales dependen del tipo. Las estrategias deben validar
+indirectamente sus requisitos al consultar el agregado correspondiente.
 
 ### Topología
 
@@ -253,7 +250,7 @@ spring.rabbitmq.publisher-returns=true
 
 Orden de procesamiento:
 
-1. Validar versión `1` o `2`.
+1. Validar versión `1`.
 2. Consultar el usuario.
 3. Evaluar `NotificationPreferenceService.isEnabled`.
 4. Resolver estrategia.
@@ -288,7 +285,7 @@ Implementaciones:
 - `GroupNotificationStrategy`: inscripción, salida, remoción y archivo.
 - `AssignmentNotificationStrategy`: publicación, reprogramación, validación y recordatorios.
 - `SubmissionNotificationStrategy`: entrega y evaluación.
-- `StudentReviewNotificationStrategy`: feedback publicado y calificación devuelta.
+- `AssignmentNotificationStrategy`: actualización, feedback, calificación y cambios de calendario.
 
 `NotificationStrategyRegistry` construye un `EnumMap` al iniciar la aplicación.
 El startup falla si:
@@ -303,19 +300,19 @@ explícita.
 
 `EmailTemplateConfig` crea un `SpringTemplateEngine` con dos resolvers:
 
-- `templates/email/html/**` en modo HTML.
-- `templates/email/text/**` en modo TEXT.
+- `templates/email/html/*.html` en modo HTML.
+- `templates/email/text/*.txt` en modo TEXT.
 
 `EmailTemplateRenderer` agrega:
 
 - `frontendUrl`.
-- `preferencesUrl = {frontend.url}/notifications`.
+- `preferencesUrl = {frontend.url}/settings/notifications`.
 
-Cada valor de `NotificationType` tiene un par dedicado bajo
-`email/{html,text}/notifications/{notification-type}`. El renderer valida todos
-los pares al iniciar, agrega hechos tipados y callouts opcionales, y reutiliza un
-shell HTML para branding y accesibilidad. `test-notification` también tiene su
-propio par. `welcome` y `password-reset` conservan sus plantillas transaccionales.
+Plantillas actuales:
+
+- `notification`: contenido académico genérico producido por estrategias.
+- `welcome`: credenciales temporales y acceso.
+- `password-reset`: enlace con token y vigencia.
 
 `MailSenderService` construye un `MimeMessage` con
 `MimeMessageHelper.setText(text, html)`. Esto produce una alternativa de texto y

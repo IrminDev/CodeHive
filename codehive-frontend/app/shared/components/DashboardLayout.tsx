@@ -42,7 +42,7 @@ export function DashboardLayout({ children, navLinks, sidebarItems, logoLinkTo }
               ? "notifications"
               : "dashboard";
     const label = active === "dashboard" ? "Dashboard" : active.charAt(0).toUpperCase() + active.slice(1);
-    return <TeacherShell active={active} breadcrumbs={[{ label: "Management", to: "/teacher" }, { label }]}>{children}</TeacherShell>;
+    return <TeacherShell active={active} breadcrumbs={[{ label: "Teacher", to: "/teacher" }, { label }]}>{children}</TeacherShell>;
   }
 
   return (

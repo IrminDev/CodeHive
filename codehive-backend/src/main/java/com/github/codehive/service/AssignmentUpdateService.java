@@ -122,7 +122,6 @@ public class AssignmentUpdateService {
         AssignmentUpdate update = baseUpdate(assignment, teacher, request);
         if (!hasReference && !hasTests) {
             update.setKind(AssignmentUpdateKind.METADATA);
-            update = updateRepository.save(update);
             boolean datesChanged = datesChanged(assignment, request);
             boolean wasStudentPublished = studentPublished(assignment);
             boolean maxPointsChanged = request.getMaxPoints() != null
@@ -133,18 +132,16 @@ public class AssignmentUpdateService {
                 int cleared = gradeService.clearAssignmentGrades(
                         assignment, GradeChangeReason.CLEARED_MAX_POINTS_CHANGED, teacher);
                 if (cleared > 0) publishAssignmentEvent(
-                        NotificationType.ASSIGNMENT_GRADES_CLEARED, assignment, teacher, null,
-                        update.getId());
+                        NotificationType.ASSIGNMENT_GRADES_CLEARED, assignment, teacher, null);
             }
             update.setStatus(AssignmentUpdateStatus.APPLIED);
             update.setCompletedAt(Instant.now());
-            update = updateRepository.save(update);
             if (wasStudentPublished) {
                 publishAssignmentEvent(datesChanged
                         ? NotificationType.ASSIGNMENT_RESCHEDULED
-                        : NotificationType.ASSIGNMENT_UPDATED, assignment, teacher, null, update.getId());
+                        : NotificationType.ASSIGNMENT_UPDATED, assignment, teacher, null);
             }
-            return toDTO(update);
+            return toDTO(updateRepository.save(update));
         }
 
         ReferenceSolutionRevision proposedReference = hasReference
@@ -189,8 +186,7 @@ public class AssignmentUpdateService {
         User teacher = requireUser(email);
         AssignmentUpdate update = updateRepository.findById(updateId)
                 .orElseThrow(() -> new EntityNotFoundException("Assignment update not found: " + updateId));
-        if (!teacher.canManageGroups()
-                || !update.getAssignment().getGroup().getOwner().getId().equals(teacher.getId())) {
+        if (!update.getAssignment().getGroup().getOwner().getId().equals(teacher.getId())) {
             throw new AccessDeniedException("Only the assignment owner can view this update");
         }
         return toDTO(update);
@@ -216,7 +212,7 @@ public class AssignmentUpdateService {
         if (!result.isSuccess()) {
             reject(update, result.getErrorMessage());
             publishAssignmentEvent(NotificationType.ASSIGNMENT_VALIDATION_FAILED,
-                    assignment, update.getCreatedBy(), update.getCreatedBy().getId(), update.getId());
+                    assignment, update.getCreatedBy(), update.getCreatedBy().getId());
             return;
         }
 
@@ -226,7 +222,7 @@ public class AssignmentUpdateService {
         } catch (ValidationException exception) {
             reject(update, exception.getMessage());
             publishAssignmentEvent(NotificationType.ASSIGNMENT_VALIDATION_FAILED,
-                    assignment, update.getCreatedBy(), update.getCreatedBy().getId(), update.getId());
+                    assignment, update.getCreatedBy(), update.getCreatedBy().getId());
             return;
         }
         boolean wasStudentPublished = studentPublished(assignment);
@@ -245,18 +241,18 @@ public class AssignmentUpdateService {
                 assignment.setValidationStatus(
                         com.github.codehive.model.enums.AssignmentValidationStatus.READY);
                 publishAssignmentEvent(NotificationType.ASSIGNMENT_READY,
-                        assignment, update.getCreatedBy(), update.getCreatedBy().getId(), update.getId());
+                        assignment, update.getCreatedBy(), update.getCreatedBy().getId());
                 if (assignment.getLaunchDate() == null
                         || !Instant.now().isBefore(assignment.getLaunchDate())) {
                     publishAssignmentEvent(NotificationType.ASSIGNMENT_PUBLISHED,
-                            assignment, update.getCreatedBy(), null, update.getId());
+                            assignment, update.getCreatedBy(), null);
                 }
             }
             int cleared = gradeService.clearAssignmentGrades(
                     assignment, GradeChangeReason.CLEARED_TEST_SUITE_CHANGED, update.getCreatedBy());
             if (cleared > 0) publishAssignmentEvent(
                     NotificationType.ASSIGNMENT_GRADES_CLEARED,
-                    assignment, update.getCreatedBy(), update.getCreatedBy().getId(), update.getId());
+                    assignment, update.getCreatedBy(), update.getCreatedBy().getId());
         }
 
         ReferenceSolutionRevision proposedReference = update.getReferenceSolutionRevision();
@@ -277,22 +273,21 @@ public class AssignmentUpdateService {
                     assignment, GradeChangeReason.CLEARED_MAX_POINTS_CHANGED, update.getCreatedBy());
             if (cleared > 0) publishAssignmentEvent(
                     NotificationType.ASSIGNMENT_GRADES_CLEARED,
-                    assignment, update.getCreatedBy(), update.getCreatedBy().getId(), update.getId());
+                    assignment, update.getCreatedBy(), update.getCreatedBy().getId());
         }
         update.setStatus(AssignmentUpdateStatus.APPLIED);
         update.setCompletedAt(Instant.now());
         if (update.getKind() == AssignmentUpdateKind.TEST_SUITE) {
             if (wasStudentPublished) {
                 publishAssignmentEvent(NotificationType.ASSIGNMENT_TESTS_UPDATED,
-                        assignment, update.getCreatedBy(), null, update.getId());
+                        assignment, update.getCreatedBy(), null);
             }
             eventPublisher.publishEvent(new ReevaluationRequestedEvent(
                     assignment.getId(), update.getTestSuiteRevision().getId()));
         } else if (metadataChangesBeyondReference(proposed) && wasStudentPublished) {
             publishAssignmentEvent(datesChanged
                     ? NotificationType.ASSIGNMENT_RESCHEDULED
-                    : NotificationType.ASSIGNMENT_UPDATED, assignment, update.getCreatedBy(), null,
-                    update.getId());
+                    : NotificationType.ASSIGNMENT_UPDATED, assignment, update.getCreatedBy(), null);
         }
     }
 
@@ -564,14 +559,9 @@ public class AssignmentUpdateService {
 
     private void publishAssignmentEvent(NotificationType type, Assignment assignment,
                                         User actor, UUID subjectUserId) {
-        publishAssignmentEvent(type, assignment, actor, subjectUserId, null);
-    }
-
-    private void publishAssignmentEvent(NotificationType type, Assignment assignment,
-                                        User actor, UUID subjectUserId, UUID resourceId) {
         notificationPublisher.publish(NotificationDomainEvent.of(
                 type, actor != null ? actor.getId() : null, subjectUserId,
-                assignment.getGroup().getId(), assignment.getId(), null, resourceId));
+                assignment.getGroup().getId(), assignment.getId(), null));
     }
 
     private void reject(AssignmentUpdate update, String failure) {

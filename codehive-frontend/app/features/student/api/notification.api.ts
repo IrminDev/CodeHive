@@ -2,7 +2,6 @@ import { jsonBody, studentRequest } from "./client";
 
 export type NotificationPreference = {
   type: string;
-  audience: "OWNER" | "STUDENT";
   enabled: boolean;
   reminderLeadMinutes: number | null;
 };

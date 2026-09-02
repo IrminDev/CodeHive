@@ -129,6 +129,6 @@ public class NotificationReminderScheduler {
     private NotificationMessage message(NotificationType type, User recipient, Assignment assignment) {
         return new NotificationMessage(UUID.randomUUID(), type, recipient.getId(),
                 assignment.getAuthor().getId(), assignment.getGroup().getId(), assignment.getId(),
-                null, null, Instant.now(), 0, 2);
+                null, Instant.now(), 0, 1);
     }
 }

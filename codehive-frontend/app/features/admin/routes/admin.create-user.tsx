@@ -1,7 +1,7 @@
 import type { Route } from "./+types/admin.create-user";
 import { ProtectedRoute } from "~/core/components/ProtectedRoute";
 import { CreateUserPage } from "../pages/CreateUserPage";
-import { Role, Scope } from "~/shared/types/model/User";
+import { Role } from "~/shared/types/model/User";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -12,7 +12,7 @@ export function meta({}: Route.MetaArgs) {
 
 export default function AdminCreateUser() {
   return (
-    <ProtectedRoute roles={[Role.ADMIN]} scopes={[Scope.CREATE_USERS, Scope.CREATE_ADMINS]}>
+    <ProtectedRoute roles={[Role.ADMIN]}>
       <CreateUserPage />
     </ProtectedRoute>
   );

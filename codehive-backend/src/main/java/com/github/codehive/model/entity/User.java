@@ -1,7 +1,6 @@
 package com.github.codehive.model.entity;
 
 import java.time.LocalDateTime;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashSet;
@@ -25,15 +24,12 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
 @Entity
-@Table(name = "users", indexes = {
-        @Index(name = "idx_users_admin_status_role", columnList = "is_active,blocked,role")
-})
+@Table(name = "users")
 public class User implements UserDetails {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -67,18 +63,6 @@ public class User implements UserDetails {
     @Column(nullable = false)
     private Boolean temporaryPassword;
 
-    @Column(nullable = false, columnDefinition = "boolean default false")
-    private Boolean blocked;
-
-    private Instant blockedAt;
-
-    private Instant deletedAt;
-
-    @Column(nullable = false, columnDefinition = "bigint default 0")
-    private Long rateLimitViolationCount;
-
-    private Instant lastRateLimitViolationAt;
-
     @ElementCollection(targetClass = Scope.class)
     @Enumerated(EnumType.STRING)
     @CollectionTable(name = "user_scopes", joinColumns = @JoinColumn(name = "user_id"))
@@ -90,8 +74,6 @@ public class User implements UserDetails {
         this.scopes = new ArrayList<>();
         this.isActive = true;
         this.temporaryPassword = false;
-        this.blocked = false;
-        this.rateLimitViolationCount = 0L;
     }
 
     public User(String name, String lastName, String enrollmentNumber, String email, String password, Role role) {
@@ -104,8 +86,6 @@ public class User implements UserDetails {
         this.createdAt = LocalDateTime.now();
         this.isActive = true;
         this.temporaryPassword = false;
-        this.blocked = false;
-        this.rateLimitViolationCount = 0L;
         this.scopes = new ArrayList<>();
     }
 
@@ -189,25 +169,6 @@ public class User implements UserDetails {
         this.temporaryPassword = temporaryPassword;
     }
 
-    public Boolean getBlocked() { return blocked; }
-    public void setBlocked(Boolean blocked) { this.blocked = blocked; }
-    public Instant getBlockedAt() { return blockedAt; }
-    public void setBlockedAt(Instant blockedAt) { this.blockedAt = blockedAt; }
-    public Instant getDeletedAt() { return deletedAt; }
-    public void setDeletedAt(Instant deletedAt) { this.deletedAt = deletedAt; }
-    public Long getRateLimitViolationCount() { return rateLimitViolationCount; }
-    public void setRateLimitViolationCount(Long rateLimitViolationCount) { this.rateLimitViolationCount = rateLimitViolationCount; }
-    public Instant getLastRateLimitViolationAt() { return lastRateLimitViolationAt; }
-    public void setLastRateLimitViolationAt(Instant lastRateLimitViolationAt) { this.lastRateLimitViolationAt = lastRateLimitViolationAt; }
-
-    public boolean isApplicationVisible() {
-        return Boolean.TRUE.equals(isActive);
-    }
-
-    public boolean canParticipate() {
-        return isApplicationVisible() && !Boolean.TRUE.equals(blocked);
-    }
-
     public List<Scope> getScopes() {
         return scopes;
     }
@@ -228,12 +189,6 @@ public class User implements UserDetails {
 
     public boolean hasScope(Scope scope) {
         return scopes != null && scopes.contains(scope);
-    }
-
-    public boolean canManageGroups() {
-        return canParticipate()
-                && (role == Role.STUDENT || role == Role.TEACHER)
-                && hasScope(Scope.CREATE_GROUP);
     }
 
     @PrePersist
@@ -271,7 +226,7 @@ public class User implements UserDetails {
 
     @Override
     public boolean isAccountNonLocked() {
-        return !Boolean.TRUE.equals(blocked);
+        return isActive;
     }
 
     @Override
@@ -281,6 +236,6 @@ public class User implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return Boolean.TRUE.equals(isActive);
+        return isActive;
     }
 }

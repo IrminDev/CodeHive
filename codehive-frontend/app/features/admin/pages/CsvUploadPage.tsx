@@ -1,45 +1,364 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { CheckCircle2, FileSpreadsheet, Upload, X } from "lucide-react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { AuthService } from "~/features/auth/services/auth.service";
-import { requestWebSocketTicket } from "../api/admin.api";
-import { AdminShell } from "../components/AdminShell";
-import { AdminPageHeader, panelClass, primaryCompactClass } from "../components/AdminUI";
-import type { CsvProgressMessage } from "../types/admin.types";
+import type { CsvProgressMessage } from "~/features/admin/types/admin.types";
+import { AppHeader } from "~/shared/components/AppHeader";
 
 export function CsvUploadPage() {
-  const inputRef = useRef<HTMLInputElement>(null); const socketRef = useRef<WebSocket | null>(null); const terminalRef = useRef(false);
-  const [file, setFile] = useState<File | null>(null); const [dragging, setDragging] = useState(false); const [busy, setBusy] = useState(false); const [progress, setProgress] = useState<CsvProgressMessage | null>(null); const [rowErrors, setRowErrors] = useState<string[]>([]); const [error, setError] = useState<string>();
-  const cleanup = useCallback(() => { const socket = socketRef.current; socketRef.current = null; if (socket && socket.readyState < WebSocket.CLOSING) socket.close(); }, []);
-  useEffect(() => cleanup, [cleanup]);
-  function choose(selected?: File) { if (!selected) return; if (!selected.name.toLowerCase().endsWith(".csv")) { setFile(null); setError("Select a file with .csv extension."); return; } setFile(selected); setError(undefined); setProgress(null); setRowErrors([]); }
-  async function upload() {
-    if (!file) return; cleanup(); terminalRef.current = false; setBusy(true); setProgress(null); setRowErrors([]); setError(undefined);
-    try {
-      const response = await AuthService.uploadCsv(file); const ticket = await requestWebSocketTicket();
-      const socket = new WebSocket(AuthService.getWebSocketUrl(ticket.ticket)); socketRef.current = socket;
-      socket.onopen = () => socket.send(response.data.taskId);
-      socket.onmessage = (event) => {
-        try {
-          const message = JSON.parse(String(event.data)) as CsvProgressMessage;
-          if (message.taskId !== response.data.taskId) return;
-          setProgress(message);
-          if (message.status === "ROW_ERROR" && message.message) setRowErrors((current) => [...current, message.message!]);
-          if (message.status === "COMPLETED") { terminalRef.current = true; setBusy(false); setFile(null); if (inputRef.current) inputRef.current.value = ""; cleanup(); }
-        } catch { terminalRef.current = true; setError("Progress server returned an invalid message."); setBusy(false); cleanup(); }
-      };
-      socket.onerror = () => { if (!terminalRef.current) { setError("Could not track CSV progress. Ticket may have expired."); setBusy(false); } };
-      socket.onclose = () => { if (!terminalRef.current && socketRef.current === socket) { socketRef.current = null; setError("Progress connection closed before processing finished."); setBusy(false); } };
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "CSV upload failed."); setBusy(false); cleanup(); }
-  }
-  const percent = progress?.totalRows ? Math.round(progress.currentRow / progress.totalRows * 100) : 0;
-  return <AdminShell active="users" breadcrumbs={[{ label: "Admin", to: "/admin" }, { label: "Users", to: "/admin/users" }, { label: "CSV upload" }]} contentClassName="max-w-4xl">
-    <AdminPageHeader eyebrow="Bulk registration" title="Upload users from CSV" description="Register up to 1,500 students and teachers while tracking row-level progress." />
-    <div className="grid gap-5 lg:grid-cols-[.9fr_1.1fr]">
-      <section className={`${panelClass} p-5`}><h2 className="text-sm font-semibold">Expected format</h2><p className="mt-2 text-sm text-gray-500 dark:text-gray-400">No header. Exactly six columns:</p><div className="mt-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-dark-card p-4 overflow-x-auto font-mono text-xs whitespace-nowrap"><p className="text-gray-400">role,name,fatherLastName,motherLastName,enrollmentNumber,email</p><p className="mt-2">STUDENT,Juan,García,López,2026630001,juan@example.com</p><p>TEACHER,María,Hernández,Pérez,TEA-001,maria@example.com</p></div><p className="mt-3 text-xs text-gray-500">Allowed roles: STUDENT, TEACHER. ADMIN rows are rejected.</p></section>
-      <section className={`${panelClass} p-5`}><button type="button" onClick={() => inputRef.current?.click()} onDragOver={(event) => { event.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={(event) => { event.preventDefault(); setDragging(false); choose(event.dataTransfer.files[0]); }} className={`w-full rounded-xl border-2 border-dashed p-7 text-center focus:outline-none focus:ring-2 focus:ring-azure dark:focus:ring-yellow ${dragging || file ? "border-azure dark:border-yellow bg-azure/5 dark:bg-yellow/5" : "border-gray-200 dark:border-gray-700"}`}><input ref={inputRef} type="file" accept=".csv,text/csv" className="hidden" onChange={(event) => choose(event.target.files?.[0])} />{file ? <div className="flex items-center justify-center gap-3"><FileSpreadsheet size={26} className="text-azure dark:text-yellow" /><div className="min-w-0 text-left"><p className="font-medium truncate">{file.name}</p><p className="text-xs text-gray-500">{(file.size / 1024).toFixed(1)} KB</p></div><span onClick={(event) => { event.stopPropagation(); setFile(null); }} className="ml-auto w-8 h-8 grid place-items-center rounded-lg hover:bg-red-500/10 text-gray-400 hover:text-red-500" aria-label="Remove file"><X size={16} /></span></div> : <><Upload size={28} className="mx-auto text-gray-400" /><p className="mt-3 font-medium">Drop CSV here or browse</p><p className="mt-1 text-xs text-gray-500">Only .csv files accepted</p></>}</button>{error && <div className="mt-4 rounded-xl border border-red-500/20 bg-red-500/5 p-3 text-sm text-red-600 dark:text-red-400">{error}</div>}<button disabled={!file || busy} onClick={() => void upload()} className={`${primaryCompactClass} w-full mt-4 py-3 text-sm`}><Upload size={16} />{busy ? "Processing…" : "Upload and register"}</button></section>
-    </div>
-    {progress && <section className={`${panelClass} p-5 mt-5`}><div className="flex items-center justify-between gap-3"><div className="flex items-center gap-2">{progress.status === "COMPLETED" ? <CheckCircle2 size={18} className="text-green-500" /> : <span className="w-2 h-2 rounded-full bg-yellow animate-pulse" />}<h2 className="text-sm font-semibold">{progress.status === "COMPLETED" ? "Processing complete" : "Processing rows"}</h2></div><span className="text-xs font-mono text-gray-500">{progress.currentRow}/{progress.totalRows}</span></div><div className="mt-4 h-2 rounded-full bg-gray-100 dark:bg-dark-card overflow-hidden"><div className={`h-full rounded-full ${progress.status === "COMPLETED" ? "bg-green-500" : "bg-azure dark:bg-yellow"}`} style={{ width: `${percent}%` }} /></div><div className="mt-4 grid grid-cols-3 gap-3 text-center"><Counter label="Processed" value={progress.currentRow} /><Counter label="Succeeded" value={progress.successCount} tone="text-green-500" /><Counter label="Failed" value={progress.errorCount} tone="text-red-500" /></div>{rowErrors.length > 0 && <div className="mt-4 max-h-52 overflow-y-auto rounded-xl border border-red-500/20 divide-y divide-red-500/10">{rowErrors.map((item, index) => <p key={`${item}-${index}`} className="p-3 text-xs text-red-600 dark:text-red-400">{item}</p>)}</div>}</section>}
-  </AdminShell>;
-}
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const wsRef = useRef<WebSocket | null>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [progress, setProgress] = useState<CsvProgressMessage | null>(null);
+  const [errors, setErrors] = useState<string[]>([]);
+  const [errorMessage, setErrorMessage] = useState("");
 
-function Counter({ label, value, tone = "" }: { label: string; value: number; tone?: string }) { return <div className="rounded-xl bg-gray-50 dark:bg-dark-card p-3"><p className={`text-xl font-bold font-mono ${tone}`}>{value}</p><p className="text-[10px] text-gray-500">{label}</p></div>; }
+  const cleanupWebSocket = useCallback(() => {
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    return cleanupWebSocket;
+  }, [cleanupWebSocket]);
+
+  function handleFileSelect(selected: File | undefined) {
+    if (selected && selected.type === "text/csv") {
+      setFile(selected);
+      setErrorMessage("");
+    } else if (selected) {
+      setFile(null);
+      setErrorMessage("Please select a valid CSV file.");
+    }
+  }
+
+  const handleUpload = async () => {
+    if (!file) return;
+    setIsLoading(true);
+    setProgress(null);
+    setErrors([]);
+    setErrorMessage("");
+
+    try {
+      const response = await AuthService.uploadCsv(file);
+      const { taskId } = response.data;
+
+      const wsUrl = AuthService.getWebSocketUrl();
+      const ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
+
+      ws.onopen = () => ws.send(taskId);
+
+      ws.onmessage = (event) => {
+        const msg: CsvProgressMessage = JSON.parse(event.data);
+        setProgress(msg);
+        if (msg.status === "ROW_ERROR" && msg.message) {
+          setErrors((prev) => [...prev, msg.message!]);
+        }
+        if (msg.status === "COMPLETED") {
+          setIsLoading(false);
+          setFile(null);
+          if (fileInputRef.current) fileInputRef.current.value = "";
+          cleanupWebSocket();
+        }
+      };
+
+      ws.onerror = () => {
+        setErrorMessage("A connection error occurred while tracking progress.");
+        setIsLoading(false);
+        cleanupWebSocket();
+      };
+    } catch (error: unknown) {
+      setErrorMessage(error instanceof Error ? error.message : "Upload failed");
+      setIsLoading(false);
+    }
+  };
+
+  const progressPercent =
+    progress && progress.totalRows > 0
+      ? Math.round((progress.currentRow / progress.totalRows) * 100)
+      : 0;
+  const isCompleted = progress?.status === "COMPLETED";
+
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-dark-bg transition-colors duration-300">
+      {/* Background orbs */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-1/4 right-0 w-96 h-96 bg-azure/5 dark:bg-azure/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 left-1/4 w-80 h-80 bg-yellow/5 dark:bg-yellow/10 rounded-full blur-3xl" />
+      </div>
+
+      <AppHeader badge="Admin" logoLinkTo="/admin" />
+
+      <main className="relative max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-6">
+        {/* Page header */}
+        <div>
+          <a
+            href="/admin"
+            className="inline-flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-azure dark:hover:text-yellow transition-colors mb-4"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            Back to Admin
+          </a>
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-azure/10 dark:bg-yellow/10 border border-azure/20 dark:border-yellow/20 mb-4">
+            <span className="text-sm font-medium text-azure dark:text-yellow">Bulk Upload</span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
+            Register users <span className="gradient-text">from CSV</span>
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            Upload a CSV file to register up to 1500 users in one operation.
+          </p>
+        </div>
+
+        {/* Format info card */}
+        <div className="bg-white dark:bg-dark-card rounded-2xl border border-gray-200 dark:border-gray-700/50 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700/50 flex items-center gap-3">
+            <div className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-azure to-french text-white">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <h2 className="font-semibold text-gray-900 dark:text-white">Expected CSV Format</h2>
+          </div>
+          <div className="p-6">
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+              No header row. Each row must have exactly 6 columns in this order:
+            </p>
+            <div className="bg-gray-50 dark:bg-dark-surface rounded-xl p-4 font-mono text-sm overflow-x-auto border border-gray-200 dark:border-gray-700/50">
+              <p className="text-gray-400 dark:text-gray-500 mb-2"># role, name, fatherLastName, motherLastName, enrollmentNumber, email</p>
+              <p className="text-gray-700 dark:text-gray-300">STUDENT,Juan,García,López,2021630001,juan@example.com</p>
+              <p className="text-gray-700 dark:text-gray-300">TEACHER,María,Hernández,Pérez,TEA-001,maria@example.com</p>
+            </div>
+            <p className="text-xs text-gray-400 dark:text-gray-500 mt-3">
+              Valid roles: <span className="text-azure dark:text-yellow font-medium">STUDENT</span>,{" "}
+              <span className="text-azure dark:text-yellow font-medium">TEACHER</span>. Maximum 1500 records per upload.
+            </p>
+          </div>
+        </div>
+
+        {/* Upload card */}
+        <div className="bg-white dark:bg-dark-card rounded-2xl border border-gray-200 dark:border-gray-700/50 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700/50 flex items-center gap-3">
+            <div className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-french to-imperial text-white">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+            </div>
+            <h2 className="font-semibold text-gray-900 dark:text-white">Upload CSV File</h2>
+          </div>
+
+          <div className="p-6 space-y-4">
+            {/* Drop zone */}
+            <div
+              className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all duration-200 ${
+                isDragging
+                  ? "border-azure dark:border-yellow bg-azure/5 dark:bg-yellow/5"
+                  : file
+                  ? "border-azure/50 dark:border-yellow/50 bg-azure/5 dark:bg-yellow/5"
+                  : "border-gray-200 dark:border-gray-700 hover:border-azure/50 dark:hover:border-yellow/50"
+              }`}
+              onClick={() => fileInputRef.current?.click()}
+              onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+              onDragLeave={() => setIsDragging(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setIsDragging(false);
+                handleFileSelect(e.dataTransfer.files[0]);
+              }}
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv"
+                className="hidden"
+                id="csv-upload"
+                onChange={(e) => handleFileSelect(e.target.files?.[0])}
+              />
+
+              {file ? (
+                <div className="flex items-center justify-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-azure/10 dark:bg-yellow/10 flex items-center justify-center flex-shrink-0">
+                    <svg className="w-6 h-6 text-azure dark:text-yellow" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  </div>
+                  <div className="text-left">
+                    <p className="font-medium text-gray-900 dark:text-white">{file.name}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      {(file.size / 1024).toFixed(1)} KB · CSV
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setFile(null);
+                      if (fileInputRef.current) fileInputRef.current.value = "";
+                    }}
+                    className="ml-auto p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                    aria-label="Remove file"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div className="w-14 h-14 rounded-xl bg-gray-100 dark:bg-dark-surface flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-7 h-7 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                  </div>
+                  <p className="text-gray-700 dark:text-gray-300 font-medium mb-1">
+                    Drop your CSV here, or{" "}
+                    <span className="text-azure dark:text-yellow cursor-pointer hover:underline">browse</span>
+                  </p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Only .csv files are accepted</p>
+                </>
+              )}
+            </div>
+
+            {/* Error */}
+            {errorMessage && (
+              <div className="flex items-start gap-3 p-4 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+                <svg className="w-5 h-5 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p className="text-sm text-red-700 dark:text-red-400">{errorMessage}</p>
+              </div>
+            )}
+
+            {/* Submit */}
+            <button
+              onClick={handleUpload}
+              disabled={!file || isLoading}
+              className="w-full btn-primary py-3.5 text-base disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
+            >
+              {isLoading ? (
+                <span className="inline-flex items-center justify-center gap-2">
+                  <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  Uploading…
+                </span>
+              ) : (
+                <span className="inline-flex items-center justify-center gap-2">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                  Upload & Register Users
+                </span>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Progress card */}
+        {progress && (
+          <div className="bg-white dark:bg-dark-card rounded-2xl border border-gray-200 dark:border-gray-700/50 overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700/50 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                {isCompleted ? (
+                  <div className="w-8 h-8 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                    <svg className="w-4 h-4 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                ) : (
+                  <div className="w-8 h-8 rounded-lg bg-azure/10 dark:bg-yellow/10 flex items-center justify-center">
+                    <svg className="animate-spin w-4 h-4 text-azure dark:text-yellow" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                  </div>
+                )}
+                <h2 className="font-semibold text-gray-900 dark:text-white">
+                  {isCompleted ? "Upload Complete" : "Processing…"}
+                </h2>
+              </div>
+              <span className="text-sm text-gray-500 dark:text-gray-400">
+                {progress.currentRow} / {progress.totalRows} rows
+              </span>
+            </div>
+
+            <div className="p-6 space-y-5">
+              {/* Progress bar */}
+              <div>
+                <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-2">
+                  <span>{progressPercent}% complete</span>
+                  <span>{progress.currentRow} processed</span>
+                </div>
+                <div className="w-full bg-gray-100 dark:bg-dark-surface rounded-full h-3">
+                  <div
+                    className={`h-3 rounded-full transition-all duration-500 ${
+                      isCompleted
+                        ? "bg-green-500"
+                        : "bg-gradient-to-r from-azure to-french dark:from-yellow dark:to-gold"
+                    }`}
+                    style={{ width: `${progressPercent}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Count grid */}
+              <div className="grid grid-cols-3 gap-4">
+                <div className="bg-gray-50 dark:bg-dark-surface rounded-xl p-4 text-center border border-gray-100 dark:border-gray-700/30">
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{progress.currentRow}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Processed</p>
+                </div>
+                <div className="bg-green-50 dark:bg-green-900/20 rounded-xl p-4 text-center border border-green-100 dark:border-green-800/30">
+                  <p className="text-2xl font-bold text-green-600 dark:text-green-400">{progress.successCount}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Succeeded</p>
+                </div>
+                <div className="bg-red-50 dark:bg-red-900/20 rounded-xl p-4 text-center border border-red-100 dark:border-red-800/30">
+                  <p className="text-2xl font-bold text-red-600 dark:text-red-400">{progress.errorCount}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Failed</p>
+                </div>
+              </div>
+
+              {/* Current row message */}
+              {!isCompleted && progress.message && (
+                <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
+                  {progress.message}
+                </p>
+              )}
+
+              {/* Row errors */}
+              {errors.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+                      <span className="text-xs font-medium text-red-600 dark:text-red-400">
+                        {errors.length} {errors.length === 1 ? "error" : "errors"}
+                      </span>
+                    </div>
+                  </div>
+                  <ul className="space-y-1.5 max-h-48 overflow-y-auto">
+                    {errors.map((err, i) => (
+                      <li
+                        key={i}
+                        className="flex items-start gap-2 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/10 px-3 py-2 rounded-lg border border-red-100 dark:border-red-800/30"
+                      >
+                        <svg className="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                        {err}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}

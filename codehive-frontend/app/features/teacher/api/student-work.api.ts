@@ -6,7 +6,6 @@ import type {
   TeacherStudentWorkReview,
   TeacherSubmissionEvidence,
 } from "../types/student-work.types";
-import type { ExecutionReport } from "~/features/student/types/execution.types";
 
 const assignmentPath = (assignmentId: string) =>
   `/api/assignments/${encodeURIComponent(assignmentId)}`;
@@ -28,12 +27,6 @@ export function getStudentWorkReview(assignmentId: string, studentId: string): P
 export function getSubmissionEvidence(submissionId: string): Promise<TeacherSubmissionEvidence> {
   return teacherRequest<TeacherSubmissionEvidence>(
     `/api/assignments/submissions/${encodeURIComponent(submissionId)}/teacher-review`,
-  );
-}
-
-export function getSubmissionReport(executionId: string): Promise<ExecutionReport> {
-  return teacherRequest<ExecutionReport>(
-    `/api/execution/check/${encodeURIComponent(executionId)}/report`,
   );
 }
 

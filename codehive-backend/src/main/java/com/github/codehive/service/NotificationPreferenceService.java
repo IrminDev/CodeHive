@@ -97,7 +97,7 @@ public class NotificationPreferenceService {
 
     @Transactional(readOnly = true)
     public boolean isEnabled(User user, NotificationType type) {
-        if (user == null || !user.canParticipate() || !NotificationType.forUser(user).contains(type)) {
+        if (user == null || !Boolean.TRUE.equals(user.getIsActive()) || type.getAudience() != user.getRole()) {
             return false;
         }
         boolean globallyEnabled = settingsRepository.findByUserId(user.getId())
@@ -132,11 +132,10 @@ public class NotificationPreferenceService {
         Map<NotificationType, UserNotificationPreference> overrides = preferenceRepository.findByUserId(user.getId())
                 .stream().collect(Collectors.toMap(UserNotificationPreference::getType, Function.identity()));
         List<NotificationPreferenceDTO> preferences = new ArrayList<>();
-        for (NotificationType type : NotificationType.forUser(user)) {
+        for (NotificationType type : NotificationType.forRole(user.getRole())) {
             UserNotificationPreference override = overrides.get(type);
             preferences.add(new NotificationPreferenceDTO(
                     type,
-                    type.getAudience(),
                     override == null || Boolean.TRUE.equals(override.getEnabled()),
                     type.isReminder()
                             ? (override != null && override.getReminderLeadMinutes() != null
@@ -153,8 +152,8 @@ public class NotificationPreferenceService {
     }
 
     private void validatePreference(User user, UpdateNotificationPreferenceRequest update) {
-        if (!NotificationType.forUser(user).contains(update.type())) {
-            throw new ValidationException("Notification type " + update.type() + " is not available for this account");
+        if (update.type().getAudience() != user.getRole()) {
+            throw new ValidationException("Notification type " + update.type() + " is not available for this role");
         }
         if (!update.type().isReminder() && update.reminderLeadMinutes() != null) {
             throw new ValidationException("Reminder lead time is only valid for reminder notifications");

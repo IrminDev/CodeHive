@@ -8,7 +8,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Page;
 import org.springframework.data.repository.query.Param;
 
 import com.github.codehive.model.dto.metrics.SubmissionAttemptCount;
@@ -33,16 +32,6 @@ public interface SubmissionRepository extends JpaRepository<Submission, UUID> {
     List<Submission> findByAssignmentAndStudentOrderByCreatedAtDesc(Assignment assignment, User student);
 
     List<Submission> findByStudentIdOrderByCreatedAtDesc(UUID studentId);
-    Page<Submission> findByStudentId(UUID studentId, Pageable pageable);
-    long countByStudentId(UUID studentId);
-    long countByCreatedAtBetweenAndStudentIsActiveTrue(LocalDateTime from, LocalDateTime to);
-
-    @Query("""
-            select count(s) from Submission s
-            where s.createdAt >= :from and s.createdAt < :to
-              and s.student.isActive = true and s.student.blocked = false
-            """)
-    long countVisibleInPeriod(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
     List<Submission> findTop10ByAssignmentGroupOwnerIdOrderByCreatedAtDesc(UUID ownerId);
 
     @Query("""

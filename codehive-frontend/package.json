@@ -6,8 +6,7 @@
     "build": "react-router build",
     "dev": "react-router dev",
     "start": "react-router-serve ./build/server/index.js",
-    "typecheck": "react-router typegen && tsc",
-    "test": "vitest run"
+    "typecheck": "react-router typegen && tsc"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
@@ -27,7 +26,6 @@
     "react-dom": "^19.1.1",
     "react-resizable-panels": "^4.11.0",
     "react-router": "^7.13.1",
-    "recharts": "^3.10.1",
     "sileo": "^0.1.5",
     "tailwind-merge": "^3.6.0",
     "zustand": "^5.0.13"
@@ -35,16 +33,12 @@
   "devDependencies": {
     "@react-router/dev": "^7.13.1",
     "@tailwindcss/vite": "^4.1.13",
-    "@testing-library/jest-dom": "^7.0.1",
-    "@testing-library/react": "^16.3.2",
     "@types/node": "^22",
     "@types/react": "^19.1.13",
     "@types/react-dom": "^19.1.9",
-    "jsdom": "^30.0.1",
     "tailwindcss": "^4.1.13",
     "typescript": "^5.9.2",
     "vite": "^7.3.1",
-    "vite-tsconfig-paths": "^5.1.4",
-    "vitest": "^4.1.11"
+    "vite-tsconfig-paths": "^5.1.4"
   }
 }
