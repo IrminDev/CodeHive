@@ -122,6 +122,7 @@ class GroupServiceTest {
 
         assertThat(restored.getIsActive()).isTrue();
         assertThat(restored.getArchived()).isTrue();
+        assertThat(group.getDeletedAt()).isNull();
     }
 
     @Test
@@ -130,6 +131,7 @@ class GroupServiceTest {
 
         assertThat(group.getIsActive()).isFalse();
         assertThat(group.getArchived()).isTrue();
+        assertThat(group.getDeletedAt()).isNotNull();
     }
 
     @Test

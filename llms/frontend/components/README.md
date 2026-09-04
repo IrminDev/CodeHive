@@ -22,6 +22,13 @@ Landing page sections are split into reusable blocks:
 
 These are composed by landing page modules rather than tightly coupled to route files.
 
+Student navigation is shared by:
+
+- `app/features/student/components/StudentHeader.tsx` — breadcrumb, search shell,
+  notification placeholder, theme toggle, and logout.
+- `app/features/student/components/StudentSidebar.tsx` — dashboard, groups, join,
+  and assignments navigation with active state.
+
 ## Access Control Component
 ProtectedRoute is the core guard component.
 

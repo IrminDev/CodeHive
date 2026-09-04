@@ -49,6 +49,8 @@ public class TestSuiteRevision {
     @Column(columnDefinition = "TEXT")
     private String failureMessage;
 
+    private Instant artifactsPurgedAt;
+
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
     public Assignment getAssignment() { return assignment; }
@@ -65,4 +67,6 @@ public class TestSuiteRevision {
     public void setActivatedAt(Instant activatedAt) { this.activatedAt = activatedAt; }
     public String getFailureMessage() { return failureMessage; }
     public void setFailureMessage(String failureMessage) { this.failureMessage = failureMessage; }
+    public Instant getArtifactsPurgedAt() { return artifactsPurgedAt; }
+    public void setArtifactsPurgedAt(Instant artifactsPurgedAt) { this.artifactsPurgedAt = artifactsPurgedAt; }
 }

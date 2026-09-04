@@ -384,11 +384,19 @@ class CheckExecutionControllerIntegrationTest {
             String reportJson = """
                     {
                       "executionId":"%s",
-                      "overallStatus":"AC",
-                      "testCaseResults":[],
+                      "overallStatus":"RTE",
+                      "testCaseResults":[{
+                        "testCaseNumber":1,
+                        "status":"RTE",
+                        "executionTimeMs":120,
+                        "memoryUsedMb":10,
+                        "feedback":"Runtime error",
+                        "stderr":"Traceback: division by zero",
+                        "exitCode":1
+                      }],
                       "totalTests":1,
-                      "passedTests":1,
-                      "failedTests":0,
+                      "passedTests":0,
+                      "failedTests":1,
                       "totalExecutionTimeMs":120,
                       "maxExecutionTimeMs":120,
                       "maxMemoryUsedMb":10,
@@ -402,8 +410,11 @@ class CheckExecutionControllerIntegrationTest {
             mockMvc.perform(get("/api/execution/check/{id}/report", exec.getId())
                             .header("Authorization", "Bearer " + studentToken))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.data.overallStatus").value("AC"))
-                    .andExpect(jsonPath("$.data.passedTests").value(1));
+                    .andExpect(jsonPath("$.data.overallStatus").value("RTE"))
+                    .andExpect(jsonPath("$.data.passedTests").value(0))
+                    .andExpect(jsonPath("$.data.testCaseResults[0].stderr")
+                            .value("Traceback: division by zero"))
+                    .andExpect(jsonPath("$.data.testCaseResults[0].exitCode").value(1));
         }
 
         @Test
@@ -479,6 +490,21 @@ class CheckExecutionControllerIntegrationTest {
             mockMvc.perform(get("/api/execution/check/{id}/report", exec.getId())
                             .header("Authorization", "Bearer " + studentToken))
                     .andExpect(status().isNotFound());
+        }
+
+        @Test
+        @DisplayName("returns 410 when detailed execution artifacts expired")
+        void reportArtifactsExpired() throws Exception {
+            Execution exec = new Execution(ExecutionType.PRACTICE);
+            exec.setUser(student);
+            exec.setStatus(ExecutionStatus.AC);
+            exec.setArtifactsExpireAt(Instant.parse("2020-01-01T00:00:00Z"));
+            executionRepository.saveAndFlush(exec);
+
+            mockMvc.perform(get("/api/execution/check/{id}/report", exec.getId())
+                            .header("Authorization", "Bearer " + studentToken))
+                    .andExpect(status().isGone())
+                    .andExpect(jsonPath("$.error").value("Execution artifacts expired"));
         }
     }
 }

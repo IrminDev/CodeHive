@@ -13,4 +13,5 @@ public interface ClassGroupRepository extends JpaRepository<ClassGroup, UUID> {
     boolean existsByJoinCodeIgnoreCase(String joinCode);
     List<ClassGroup> findByOwnerIdAndIsActiveTrueOrderByCreatedAtDesc(UUID ownerId);
     List<ClassGroup> findByOwnerIdOrderByCreatedAtDesc(UUID ownerId);
+    List<ClassGroup> findByIsActiveFalseAndDeletedAtIsNull();
 }

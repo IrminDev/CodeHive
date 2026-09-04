@@ -1,6 +1,7 @@
 package com.github.codehive.repository;
 
 import java.util.List;
+import java.util.Collection;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -14,6 +15,9 @@ import com.github.codehive.model.entity.StudentAssignmentWork;
 public interface StudentAssignmentWorkRepository extends JpaRepository<StudentAssignmentWork, UUID> {
     Optional<StudentAssignmentWork> findByAssignmentIdAndStudentId(UUID assignmentId, UUID studentId);
     List<StudentAssignmentWork> findByAssignmentId(UUID assignmentId);
+    List<StudentAssignmentWork> findByStudentIdAndAssignmentIdIn(
+            UUID studentId, Collection<UUID> assignmentIds);
+    List<StudentAssignmentWork> findByAssignmentIdIn(Collection<UUID> assignmentIds);
 
     @Query("""
             select new com.github.codehive.model.dto.metrics.CurrentSubmissionRow(

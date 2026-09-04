@@ -23,6 +23,8 @@ import com.github.codehive.model.dto.AssignmentDTO;
 import com.github.codehive.model.dto.AssignmentExampleDTO;
 import com.github.codehive.model.dto.CloneAssignmentFormDTO;
 import com.github.codehive.model.dto.CloneAssignmentTestCaseDTO;
+import com.github.codehive.model.dto.AssignmentPreviewDTO;
+import com.github.codehive.model.dto.AssignmentPreviewTestCaseDTO;
 import com.github.codehive.model.dto.SampleTestCaseDTO;
 import com.github.codehive.model.dto.queue.TestCaseInfo;
 import com.github.codehive.model.dto.queue.TestGenerationJob;
@@ -39,6 +41,7 @@ import com.github.codehive.model.exception.EntityNotFoundException;
 import com.github.codehive.model.exception.ValidationException;
 import com.github.codehive.model.mapper.AssignmentMapper;
 import com.github.codehive.model.request.assignment.AssignmentExampleRequest;
+import com.github.codehive.model.request.assignment.AssignmentLimits;
 import com.github.codehive.model.request.assignment.CloneAssignmentRequest;
 import com.github.codehive.model.request.assignment.CloneTestCaseRequest;
 import com.github.codehive.model.request.assignment.CreateAssignmentRequest;
@@ -85,11 +88,23 @@ public class AssignmentService {
 
     @Transactional(readOnly = true)
     public Page<AssignmentDTO> listGroupAssignments(UUID groupId, int page, int size, String email) {
+        return listGroupAssignments(groupId, page, size, email, false, false, null, null);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<AssignmentDTO> listGroupAssignments(
+            UUID groupId, int page, int size, String email,
+            boolean includeDeleted, boolean deletedOnly, String query,
+            AssignmentValidationStatus validationStatus) {
         User user = requireUser(email);
         ClassGroup group = groupService.getGroupForAssignmentAccess(groupId, user);
         if (group.getOwner().getId().equals(user.getId())) {
-            return assignmentRepository.findByGroupIdAndIsActiveTrueOrderByCreatedAtDesc(
-                    groupId, PageRequest.of(page, size)).map(AssignmentMapper::toDTO);
+            // Keep this parameter non-null. PostgreSQL otherwise infers a nullable value used by
+            // lower(:query) as bytea and rejects it with "function lower(bytea) does not exist".
+            String normalizedQuery = query == null || query.isBlank() ? "" : query.trim();
+            return assignmentRepository.findTeacherManaged(
+                    groupId, includeDeleted || deletedOnly, deletedOnly, normalizedQuery,
+                    validationStatus, PageRequest.of(page, size)).map(AssignmentMapper::toDTO);
         }
         return assignmentRepository.findStudentVisible(groupId, AssignmentValidationStatus.READY,
                 Instant.now(), PageRequest.of(page, size)).map(AssignmentMapper::toDTO);
@@ -131,6 +146,7 @@ public class AssignmentService {
         if (testCaseInputFiles == null || testCaseInputFiles.isEmpty()) {
             throw new ValidationException("At least one test case input is required");
         }
+        validateLimits(request.getTimeLimitMs(), request.getMemoryLimitMb(), testCaseInputFiles.size());
 
         Assignment assignment = baseAssignment(request, group, author);
         addExamples(assignment, request.getExamples());
@@ -171,6 +187,7 @@ public class AssignmentService {
             throw new ValidationException("Target group must be different from the source group");
         }
         validateDates(request.getLaunchDate(), request.getDueDate(), request.getCloseDate());
+        validateLimits(request.getTimeLimitMs(), request.getMemoryLimitMb(), request.getTestCases().size());
 
         Assignment clone = new Assignment(request.getTitle(), request.getDescription(), request.getTimeLimitMs(),
                 request.getMemoryLimitMb(), request.getComparatorType());
@@ -272,6 +289,36 @@ public class AssignmentService {
                 source.getMaxPoints());
     }
 
+    @Transactional(readOnly = true)
+    public AssignmentPreviewDTO getTeacherPreview(UUID assignmentId, String email) {
+        User teacher = requireUser(email);
+        Assignment assignment = requireAssignment(assignmentId);
+        if (!assignment.getGroup().getOwner().getId().equals(teacher.getId())) {
+            throw new AccessDeniedException("Only the assignment owner can preview it");
+        }
+
+        ReferenceSolutionRevision reference = assignment.getActiveReferenceSolutionRevision() != null
+                ? assignment.getActiveReferenceSolutionRevision()
+                : referenceSolutionRevisionRepository.findByAssignmentIdOrderByCreatedAtDesc(assignmentId).stream()
+                        .findFirst()
+                        .orElseThrow(() -> new EntityNotFoundException(
+                                "Assignment has no reference solution revision"));
+        TestSuiteRevision testSuite = resolveCurrentTestSuiteRevision(assignment);
+        boolean outputsReady = assignment.getValidationStatus() == AssignmentValidationStatus.READY;
+        List<AssignmentPreviewTestCaseDTO> testCases = new ArrayList<>();
+        for (TestCase testCase : testCaseRepository.findByTestSuiteRevisionIdOrderByOrderAsc(testSuite.getId())) {
+            String inputPath = ObjectKeyBuilder.testCaseInput(assignmentId, testSuite.getId(), testCase.getId());
+            String expectedOutput = outputsReady
+                    ? readTextObject(ObjectKeyBuilder.testCaseExpectedOutput(assignmentId, testSuite.getId(), testCase.getId()))
+                    : null;
+            testCases.add(new AssignmentPreviewTestCaseDTO(
+                    testCase.getOrder(), readTextObject(inputPath), expectedOutput, testCase.getIsSample()));
+        }
+        return new AssignmentPreviewDTO(
+                AssignmentMapper.toDTO(assignment), reference.getLanguage(),
+                readTextObject(reference.getObjectKey()), testCases);
+    }
+
     @Transactional
     public void softDelete(UUID id, String email) {
         User teacher = requireUser(email);
@@ -280,6 +327,19 @@ public class AssignmentService {
             throw new AccessDeniedException("Only the group owner can delete this assignment");
         }
         assignment.setIsActive(false);
+        if (assignment.getDeletedAt() == null) assignment.setDeletedAt(Instant.now());
+    }
+
+    @Transactional
+    public AssignmentDTO restore(UUID id, String email) {
+        User teacher = requireUser(email);
+        Assignment assignment = requireAssignment(id);
+        groupService.requireOwnedWritableGroup(assignment.getGroup().getId(), teacher);
+        if (Boolean.TRUE.equals(assignment.getIsActive())) return AssignmentMapper.toDTO(assignment);
+        assignment.setIsActive(true);
+        assignment.setDeletedAt(null);
+        assignment.setUpdatedAt(java.time.LocalDateTime.now());
+        return AssignmentMapper.toDTO(assignmentRepository.save(assignment));
     }
 
     private Assignment baseAssignment(CreateAssignmentRequest request, ClassGroup group, User author) {
@@ -387,6 +447,20 @@ public class AssignmentService {
         }
         if (launch != null && close != null && launch.isAfter(close)) {
             throw new ValidationException("Launch date must be before or equal to close date");
+        }
+    }
+
+    private void validateLimits(Long timeLimitMs, Long memoryLimitMb, int testCaseCount) {
+        if (timeLimitMs == null || timeLimitMs < AssignmentLimits.MIN_TIME_LIMIT_MS
+                || timeLimitMs > AssignmentLimits.MAX_TIME_LIMIT_MS) {
+            throw new ValidationException("Time limit must be between 100 and 10000ms");
+        }
+        if (memoryLimitMb == null || memoryLimitMb < AssignmentLimits.MIN_MEMORY_LIMIT_MB
+                || memoryLimitMb > AssignmentLimits.MAX_MEMORY_LIMIT_MB) {
+            throw new ValidationException("Memory limit must be between 16 and 1000MB");
+        }
+        if (testCaseCount > AssignmentLimits.MAX_TEST_CASES) {
+            throw new ValidationException("At most 50 test cases are allowed");
         }
     }
 

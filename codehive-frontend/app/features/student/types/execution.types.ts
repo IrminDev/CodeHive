@@ -48,8 +48,25 @@ export type TestCaseResult = {
   executionTimeMs?: number
   memoryUsedMb?: number
   feedback?: string
-  expectedOutput?: string
-  actualOutput?: string
+  stderr?: string
+  exitCode?: number
+  expectedOutput?: string | null
+  actualOutput?: string | null
+}
+
+export type StudentSubmissionHistory = {
+  submissionId: string;
+  assignmentId: string;
+  language: Language;
+  submissionStatus: "SUBMITTED" | "WITHDRAWN";
+  submittedAt: string;
+  deliveredLate: boolean;
+  withdrawnAt?: string;
+  executionId?: string;
+  executionStatus: ExecutionStatus;
+  timeMs?: number;
+  memoryMb?: number;
+  reportAvailable: boolean;
 }
 
 export type ExecutionReport = {

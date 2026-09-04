@@ -333,10 +333,10 @@ public class GroupMetricsService {
                         SubmissionAttemptCount::attempts));
         Map<UUID, StudentGradeRow> gradeByStudent = grades.stream()
                 .collect(Collectors.toMap(StudentGradeRow::studentId, Function.identity()));
-        Map<UUID, StudentWorkStatus> workStatusByStudent = workRepository
+        Map<UUID, StudentAssignmentWork> workByStudent = workRepository
                 .findByAssignmentId(assignmentId).stream()
                 .collect(Collectors.toMap(work -> work.getStudent().getId(),
-                        StudentAssignmentWork::getStatus));
+                        Function.identity()));
 
         List<GroupEnrollment> sortedEnrollments = sortedByStudentName(activeEnrollments);
         List<AssignmentMetricsDetailDTO.StudentRef> missingStudents = sortedEnrollments.stream()
@@ -350,7 +350,7 @@ public class GroupMetricsService {
         List<AssignmentMetricsDetailDTO.StudentBreakdown> perStudent = sortedEnrollments.stream()
                 .map(enrollment -> studentBreakdown(enrollment.getStudent(),
                         rowByStudent, attemptsByStudent, gradeByStudent,
-                        workStatusByStudent, latestResults))
+                        workByStudent, latestResults))
                 .toList();
 
         return new AssignmentMetricsDetailDTO(
@@ -378,15 +378,18 @@ public class GroupMetricsService {
             Map<UUID, CurrentSubmissionRow> rowByStudent,
             Map<UUID, Long> attemptsByStudent,
             Map<UUID, StudentGradeRow> gradeByStudent,
-            Map<UUID, StudentWorkStatus> workStatusByStudent,
+            Map<UUID, StudentAssignmentWork> workByStudent,
             Map<UUID, SubmissionResultRow> latestResults) {
         CurrentSubmissionRow row = rowByStudent.get(student.getId());
         SubmissionResultRow result = row != null ? latestResults.get(row.submissionId()) : null;
         StudentGradeRow grade = gradeByStudent.get(student.getId());
+        StudentAssignmentWork work = workByStudent.get(student.getId());
         return new AssignmentMetricsDetailDTO.StudentBreakdown(
                 student.getId(),
                 fullName(student),
-                workStatusByStudent.getOrDefault(student.getId(), StudentWorkStatus.NOT_SUBMITTED),
+                student.getEnrollmentNumber(),
+                work != null ? work.getId() : null,
+                work != null ? work.getStatus() : StudentWorkStatus.NOT_SUBMITTED,
                 row != null ? row.submissionId() : null,
                 row != null ? row.deliveredLate() : null,
                 attemptsByStudent.getOrDefault(student.getId(), 0L),

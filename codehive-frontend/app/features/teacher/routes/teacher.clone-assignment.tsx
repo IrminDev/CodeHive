@@ -1,19 +1,18 @@
-import type { Route } from "./+types/teacher.clone-assignment";
 import { ProtectedRoute } from "~/core/components/ProtectedRoute";
-import { CreateAssignmentPage } from "../pages/CreateAssignmentPage";
+import { CloneAssignmentPage } from "../pages/CloneAssignmentPage";
 import { Role } from "~/shared/types/model/User";
 
-export function meta({}: Route.MetaArgs) {
+export function meta() {
   return [
     { title: "Clone Assignment - CodeHive" },
     { name: "description", content: "Clone and edit an assignment." },
   ];
 }
 
-export default function TeacherCloneAssignment({ params }: Route.ComponentProps) {
+export default function TeacherCloneAssignment() {
   return (
     <ProtectedRoute roles={[Role.TEACHER]}>
-      <CreateAssignmentPage mode="clone" assignmentId={params.assignmentId} />
+      <CloneAssignmentPage />
     </ProtectedRoute>
   );
 }

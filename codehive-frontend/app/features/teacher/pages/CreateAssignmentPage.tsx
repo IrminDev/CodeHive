@@ -1,117 +1,99 @@
-import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router";
-import { CodeEditor } from "~/shared/components/CodeEditor";
-import { DashboardLayout } from "~/shared/components/DashboardLayout";
-import { sileo } from "sileo";
+import { useRef, useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router";
 import {
-  cloneAssignment,
-  createAssignment,
-  getActiveTeacherGroups,
-  getCloneAssignmentForm,
-} from "../api/assignment.api";
-import type {
-  AssignmentExample,
-  ComparatorType,
-  Language,
-  TeacherGroup,
-} from "../api/assignment.api";
-import { TEACHER_CREATE_NAV, TEACHER_CREATE_SIDEBAR_ITEMS } from "../config/dashboard.config";
+  BookOpen, Plus, ArrowLeft, ChevronRight, X, Check, Info,
+} from "lucide-react";
+import { CodeEditor } from "~/shared/components/CodeEditor";
+import { sileo } from "sileo";
+import { createAssignment, getActiveTeacherGroups } from "../api/assignment.api";
+import type { AssignmentExample, Language, ComparatorType, TeacherGroup } from "../api/assignment.api";
+import { TeacherShell } from "../components/TeacherShell";
 
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
+// ─── Constants ────────────────────────────────────────────────────────────────
 
 const LANGUAGES: { value: Language; label: string; ext: string; monaco: string }[] = [
-  { value: "PYTHON", label: "Python", ext: "py", monaco: "python" },
-  { value: "JAVA", label: "Java", ext: "java", monaco: "java" },
-  { value: "CPP", label: "C++", ext: "cpp", monaco: "cpp" },
-  { value: "C", label: "C", ext: "c", monaco: "c" },
+  { value: "PYTHON", label: "Python", ext: "py",   monaco: "python" },
+  { value: "JAVA",   label: "Java",   ext: "java", monaco: "java"   },
+  { value: "CPP",    label: "C++",    ext: "cpp",  monaco: "cpp"    },
+  { value: "C",      label: "C",      ext: "c",    monaco: "c"      },
 ];
-
-// Execution limits — enforced both in UI and at submit time
-const TIME_LIMIT = { min: 500, max: 5000, step: 100, default: 2000, unit: "ms" } as const;
-const MEMORY_LIMIT = { min: 64, max: 512, step: 64, default: 256, unit: "MB" } as const;
 
 const LANGUAGE_TEMPLATES: Record<Language, string> = {
   PYTHON: "def solution():\n    pass\n",
-  JAVA: "class Solution {\n\n}\n",
-  CPP: "#include <bits/stdc++.h>\nusing namespace std;\n\nint main() {\n  return 0;\n}\n",
-  C: "#include <stdio.h>\n\nint main(void) {\n  return 0;\n}\n",
+  JAVA:   "class Solution {\n\n}\n",
+  CPP:    "#include <bits/stdc++.h>\nusing namespace std;\n\nint main() {\n  return 0;\n}\n",
+  C:      "#include <stdio.h>\n\nint main(void) {\n  return 0;\n}\n",
 };
 
 const EXT_TO_LANG: Record<string, Language> = {
-  py: "PYTHON",
-  java: "JAVA",
-  cpp: "CPP",
-  cc: "CPP",
-  c: "C",
+  py: "PYTHON", java: "JAVA", cpp: "CPP", cc: "CPP", c: "C",
 };
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
+const MAX_TITLE_CHARS = 200;
+const MAX_TAGS = 10;
+const MAX_TAG_CHARS = 50;
+const MAX_SUPPORTING_TEXT_CHARS = 5_000;
+const MAX_SOURCE_LINES = 500;
+const MAX_SOURCE_BYTES = 256 * 1024;
+const MAX_TEST_INPUT_BYTES = 1024 * 1024;
+const MAX_TOTAL_TEST_INPUT_BYTES = 5 * 1024 * 1024;
+const MAX_EXAMPLES = 10;
+const MAX_EXAMPLE_INPUT_OUTPUT_CHARS = 10_000;
+const MAX_EXPLANATION_CHARS = 2_000;
 
 type SolutionMode = "editor" | "file";
 type TestCaseMode = "text" | "file";
+type PublishMode = "immediately" | "scheduled";
 
 interface TestCaseEntry {
-  id: string;
-  mode: TestCaseMode;
-  text: string;
-  file: File | null;
-  isSample: boolean;
+  id: string; mode: TestCaseMode; text: string; file: File | null; isSample: boolean;
 }
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function uid() {
-  return Math.random().toString(36).slice(2);
-}
+function uid() { return Math.random().toString(36).slice(2); }
 
 function textToFile(content: string, name: string): File {
   return new File([content], name, { type: "text/plain" });
 }
 
-function codeToFile(code: string, language: Language, ext: string): File {
+function codeToFile(code: string, ext: string): File {
   return new File([code], `solution.${ext}`, { type: "text/plain" });
 }
 
-function toInstant(value: string): string | undefined {
-  return value ? new Date(value).toISOString() : undefined;
+function byteSize(value: string): number {
+  return new Blob([value]).size;
 }
 
-function nextAvailableDateTime(): string {
-  const value = new Date();
-  value.setMinutes(value.getMinutes() + 1, 0, 0);
-  const pad = (part: number) => String(part).padStart(2, "0");
-  return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}T${pad(
-    value.getHours()
-  )}:${pad(value.getMinutes())}`;
+function lineCount(value: string): number {
+  return value ? value.split("\n").length : 0;
 }
 
-// ---------------------------------------------------------------------------
-// Sub-components
-// ---------------------------------------------------------------------------
+function CharacterCount({ value, max }: { value: string; max: number }) {
+  return <p className="mt-1 text-right text-[11px] text-gray-600">{value.length.toLocaleString()} / {max.toLocaleString()}</p>;
+}
 
-function SectionCard({ title, badge, children }: { title: string; badge?: string; children: React.ReactNode }) {
+
+// ─── Shared components ────────────────────────────────────────────────────────
+
+function SectionCard({ number, title, badge, children }: {
+  number: string; title: string; badge?: string; children: React.ReactNode;
+}) {
   return (
-    <div className="bg-white dark:bg-dark-card rounded-2xl border border-gray-200 dark:border-gray-700/50 overflow-hidden">
-      <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700/50 flex items-center gap-3">
+    <div className="bg-white dark:bg-dark-surface rounded-2xl border border-gray-200 dark:border-gray-800/60 overflow-hidden">
+      <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100 dark:border-gray-800/60">
+        <span className="text-sm font-mono font-semibold text-gray-400 dark:text-gray-600">{number}</span>
+        <span className="text-sm font-semibold text-gray-900 dark:text-white">{title}</span>
         {badge && (
-          <div className="inline-flex items-center px-3 py-1 rounded-full bg-azure/10 dark:bg-yellow/10 border border-azure/20 dark:border-yellow/20">
-            <span className="text-xs font-medium text-azure dark:text-yellow">{badge}</span>
-          </div>
+          <span className="px-2 py-0.5 rounded-full text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-dark-card border border-gray-200 dark:border-gray-700/60">
+            {badge}
+          </span>
         )}
-        <h2 className="font-semibold text-gray-900 dark:text-white">{title}</h2>
       </div>
-      <div className="p-6">{children}</div>
+      <div className="p-5 lg:p-6">{children}</div>
     </div>
   );
 }
 
-function FieldLabel({ htmlFor, children }: { htmlFor: string; children: React.ReactNode }) {
+function FieldLabel({ children, htmlFor }: { children: React.ReactNode; htmlFor?: string }) {
   return (
     <label htmlFor={htmlFor} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
       {children}
@@ -119,55 +101,45 @@ function FieldLabel({ htmlFor, children }: { htmlFor: string; children: React.Re
   );
 }
 
-function TextInput({
-  id,
-  value,
-  onChange,
-  placeholder,
-  required,
-  type = "text",
-}: {
-  id: string;
-  value: string | number;
-  onChange: (v: string) => void;
-  placeholder?: string;
-  required?: boolean;
-  type?: string;
+function StyledInput({ id, value, onChange, placeholder, required, type = "text", min, max, step, maxLength }: {
+  id?: string; value: string | number; onChange: (v: string) => void;
+  placeholder?: string; required?: boolean; type?: string; min?: string; max?: string; step?: string; maxLength?: number;
 }) {
   return (
     <input
-      id={id}
-      type={type}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      required={required}
-      className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700
-                 bg-white dark:bg-dark-surface text-gray-900 dark:text-white
-                 placeholder:text-gray-400 dark:placeholder:text-gray-500
-                 focus:outline-none focus:ring-2 focus:ring-azure dark:focus:ring-yellow
-                 focus:border-transparent transition-all duration-200"
+      id={id} type={type} value={value} onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder} required={required} min={min} max={max} step={step} maxLength={maxLength}
+      className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-dark-card text-gray-900 dark:text-white
+                 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-azure dark:focus:ring-yellow
+                 focus:border-transparent transition-all text-sm"
     />
   );
 }
 
-function TabButton({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
+function StyledSelect({ id, value, onChange, children }: {
+  id?: string; value: string; onChange: (v: string) => void; children: React.ReactNode;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
+    <select
+      id={id} value={value} onChange={(e) => onChange(e.target.value)}
+      className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-dark-card text-gray-900 dark:text-white
+                 focus:outline-none focus:ring-2 focus:ring-azure dark:focus:ring-yellow focus:border-transparent
+                 transition-all text-sm appearance-none cursor-pointer"
+    >
+      {children}
+    </select>
+  );
+}
+
+function TabBtn({ active, onClick, children }: {
+  active: boolean; onClick: () => void; children: React.ReactNode;
+}) {
+  return (
+    <button type="button" onClick={onClick}
+      className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
         active
-          ? "bg-azure dark:bg-yellow text-white dark:text-imperial shadow-sm"
-          : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-dark-surface"
+          ? "bg-azure text-white shadow-sm"
+          : "text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-dark-card hover:text-gray-900 dark:hover:text-white"
       }`}
     >
       {children}
@@ -175,497 +147,347 @@ function TabButton({
   );
 }
 
-function SteppedRangeInput({
-  id,
-  value,
-  onChange,
-  min,
-  max,
-  step,
-  unit,
-  label,
-}: {
-  id: string;
-  value: number;
-  onChange: (v: number) => void;
-  min: number;
-  max: number;
-  step: number;
-  unit: string;
-  label: string;
+function SliderField({ label, value, min, max, step, unit, accent, onChange }: {
+  label: string; value: number; min: number; max: number; step: number;
+  unit: string; accent: "yellow" | "red"; onChange: (v: number) => void;
 }) {
   const pct = ((value - min) / (max - min)) * 100;
-
-  // Determine badge color based on position in range
-  const badgeClass =
-    pct <= 33
-      ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-green-200 dark:border-green-700/40"
-      : pct <= 66
-        ? "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-700/40"
-        : "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-200 dark:border-red-700/40";
+  const pillClass = accent === "yellow"
+    ? "bg-yellow/15 text-yellow"
+    : "bg-red-400/15 text-red-400";
+  const track = `linear-gradient(to right, ${accent === "yellow" ? "#FDC500" : "#f87171"} 0%, ${accent === "yellow" ? "#FDC500" : "#f87171"} ${pct}%, #374151 ${pct}%, #374151 100%)`;
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-3">
-        <label htmlFor={id} className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-          {label}
-        </label>
-        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${badgeClass}`}>
+      <div className="flex items-center justify-between mb-2">
+        <FieldLabel>{label}</FieldLabel>
+        <span className={`text-xs font-mono font-semibold px-2 py-0.5 rounded-full ${pillClass}`}>
           {value} {unit}
         </span>
       </div>
-
-      <div className="relative">
-        <input
-          id={id}
-          type="range"
-          min={min}
-          max={max}
-          step={step}
-          value={value}
-          onChange={(e) => onChange(Number(e.target.value))}
-          className="w-full h-2 rounded-full appearance-none cursor-pointer
-                     bg-gray-200 dark:bg-gray-700
-                     [&::-webkit-slider-thumb]:appearance-none
-                     [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5
-                     [&::-webkit-slider-thumb]:rounded-full
-                     [&::-webkit-slider-thumb]:bg-azure [&::-webkit-slider-thumb]:dark:bg-yellow
-                     [&::-webkit-slider-thumb]:shadow-md
-                     [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white
-                     [&::-webkit-slider-thumb]:dark:border-dark-card
-                     [&::-webkit-slider-thumb]:transition-transform [&::-webkit-slider-thumb]:duration-150
-                     [&::-webkit-slider-thumb]:hover:scale-110
-                     [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5
-                     [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-2
-                     [&::-moz-range-thumb]:border-white [&::-moz-range-thumb]:dark:border-dark-card
-                     [&::-moz-range-thumb]:bg-azure [&::-moz-range-thumb]:dark:bg-yellow
-                     [&::-moz-range-thumb]:shadow-md"
-          style={{
-            background: `linear-gradient(to right, var(--color-azure) 0%, var(--color-azure) ${pct}%, var(--color-gray-200, #e5e7eb) ${pct}%, var(--color-gray-200, #e5e7eb) 100%)`,
-          }}
-        />
-      </div>
-
-      <div className="flex justify-between mt-1.5">
-        <span className="text-[10px] text-gray-400">{min} {unit}</span>
-        <span className="text-[10px] text-gray-400">{max} {unit}</span>
+      <input
+        type="range" min={min} max={max} step={step} value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="w-full h-1.5 rounded-full cursor-pointer appearance-none"
+        style={{ background: track }}
+      />
+      <div className="flex justify-between mt-1">
+        <span className="text-[10px] text-gray-600">{min} {unit}</span>
+        <span className="text-[10px] text-gray-600">{max} {unit}</span>
       </div>
     </div>
   );
 }
 
-function UploadZone({
-  file,
-  onFile,
-  accept,
-  hint,
-}: {
-  file: File | null;
-  onFile: (f: File) => void;
-  accept?: string;
-  hint?: string;
+function UploadZone({ file, onFile, accept, hint }: {
+  file: File | null; onFile: (f: File | null) => void; accept?: string; hint?: string;
 }) {
-  const inputRef = useRef<HTMLInputElement>(null);
-
+  const ref = useRef<HTMLInputElement>(null);
   return (
     <div
-      className="border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl p-6 text-center
-                 hover:border-azure/50 dark:hover:border-yellow/50 transition-colors cursor-pointer"
-      onClick={() => inputRef.current?.click()}
+      onClick={() => ref.current?.click()}
       onDragOver={(e) => e.preventDefault()}
-      onDrop={(e) => {
-        e.preventDefault();
-        const dropped = e.dataTransfer.files[0];
-        if (dropped) onFile(dropped);
-      }}
+      onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) onFile(f); }}
+      className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-xl p-6 text-center cursor-pointer
+                 hover:border-azure/50 transition-colors"
     >
-      <input
-        ref={inputRef}
-        type="file"
-        accept={accept}
-        className="hidden"
-        onChange={(e) => {
-          const f = e.target.files?.[0];
-          if (f) onFile(f);
-        }}
-      />
+      <input ref={ref} type="file" accept={accept} className="hidden"
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); }} />
       {file ? (
         <div className="flex items-center justify-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-azure/10 dark:bg-yellow/10 flex items-center justify-center">
-            <svg className="w-5 h-5 text-azure dark:text-yellow" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
+          <div className="w-9 h-9 rounded-xl bg-azure/10 flex items-center justify-center">
+            <BookOpen size={16} className="text-azure" />
           </div>
           <div className="text-left">
             <p className="text-sm font-medium text-gray-900 dark:text-white">{file.name}</p>
             <p className="text-xs text-gray-500">{(file.size / 1024).toFixed(1)} KB</p>
           </div>
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); onFile(null as unknown as File); }}
-            className="ml-auto p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
+          <button type="button" onClick={(e) => { e.stopPropagation(); onFile(null); }}
+            className="ml-auto p-1.5 rounded-lg text-gray-500 hover:text-red-400 transition-colors">
+            <X size={14} />
           </button>
         </div>
       ) : (
         <>
-          <div className="w-12 h-12 rounded-xl bg-gray-100 dark:bg-dark-surface flex items-center justify-center mx-auto mb-3">
-            <svg className="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-            </svg>
+          <div className="w-10 h-10 rounded-xl bg-dark-surface flex items-center justify-center mx-auto mb-3">
+            <Plus size={20} className="text-gray-500" />
           </div>
-          <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Drop a file here, or <span className="text-azure dark:text-yellow">browse</span>
-          </p>
-          {hint && <p className="text-xs text-gray-500">{hint}</p>}
+          <p className="text-sm text-gray-400 mb-1">Drop a file or <span className="text-azure">browse</span></p>
+          {hint && <p className="text-xs text-gray-600">{hint}</p>}
         </>
       )}
     </div>
   );
 }
 
-function DynamicList({
-  items,
-  placeholder,
-  onAdd,
-  onUpdate,
-  onRemove,
-}: {
-  items: string[];
-  placeholder: string;
-  onAdd: () => void;
-  onUpdate: (i: number, v: string) => void;
-  onRemove: (i: number) => void;
-}) {
-  return (
-    <div className="space-y-2">
-      {items.map((item, i) => (
-        <div key={i} className="flex gap-2">
-          <input
-            type="text"
-            value={item}
-            onChange={(e) => onUpdate(i, e.target.value)}
-            placeholder={placeholder}
-            className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700
-                       bg-white dark:bg-dark-surface text-gray-900 dark:text-white
-                       placeholder:text-gray-400 dark:placeholder:text-gray-500
-                       focus:outline-none focus:ring-2 focus:ring-azure dark:focus:ring-yellow
-                       focus:border-transparent transition-all duration-200 text-sm"
-          />
-          <button
-            type="button"
-            onClick={() => onRemove(i)}
-            className="p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-400
-                       hover:border-red-300 hover:text-red-500 dark:hover:border-red-700 transition-colors"
-            aria-label="Remove item"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-      ))}
-      <button
-        type="button"
-        onClick={onAdd}
-        className="flex items-center gap-2 text-sm text-azure dark:text-yellow font-medium
-                   hover:opacity-80 transition-opacity"
-      >
-        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-        </svg>
-        Add item
-      </button>
-    </div>
-  );
-}
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
-// ---------------------------------------------------------------------------
-// Main page
-// ---------------------------------------------------------------------------
-
-export function CreateAssignmentPage({
-  mode = "create",
-  assignmentId,
-}: {
-  mode?: "create" | "clone";
-  assignmentId?: string;
-}) {
+export function CreateAssignmentPage() {
   const navigate = useNavigate();
-  const isClone = mode === "clone";
+  const [searchParams] = useSearchParams();
 
-  // Basic info
-  const [sourceGroupId, setSourceGroupId] = useState("");
-  const [groups, setGroups] = useState<TeacherGroup[]>([]);
-  const [groupId, setGroupId] = useState("");
-  const [title, setTitle] = useState("");
+  // ── Form state ──
+  const [title, setTitle]             = useState("");
   const [description, setDescription] = useState("");
-  const [tags, setTags] = useState<string[]>([]);
-  const [constraints, setConstraints] = useState<string[]>([]);
-  const [hints, setHints] = useState<string[]>([]);
+  const [constraints, setConstraints] = useState("");
+  const [hints, setHints]             = useState("");
+  const [tags, setTags]               = useState<string[]>([]);
+  const [tagInput, setTagInput]       = useState("");
 
-  // Configuration
   const [referenceLanguage, setReferenceLanguage] = useState<Language>("PYTHON");
-  const [allowedLanguages, setAllowedLanguages] = useState<Language[]>(["PYTHON", "JAVA", "CPP", "C"]);
-  const [timeLimitMs, setTimeLimitMs] = useState<number>(TIME_LIMIT.default);
-  const [memoryLimitMb, setMemoryLimitMb] = useState<number>(MEMORY_LIMIT.default);
-  const [comparatorType, setComparatorType] = useState<ComparatorType>("EXACT_MATCH");
-  const [maxPoints, setMaxPoints] = useState(100);
-  const [launchDate, setLaunchDate] = useState("");
-  const [dueDate, setDueDate] = useState("");
-  const [closeDate, setCloseDate] = useState("");
-  const [examples, setExamples] = useState<AssignmentExample[]>([]);
+  const [groupId, setGroupId]                     = useState("");
+  const [groups, setGroups]                       = useState<TeacherGroup[]>([]);
+  const [groupsLoading, setGroupsLoading]         = useState(true);
+  const [allowedLanguages, setAllowedLanguages]   = useState<Language[]>(["PYTHON", "JAVA", "CPP", "C"]);
+  const [timeLimitMs, setTimeLimitMs]             = useState(2000);
+  const [memoryLimitMb, setMemoryLimitMb]         = useState(256);
+  const [maxPoints, setMaxPoints]                 = useState(100);
+  const [comparatorType, setComparatorType]       = useState<ComparatorType>("EXACT_MATCH");
+  const [publishMode, setPublishMode]             = useState<PublishMode>("immediately");
+  const [launchDate, setLaunchDate]               = useState("");
+  const [dueDate, setDueDate]                     = useState("");
+  const [closeDate, setCloseDate]                 = useState("");
+  const [minimumDate]                             = useState(() => {
+    const value = new Date();
+    value.setMinutes(value.getMinutes() - value.getTimezoneOffset() + 1, 0, 0);
+    return value.toISOString().slice(0, 16);
+  });
 
-  // Solution
   const [solutionMode, setSolutionMode] = useState<SolutionMode>("editor");
   const [solutionCode, setSolutionCode] = useState(LANGUAGE_TEMPLATES["PYTHON"]);
   const [solutionFile, setSolutionFile] = useState<File | null>(null);
 
-  // Test cases
   const [testCases, setTestCases] = useState<TestCaseEntry[]>([
     { id: uid(), mode: "text", text: "", file: null, isSample: false },
   ]);
+  const [examples, setExamples] = useState<AssignmentExample[]>([]);
 
-  const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    async function load() {
-      try {
-        const [activeGroups, cloneForm] = await Promise.all([
-          getActiveTeacherGroups(),
-          isClone && assignmentId
-            ? getCloneAssignmentForm(assignmentId)
-            : Promise.resolve(null),
-        ]);
+    void getActiveTeacherGroups()
+      .then((items) => {
         if (cancelled) return;
-        setGroups(activeGroups);
-        setSourceGroupId(cloneForm?.sourceGroupId ?? "");
+        setGroups(items);
+        const requestedGroup = searchParams.get("groupId");
         setGroupId(
-          activeGroups.find((group) => group.id !== cloneForm?.sourceGroupId)?.id ?? ""
+          requestedGroup && items.some((group) => group.id === requestedGroup)
+            ? requestedGroup
+            : items[0]?.id ?? "",
         );
-        if (cloneForm) {
-          setTitle(cloneForm.title);
-          setDescription(cloneForm.description);
-          setTags(cloneForm.tags ?? []);
-          setConstraints(cloneForm.constraints ?? []);
-          setHints(cloneForm.hints ?? []);
-          setReferenceLanguage(cloneForm.referenceLanguage);
-          setAllowedLanguages(cloneForm.allowedLanguages);
-          setTimeLimitMs(cloneForm.timeLimitMs);
-          setMemoryLimitMb(cloneForm.memoryLimitMb);
-          setComparatorType(cloneForm.comparatorType);
-          setMaxPoints(cloneForm.maxPoints);
-          setExamples(
-            (cloneForm.examples ?? []).map(({ input, output, explanation }) => ({
-              input,
-              output,
-              explanation,
-            }))
-          );
-          setSolutionMode("editor");
-          setSolutionCode(cloneForm.referenceSolution);
-          setSolutionFile(null);
-          setTestCases(
-            cloneForm.testCases.map((testCase) => ({
-              id: uid(),
-              mode: "text" as const,
-              text: testCase.input,
-              file: null,
-              isSample: testCase.sample,
-            }))
-          );
-          // Clone scheduling never inherits source dates.
-          setLaunchDate("");
-          setDueDate("");
-          setCloseDate("");
-        }
-      } catch (error) {
-        if (!cancelled) {
-          sileo.error({
-            title: error instanceof Error ? error.message : "Failed to load assignment form.",
-          });
-        }
-      } finally {
-        if (!cancelled) setIsLoading(false);
-      }
-    }
-    void load();
-    return () => {
-      cancelled = true;
-    };
-  }, [assignmentId, isClone]);
+      })
+      .catch((error) => {
+        if (!cancelled) sileo.error({ title: error instanceof Error ? error.message : "Failed to load groups." });
+      })
+      .finally(() => {
+        if (!cancelled) setGroupsLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [searchParams]);
 
-  // When reference language changes, update editor template only if not edited
-  function handleRefLanguageChange(lang: Language) {
-    setReferenceLanguage(lang);
-    if (solutionMode === "editor") {
-      setSolutionCode(LANGUAGE_TEMPLATES[lang]);
+  // ── Tag helpers ──
+  function addTag() {
+    const t = tagInput.trim().toUpperCase();
+    if (tags.length >= MAX_TAGS) {
+      sileo.error({ title: `Use at most ${MAX_TAGS} tags.` });
+      return;
     }
+    if (t && !tags.includes(t)) setTags((p) => [...p, t]);
+    setTagInput("");
   }
 
-  function toggleAllowedLanguage(lang: Language) {
+  // ── Language ──
+  function handleRefLang(lang: Language) {
+    setReferenceLanguage(lang);
+    if (solutionMode === "editor") setSolutionCode(LANGUAGE_TEMPLATES[lang]);
+  }
+  function toggleLang(lang: Language) {
     setAllowedLanguages((prev) =>
       prev.includes(lang) ? prev.filter((l) => l !== lang) : [...prev, lang]
     );
   }
 
-  // Test case helpers
-  function addTestCase() {
-    setTestCases((prev) => [
-      ...prev,
-      { id: uid(), mode: "text", text: "", file: null, isSample: false },
-    ]);
-  }
-
-  function removeTestCase(id: string) {
-    setTestCases((prev) => prev.filter((tc) => tc.id !== id));
-  }
-
-  function updateTestCase(id: string, patch: Partial<TestCaseEntry>) {
-    setTestCases((prev) => prev.map((tc) => (tc.id === id ? { ...tc, ...patch } : tc)));
-  }
-
-  // Solution file upload — try to auto-detect language from extension
-  function handleSolutionFile(file: File) {
-    setSolutionFile(file || null);
+  // ── Solution file ──
+  async function handleSolutionFile(file: File | null) {
+    setSolutionFile(file);
     if (!file) return;
     const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
     const detected = EXT_TO_LANG[ext];
-    if (detected) setReferenceLanguage(detected);
+    if (!detected) {
+      setSolutionFile(null);
+      sileo.error({ title: "Reference solution must be a .py, .java, .cpp, .cc, or .c file." });
+      return;
+    }
+    if (file.size > MAX_SOURCE_BYTES) {
+      setSolutionFile(null);
+      sileo.error({ title: "Reference solution must not exceed 256 KiB." });
+      return;
+    }
+    if (lineCount(await file.text()) > MAX_SOURCE_LINES) {
+      setSolutionFile(null);
+      sileo.error({ title: "Reference solution must not exceed 500 lines." });
+      return;
+    }
+    setReferenceLanguage(detected);
   }
 
+  // ── Test cases ──
+  function addTestCase() {
+    if (testCases.length >= 50) {
+      sileo.error({ title: "An assignment can have at most 50 test cases." });
+      return;
+    }
+    setTestCases((p) => [...p, { id: uid(), mode: "text", text: "", file: null, isSample: false }]);
+  }
+  function removeTestCase(id: string) {
+    setTestCases((p) => p.filter((tc) => tc.id !== id));
+  }
+  function patchTestCase(id: string, patch: Partial<TestCaseEntry>) {
+    setTestCases((p) => p.map((tc) => (tc.id === id ? { ...tc, ...patch } : tc)));
+  }
+
+  function totalTestInputBytes(items: TestCaseEntry[]): number {
+    return items.reduce((total, item) => total + (item.mode === "text" ? byteSize(item.text) : item.file?.size ?? 0), 0);
+  }
+
+  function updateSolutionCode(value: string) {
+    if (lineCount(value) > MAX_SOURCE_LINES) {
+      sileo.error({ title: "Reference solution must not exceed 500 lines." });
+      return;
+    }
+    if (byteSize(value) > MAX_SOURCE_BYTES) {
+      sileo.error({ title: "Reference solution must not exceed 256 KiB." });
+      return;
+    }
+    setSolutionCode(value);
+  }
+
+  function updateTestCaseText(id: string, value: string) {
+    if (byteSize(value) > MAX_TEST_INPUT_BYTES) {
+      sileo.error({ title: "Each test input must not exceed 1 MiB." });
+      return;
+    }
+    const current = testCases.find((item) => item.id === id);
+    if (!current) return;
+    const next = testCases.map((item) => item.id === id ? { ...item, text: value } : item);
+    if (totalTestInputBytes(next) > MAX_TOTAL_TEST_INPUT_BYTES) {
+      sileo.error({ title: "Combined test inputs must not exceed 5 MiB." });
+      return;
+    }
+    patchTestCase(id, { text: value });
+  }
+
+  function handleTestCaseFile(id: string, file: File | null) {
+    if (!file) {
+      patchTestCase(id, { file: null });
+      return;
+    }
+    if (file.size > MAX_TEST_INPUT_BYTES) {
+      sileo.error({ title: "Each test input must not exceed 1 MiB." });
+      return;
+    }
+    const next = testCases.map((item) => item.id === id ? { ...item, file } : item);
+    if (totalTestInputBytes(next) > MAX_TOTAL_TEST_INPUT_BYTES) {
+      sileo.error({ title: "Combined test inputs must not exceed 5 MiB." });
+      return;
+    }
+    patchTestCase(id, { file });
+  }
+
+  function addExample() {
+    if (examples.length >= MAX_EXAMPLES) {
+      sileo.error({ title: `Use at most ${MAX_EXAMPLES} public examples.` });
+      return;
+    }
+    setExamples((items) => [...items, { input: "", output: "", explanation: "" }]);
+  }
+
+  function patchExample(index: number, patch: Partial<AssignmentExample>) {
+    setExamples((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item));
+  }
+
+  // ── Submit ──
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-
-    if (!groupId) {
-      sileo.error({ title: "Select an active group." });
-      return;
-    }
-    const selectedDates = [
-      ["Launch", launchDate],
-      ["Due", dueDate],
-      ["Close", closeDate],
-    ] as const;
-    const now = Date.now();
-    const pastDate = selectedDates.find(([, value]) => value && new Date(value).getTime() < now);
-    if (pastDate) {
-      sileo.error({ title: `${pastDate[0]} date cannot be before the current time.` });
-      return;
-    }
-    const launchTime = launchDate ? new Date(launchDate).getTime() : null;
-    const dueTime = dueDate ? new Date(dueDate).getTime() : null;
-    const closeTime = closeDate ? new Date(closeDate).getTime() : null;
-    if (
-      (launchTime !== null && dueTime !== null && launchTime > dueTime) ||
-      (dueTime !== null && closeTime !== null && dueTime > closeTime) ||
-      (launchTime !== null && closeTime !== null && launchTime > closeTime)
-    ) {
-      sileo.error({ title: "Dates must satisfy launch date ≤ due date ≤ close date." });
-      return;
-    }
     if (allowedLanguages.length === 0) {
       sileo.error({ title: "Select at least one allowed language." });
       return;
     }
-    if (maxPoints <= 0) {
-      sileo.error({ title: "Maximum points must be greater than zero." });
+    if (!groupId) {
+      sileo.error({ title: "Select an active group." });
       return;
     }
-
-    // Guard: enforce limits even if UI constraints are bypassed
-    if (timeLimitMs < TIME_LIMIT.min || timeLimitMs > TIME_LIMIT.max) {
-      sileo.error({ title: `Time limit must be between ${TIME_LIMIT.min} and ${TIME_LIMIT.max} ms.` });
+    if (publishMode === "scheduled" && !launchDate) {
+      sileo.error({ title: "Select a launch date for scheduled publishing." });
       return;
     }
-    if (memoryLimitMb < MEMORY_LIMIT.min || memoryLimitMb > MEMORY_LIMIT.max) {
-      sileo.error({ title: `Memory limit must be between ${MEMORY_LIMIT.min} and ${MEMORY_LIMIT.max} MB.` });
+    const launch = publishMode === "scheduled" ? new Date(launchDate).toISOString() : undefined;
+    const due = dueDate ? new Date(dueDate).toISOString() : undefined;
+    const close = closeDate ? new Date(closeDate).toISOString() : undefined;
+    if ((launch && due && launch > due) || (due && close && due > close) || (launch && close && launch > close)) {
+      sileo.error({ title: "Dates must satisfy launch ≤ due ≤ close." });
       return;
     }
-
-    // Resolve source and test text once; create uses files, clone sends editable JSON.
     let resolvedSolution: File;
     if (solutionMode === "editor") {
-      const langMeta = LANGUAGES.find((l) => l.value === referenceLanguage)!;
-      resolvedSolution = codeToFile(solutionCode, referenceLanguage, langMeta.ext);
-    } else {
-      if (!solutionFile) {
-        sileo.error({ title: "Please upload a reference solution file." });
+      if (lineCount(solutionCode) > MAX_SOURCE_LINES || byteSize(solutionCode) > MAX_SOURCE_BYTES) {
+        sileo.error({ title: "Reference solution exceeds source limits." });
         return;
       }
+      const meta = LANGUAGES.find((l) => l.value === referenceLanguage)!;
+      resolvedSolution = codeToFile(solutionCode, meta.ext);
+    } else {
+      if (!solutionFile) { sileo.error({ title: "Please upload a reference solution file." }); return; }
       resolvedSolution = solutionFile;
     }
-
-    // Build test case files
     const testCaseFiles: File[] = [];
     for (let i = 0; i < testCases.length; i++) {
       const tc = testCases[i];
       if (tc.mode === "text") {
-        if (!tc.text.trim()) {
-          sileo.error({ title: `Test case ${i + 1} is empty.` });
-          return;
-        }
+        if (!tc.text.trim()) { sileo.error({ title: `Test case ${i + 1} is empty.` }); return; }
         testCaseFiles.push(textToFile(tc.text, `testcase_${i + 1}.txt`));
       } else {
-        if (!tc.file) {
-          sileo.error({ title: `Test case ${i + 1} has no file uploaded.` });
-          return;
-        }
+        if (!tc.file) { sileo.error({ title: `Test case ${i + 1} has no file.` }); return; }
         testCaseFiles.push(tc.file);
       }
     }
-
+    if (totalTestInputBytes(testCases) > MAX_TOTAL_TEST_INPUT_BYTES) {
+      sileo.error({ title: "Combined test inputs must not exceed 5 MiB." });
+      return;
+    }
+    const normalizedExamples = examples.map((example) => ({
+      input: example.input.trim(),
+      output: example.output.trim(),
+      explanation: example.explanation?.trim() ?? "",
+    }));
+    if (normalizedExamples.some((example) => !example.input || !example.output || !example.explanation)) {
+      sileo.error({ title: "Every public example needs input, output, and an explanation." });
+      return;
+    }
     setIsSubmitting(true);
     try {
-      const sharedMetadata = {
-        title: title.trim(),
-        description: description.trim(),
-        constraints: constraints.filter(Boolean),
-        hints: hints.filter(Boolean),
-        tags: tags.filter(Boolean),
-        timeLimitMs,
-        memoryLimitMb,
-        comparatorType,
-        allowedLanguages,
-        referenceLanguage,
-        launchDate: toInstant(launchDate),
-        dueDate: toInstant(dueDate),
-        closeDate: toInstant(closeDate),
-        examples,
-        maxPoints,
-      };
-      if (isClone) {
-        if (!assignmentId) throw new Error("Missing source assignment ID.");
-        await cloneAssignment(assignmentId, {
-          ...sharedMetadata,
-          targetGroupId: groupId,
-          referenceSolution: await resolvedSolution.text(),
-          testCases: await Promise.all(
-            testCaseFiles.map(async (file, index) => ({
-              input: await file.text(),
-              sample: testCases[index].isSample,
-            }))
-          ),
-        });
-      } else {
-        await createAssignment(
-          {
-            ...sharedMetadata,
-            groupId,
-            sampleFlags: testCases.map((tc) => tc.isSample),
-          },
-          resolvedSolution,
-          testCaseFiles
-        );
-      }
-      sileo.success({
-        title: `${isClone ? "Assignment cloned" : "Assignment created"}! Test generation is in progress.`,
-      });
-      navigate("/teacher");
+      await createAssignment(
+        {
+          groupId,
+          title: title.trim(), description: description.trim(),
+          constraints: constraints.split("\n").map((item) => item.trim()).filter(Boolean),
+          hints: hints.split("\n").map((item) => item.trim()).filter(Boolean),
+          tags,
+          timeLimitMs, memoryLimitMb, comparatorType,
+          allowedLanguages, referenceLanguage,
+          launchDate: launch,
+          dueDate: due,
+          closeDate: close,
+          examples: normalizedExamples,
+          maxPoints,
+          sampleFlags: testCases.map((tc) => tc.isSample),
+        },
+        resolvedSolution,
+        testCaseFiles
+      );
+      sileo.success({ title: "Assignment created! Test generation in progress." });
+      navigate("/teacher/assignments");
     } catch (err) {
       sileo.error({ title: err instanceof Error ? err.message : "Something went wrong." });
     } finally {
@@ -673,573 +495,477 @@ export function CreateAssignmentPage({
     }
   }
 
-  const monacoLang = LANGUAGES.find((l) => l.value === referenceLanguage)?.monaco ?? "python";
-  const minimumDateTime = nextAvailableDateTime();
+  // ── Live preview & checklist ──
+  const hasTitleDesc  = title.trim().length > 0 && description.trim().length > 0;
+  const hasLang       = allowedLanguages.length > 0;
+  const hasSolution   = solutionMode === "editor" ? solutionCode.trim().length > 10 : solutionFile !== null;
+  const hasTestCase   = testCases.some((tc) => tc.mode === "text" ? tc.text.trim().length > 0 : tc.file !== null);
+  const hasDueDate    = dueDate.length > 0;
+  const datesOutOfOrder = Boolean(
+    (publishMode === "scheduled" && launchDate && dueDate && launchDate > dueDate)
+    || (dueDate && closeDate && dueDate > closeDate)
+    || (publishMode === "scheduled" && launchDate && closeDate && launchDate > closeDate),
+  );
 
-  if (isLoading) {
-    return (
-      <DashboardLayout
-        logoLinkTo="/teacher"
-        navLinks={TEACHER_CREATE_NAV}
-        sidebarItems={TEACHER_CREATE_SIDEBAR_ITEMS}
-      >
-        <div className="py-20 text-center text-gray-500 dark:text-gray-400">
-          Loading assignment form…
-        </div>
-      </DashboardLayout>
-    );
-  }
+  const monacoLang    = LANGUAGES.find((l) => l.value === referenceLanguage)?.monaco ?? "python";
+
+  const STEPS = ["Basics", "Config", "Solution", "Tests", "Examples"];
 
   return (
-    <DashboardLayout
-      logoLinkTo="/teacher"
-      navLinks={TEACHER_CREATE_NAV}
-      sidebarItems={TEACHER_CREATE_SIDEBAR_ITEMS}
-    >
-      {/* Page header */}
-      <div className="flex items-center gap-4 mb-8">
-        <button
-          type="button"
-          onClick={() => navigate("/teacher")}
-          className="p-2 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400
-                     hover:border-azure/50 dark:hover:border-yellow/50 hover:text-azure dark:hover:text-yellow transition-all duration-200"
-          aria-label="Back to dashboard"
-        >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
-        <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-azure/10 dark:bg-yellow/10 border border-azure/20 dark:border-yellow/20 mb-1">
-            <span className="text-xs font-medium text-azure dark:text-yellow">
-              {isClone ? "Clone Assignment" : "New Assignment"}
-            </span>
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            {isClone ? "Clone Assignment" : "Create Assignment"}
-          </h1>
-        </div>
-      </div>
-
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* ----------------------------------------------------------------- */}
-        {/* Section 1 — Basic Information */}
-        {/* ----------------------------------------------------------------- */}
-        <SectionCard title="Basic Information" badge="Required">
-          <div className="space-y-5">
-            <div>
-              <FieldLabel htmlFor="groupId">Group</FieldLabel>
-              <select
-                id="groupId"
-                value={groupId}
-                onChange={(event) => setGroupId(event.target.value)}
-                required
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700
-                           bg-white dark:bg-dark-surface text-gray-900 dark:text-white
-                           focus:outline-none focus:ring-2 focus:ring-azure dark:focus:ring-yellow
-                           focus:border-transparent transition-all duration-200"
-              >
-                <option value="" disabled>
-                  {groups.length ? "Select an active group" : "No active groups available"}
-                </option>
-                {groups.map((group) => (
-                  <option
-                    key={group.id}
-                    value={group.id}
-                    disabled={isClone && group.id === sourceGroupId}
-                  >
-                    {group.name}
-                    {isClone && group.id === sourceGroupId ? " (source group)" : ""}
-                  </option>
-                ))}
-              </select>
-              {isClone && (
-                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                  Select another active group. Source group is shown for context.
-                </p>
-              )}
-            </div>
-
-            <div>
-              <FieldLabel htmlFor="title">Title</FieldLabel>
-              <TextInput
-                id="title"
-                value={title}
-                onChange={setTitle}
-                placeholder="e.g. Binary Search Implementation"
-                required
-              />
-            </div>
-
-            <div>
-              <FieldLabel htmlFor="description">Description</FieldLabel>
-              <textarea
-                id="description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={4}
-                required
-                placeholder="Describe the problem statement, what the student must implement, and the expected behavior."
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700
-                           bg-white dark:bg-dark-surface text-gray-900 dark:text-white
-                           placeholder:text-gray-400 dark:placeholder:text-gray-500
-                           focus:outline-none focus:ring-2 focus:ring-azure dark:focus:ring-yellow
-                           focus:border-transparent transition-all duration-200 resize-none"
-              />
-            </div>
-
-            <div>
-              <FieldLabel htmlFor="tags-0">Tags</FieldLabel>
-              <DynamicList
-                items={tags}
-                placeholder="e.g. Arrays, Searching"
-                onAdd={() => setTags((p) => [...p, ""])}
-                onUpdate={(i, v) => setTags((p) => p.map((x, j) => (j === i ? v : x)))}
-                onRemove={(i) => setTags((p) => p.filter((_, j) => j !== i))}
-              />
-            </div>
-          </div>
-        </SectionCard>
-
-        {/* ----------------------------------------------------------------- */}
-        {/* Section 2 — Configuration */}
-        {/* ----------------------------------------------------------------- */}
-        <SectionCard title="Configuration" badge="Required">
-          <div className="grid sm:grid-cols-2 gap-5">
-            {/* Reference language */}
-            <div>
-              <FieldLabel htmlFor="refLang">Reference Language</FieldLabel>
-              <select
-                id="refLang"
-                value={referenceLanguage}
-                onChange={(e) => handleRefLanguageChange(e.target.value as Language)}
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700
-                           bg-white dark:bg-dark-surface text-gray-900 dark:text-white
-                           focus:outline-none focus:ring-2 focus:ring-azure dark:focus:ring-yellow
-                           focus:border-transparent transition-all duration-200"
-              >
-                {LANGUAGES.map((l) => (
-                  <option key={l.value} value={l.value}>{l.label}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Comparator */}
-            <div>
-              <FieldLabel htmlFor="comparator">Output Comparator</FieldLabel>
-              <select
-                id="comparator"
-                value={comparatorType}
-                onChange={(e) => setComparatorType(e.target.value as ComparatorType)}
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700
-                           bg-white dark:bg-dark-surface text-gray-900 dark:text-white
-                           focus:outline-none focus:ring-2 focus:ring-azure dark:focus:ring-yellow
-                           focus:border-transparent transition-all duration-200"
-              >
-                <option value="EXACT_MATCH">Exact Match</option>
-                <option value="FLOATING_POINT">Floating Point</option>
-              </select>
-            </div>
-
-            {/* Time limit */}
-            <div>
-              <SteppedRangeInput
-                id="timeLimit"
-                label="Time Limit"
-                value={timeLimitMs}
-                onChange={setTimeLimitMs}
-                min={TIME_LIMIT.min}
-                max={TIME_LIMIT.max}
-                step={TIME_LIMIT.step}
-                unit={TIME_LIMIT.unit}
-              />
-            </div>
-
-            {/* Memory limit */}
-            <div>
-              <SteppedRangeInput
-                id="memLimit"
-                label="Memory Limit"
-                value={memoryLimitMb}
-                onChange={setMemoryLimitMb}
-                min={MEMORY_LIMIT.min}
-                max={MEMORY_LIMIT.max}
-                step={MEMORY_LIMIT.step}
-                unit={MEMORY_LIMIT.unit}
-              />
-            </div>
-
-            <div>
-              <FieldLabel htmlFor="maxPoints">Maximum Points</FieldLabel>
-              <TextInput
-                id="maxPoints"
-                type="number"
-                value={maxPoints}
-                onChange={(value) => setMaxPoints(Number(value))}
-                required
-              />
-            </div>
-
-            <div>
-              <FieldLabel htmlFor="launchDate">Launch Date (optional)</FieldLabel>
-              <input
-                id="launchDate"
-                type="datetime-local"
-                value={launchDate}
-                min={minimumDateTime}
-                onChange={(e) => setLaunchDate(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700
-                           bg-white dark:bg-dark-surface text-gray-900 dark:text-white
-                           focus:outline-none focus:ring-2 focus:ring-azure dark:focus:ring-yellow
-                           focus:border-transparent transition-all duration-200"
-              />
-            </div>
-
-            <div>
-              <FieldLabel htmlFor="dueDate">Due Date (optional)</FieldLabel>
-              <input
-                id="dueDate"
-                type="datetime-local"
-                value={dueDate}
-                min={minimumDateTime}
-                onChange={(e) => setDueDate(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700
-                           bg-white dark:bg-dark-surface text-gray-900 dark:text-white
-                           focus:outline-none focus:ring-2 focus:ring-azure dark:focus:ring-yellow
-                           focus:border-transparent transition-all duration-200"
-              />
-            </div>
-
-            <div>
-              <FieldLabel htmlFor="closeDate">Close Date (optional)</FieldLabel>
-              <input
-                id="closeDate"
-                type="datetime-local"
-                value={closeDate}
-                min={minimumDateTime}
-                onChange={(e) => setCloseDate(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700
-                           bg-white dark:bg-dark-surface text-gray-900 dark:text-white
-                           focus:outline-none focus:ring-2 focus:ring-azure dark:focus:ring-yellow
-                           focus:border-transparent transition-all duration-200"
-              />
-            </div>
-
-            {/* Allowed languages */}
-            <div className="sm:col-span-2">
-              <span className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                Allowed Languages <span className="text-gray-400">(students may submit in)</span>
-              </span>
-              <div className="flex flex-wrap gap-3">
-                {LANGUAGES.map((lang) => {
-                  const checked = allowedLanguages.includes(lang.value);
-                  return (
-                    <button
-                      key={lang.value}
-                      type="button"
-                      onClick={() => toggleAllowedLanguage(lang.value)}
-                      className={`px-4 py-2 rounded-xl border text-sm font-medium transition-all duration-200 ${
-                        checked
-                          ? "border-azure dark:border-yellow bg-azure/10 dark:bg-yellow/10 text-azure dark:text-yellow"
-                          : "border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-azure/50 dark:hover:border-yellow/50"
-                      }`}
-                    >
-                      {lang.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        </SectionCard>
-
-        {/* ----------------------------------------------------------------- */}
-        {/* Section 3 — Constraints & Hints */}
-        {/* ----------------------------------------------------------------- */}
-        <SectionCard title="Constraints & Hints" badge="Optional">
-          <div className="grid sm:grid-cols-2 gap-6">
-            <div>
-              <span className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                Constraints
-              </span>
-              <DynamicList
-                items={constraints}
-                placeholder="e.g. 1 ≤ n ≤ 10^5"
-                onAdd={() => setConstraints((p) => [...p, ""])}
-                onUpdate={(i, v) => setConstraints((p) => p.map((x, j) => (j === i ? v : x)))}
-                onRemove={(i) => setConstraints((p) => p.filter((_, j) => j !== i))}
-              />
-            </div>
-            <div>
-              <span className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                Hints
-              </span>
-              <DynamicList
-                items={hints}
-                placeholder="e.g. Consider using a hash map"
-                onAdd={() => setHints((p) => [...p, ""])}
-                onUpdate={(i, v) => setHints((p) => p.map((x, j) => (j === i ? v : x)))}
-                onRemove={(i) => setHints((p) => p.filter((_, j) => j !== i))}
-              />
-            </div>
-          </div>
-        </SectionCard>
-
-        {/* ----------------------------------------------------------------- */}
-        {/* Section 4 — Examples */}
-        {/* ----------------------------------------------------------------- */}
-        <SectionCard title="Examples" badge="Optional">
-          <div className="space-y-4">
-            {examples.map((example, index) => (
-              <div
-                key={index}
-                className="grid sm:grid-cols-2 gap-3 p-4 rounded-xl border border-gray-200 dark:border-gray-700/50"
-              >
-                <textarea
-                  value={example.input}
-                  onChange={(event) =>
-                    setExamples((items) =>
-                      items.map((item, itemIndex) =>
-                        itemIndex === index ? { ...item, input: event.target.value } : item
-                      )
-                    )
-                  }
-                  rows={3}
-                  placeholder="Example input"
-                  className="px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-dark-surface text-gray-900 dark:text-white font-mono text-sm"
-                />
-                <textarea
-                  value={example.output}
-                  onChange={(event) =>
-                    setExamples((items) =>
-                      items.map((item, itemIndex) =>
-                        itemIndex === index ? { ...item, output: event.target.value } : item
-                      )
-                    )
-                  }
-                  rows={3}
-                  placeholder="Example output"
-                  className="px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-dark-surface text-gray-900 dark:text-white font-mono text-sm"
-                />
-                <input
-                  value={example.explanation}
-                  onChange={(event) =>
-                    setExamples((items) =>
-                      items.map((item, itemIndex) =>
-                        itemIndex === index ? { ...item, explanation: event.target.value } : item
-                      )
-                    )
-                  }
-                  placeholder="Explanation"
-                  className="sm:col-span-2 px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-dark-surface text-gray-900 dark:text-white"
-                />
-                <button
-                  type="button"
-                  onClick={() => setExamples((items) => items.filter((_, itemIndex) => itemIndex !== index))}
-                  className="sm:col-span-2 justify-self-end text-sm text-red-500 hover:text-red-600"
-                >
-                  Remove example
-                </button>
-              </div>
-            ))}
-            <button
-              type="button"
-              onClick={() =>
-                setExamples((items) => [
-                  ...items,
-                  { input: "", output: "", explanation: "" },
-                ])
-              }
-              className="text-sm text-azure dark:text-yellow font-medium hover:opacity-80"
-            >
-              + Add example
-            </button>
-          </div>
-        </SectionCard>
-
-        {/* ----------------------------------------------------------------- */}
-        {/* Section 5 — Reference Solution */}
-        {/* ----------------------------------------------------------------- */}
-        <SectionCard title="Reference Solution" badge="Required">
-          <div className="flex gap-2 mb-5">
-            <TabButton active={solutionMode === "editor"} onClick={() => setSolutionMode("editor")}>
-              Write Code
-            </TabButton>
-            <TabButton active={solutionMode === "file"} onClick={() => setSolutionMode("file")}>
-              Upload File
-            </TabButton>
-          </div>
-
-          {solutionMode === "editor" ? (
-            <div className="rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700">
-              {/* Editor toolbar */}
-              <div className="flex items-center gap-2 px-4 py-2 bg-dark-surface border-b border-gray-700">
-                <div className="flex gap-1.5">
-                  <div className="w-3 h-3 rounded-full bg-red-500" />
-                  <div className="w-3 h-3 rounded-full bg-yellow" />
-                  <div className="w-3 h-3 rounded-full bg-green-500" />
+    <TeacherShell active="assignments" breadcrumbs={[{ label: "Teacher", to: "/teacher" }, { label: "Assignments", to: "/teacher/assignments" }, { label: "Create" }]} contentClassName="max-w-5xl">
+          <form onSubmit={handleSubmit} className="min-w-0">
+            {/* Page header */}
+            <div className="flex items-start gap-4 mb-8">
+              <button type="button" onClick={() => navigate("/teacher")}
+                className="w-9 h-9 flex items-center justify-center rounded-xl border border-gray-200 dark:border-gray-700
+                           text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all flex-shrink-0 mt-1">
+                <ArrowLeft size={16} />
+              </button>
+              <div className="flex-1 min-w-0">
+                <div className="inline-flex items-center px-3 py-1 rounded-full bg-gray-100 dark:bg-dark-card border border-gray-200 dark:border-gray-700/60 text-xs text-gray-600 dark:text-gray-300 font-semibold tracking-widest mb-1 uppercase">
+                  New Assignment
                 </div>
-                <span className="text-xs text-gray-400 ml-2">
-                  solution.{LANGUAGES.find((l) => l.value === referenceLanguage)?.ext}
-                </span>
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Create assignment</h1>
               </div>
-              <div style={{ height: 400 }}>
-                <CodeEditor
-                  height="100%"
-                  language={monacoLang}
-                  value={solutionCode}
-                  onChange={(v) => setSolutionCode(v)}
-                />
-              </div>
-            </div>
-          ) : (
-            <UploadZone
-              file={solutionFile}
-              onFile={handleSolutionFile}
-              accept=".py,.java,.cpp,.cc,.c"
-              hint="Accepted: .py, .java, .cpp, .c — language is auto-detected from extension"
-            />
-          )}
-        </SectionCard>
-
-        {/* ----------------------------------------------------------------- */}
-        {/* Section 6 — Test Cases */}
-        {/* ----------------------------------------------------------------- */}
-        <SectionCard title="Test Cases" badge="Required">
-          <div className="space-y-4">
-            {testCases.map((tc, index) => (
-              <div
-                key={tc.id}
-                className="border border-gray-200 dark:border-gray-700/50 rounded-xl overflow-hidden
-                           hover:border-azure/40 dark:hover:border-yellow/40 transition-colors"
-              >
-                {/* Test case header */}
-                <div className="flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-dark-surface border-b border-gray-200 dark:border-gray-700/50">
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm font-semibold text-gray-900 dark:text-white">
-                      Test Case {index + 1}
-                    </span>
-                    <label className="flex items-center gap-2 cursor-pointer group">
-                      <input
-                        type="checkbox"
-                        checked={tc.isSample}
-                        onChange={(e) => updateTestCase(tc.id, { isSample: e.target.checked })}
-                        className="w-4 h-4 rounded accent-azure dark:accent-yellow"
-                      />
-                      <span className="text-xs text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-300">
-                        Sample (visible to students)
+              {/* Stepper */}
+              <div className="hidden lg:flex items-center gap-2 flex-shrink-0 pt-2">
+                {STEPS.map((step, i) => (
+                  <div key={step} className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5">
+                      <span className={`text-xs font-bold ${i === 0 ? "text-azure" : "text-gray-600"}`}>
+                        {i + 1}.
                       </span>
-                    </label>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <div className="flex gap-1">
-                      <TabButton
-                        active={tc.mode === "text"}
-                        onClick={() => updateTestCase(tc.id, { mode: "text" })}
-                      >
-                        Type Input
-                      </TabButton>
-                      <TabButton
-                        active={tc.mode === "file"}
-                        onClick={() => updateTestCase(tc.id, { mode: "file" })}
-                      >
-                        Upload File
-                      </TabButton>
+                      <span className={`text-xs font-medium ${i === 0 ? "text-gray-900 dark:text-white" : "text-gray-400 dark:text-gray-600"}`}>
+                        {step}
+                      </span>
                     </div>
-
-                    {testCases.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removeTestCase(tc.id)}
-                        className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                        aria-label={`Remove test case ${index + 1}`}
-                      >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
+                    {i < STEPS.length - 1 && (
+                      <span className="text-gray-700 text-xs">——</span>
                     )}
                   </div>
-                </div>
-
-                {/* Test case content */}
-                <div className="p-4">
-                  {tc.mode === "text" ? (
-                    <textarea
-                      value={tc.text}
-                      onChange={(e) => updateTestCase(tc.id, { text: e.target.value })}
-                      rows={3}
-                      placeholder="Enter the test case input (stdin)..."
-                      className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700
-                                 bg-white dark:bg-dark-surface text-gray-900 dark:text-white font-mono text-sm
-                                 placeholder:text-gray-400 dark:placeholder:text-gray-500
-                                 focus:outline-none focus:ring-2 focus:ring-azure dark:focus:ring-yellow
-                                 focus:border-transparent transition-all duration-200 resize-none"
-                    />
-                  ) : (
-                    <UploadZone
-                      file={tc.file}
-                      onFile={(f) => updateTestCase(tc.id, { file: f || null })}
-                      accept=".txt"
-                      hint="Plain text file — each line is read as stdin"
-                    />
-                  )}
-                </div>
+                ))}
               </div>
-            ))}
+            </div>
 
-            <button
-              type="button"
-              onClick={addTestCase}
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed
-                         border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400
-                         hover:border-azure/50 dark:hover:border-yellow/50 hover:text-azure dark:hover:text-yellow
-                         transition-all duration-200 text-sm font-medium"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              Add Test Case
-            </button>
-          </div>
-        </SectionCard>
+            <div className="max-w-5xl mx-auto space-y-5">
+              {/* ── 01 Basic information ── */}
+              <SectionCard number="01" title="Basic information" badge="Required">
+                <div className="space-y-5">
+                  <div>
+                    <FieldLabel htmlFor="title">Title</FieldLabel>
+                    <StyledInput
+                      id="title" value={title} onChange={setTitle}
+                      placeholder="e.g. Topological Sort — Course Scheduler"
+                      required maxLength={MAX_TITLE_CHARS}
+                    />
+                    <CharacterCount value={title} max={MAX_TITLE_CHARS} />
+                  </div>
+                  <div>
+                    <FieldLabel htmlFor="description">Description</FieldLabel>
+                    <textarea
+                      id="description" value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      rows={4} required maxLength={MAX_SUPPORTING_TEXT_CHARS}
+                      placeholder="Given N courses and a list of prerequisites [a, b] meaning b must be taken before a..."
+                      className="w-full px-4 py-3 rounded-xl border border-gray-700/50 bg-dark-surface text-white text-sm
+                                 placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-azure
+                                 focus:border-transparent transition-all resize-none"
+                    />
+                    <CharacterCount value={description} max={MAX_SUPPORTING_TEXT_CHARS} />
+                  </div>
+                  <div>
+                    <FieldLabel>Tags</FieldLabel>
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      {tags.map((t) => (
+                        <span key={t}
+                          className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-yellow/40 bg-yellow/5 text-yellow text-xs font-semibold">
+                          {t}
+                          <button type="button" onClick={() => setTags((p) => p.filter((x) => x !== t))}
+                            className="hover:text-white transition-colors">
+                            <X size={11} />
+                          </button>
+                        </span>
+                      ))}
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="text" value={tagInput}
+                          onChange={(e) => setTagInput(e.target.value.toUpperCase())}
+                          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag(); } }}
+                          placeholder="Add tag..." maxLength={MAX_TAG_CHARS}
+                          className="w-24 bg-transparent text-xs text-yellow placeholder:text-gray-600
+                                     focus:outline-none border-none"
+                        />
+                        {tagInput && (
+                          <button type="button" onClick={addTag}
+                            className="text-xs text-yellow hover:text-white transition-colors font-medium">
+                            + add
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    {tags.length === 0 && !tagInput && (
+                      <button type="button" onClick={() => {}}
+                        className="text-xs text-gray-500 hover:text-yellow transition-colors">
+                        + Add tag
+                      </button>
+                    )}
+                    <p className="mt-1 text-xs text-gray-600">{tags.length} / {MAX_TAGS} tags · {tagInput.length} / {MAX_TAG_CHARS} characters</p>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <FieldLabel htmlFor="constraints">Constraints <span className="text-gray-600 font-normal">(one per line)</span></FieldLabel>
+                      <textarea id="constraints" rows={3} value={constraints} maxLength={MAX_SUPPORTING_TEXT_CHARS} onChange={(event) => setConstraints(event.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-700/50 bg-dark-surface text-white text-sm resize-none" />
+                      <CharacterCount value={constraints} max={MAX_SUPPORTING_TEXT_CHARS} />
+                    </div>
+                    <div>
+                      <FieldLabel htmlFor="hints">Hints <span className="text-gray-600 font-normal">(one per line)</span></FieldLabel>
+                      <textarea id="hints" rows={3} value={hints} maxLength={MAX_SUPPORTING_TEXT_CHARS} onChange={(event) => setHints(event.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-700/50 bg-dark-surface text-white text-sm resize-none" />
+                      <CharacterCount value={hints} max={MAX_SUPPORTING_TEXT_CHARS} />
+                    </div>
+                  </div>
+                </div>
+              </SectionCard>
 
-        {/* ----------------------------------------------------------------- */}
-        {/* Submit */}
-        {/* ----------------------------------------------------------------- */}
-        <div className="flex flex-col sm:flex-row gap-3 justify-end pb-8">
-          <button
-            type="button"
-            onClick={() => navigate("/teacher")}
-            className="btn-outline"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="btn-primary inline-flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
-          >
-            {isSubmitting ? (
-              <>
-                <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                </svg>
-                {isClone ? "Cloning…" : "Creating…"}
-              </>
-            ) : (
-              <>
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                {isClone ? "Clone Assignment" : "Create Assignment"}
-              </>
-            )}
-          </button>
-        </div>
-      </form>
-    </DashboardLayout>
+              {/* ── 02 Configuration ── */}
+              <SectionCard number="02" title="Configuration" badge="Required">
+                <div className="grid sm:grid-cols-2 gap-5">
+                  {/* Reference language */}
+                  <div>
+                    <FieldLabel htmlFor="refLang">Reference language</FieldLabel>
+                    <div className="relative">
+                      <StyledSelect id="refLang" value={referenceLanguage}
+                        onChange={(v) => handleRefLang(v as Language)}>
+                        {LANGUAGES.map((l) => (
+                          <option key={l.value} value={l.value}>{l.label}</option>
+                        ))}
+                      </StyledSelect>
+                      <ChevronRight size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 rotate-90 pointer-events-none" />
+                    </div>
+                  </div>
+
+                  {/* Assign to group */}
+                  <div>
+                    <FieldLabel htmlFor="group">Assign to group</FieldLabel>
+                    <div className="relative">
+                      <StyledSelect id="group" value={groupId} onChange={setGroupId}>
+                        <option value="">{groupsLoading ? "Loading groups…" : "— Select group"}</option>
+                        {groups.map((g) => (
+                          <option key={g.id} value={g.id}>{g.name}</option>
+                        ))}
+                      </StyledSelect>
+                      <ChevronRight size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 rotate-90 pointer-events-none" />
+                    </div>
+                  </div>
+
+                  {/* Output comparator */}
+                  <div>
+                    <FieldLabel htmlFor="comparator">Output comparator</FieldLabel>
+                    <div className="relative">
+                      <StyledSelect id="comparator" value={comparatorType}
+                        onChange={(v) => setComparatorType(v as ComparatorType)}>
+                        <option value="EXACT_MATCH">Exact match</option>
+                        <option value="FLOATING_POINT">Floating point</option>
+                      </StyledSelect>
+                      <ChevronRight size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 rotate-90 pointer-events-none" />
+                    </div>
+                  </div>
+
+                  {/* Time limit */}
+                  <SliderField
+                    label="Time limit" value={timeLimitMs} min={500} max={10000} step={100}
+                    unit="ms" accent="yellow" onChange={setTimeLimitMs}
+                  />
+
+                  {/* Memory limit */}
+                  <SliderField
+                    label="Memory limit" value={memoryLimitMb} min={64} max={1000} step={8}
+                    unit="MB" accent="red" onChange={setMemoryLimitMb}
+                  />
+
+                  <div>
+                    <FieldLabel htmlFor="maxPoints">Maximum points</FieldLabel>
+                    <StyledInput id="maxPoints" type="number" min="0.01" max="9999999999.99" step="0.01" value={maxPoints} onChange={(value) => setMaxPoints(Number(value))} required />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <FieldLabel>Publish assignment</FieldLabel>
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      <button type="button" aria-pressed={publishMode === "immediately"}
+                        onClick={() => { setPublishMode("immediately"); setLaunchDate(""); }}
+                        className={`text-left rounded-xl border p-4 transition-colors ${publishMode === "immediately" ? "border-azure bg-azure/10" : "border-gray-700/50 hover:border-gray-600"}`}>
+                        <span className={`block text-sm font-semibold ${publishMode === "immediately" ? "text-azure" : "text-gray-300"}`}>Publish immediately</span>
+                        <span className="block mt-1 text-xs leading-relaxed text-gray-500">Students can see it as soon as test generation finishes.</span>
+                      </button>
+                      <button type="button" aria-pressed={publishMode === "scheduled"}
+                        onClick={() => setPublishMode("scheduled")}
+                        className={`text-left rounded-xl border p-4 transition-colors ${publishMode === "scheduled" ? "border-yellow bg-yellow/10" : "border-gray-700/50 hover:border-gray-600"}`}>
+                        <span className={`block text-sm font-semibold ${publishMode === "scheduled" ? "text-yellow" : "text-gray-300"}`}>Schedule publish</span>
+                        <span className="block mt-1 text-xs leading-relaxed text-gray-500">Keep it hidden until the launch date you choose.</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {publishMode === "scheduled" && (
+                    <div>
+                      <FieldLabel htmlFor="launchDate">Launch date</FieldLabel>
+                      <StyledInput
+                        id="launchDate" type="datetime-local" min={minimumDate} value={launchDate} onChange={setLaunchDate} required
+                      />
+                    </div>
+                  )}
+
+                  {/* Due date */}
+                  <div>
+                    <FieldLabel htmlFor="dueDate">Due date <span className="text-gray-600 font-normal">(optional)</span></FieldLabel>
+                    <StyledInput
+                      id="dueDate" type="datetime-local" min={(publishMode === "scheduled" && launchDate) || minimumDate} value={dueDate} onChange={setDueDate}
+                    />
+                  </div>
+
+                  {/* Close date */}
+                  <div>
+                    <FieldLabel htmlFor="closeDate">Close date <span className="text-gray-600 font-normal">(optional)</span></FieldLabel>
+                    <StyledInput
+                      id="closeDate" type="datetime-local" min={dueDate || (publishMode === "scheduled" && launchDate) || minimumDate} value={closeDate} onChange={setCloseDate}
+                    />
+                  </div>
+                </div>
+                {datesOutOfOrder && <p className="mt-3 text-sm text-red-400">Dates must satisfy launch ≤ due ≤ close.</p>}
+
+                {/* Allowed languages */}
+                <div className="mt-5">
+                  <FieldLabel>Allowed languages <span className="text-gray-600 font-normal">(students may submit in)</span></FieldLabel>
+                  <div className="flex flex-wrap gap-2">
+                    {LANGUAGES.map((lang) => {
+                      const on = allowedLanguages.includes(lang.value);
+                      return (
+                        <button key={lang.value} type="button" onClick={() => toggleLang(lang.value)}
+                          className={`px-4 py-2 rounded-xl border text-sm font-medium transition-all ${
+                            on
+                              ? "border-azure bg-azure/10 text-azure"
+                              : "border-gray-700/50 text-gray-500 hover:border-gray-600 hover:text-gray-300"
+                          }`}>
+                          {lang.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </SectionCard>
+
+              {/* ── 03 Reference Solution ── */}
+              <SectionCard number="03" title="Reference solution" badge="Required">
+                <div className="flex gap-2 mb-5">
+                  <TabBtn active={solutionMode === "editor"} onClick={() => setSolutionMode("editor")}>
+                    Write code
+                  </TabBtn>
+                  <TabBtn active={solutionMode === "file"} onClick={() => setSolutionMode("file")}>
+                    Upload file
+                  </TabBtn>
+                </div>
+                {solutionMode === "editor" ? (
+                  <div className="rounded-xl overflow-hidden border border-gray-700/50">
+                    <div className="flex items-center gap-2 px-4 py-2 bg-dark-surface border-b border-gray-700">
+                      <div className="flex gap-1.5">
+                        <div className="w-3 h-3 rounded-full bg-red-500" />
+                        <div className="w-3 h-3 rounded-full bg-yellow" />
+                        <div className="w-3 h-3 rounded-full bg-green-500" />
+                      </div>
+                      <span className="text-xs text-gray-500 ml-2">
+                        solution.{LANGUAGES.find((l) => l.value === referenceLanguage)?.ext}
+                      </span>
+                    </div>
+                    <div style={{ height: 320 }}>
+                      <CodeEditor
+                        height="100%" language={monacoLang}
+                        value={solutionCode} onChange={updateSolutionCode}
+                      />
+                    </div>
+                    <p className="px-4 py-2 text-right text-xs text-gray-500 border-t border-gray-700">{lineCount(solutionCode)} / {MAX_SOURCE_LINES} lines · {byteSize(solutionCode).toLocaleString()} / {MAX_SOURCE_BYTES.toLocaleString()} bytes</p>
+                  </div>
+                ) : (
+                  <UploadZone
+                    file={solutionFile} onFile={handleSolutionFile}
+                    accept=".py,.java,.cpp,.cc,.c"
+                    hint="Accepted: .py .java .cpp .cc .c · maximum 500 lines and 256 KiB"
+                  />
+                )}
+              </SectionCard>
+
+              {/* ── 04 Test Cases ── */}
+              <SectionCard number="04" title="Test cases" badge="Required">
+                <div className="space-y-4">
+                  {testCases.map((tc, i) => (
+                    <div key={tc.id}
+                      className="border border-gray-700/50 rounded-xl overflow-hidden hover:border-azure/30 transition-colors">
+                      <div className="flex items-center justify-between px-4 py-3 bg-dark-surface border-b border-gray-700/30">
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm font-semibold text-white">Test case {i + 1}</span>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" checked={tc.isSample}
+                              onChange={(e) => patchTestCase(tc.id, { isSample: e.target.checked })}
+                              className="w-3.5 h-3.5 rounded accent-azure" />
+                            <span className="text-xs text-gray-500">Sample (visible to students)</span>
+                          </label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="flex gap-1">
+                            <TabBtn active={tc.mode === "text"} onClick={() => patchTestCase(tc.id, { mode: "text" })}>
+                              Type input
+                            </TabBtn>
+                            <TabBtn active={tc.mode === "file"} onClick={() => patchTestCase(tc.id, { mode: "file" })}>
+                              Upload file
+                            </TabBtn>
+                          </div>
+                          {testCases.length > 1 && (
+                            <button type="button" onClick={() => removeTestCase(tc.id)}
+                              className="p-1.5 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-400/10 transition-colors">
+                              <X size={14} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="p-4">
+                        {tc.mode === "text" ? (
+                          <>
+                            <textarea value={tc.text}
+                              onChange={(e) => updateTestCaseText(tc.id, e.target.value)}
+                              maxLength={MAX_TEST_INPUT_BYTES}
+                              rows={3} placeholder="Enter the test case input (stdin)..."
+                              className="w-full px-4 py-3 rounded-xl border border-gray-700/50 bg-dark-surface
+                                         text-white font-mono text-sm placeholder:text-gray-600
+                                         focus:outline-none focus:ring-2 focus:ring-azure focus:border-transparent
+                                         transition-all resize-none"
+                            />
+                            <p className="mt-1 text-right text-[11px] text-gray-600">{byteSize(tc.text).toLocaleString()} / {MAX_TEST_INPUT_BYTES.toLocaleString()} bytes</p>
+                          </>
+                        ) : (
+                          <UploadZone
+                            file={tc.file} onFile={(f) => void handleTestCaseFile(tc.id, f)}
+                            accept=".txt" hint="Plain text stdin · maximum 1 MiB per input, 5 MiB total"
+                          />
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  <button type="button" onClick={addTestCase} disabled={testCases.length >= 50}
+                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed
+                               border-gray-700 text-gray-500 hover:border-azure/50 hover:text-azure
+                               transition-all text-sm font-medium">
+                    <Plus size={14} />
+                    Add test case
+                  </button>
+                </div>
+              </SectionCard>
+
+              {/* ── 05 Public Examples ── */}
+              <SectionCard number="05" title="Public examples" badge="Optional">
+                <p className="text-sm text-gray-400 mb-4">Examples appear in assignment instructions. They are separate from private evaluator test cases.</p>
+                <div className="space-y-4">
+                  {examples.map((example, index) => (
+                    <div key={index} className="border border-gray-700/50 rounded-xl p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-sm font-semibold text-white">Example {index + 1}</span>
+                        <button type="button" onClick={() => setExamples((items) => items.filter((_, itemIndex) => itemIndex !== index))} className="text-xs text-red-400 hover:text-red-300">Remove</button>
+                      </div>
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <div>
+                          <FieldLabel htmlFor={`example-input-${index}`}>Input</FieldLabel>
+                          <textarea id={`example-input-${index}`} required rows={3} value={example.input} maxLength={MAX_EXAMPLE_INPUT_OUTPUT_CHARS} onChange={(event) => patchExample(index, { input: event.target.value })} className="w-full px-4 py-3 rounded-xl border border-gray-700/50 bg-dark-surface text-white font-mono text-sm resize-none" />
+                          <CharacterCount value={example.input} max={MAX_EXAMPLE_INPUT_OUTPUT_CHARS} />
+                        </div>
+                        <div>
+                          <FieldLabel htmlFor={`example-output-${index}`}>Output</FieldLabel>
+                          <textarea id={`example-output-${index}`} required rows={3} value={example.output} maxLength={MAX_EXAMPLE_INPUT_OUTPUT_CHARS} onChange={(event) => patchExample(index, { output: event.target.value })} className="w-full px-4 py-3 rounded-xl border border-gray-700/50 bg-dark-surface text-white font-mono text-sm resize-none" />
+                          <CharacterCount value={example.output} max={MAX_EXAMPLE_INPUT_OUTPUT_CHARS} />
+                        </div>
+                      </div>
+                      <div className="mt-4">
+                        <FieldLabel htmlFor={`example-explanation-${index}`}>Explanation</FieldLabel>
+                        <textarea id={`example-explanation-${index}`} required rows={2} value={example.explanation ?? ""} maxLength={MAX_EXPLANATION_CHARS} onChange={(event) => patchExample(index, { explanation: event.target.value })} className="w-full px-4 py-3 rounded-xl border border-gray-700/50 bg-dark-surface text-white text-sm resize-none" />
+                        <CharacterCount value={example.explanation ?? ""} max={MAX_EXPLANATION_CHARS} />
+                      </div>
+                    </div>
+                  ))}
+                  <button type="button" onClick={addExample} disabled={examples.length >= MAX_EXAMPLES} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-gray-700 text-gray-500 hover:border-azure/50 hover:text-azure disabled:opacity-50 transition-all text-sm font-medium">
+                    <Plus size={14} /> Add public example ({examples.length} / {MAX_EXAMPLES})
+                  </button>
+                </div>
+              </SectionCard>
+
+              <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] rounded-2xl border border-gray-700/40 bg-dark-card p-5">
+                <div>
+                  <p className="text-[10px] font-semibold tracking-widest text-gray-500 uppercase mb-3">Readiness checklist</p>
+                  <div className="grid gap-2.5 sm:grid-cols-2">
+                    <CheckItem done={hasTitleDesc} label="Title & description" />
+                    <CheckItem done={hasLang} label="At least 1 language" />
+                    <CheckItem done={hasSolution} label="Reference solution" />
+                    <CheckItem done={hasTestCase} label="At least 1 test case" />
+                    <CheckItem done={hasDueDate} label="Due date set" pending />
+                  </div>
+                </div>
+                <div className="flex gap-3 rounded-xl border border-azure/20 bg-azure/5 p-4">
+                  <Info size={17} className="text-azure flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-white">Expected outputs are generated automatically</p>
+                    <p className="mt-1 text-sm leading-relaxed text-gray-400">On creation, CodeHive runs reference solution against every private test input. Assignment becomes available after validation finishes.</p>
+                  </div>
+                </div>
+              </section>
+
+              {/* ── Submit ── */}
+              <div className="flex justify-end gap-3 pb-8">
+                <button type="button" onClick={() => navigate("/teacher")}
+                  className="px-5 py-2.5 rounded-xl border border-gray-700/50 text-gray-300
+                             hover:border-gray-600 hover:text-white transition-all text-sm font-medium">
+                  Cancel
+                </button>
+                <button type="submit" disabled={isSubmitting}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-azure text-white text-sm
+                             font-medium hover:bg-french transition-all disabled:opacity-60 disabled:cursor-not-allowed">
+                  {isSubmitting ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                      </svg>
+                      Creating…
+                    </>
+                  ) : (
+                    <>
+                      <Check size={14} />
+                      Create assignment
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </form>
+    </TeacherShell>
+  );
+}
+
+function CheckItem({ done, label, pending = false }: {
+  done: boolean; label: string; pending?: boolean;
+}) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <div className={`w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 ${
+        done
+          ? "bg-green-500/20"
+          : pending
+          ? "bg-yellow/10"
+          : "bg-gray-700/50"
+      }`}>
+        {done ? (
+          <Check size={9} className="text-green-400" />
+        ) : pending ? (
+          <span className="w-1.5 h-1.5 rounded-full bg-yellow" />
+        ) : (
+          <span className="w-1.5 h-1.5 rounded-full bg-gray-600" />
+        )}
+      </div>
+      <span className={`text-xs ${done ? "text-gray-300" : "text-gray-600"}`}>{label}</span>
+    </div>
   );
 }

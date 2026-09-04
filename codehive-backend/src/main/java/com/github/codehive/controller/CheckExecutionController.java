@@ -153,6 +153,13 @@ public class CheckExecutionController {
                     schema = @Schema(implementation = ErrorResponse.class)
                 )
             ),
+            @ApiResponse(
+                responseCode = "410",
+                description = "Execution report artifacts expired",
+                content = @Content(
+                    schema = @Schema(implementation = ErrorResponse.class)
+                )
+            ),
         }
     )
     @GetMapping("/check/{id}/report")

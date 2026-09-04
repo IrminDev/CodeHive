@@ -53,6 +53,7 @@ import com.github.codehive.repository.AssignmentRepository;
 import com.github.codehive.repository.ClassGroupRepository;
 import com.github.codehive.repository.GroupEnrollmentRepository;
 import com.github.codehive.repository.ReferenceSolutionRevisionRepository;
+import com.github.codehive.repository.TestSuiteRevisionRepository;
 import com.github.codehive.repository.StudentAssignmentWorkRepository;
 import com.github.codehive.repository.TestSuiteRevisionRepository;
 import com.github.codehive.repository.UserRepository;
@@ -132,21 +133,15 @@ class PermissionMatrixIntegrationTest {
         ReferenceSolutionRevision referenceRevision = new ReferenceSolutionRevision();
         referenceRevision.setAssignment(studentOwnedAssignment);
         referenceRevision.setLanguage(Language.JAVA);
-        referenceRevision.setStatus(RevisionStatus.ACTIVE);
-        referenceRevision.setObjectKey("assignments/" + studentOwnedAssignment.getId()
-                + "/test-suite-revisions/reference/source/Main.java");
+        referenceRevision.setObjectKey("assignments/reference/Main.java");
         referenceRevision = referenceSolutionRevisionRepository.saveAndFlush(referenceRevision);
-
         TestSuiteRevision testSuiteRevision = new TestSuiteRevision();
         testSuiteRevision.setAssignment(studentOwnedAssignment);
         testSuiteRevision.setReferenceSolutionRevision(referenceRevision);
         testSuiteRevision.setRevisionNumber(1);
-        testSuiteRevision.setStatus(RevisionStatus.ACTIVE);
         testSuiteRevision = testSuiteRevisionRepository.saveAndFlush(testSuiteRevision);
-
         studentOwnedAssignment.setActiveReferenceSolutionRevision(referenceRevision);
         studentOwnedAssignment.setActiveTestSuiteRevision(testSuiteRevision);
-        assignmentRepository.saveAndFlush(studentOwnedAssignment);
 
         doNothing().when(objectStorageService).upload(anyString(), anyString());
         when(objectStorageService.download(anyString()))

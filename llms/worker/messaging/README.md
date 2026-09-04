@@ -62,6 +62,9 @@ Outgoing payload: `model/dto/queue/TestGenerationResult`
 - `assignmentId`, `success`, `generatedCount`, `errorMessage`
 - Echoes all revision/update correlation IDs so the backend can reject stale results.
 
+For a reference-solution compilation failure, `errorMessage` contains compiler stderr.
+Sandbox capture is capped at 256 KiB; the backend persists it with the failed revision.
+
 ## Operational Notes
 - Backend and worker must share queue names and compatible DTO schemas — both projects maintain mirrored copies of queue DTOs.
 - `[WORKFLOW]`-prefixed log lines trace message flow end to end.

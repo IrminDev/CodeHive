@@ -24,8 +24,10 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.github.codehive.model.dto.AssignmentDTO;
+import com.github.codehive.model.dto.AssignmentManagementStatusDTO;
 import com.github.codehive.model.dto.AssignmentUpdateDTO;
 import com.github.codehive.model.dto.CloneAssignmentFormDTO;
+import com.github.codehive.model.dto.AssignmentPreviewDTO;
 import com.github.codehive.model.request.assignment.CreateAssignmentRequest;
 import com.github.codehive.model.request.assignment.CloneAssignmentRequest;
 import com.github.codehive.model.request.assignment.UpdateAssignmentRequest;
@@ -34,6 +36,8 @@ import com.github.codehive.model.response.PageResponse;
 import com.github.codehive.model.response.SuccessResponse;
 import com.github.codehive.service.AssignmentService;
 import com.github.codehive.service.AssignmentUpdateService;
+import com.github.codehive.service.TeacherAssignmentStatusService;
+import com.github.codehive.model.enums.AssignmentValidationStatus;
 import com.github.codehive.model.enums.AssignmentUpdateStatus;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -52,11 +56,14 @@ public class AssignmentController {
 
     private final AssignmentService assignmentService;
     private final AssignmentUpdateService assignmentUpdateService;
+    private final TeacherAssignmentStatusService teacherAssignmentStatusService;
 
     public AssignmentController(AssignmentService assignmentService,
-                                AssignmentUpdateService assignmentUpdateService) {
+                                AssignmentUpdateService assignmentUpdateService,
+                                TeacherAssignmentStatusService teacherAssignmentStatusService) {
         this.assignmentService = assignmentService;
         this.assignmentUpdateService = assignmentUpdateService;
+        this.teacherAssignmentStatusService = teacherAssignmentStatusService;
     }
 
     @PatchMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -100,9 +107,14 @@ public class AssignmentController {
             @RequestParam UUID groupId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "false") boolean includeDeleted,
+            @RequestParam(defaultValue = "false") boolean deletedOnly,
+            @RequestParam(required = false) String query,
+            @RequestParam(required = false) AssignmentValidationStatus validationStatus,
             Authentication authentication) {
         Page<AssignmentDTO> result = assignmentService.listGroupAssignments(
-                groupId, page, size, authentication.getName());
+                groupId, page, size, authentication.getName(), includeDeleted,
+                deletedOnly, query, validationStatus);
         return ResponseEntity.ok(new SuccessResponse<>("Assignments retrieved successfully.", new PageResponse<>(result)));
     }
 
@@ -181,6 +193,14 @@ public class AssignmentController {
                 assignmentService.getCloneForm(id, authentication.getName())));
     }
 
+    @GetMapping("/{id}/preview")
+    @Operation(summary = "Get owner-only assignment preview with generated outputs")
+    public ResponseEntity<SuccessResponse<AssignmentPreviewDTO>> getPreview(
+            @PathVariable UUID id, Authentication authentication) {
+        return ResponseEntity.ok(new SuccessResponse<>("Assignment preview retrieved.",
+                assignmentService.getTeacherPreview(id, authentication.getName())));
+    }
+
     @Operation(summary = "Clone an assignment",
             description = "Creates a clone from the teacher-edited form snapshot in another owned, active, writable group and queues expected-output generation.")
     @ApiResponses({
@@ -209,5 +229,21 @@ public class AssignmentController {
                                                                    Authentication authentication) {
         assignmentService.softDelete(id, authentication.getName());
         return ResponseEntity.ok(new SuccessResponse<>("Assignment deleted logically", null));
+    }
+
+    @PostMapping("/{id}/restore")
+    @Operation(summary = "Restore a logically deleted assignment")
+    public ResponseEntity<SuccessResponse<AssignmentDTO>> restoreAssignment(
+            @PathVariable UUID id, Authentication authentication) {
+        return ResponseEntity.ok(new SuccessResponse<>("Assignment restored.",
+                assignmentService.restore(id, authentication.getName())));
+    }
+
+    @GetMapping("/{id}/management-status")
+    @Operation(summary = "Get owner-only validation, update, and reevaluation status")
+    public ResponseEntity<SuccessResponse<AssignmentManagementStatusDTO>> managementStatus(
+            @PathVariable UUID id, Authentication authentication) {
+        return ResponseEntity.ok(new SuccessResponse<>("Assignment management status retrieved.",
+                teacherAssignmentStatusService.get(id, authentication.getName())));
     }
 }

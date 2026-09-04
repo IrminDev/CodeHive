@@ -62,7 +62,8 @@ public class TestGenerationService {
                                 tc.getTestCaseId(), result.getStatus());
                         return result(job, false, generated,
                                 "Reference failed on testCaseId=" + tc.getTestCaseId()
-                                        + " status=" + result.getStatus());
+                                        + " status=" + result.getStatus()
+                                        + diagnosticSuffix(result));
                     }
 
                     if (tc.getBaselineOutputPath() != null) {
@@ -115,5 +116,21 @@ public class TestGenerationService {
         result.setTestSuiteRevisionId(job.getTestSuiteRevisionId());
         result.setReferenceSolutionRevisionId(job.getReferenceSolutionRevisionId());
         return result;
+    }
+
+    private String diagnosticSuffix(ExecutionResult result) {
+        String diagnostic = result.getCompilationError() != null
+                ? result.getCompilationError()
+                : result.getErrorOutput();
+        if (diagnostic == null || diagnostic.isBlank()) return "";
+        String sanitized = diagnostic
+                .replace("\u0000", "")
+                .replaceAll("\\u001B\\[[;?0-9]*[ -/]*[@-~]", "")
+                .strip();
+        int limit = 8 * 1024;
+        if (sanitized.length() > limit) {
+            sanitized = sanitized.substring(0, limit - 32) + "\n[Diagnostic truncated]";
+        }
+        return "\n" + sanitized;
     }
 }

@@ -63,6 +63,8 @@ public class AssignmentUpdate {
 
     private Instant completedAt;
 
+    private Instant artifactsPurgedAt;
+
     public UUID getId() { return id; }
     public Assignment getAssignment() { return assignment; }
     public void setAssignment(Assignment assignment) { this.assignment = assignment; }
@@ -85,4 +87,6 @@ public class AssignmentUpdate {
     public Instant getCreatedAt() { return createdAt; }
     public Instant getCompletedAt() { return completedAt; }
     public void setCompletedAt(Instant completedAt) { this.completedAt = completedAt; }
+    public Instant getArtifactsPurgedAt() { return artifactsPurgedAt; }
+    public void setArtifactsPurgedAt(Instant artifactsPurgedAt) { this.artifactsPurgedAt = artifactsPurgedAt; }
 }

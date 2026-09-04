@@ -1,5 +1,6 @@
 package com.github.codehive.notification.strategy;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -14,9 +15,13 @@ import com.github.codehive.notification.NotificationEmailContent;
 import com.github.codehive.notification.NotificationFormatService;
 import com.github.codehive.notification.NotificationStrategy;
 import com.github.codehive.repository.AssignmentRepository;
+import com.github.codehive.repository.TestSuiteRevisionRepository;
+import com.github.codehive.model.enums.RevisionStatus;
 
 @Component
 public class AssignmentNotificationStrategy implements NotificationStrategy {
+    private static final int MAX_DIAGNOSTIC_CHARS = 12_000;
+    private static final int MAX_DIAGNOSTIC_LINES = 80;
     private static final Set<NotificationType> TYPES = Set.of(
             NotificationType.ASSIGNMENT_READY,
             NotificationType.ASSIGNMENT_VALIDATION_FAILED,
@@ -33,11 +38,14 @@ public class AssignmentNotificationStrategy implements NotificationStrategy {
             NotificationType.ASSIGNMENT_CLOSE_SOON_NO_SUBMISSION);
 
     private final AssignmentRepository assignmentRepository;
+    private final TestSuiteRevisionRepository testSuiteRevisionRepository;
     private final NotificationFormatService format;
 
     public AssignmentNotificationStrategy(AssignmentRepository assignmentRepository,
+                                          TestSuiteRevisionRepository testSuiteRevisionRepository,
                                           NotificationFormatService format) {
         this.assignmentRepository = assignmentRepository;
+        this.testSuiteRevisionRepository = testSuiteRevisionRepository;
         this.format = format;
     }
 
@@ -65,7 +73,8 @@ public class AssignmentNotificationStrategy implements NotificationStrategy {
             case ASSIGNMENT_VALIDATION_FAILED -> teacher(
                     "Assignment validation failed: " + assignment.getTitle(), "ACTION REQUIRED",
                     "The assignment could not be validated",
-                    "Review the reference solution and test inputs before trying again.", details);
+                    "Review the reference solution and test inputs before trying again.",
+                    validationFailureDetails(assignment, details));
             case ASSIGNMENT_PUBLISHED -> student(
                     "New assignment: " + assignment.getTitle(), "NEW ASSIGNMENT",
                     "A new coding assignment is available",
@@ -131,5 +140,30 @@ public class AssignmentNotificationStrategy implements NotificationStrategy {
                                              Assignment assignment, List<String> details) {
         return new NotificationEmailContent(subject, badge, title, message, "Assignment details", details,
                 "Open assignment", format.assignmentUrl(assignment.getId()));
+    }
+
+    private List<String> validationFailureDetails(Assignment assignment, List<String> details) {
+        List<String> lines = new ArrayList<>(details);
+        String diagnostic = testSuiteRevisionRepository
+                .findTopByAssignmentIdAndStatusOrderByRevisionNumberDesc(
+                        assignment.getId(), RevisionStatus.FAILED)
+                .map(revision -> revision.getFailureMessage())
+                .filter(message -> message != null && !message.isBlank())
+                .orElse("The worker did not provide diagnostic output.");
+
+        diagnostic = diagnostic.replaceAll("[\\p{Cntrl}&&[^\\r\\n\\t]]", "");
+        boolean truncated = diagnostic.length() > MAX_DIAGNOSTIC_CHARS;
+        if (truncated) diagnostic = diagnostic.substring(0, MAX_DIAGNOSTIC_CHARS);
+
+        lines.add("Validation output:");
+        String[] diagnosticLines = diagnostic.replace("\r\n", "\n").split("\n", -1);
+        int lineCount = Math.min(diagnosticLines.length, MAX_DIAGNOSTIC_LINES);
+        for (int index = 0; index < lineCount; index++) {
+            lines.add("  " + diagnosticLines[index]);
+        }
+        if (truncated || diagnosticLines.length > MAX_DIAGNOSTIC_LINES) {
+            lines.add("  … diagnostic output truncated; open the assignment to review the full failure.");
+        }
+        return List.copyOf(lines);
     }
 }

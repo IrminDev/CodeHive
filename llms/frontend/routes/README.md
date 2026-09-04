@@ -18,7 +18,24 @@ Current route map:
 - /teacher -> features/teacher/routes/teacher.dashboard.tsx
 - /teacher/assignments -> features/teacher/routes/teacher.assignments.tsx
 - /teacher/create-assignment -> features/teacher/routes/teacher.create-assignment.tsx
-- /teacher/assignments/:assignmentId/clone -> features/teacher/routes/teacher.clone-assignment.tsx
+- /teacher/assignments/:assignmentId/clone -> features/teacher/routes/teacher.assignments.$assignmentId.clone.tsx
+- /teacher/assignments/:assignmentId/edit -> features/teacher/routes/teacher.assignments.$assignmentId.edit.tsx
+- /teacher/assignments/:assignmentId/preview -> features/teacher/routes/teacher.assignments.$assignmentId.preview.tsx
+- /teacher/groups -> features/teacher/routes/teacher.groups.tsx
+- /teacher/groups/create -> features/teacher/routes/teacher.create-group.tsx
+- /teacher/groups/:groupId -> features/teacher/routes/teacher.groups.$groupId.tsx
+- /teacher/grades -> features/teacher/routes/teacher.grades.tsx
+- /teacher/analytics -> features/teacher/routes/teacher.analytics.tsx
+- /teacher/notifications -> features/teacher/routes/teacher.notifications.tsx
+- /groups -> features/student/routes/student.groups.tsx
+- /groups/join -> features/student/routes/student.join-group.tsx
+- /groups/:groupId -> features/student/routes/student.group.tsx
+- /assignment/:id -> features/student/routes/student.assignment.tsx
+- /assignment/:id/submissions -> features/student/routes/student.submissions.tsx
+- /assignment/:id/report/:executionId -> features/student/routes/student.report.tsx
+- /assignments -> features/student/routes/student.assignments.tsx
+- /grades -> features/student/routes/student.grades.tsx
+- /notifications -> features/student/routes/student.notifications.tsx
 
 ## Route Module Pattern
 Each route module typically contains:

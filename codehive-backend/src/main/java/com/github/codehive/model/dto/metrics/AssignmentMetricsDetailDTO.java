@@ -57,6 +57,8 @@ public record AssignmentMetricsDetailDTO(
     public record StudentBreakdown(
             UUID studentId,
             String fullName,
+            String enrollmentNumber,
+            UUID workId,
             StudentWorkStatus workStatus,
             UUID currentSubmissionId,
             Boolean deliveredLate,

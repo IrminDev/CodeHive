@@ -2,6 +2,7 @@ package com.github.codehive.repository;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Collection;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -29,6 +30,23 @@ public interface AssignmentRepository extends JpaRepository<Assignment, UUID> {
 
     Page<Assignment> findByGroupIdAndIsActiveTrueOrderByCreatedAtDesc(UUID groupId, Pageable pageable);
 
+    @Query("""
+            select a from Assignment a
+            where a.group.id = :groupId
+              and (:deletedOnly = false or a.isActive = false)
+              and (:includeDeleted = true or a.isActive = true)
+              and lower(a.title) like lower(concat('%', :query, '%'))
+              and (:validationStatus is null or a.validationStatus = :validationStatus)
+            order by a.createdAt desc
+            """)
+    Page<Assignment> findTeacherManaged(
+            @Param("groupId") UUID groupId,
+            @Param("includeDeleted") boolean includeDeleted,
+            @Param("deletedOnly") boolean deletedOnly,
+            @Param("query") String query,
+            @Param("validationStatus") AssignmentValidationStatus validationStatus,
+            Pageable pageable);
+
     List<Assignment> findByGroupIdOrderByCreatedAtDesc(UUID groupId);
 
     @Query("""
@@ -40,6 +58,20 @@ public interface AssignmentRepository extends JpaRepository<Assignment, UUID> {
     Page<Assignment> findStudentVisible(@Param("groupId") UUID groupId,
                                         @Param("status") AssignmentValidationStatus status,
                                         @Param("now") Instant now, Pageable pageable);
+
+    @Query("""
+            select a from Assignment a
+            where a.group.id in :groupIds
+              and a.group.isActive = true
+              and a.isActive = true
+              and a.validationStatus = :status
+              and (a.launchDate is null or a.launchDate <= :now)
+            order by a.createdAt desc
+            """)
+    List<Assignment> findStudentVisibleForGroups(
+            @Param("groupIds") Collection<UUID> groupIds,
+            @Param("status") AssignmentValidationStatus status,
+            @Param("now") Instant now);
 
     @Query("""
             select a from Assignment a
@@ -60,4 +92,6 @@ public interface AssignmentRepository extends JpaRepository<Assignment, UUID> {
                                             @Param("maximum") Instant maximum);
 
     List<Assignment> findByGroupIdAndIsActiveTrueOrderByCreatedAtDesc(UUID groupId);
+
+    List<Assignment> findByIsActiveFalseAndDeletedAtIsNull();
 }

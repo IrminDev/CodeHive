@@ -1,171 +1,192 @@
 import { API_BASE_URL } from "~/core/config/env";
-import { getAuthToken } from "~/core/storage/token.storage";
+import { teacherAuthHeaders, teacherRequest } from "./client";
+import type {
+  AssignmentPage,
+  AssignmentManagementStatus,
+  AssignmentPreview,
+  AssignmentUpdate,
+  CloneAssignmentForm,
+  CloneAssignmentPayload,
+  CreateAssignmentMetadata,
+  TeacherAssignment,
+  UpdateAssignmentMetadata,
+} from "../types/assignment.types";
+import type { TeacherGroup } from "../types/group.types";
 
-export type ComparatorType = "EXACT_MATCH" | "FLOATING_POINT";
-export type Language = "JAVA" | "PYTHON" | "CPP" | "C";
+export type {
+  AssignmentExample,
+  AssignmentPage,
+  AssignmentPreview,
+  AssignmentPreviewTestCase,
+  AssignmentUpdate,
+  CloneAssignmentForm,
+  CloneAssignmentPayload,
+  ComparatorType,
+  CreateAssignmentMetadata,
+  Language,
+  TeacherAssignment,
+  UpdateAssignmentMetadata,
+} from "../types/assignment.types";
+export type { TeacherGroup } from "../types/group.types";
 
-export interface AssignmentExample {
-  input: string;
-  output: string;
-  explanation: string;
-}
-
-export interface CreateAssignmentMetadata {
-  groupId: string;
-  title: string;
-  description: string;
-  constraints: string[];
-  hints: string[];
-  tags: string[];
-  timeLimitMs: number;
-  memoryLimitMb: number;
-  comparatorType: ComparatorType;
-  allowedLanguages: Language[];
-  referenceLanguage: Language;
-  launchDate?: string;
-  dueDate?: string;
-  closeDate?: string;
-  examples: AssignmentExample[];
-  maxPoints: number;
-  sampleFlags: boolean[];
-}
-
-export interface TeacherGroup {
-  id: string;
-  name: string;
-  description: string;
-  archived: boolean;
-  isActive: boolean;
-}
-
-export interface TeacherAssignment {
-  id: string;
-  groupId: string;
-  title: string;
-  description: string;
-  allowedLanguages: Language[];
-  validationStatus: "PROCESSING" | "READY" | "FAILED";
-  dueDate?: string;
-}
-
-export interface CloneAssignmentForm {
-  sourceGroupId: string;
-  title: string;
-  description: string;
-  constraints: string[];
-  hints: string[];
-  tags: string[];
-  timeLimitMs: number;
-  memoryLimitMb: number;
-  comparatorType: ComparatorType;
-  allowedLanguages: Language[];
-  referenceLanguage: Language;
-  referenceSolution: string;
-  examples: AssignmentExample[];
-  testCases: Array<{ order: number; input: string; sample: boolean }>;
-  maxPoints: number;
-}
-
-export interface CloneAssignmentPayload {
-  targetGroupId: string;
-  title: string;
-  description: string;
-  constraints: string[];
-  hints: string[];
-  tags: string[];
-  timeLimitMs: number;
-  memoryLimitMb: number;
-  comparatorType: ComparatorType;
-  allowedLanguages: Language[];
-  referenceLanguage: Language;
-  referenceSolution: string;
-  testCases: Array<{ input: string; sample: boolean }>;
-  examples: AssignmentExample[];
-  maxPoints: number;
-  launchDate?: string;
-  dueDate?: string;
-  closeDate?: string;
-}
-
-interface ApiResponse<T> {
-  data: T;
-  message?: string;
-}
-
-interface AssignmentPage {
-  content: TeacherAssignment[];
-  totalPages: number;
-  totalElements: number;
-}
-
-function authHeaders(): HeadersInit {
-  const token = getAuthToken();
-  if (!token) throw new Error("Not authenticated. Please sign in again.");
-  return { Authorization: `Bearer ${token}` };
-}
-
-async function readError(response: Response, fallback: string): Promise<Error> {
-  const body = await response.json().catch(() => ({}));
-  return new Error((body as { message?: string }).message || fallback);
-}
-
-export async function createAssignment(
-  metadata: CreateAssignmentMetadata,
-  referenceSolution: File,
-  testCaseInputs: File[]
-): Promise<void> {
+function multipartMetadata(metadata: unknown): FormData {
   const formData = new FormData();
   formData.append(
     "metadata",
-    new Blob([JSON.stringify(metadata)], { type: "application/json" })
+    new Blob([JSON.stringify(metadata)], { type: "application/json" }),
   );
-  formData.append("referenceSolution", referenceSolution);
-  testCaseInputs.forEach((file) => formData.append("testCaseInputs", file));
+  return formData;
+}
 
-  const response = await fetch(`${API_BASE_URL}/api/assignments`, {
-    method: "POST",
-    headers: authHeaders(),
+function normalizeAssignment(assignment: TeacherAssignment): TeacherAssignment {
+  return {
+    ...assignment,
+    constraints: assignment.constraints ?? [],
+    hints: assignment.hints ?? [],
+    tags: assignment.tags ?? [],
+    allowedLanguages: assignment.allowedLanguages ?? [],
+    examples: assignment.examples ?? [],
+    sampleTestCases: assignment.sampleTestCases ?? [],
+  };
+}
+
+async function multipartRequest<T>(path: string, method: "POST" | "PATCH", formData: FormData): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method,
+    headers: teacherAuthHeaders(),
     body: formData,
   });
-  if (!response.ok) throw await readError(response, "Failed to create assignment.");
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = body as { message?: string; error?: string; errors?: string[] };
+    throw new Error(error.message || error.error || error.errors?.join(", ") || `HTTP ${response.status}`);
+  }
+  return (body as { data: T }).data;
 }
 
-export async function getActiveTeacherGroups(): Promise<TeacherGroup[]> {
-  const response = await fetch(`${API_BASE_URL}/api/groups`, { headers: authHeaders() });
-  if (!response.ok) throw await readError(response, "Failed to load groups.");
-  const body = (await response.json()) as ApiResponse<TeacherGroup[]>;
-  return body.data.filter((group) => group.isActive && !group.archived);
+export function createAssignment(
+  metadata: CreateAssignmentMetadata,
+  referenceSolution: File,
+  testCaseInputs: File[],
+): Promise<TeacherAssignment> {
+  const formData = multipartMetadata(metadata);
+  formData.append("referenceSolution", referenceSolution);
+  testCaseInputs.forEach((file) => formData.append("testCaseInputs", file));
+  return multipartRequest<TeacherAssignment>("/api/assignments", "POST", formData);
 }
 
-export async function getCloneAssignmentForm(assignmentId: string): Promise<CloneAssignmentForm> {
-  const response = await fetch(
-    `${API_BASE_URL}/api/assignments/${encodeURIComponent(assignmentId)}/clone-form`,
-    { headers: authHeaders() }
-  );
-  if (!response.ok) throw await readError(response, "Failed to load assignment clone form.");
-  return ((await response.json()) as ApiResponse<CloneAssignmentForm>).data;
-}
-
-export async function cloneAssignment(
+export function updateAssignment(
   assignmentId: string,
-  payload: CloneAssignmentPayload
-): Promise<void> {
-  const response = await fetch(
-    `${API_BASE_URL}/api/assignments/${encodeURIComponent(assignmentId)}/clone`,
-    {
-      method: "POST",
-      headers: { ...authHeaders(), "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    }
+  metadata: UpdateAssignmentMetadata,
+  referenceSolution?: File,
+  testCaseInputs: File[] = [],
+): Promise<AssignmentUpdate> {
+  const formData = multipartMetadata(metadata);
+  if (referenceSolution) formData.append("referenceSolution", referenceSolution);
+  testCaseInputs.forEach((file) => formData.append("testCaseInputs", file));
+  return multipartRequest<AssignmentUpdate>(
+    `/api/assignments/${encodeURIComponent(assignmentId)}`,
+    "PATCH",
+    formData,
   );
-  if (!response.ok) throw await readError(response, "Failed to clone assignment.");
+}
+
+export function getAssignmentUpdate(updateId: string): Promise<AssignmentUpdate> {
+  return teacherRequest<AssignmentUpdate>(
+    `/api/assignments/updates/${encodeURIComponent(updateId)}`,
+  );
+}
+
+export function getTeacherAssignment(assignmentId: string): Promise<TeacherAssignment> {
+  return teacherRequest<TeacherAssignment>(
+    `/api/assignments/${encodeURIComponent(assignmentId)}`,
+  ).then(normalizeAssignment);
+}
+
+export function getTeacherAssignmentPreview(assignmentId: string): Promise<AssignmentPreview> {
+  return teacherRequest<AssignmentPreview>(
+    `/api/assignments/${encodeURIComponent(assignmentId)}/preview`,
+  ).then((preview) => ({
+    ...preview,
+    assignment: normalizeAssignment(preview.assignment),
+    testCases: preview.testCases ?? [],
+  }));
+}
+
+export function getTeacherAssignmentPage(
+  groupId: string,
+  page = 0,
+  size = 20,
+  filters: {
+    query?: string;
+    validationStatus?: string;
+    includeDeleted?: boolean;
+    deletedOnly?: boolean;
+  } = {},
+): Promise<AssignmentPage> {
+  const params = new URLSearchParams({ groupId, page: String(page), size: String(size) });
+  if (filters.query) params.set("query", filters.query);
+  if (filters.validationStatus) params.set("validationStatus", filters.validationStatus);
+  if (filters.includeDeleted) params.set("includeDeleted", "true");
+  if (filters.deletedOnly) params.set("deletedOnly", "true");
+  return teacherRequest<AssignmentPage>(`/api/assignments?${params}`).then((result) => ({
+    ...result,
+    content: result.content.map(normalizeAssignment),
+  }));
 }
 
 export async function getTeacherAssignments(groupId: string): Promise<TeacherAssignment[]> {
-  const params = new URLSearchParams({ groupId, page: "0", size: "100" });
-  const response = await fetch(`${API_BASE_URL}/api/assignments?${params}`, {
-    headers: authHeaders(),
+  return (await getTeacherAssignmentPage(groupId, 0, 100)).content;
+}
+
+export async function getActiveTeacherGroups(): Promise<TeacherGroup[]> {
+  const groups = await teacherRequest<TeacherGroup[]>("/api/groups");
+  return groups.filter((group) => group.isActive && !group.archived);
+}
+
+export function getCloneAssignmentForm(assignmentId: string): Promise<CloneAssignmentForm> {
+  return teacherRequest<CloneAssignmentForm>(
+    `/api/assignments/${encodeURIComponent(assignmentId)}/clone-form`,
+  ).then((form) => ({
+    ...form,
+    constraints: form.constraints ?? [],
+    hints: form.hints ?? [],
+    tags: form.tags ?? [],
+    allowedLanguages: form.allowedLanguages ?? [],
+    examples: form.examples ?? [],
+    testCases: form.testCases ?? [],
+  }));
+}
+
+export function cloneAssignment(
+  assignmentId: string,
+  payload: CloneAssignmentPayload,
+): Promise<TeacherAssignment> {
+  return teacherRequest<TeacherAssignment>(
+    `/api/assignments/${encodeURIComponent(assignmentId)}/clone`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
+export function deleteAssignment(assignmentId: string): Promise<void> {
+  return teacherRequest<void>(`/api/assignments/${encodeURIComponent(assignmentId)}`, {
+    method: "DELETE",
   });
-  if (!response.ok) throw await readError(response, "Failed to load assignments.");
-  return ((await response.json()) as ApiResponse<AssignmentPage>).data.content;
+}
+
+export function restoreAssignment(assignmentId: string): Promise<TeacherAssignment> {
+  return teacherRequest<TeacherAssignment>(
+    `/api/assignments/${encodeURIComponent(assignmentId)}/restore`,
+    { method: "POST" },
+  ).then(normalizeAssignment);
+}
+
+export function getAssignmentManagementStatus(assignmentId: string): Promise<AssignmentManagementStatus> {
+  return teacherRequest<AssignmentManagementStatus>(
+    `/api/assignments/${encodeURIComponent(assignmentId)}/management-status`,
+  );
 }

@@ -1,32 +1,26 @@
-import { API_BASE_URL } from "~/core/config/env";
-import { getAuthToken } from "~/core/storage/token.storage";
-import type { Assignment, AssignmentPage } from "../types/assignment.types";
-
-type ApiResponse<T> = { data: T; message?: string };
-
-function authHeaders(): HeadersInit {
-  const token = getAuthToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
-async function parseResponse<T>(res: Response): Promise<T> {
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error((body as { message?: string }).message ?? `HTTP ${res.status}`);
-  }
-  return (body as ApiResponse<T>).data;
-}
+import { studentRequest } from "./client";
+import type { Assignment, AssignmentFeedback, AssignmentPage, StudentAssignmentOverview } from "../types/assignment.types";
 
 export async function getAssignment(id: string): Promise<Assignment> {
-  const res = await fetch(`${API_BASE_URL}/api/assignments/${id}`, {
-    headers: authHeaders(),
-  });
-  return parseResponse<Assignment>(res);
+  return studentRequest<Assignment>(`/api/assignments/${id}`);
 }
 
-export async function listAssignments(page = 0, size = 12): Promise<AssignmentPage> {
-  const res = await fetch(`${API_BASE_URL}/api/assignments?page=${page}&size=${size}`, {
-    headers: authHeaders(),
-  });
-  return parseResponse<AssignmentPage>(res);
+export async function listAssignments(groupId: string, page = 0, size = 100): Promise<AssignmentPage> {
+  const params = new URLSearchParams({ groupId, page: String(page), size: String(size) });
+  return studentRequest<AssignmentPage>(`/api/assignments?${params}`);
+}
+
+export async function listAssignmentsForGroups(groupIds: string[]): Promise<Assignment[]> {
+  const pages = await Promise.all(groupIds.map((groupId) => listAssignments(groupId)));
+  return pages.flatMap((page) => page.content)
+    .filter((assignment, index, items) => items.findIndex((item) => item.id === assignment.id) === index)
+    .sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt));
+}
+
+export function listMyAssignmentOverviews(): Promise<StudentAssignmentOverview[]> {
+  return studentRequest<StudentAssignmentOverview[]>("/api/assignments/mine");
+}
+
+export function listMyAssignmentFeedback(assignmentId: string): Promise<AssignmentFeedback[]> {
+  return studentRequest<AssignmentFeedback[]>(`/api/assignments/${assignmentId}/my-feedback`);
 }

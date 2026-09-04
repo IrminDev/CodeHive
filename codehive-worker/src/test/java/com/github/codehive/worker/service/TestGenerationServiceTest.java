@@ -19,6 +19,7 @@ import com.github.codehive.worker.model.dto.queue.TestCaseInfo;
 import com.github.codehive.worker.model.dto.queue.TestGenerationJob;
 import com.github.codehive.worker.model.dto.queue.TestGenerationResult;
 import com.github.codehive.worker.model.enums.ComparatorType;
+import com.github.codehive.worker.model.enums.ExecutionStatus;
 import com.github.codehive.worker.model.enums.Language;
 import com.github.codehive.worker.sandbox.ContainerSession;
 import com.github.codehive.worker.sandbox.LanguageExecutor;
@@ -70,6 +71,41 @@ class TestGenerationServiceTest {
         assertThat(result.getAssignmentUpdateId()).isEqualTo(UPDATE_ID);
         assertThat(result.getReferenceSolutionRevisionId()).isEqualTo(REFERENCE_ID);
         verify(storage, never()).upload("candidate-output", "different\n");
+    }
+
+    @Test
+    void includesSafeRuntimeDiagnosticWhenReferenceFails() throws Exception {
+        LanguageExecutorFactory factory = mock(LanguageExecutorFactory.class);
+        ObjectStorageService storage = mock(ObjectStorageService.class);
+        LanguageExecutor executor = mock(LanguageExecutor.class);
+        when(factory.getExecutor(Language.JAVA)).thenReturn(executor);
+        when(storage.download("reference")).thenReturn(stream("source"));
+        when(storage.download("input")).thenReturn(stream("input"));
+        when(executor.prepare(any(), any(), any()))
+                .thenReturn(new ContainerSession("container", null, 1000, 64));
+        ExecutionResult memoryError = ExecutionResult.memoryLimitExceeded(64L);
+        memoryError.setErrorOutput("\u001B[31mjava.lang.OutOfMemoryError: Java heap space\u0000");
+        memoryError.setExitCode(1);
+        when(executor.runTestCase(any(), any())).thenReturn(memoryError);
+
+        TestCaseInfo testCase = new TestCaseInfo(TEST_CASE_ID, "input", "output");
+        TestGenerationJob job = new TestGenerationJob();
+        job.setAssignmentId(ASSIGNMENT_ID);
+        job.setReferenceSolutionPath("reference");
+        job.setReferenceLanguage(Language.JAVA);
+        job.setTestCases(List.of(testCase));
+        job.setTimeLimitMs(1000L);
+        job.setMemoryLimitMb(64L);
+        job.setComparatorType(ComparatorType.EXACT_MATCH);
+
+        TestGenerationResult result = new TestGenerationService(
+                factory, storage, new OutputComparatorService()).generateOutputs(job);
+
+        assertThat(result.isSuccess()).isFalse();
+        assertThat(result.getErrorMessage())
+                .contains("status=" + ExecutionStatus.MLE)
+                .contains("java.lang.OutOfMemoryError: Java heap space")
+                .doesNotContain("\u001B", "\u0000");
     }
 
     private ByteArrayInputStream stream(String value) {

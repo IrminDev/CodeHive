@@ -40,6 +40,9 @@ class SandboxConstantsTest {
     void boundsAreConsistent() {
         assertThat(MIN_TIME_LIMIT_MS).isLessThan(MAX_TIME_LIMIT_MS);
         assertThat(MIN_MEMORY_LIMIT_MB).isLessThan(MAX_MEMORY_LIMIT_MB);
-        assertThat(MAX_TEST_CASES).isPositive();
+        assertThat(MAX_TIME_LIMIT_MS).isEqualTo(10_000L);
+        assertThat(MAX_MEMORY_LIMIT_MB).isEqualTo(1_000L);
+        assertThat(MAX_TEST_CASES).isEqualTo(50);
+        assertThat(OUTPUT_LIMIT_BYTES).isEqualTo(8 * 1024 * 1024);
     }
 }

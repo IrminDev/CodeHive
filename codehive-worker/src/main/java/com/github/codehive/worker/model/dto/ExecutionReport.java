@@ -32,6 +32,13 @@ public class ExecutionReport {
         updateStatistics(result);
     }
 
+    public void recordSessionPeakMemory(Long memoryUsedMb) {
+        if (memoryUsedMb != null && memoryUsedMb > 0
+                && (this.maxMemoryUsedMb == null || memoryUsedMb > this.maxMemoryUsedMb)) {
+            this.maxMemoryUsedMb = memoryUsedMb;
+        }
+    }
+
     private void updateStatistics(TestCaseResult result) {
         this.totalTests = testCaseResults.size();
         
@@ -82,7 +89,9 @@ public class ExecutionReport {
         }
 
         // Determine the most severe failure
-        if (testCaseResults.stream().anyMatch(r -> r.getStatus() == ExecutionStatus.TLE)) {
+        if (testCaseResults.stream().anyMatch(r -> r.getStatus() == ExecutionStatus.CE)) {
+            this.overallStatus = ExecutionStatus.CE;
+        } else if (testCaseResults.stream().anyMatch(r -> r.getStatus() == ExecutionStatus.TLE)) {
             this.overallStatus = ExecutionStatus.TLE;
         } else if (testCaseResults.stream().anyMatch(r -> r.getStatus() == ExecutionStatus.MLE)) {
             this.overallStatus = ExecutionStatus.MLE;

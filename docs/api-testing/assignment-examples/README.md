@@ -19,6 +19,11 @@ with the UUID of a writable group owned by the authenticated teacher.
 | `cpp-merge-intervals` | C++ | Merge overlapping integer intervals |
 | `java-balanced-brackets` | Java | Validate balanced bracket sequences |
 | `python-run-length-encoding` | Python | Run-length encode a lowercase string |
+| `cpp-shortest-path-discount` | C++ | Dijkstra shortest path with one discounted edge |
+
+`cpp-shortest-path-discount/create-assignment.sh` is a complete multipart creation
+request. Supply `TOKEN` and `GROUP_ID`; it uploads metadata, reference source, and
+ordered test inputs.
 
 ## Postman
 

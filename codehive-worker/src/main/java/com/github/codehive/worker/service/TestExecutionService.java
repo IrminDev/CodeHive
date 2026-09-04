@@ -95,6 +95,7 @@ public class TestExecutionService {
                 String expectedOutput = new String(expectedOutputStream.readAllBytes(), StandardCharsets.UTF_8);
 
                 ExecutionResult result = executor.runTestCase(session, testInput);
+                report.recordSessionPeakMemory(result.getSessionPeakMemoryMb());
 
                 uploadTestCaseOutputs(testCase, result.getOutput(), result.getErrorOutput());
 
@@ -105,6 +106,7 @@ public class TestExecutionService {
                     result.getMemoryUsedMb()
                 );
                 testResult.setTestCaseId(testCase.getTestCaseId());
+                copyDiagnostics(result, testResult);
 
                 if (result.getStatus() == ExecutionStatus.AC) {
                     OutputComparatorService.ComparisonResult comparison =
@@ -131,7 +133,7 @@ public class TestExecutionService {
                 errorResult.setTestCaseId(testCase.getTestCaseId());
                 errorResult.setTestCaseNumber(testNumber);
                 errorResult.setStatus(ExecutionStatus.RTE);
-                errorResult.setFeedback("Test execution failed: " + e.getMessage());
+                errorResult.setFeedback("Execution infrastructure failed");
                 report.addTestCaseResult(errorResult);
             }
         }
@@ -198,6 +200,7 @@ public class TestExecutionService {
                         studentSession,
                         new ByteArrayInputStream(testInput.getBytes(StandardCharsets.UTF_8))
                     );
+                    report.recordSessionPeakMemory(result.getSessionPeakMemoryMb());
 
                     uploadTestCaseOutputs(testCase, result.getOutput(), result.getErrorOutput());
 
@@ -207,6 +210,11 @@ public class TestExecutionService {
                         result.getExecutionTimeMs(),
                         result.getMemoryUsedMb()
                     );
+                    copyDiagnostics(result, testResult);
+                    // Practice inputs belong to the requesting student, so retain
+                    // bounded expected and captured stdout for every completed case.
+                    testResult.setExpectedOutput(expectedOutput);
+                    testResult.setActualOutput(result.getOutput());
 
                     if (result.getStatus() == ExecutionStatus.AC) {
                         OutputComparatorService.ComparisonResult comparison =
@@ -218,8 +226,6 @@ public class TestExecutionService {
                         if (!comparison.matches()) {
                             testResult.setStatus(ExecutionStatus.WA);
                             testResult.setFeedback(comparison.getFeedback());
-                            testResult.setExpectedOutput(expectedOutput);
-                            testResult.setActualOutput(result.getOutput());
                         } else {
                             testResult.setFeedback("Passed");
                         }
@@ -234,7 +240,7 @@ public class TestExecutionService {
                     TestCaseResult errorResult = new TestCaseResult();
                     errorResult.setTestCaseNumber(i + 1);
                     errorResult.setStatus(ExecutionStatus.RTE);
-                    errorResult.setFeedback("Test execution failed: " + e.getMessage());
+                    errorResult.setFeedback("Execution infrastructure failed");
                     report.addTestCaseResult(errorResult);
                 }
             }
@@ -271,6 +277,11 @@ public class TestExecutionService {
             case AC:  return "Accepted";
             default:  return "Unknown status";
         }
+    }
+
+    private void copyDiagnostics(ExecutionResult result, TestCaseResult testResult) {
+        testResult.setStderr(result.getErrorOutput());
+        testResult.setExitCode(result.getExitCode());
     }
 
     private void uploadReport(String reportPath, ExecutionReport report) {

@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.github.codehive.model.dto.AssignmentGradeDTO;
+import com.github.codehive.model.dto.BulkGradeReturnDTO;
 import com.github.codehive.model.entity.Assignment;
 import com.github.codehive.model.entity.AssignmentGrade;
 import com.github.codehive.model.entity.AssignmentGradeHistory;
@@ -36,19 +37,22 @@ public class AssignmentGradeService {
     private final StudentAssignmentWorkRepository workRepository;
     private final UserRepository userRepository;
     private final NotificationDomainEventPublisher notificationPublisher;
+    private final StudentAssignmentWorkService workService;
 
     public AssignmentGradeService(AssignmentGradeRepository gradeRepository,
                                   AssignmentGradeHistoryRepository historyRepository,
                                   AssignmentRepository assignmentRepository,
                                   StudentAssignmentWorkRepository workRepository,
                                   UserRepository userRepository,
-                                  NotificationDomainEventPublisher notificationPublisher) {
+                                  NotificationDomainEventPublisher notificationPublisher,
+                                  StudentAssignmentWorkService workService) {
         this.gradeRepository = gradeRepository;
         this.historyRepository = historyRepository;
         this.assignmentRepository = assignmentRepository;
         this.workRepository = workRepository;
         this.userRepository = userRepository;
         this.notificationPublisher = notificationPublisher;
+        this.workService = workService;
     }
 
     @Transactional
@@ -56,10 +60,14 @@ public class AssignmentGradeService {
                                         String email) {
         User teacher = requireUser(email);
         Assignment assignment = requireOwnedAssignment(assignmentId, teacher);
+        if (value.signum() < 0) {
+            throw new ValidationException("Grade cannot be negative");
+        }
         if (value.compareTo(assignment.getMaxPoints()) > 0) {
             throw new ValidationException("Grade cannot exceed assignment maxPoints");
         }
-        StudentAssignmentWork work = requireWork(assignmentId, studentId);
+        StudentAssignmentWork work = workRepository.findByAssignmentIdAndStudentId(assignmentId, studentId)
+                .orElseGet(() -> createMissingWorkForZeroGrade(assignment, studentId, value));
         AssignmentGrade grade = gradeRepository.findByStudentWorkId(work.getId())
                 .orElseGet(AssignmentGrade::new);
         boolean created = grade.getId() == null;
@@ -91,6 +99,26 @@ public class AssignmentGradeService {
                 NotificationType.GRADE_RETURNED, teacher.getId(), work.getStudent().getId(),
                 work.getAssignment().getGroup().getId(), work.getAssignment().getId(), null));
         return toDTO(grade);
+    }
+
+    @Transactional
+    public BulkGradeReturnDTO returnAllDrafts(UUID assignmentId, String email) {
+        User teacher = requireUser(email);
+        requireOwnedAssignment(assignmentId, teacher);
+        List<AssignmentGrade> drafts = gradeRepository
+                .findByStudentWorkAssignmentIdAndStatus(assignmentId, GradeStatus.DRAFT);
+        Instant returnedAt = Instant.now();
+        drafts.forEach(grade -> {
+            grade.setStatus(GradeStatus.RETURNED);
+            grade.setReturnedAt(returnedAt);
+            grade.setUpdatedAt(returnedAt);
+            record(grade, GradeChangeReason.RETURNED, teacher);
+            StudentAssignmentWork work = grade.getStudentWork();
+            notificationPublisher.publish(NotificationDomainEvent.of(
+                    NotificationType.GRADE_RETURNED, teacher.getId(), work.getStudent().getId(),
+                    work.getAssignment().getGroup().getId(), assignmentId, null));
+        });
+        return new BulkGradeReturnDTO(assignmentId, drafts.size());
     }
 
     @Transactional(readOnly = true)
@@ -146,6 +174,16 @@ public class AssignmentGradeService {
     private StudentAssignmentWork requireWork(UUID assignmentId, UUID studentId) {
         return workRepository.findByAssignmentIdAndStudentId(assignmentId, studentId)
                 .orElseThrow(() -> new EntityNotFoundException("Student assignment work not found"));
+    }
+
+    private StudentAssignmentWork createMissingWorkForZeroGrade(Assignment assignment, UUID studentId,
+                                                                 BigDecimal value) {
+        if (value.signum() != 0) {
+            throw new ValidationException("Students without a submission can only receive a zero grade");
+        }
+        User student = userRepository.findById(studentId)
+                .orElseThrow(() -> new EntityNotFoundException("Student not found: " + studentId));
+        return workService.getOrCreate(assignment, student);
     }
 
     private User requireUser(String email) {

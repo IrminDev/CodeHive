@@ -169,6 +169,21 @@ class AssignmentControllerIntegrationTest {
                     .andExpect(jsonPath("$.data.content.length()").value(1))
                     .andExpect(jsonPath("$.data.totalPages").value(2));
         }
+
+        @Test
+        @DisplayName("filters assignment titles case-insensitively")
+        void titleFilter() throws Exception {
+            saveAssignment("Sliding Window Maximum");
+            saveAssignment("Graph Traversal");
+
+            mockMvc.perform(get("/api/assignments")
+                            .param("groupId", group.getId().toString())
+                            .param("query", "window")
+                            .header("Authorization", "Bearer " + teacherToken))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.totalElements").value(1))
+                    .andExpect(jsonPath("$.data.content[0].title").value("Sliding Window Maximum"));
+        }
     }
 
     // ── GET BY ID ────────────────────────────────────────────────────────────
@@ -253,6 +268,25 @@ class AssignmentControllerIntegrationTest {
                             .header("Authorization", "Bearer " + teacherToken))
                     .andExpect(status().isBadRequest());
         }
+
+        @Test
+        @DisplayName("returns 400 when uploaded metadata exceeds execution limits")
+        void rejectsLimitsAboveBackendMaximum() throws Exception {
+            MockMultipartFile invalidMetadata = new MockMultipartFile(
+                    "metadata", "", MediaType.APPLICATION_JSON_VALUE,
+                    ("""
+                    {"groupId":"%s","title":"Too large","description":"Invalid limits", \
+                    "timeLimitMs":10001,"memoryLimitMb":1001,"comparatorType":"EXACT_MATCH", \
+                    "allowedLanguages":["JAVA"],"referenceLanguage":"JAVA"}
+                    """.formatted(group.getId())).getBytes());
+
+            mockMvc.perform(multipart("/api/assignments")
+                            .file(invalidMetadata)
+                            .file(referenceSolutionPart())
+                            .file(testCaseInputPart())
+                            .header("Authorization", "Bearer " + teacherToken))
+                    .andExpect(status().isBadRequest());
+        }
     }
 
     @Test
@@ -324,6 +358,26 @@ class AssignmentControllerIntegrationTest {
                 .andExpect(jsonPath("$.data.launchDate").doesNotExist())
                 .andExpect(jsonPath("$.data.dueDate").doesNotExist())
                 .andExpect(jsonPath("$.data.closeDate").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("returns owner-only preview with reference source and generated outputs")
+    void getTeacherPreview() throws Exception {
+        Assignment assignment = saveAssignment("Preview me");
+        testCaseRepository.saveAndFlush(new TestCase(
+                assignment, assignment.getActiveTestSuiteRevision(), 1, true));
+        when(objectStorageService.download(anyString()))
+                .thenAnswer(invocation -> new ByteArrayInputStream("generated content".getBytes()));
+
+        mockMvc.perform(get("/api/assignments/{id}/preview", assignment.getId())
+                        .header("Authorization", "Bearer " + teacherToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.assignment.title").value("Preview me"))
+                .andExpect(jsonPath("$.data.referenceLanguage").value("JAVA"))
+                .andExpect(jsonPath("$.data.referenceSolution").value("generated content"))
+                .andExpect(jsonPath("$.data.testCases[0].input").value("generated content"))
+                .andExpect(jsonPath("$.data.testCases[0].expectedOutput").value("generated content"))
+                .andExpect(jsonPath("$.data.testCases[0].sample").value(true));
     }
 
     @Test

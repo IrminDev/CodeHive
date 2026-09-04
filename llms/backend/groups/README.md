@@ -75,6 +75,7 @@ Propietario (User autorizado con CREATE_GROUP)
 7. Se permiten múltiples entregas definitivas antes del cierre. La más reciente se obtiene por fecha de creación; si ocurre después de `dueDate`, se persiste con `deliveredLate = true`. Si el profesor extiende o elimina `dueDate`, las entregas tardías que ahora quedan dentro del plazo se actualizan a `deliveredLate = false`.
 8. En el instante de `closeDate` y después de él, no se acepta una nueva entrega definitiva.
 9. Quien inició una ejecución puede consultar su estado y reporte; en una entrega definitiva también puede hacerlo el propietario del grupo.
+10. El resumen persistido de cada entrega (estado, veredicto, tiempo y memoria) no depende de los artefactos del reporte. El detalle por caso expira según la retención configurada y después responde `410 Gone`.
 
 ### Actualización, retiro y evaluación docente
 
@@ -86,6 +87,7 @@ Propietario (User autorizado con CREATE_GROUP)
 6. Cambiar únicamente la solución de referencia exige validación contra los casos activos, pero no reejecuta entregas ni notifica estudiantes.
 7. Un cambio de casos de prueba se publica únicamente cuando la solución de referencia completa todos los casos correctamente; un fallo conserva intacta la revisión activa.
 8. Al publicar una revisión de casos, se reejecuta únicamente la entrega actual no retirada de cada estudiante.
+9. Una tarea cuya validación inicial falló no tiene revisión activa. Al corregir únicamente su solución de referencia, el sistema copia sus entradas privadas almacenadas a una nueva revisión, regenera salidas esperadas y, si tiene éxito, restaura la tarea a `READY`.
 
 ### Clonación
 
@@ -441,6 +443,9 @@ Propietario (User autorizado con CREATE_GROUP)
 | Solicitar ejecución | `POST /api/execution/check` |
 | Consultar ejecución | `GET /api/execution/check/{id}` |
 | Consultar reporte | `GET /api/execution/check/{id}/report` |
+| Consultar tareas y progreso propios | `GET /api/assignments/mine` |
+| Consultar historial propio de una tarea | `GET /api/submissions/mine/assignment/{assignmentId}` |
+| Consultar retroalimentación visible propia | `GET /api/assignments/{id}/my-feedback` |
 | Actualizar tarea | `PATCH /api/assignments/{id}` |
 | Consultar actualización | `GET /api/assignments/updates/{updateId}` |
 | Retirar entrega | `POST /api/submissions/{submissionId}/withdraw` |
