@@ -3,6 +3,8 @@ package com.github.codehive.model.exception.handler;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -29,6 +31,8 @@ import com.github.codehive.model.response.ErrorResponse;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidationExceptions(MethodArgumentNotValidException ex) {
@@ -132,11 +136,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ErrorResponse> handleHttpMessageNotReadable(HttpMessageNotReadableException ex) {
-        String message = "Malformed JSON request";
-        if (ex.getCause() != null && ex.getCause().getMessage() != null) {
-            message = ex.getCause().getMessage();
-        }
-        ErrorResponse errorResponse = new ErrorResponse("Invalid request format", message);
+        ErrorResponse errorResponse = new ErrorResponse("Invalid request format", "Malformed request body");
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
     }
 
@@ -158,7 +158,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGenericException(Exception ex) {
-        ErrorResponse errorResponse = new ErrorResponse("An unexpected error occurred", ex.getMessage());
+        logger.error("Unhandled exception", ex);
+        ErrorResponse errorResponse = new ErrorResponse("An unexpected error occurred", "Internal server error");
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
     }
 }

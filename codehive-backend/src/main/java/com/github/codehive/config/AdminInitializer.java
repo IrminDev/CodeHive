@@ -17,13 +17,15 @@ public class AdminInitializer implements CommandLineRunner {
 
     private static final Logger logger = LoggerFactory.getLogger(AdminInitializer.class);
 
+    private static final String LEGACY_DEFAULT_PASSWORD = "Admin@12345";
+
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
-    @Value("${app.admin.email:admin@codehive.com}")
+    @Value("${app.admin.email:}")
     private String adminEmail;
 
-    @Value("${app.admin.password:Admin@12345}")
+    @Value("${app.admin.password:}")
     private String adminPassword;
 
     @Value("${app.admin.name:Super}")
@@ -42,6 +44,13 @@ public class AdminInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
+        if (adminEmail == null || adminEmail.isBlank() || adminPassword == null || adminPassword.isBlank()) {
+            throw new IllegalStateException(
+                    "Set ADMIN_EMAIL and ADMIN_PASSWORD to bootstrap the initial super admin");
+        }
+        if (LEGACY_DEFAULT_PASSWORD.equals(adminPassword)) {
+            throw new IllegalStateException("ADMIN_PASSWORD must not be the well-known default value");
+        }
         if (userRepository.findByEmail(adminEmail).isPresent()) {
             logger.info("Super admin already exists: {}", adminEmail);
             return;
@@ -52,6 +61,6 @@ public class AdminInitializer implements CommandLineRunner {
         admin.addScope(Scope.SUPER_ADMIN);
 
         userRepository.save(admin);
-        logger.info("Default super admin created: {}", adminEmail);
+        logger.info("Super admin created: {}", adminEmail);
     }
 }

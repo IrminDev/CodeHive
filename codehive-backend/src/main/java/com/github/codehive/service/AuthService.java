@@ -18,6 +18,7 @@ import io.jsonwebtoken.ExpiredJwtException;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -53,6 +54,9 @@ public class AuthService {
             "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
     );
 
+    // Verified against on failed lookups so login cost doesn't reveal whether an account exists.
+    private static final String DUMMY_HASH = new BCryptPasswordEncoder().encode("account-timing-equalizer");
+
     public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtUtil jwtUtil,
                         MailSenderService mailSenderService) {
         this.userRepository = userRepository;
@@ -82,10 +86,11 @@ public class AuthService {
             userOptional = userRepository.findByEnrollmentNumber(identifier);
         }
 
-        User user = userOptional.orElseThrow(() -> new IncorrectCredentialsException("Invalid credentials"));
+        User user = userOptional.orElse(null);
+        String encodedPassword = user != null ? user.getPassword() : DUMMY_HASH;
+        boolean passwordMatches = passwordEncoder.matches(loginRequest.getPassword(), encodedPassword);
 
-        if (!Boolean.TRUE.equals(user.getIsActive())
-                || !passwordEncoder.matches(loginRequest.getPassword(), user.getPassword())) {
+        if (user == null || !Boolean.TRUE.equals(user.getIsActive()) || !passwordMatches) {
             throw new IncorrectCredentialsException("Invalid credentials");
         }
 
@@ -269,6 +274,7 @@ public class AuthService {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", user.getId());
         claims.put("role", user.getRole().name());
+        claims.put("tokenVersion", user.getTokenVersion());
         return jwtUtil.generateToken(claims, user.getEmail());
     }
 
@@ -283,6 +289,7 @@ public class AuthService {
 
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         user.setTemporaryPassword(false);
+        user.setTokenVersion(user.getTokenVersion() + 1);
         userRepository.save(user);
     }
 }

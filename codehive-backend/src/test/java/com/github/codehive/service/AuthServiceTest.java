@@ -36,6 +36,7 @@ import com.github.codehive.model.exception.auth.AlreadyRegisteredEnrollmentNumbe
 import com.github.codehive.model.exception.auth.IncorrectCredentialsException;
 import com.github.codehive.model.request.auth.LoginRequest;
 import com.github.codehive.model.request.auth.SignUpRequest;
+import com.github.codehive.model.request.auth.UpdatePasswordRequest;
 import com.github.codehive.model.response.auth.AuthResponse;
 import com.github.codehive.model.response.auth.CsvBulkRegisterResponse;
 import com.github.codehive.repository.UserRepository;
@@ -94,6 +95,27 @@ class AuthServiceTest {
     }
 
     @Nested
+    @DisplayName("Update Password Tests")
+    class UpdatePasswordTests {
+
+        @Test
+        @DisplayName("Increments token version to invalidate previously issued JWTs")
+        void updatePassword_IncrementsTokenVersion() {
+            UpdatePasswordRequest request = new UpdatePasswordRequest();
+            request.setCurrentPassword("old-password");
+            request.setNewPassword("new-strong-password");
+            when(userRepository.findById(testUser.getId())).thenReturn(Optional.of(testUser));
+            when(passwordEncoder.matches("old-password", testUser.getPassword())).thenReturn(true);
+            when(passwordEncoder.encode("new-strong-password")).thenReturn("encoded-new");
+            int before = testUser.getTokenVersion();
+
+            authService.updatePassword(testUser.getId(), request);
+
+            assertThat(testUser.getTokenVersion()).isEqualTo(before + 1);
+        }
+    }
+
+    @Nested
     @DisplayName("Login Tests")
     class LoginTests {
 
@@ -133,7 +155,23 @@ class AuthServiceTest {
                     .hasMessage("Invalid credentials");
 
             verify(userRepository).findByEmail(loginRequest.getIdentifier());
-            verify(passwordEncoder, never()).matches(anyString(), anyString());
+            // A password comparison still runs so timing doesn't reveal the account is missing.
+            verify(passwordEncoder).matches(eq(loginRequest.getPassword()), anyString());
+            verify(jwtUtil, never()).generateToken(any(), anyString());
+        }
+
+        @Test
+        @DisplayName("Throws exception for an inactive user but still runs a password comparison")
+        void login_WithInactiveUser_ThrowsAndStillComparesPassword() {
+            testUser.setIsActive(false);
+            when(userRepository.findByEmail(loginRequest.getIdentifier())).thenReturn(Optional.of(testUser));
+            when(passwordEncoder.matches(loginRequest.getPassword(), testUser.getPassword())).thenReturn(true);
+
+            assertThatThrownBy(() -> authService.login(loginRequest))
+                    .isInstanceOf(IncorrectCredentialsException.class)
+                    .hasMessage("Invalid credentials");
+
+            verify(passwordEncoder).matches(loginRequest.getPassword(), testUser.getPassword());
             verify(jwtUtil, never()).generateToken(any(), anyString());
         }
 

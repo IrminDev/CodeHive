@@ -81,6 +81,7 @@ public class AdminUserController {
             @ApiResponse(responseCode = "403", description = "Insufficient permission", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @ApiResponse(responseCode = "409", description = "Email or enrollment number already exists", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
+    @PreAuthorize("hasAuthority('ADMIN') and hasAnyAuthority('UPDATE_USERS', 'UPDATE_ADMINS')")
     @PatchMapping("/{id}")
     public ResponseEntity<SuccessResponse<UserDTO>> update(@PathVariable UUID id,
             @Valid @RequestBody UpdateUserRequest request, Authentication authentication) {
@@ -93,6 +94,7 @@ public class AdminUserController {
             @ApiResponse(responseCode = "200", description = "User deactivated"),
             @ApiResponse(responseCode = "403", description = "Insufficient permission", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
+    @PreAuthorize("hasAuthority('ADMIN') and hasAnyAuthority('MANAGE_USER_STATUS', 'MANAGE_ADMIN_STATUS')")
     @DeleteMapping("/{id}")
     public ResponseEntity<SuccessResponse<Void>> deactivate(@PathVariable UUID id, Authentication authentication) {
         adminUserService.setActive(id, false, authentication.getName());
@@ -104,6 +106,7 @@ public class AdminUserController {
             @ApiResponse(responseCode = "200", description = "User restored"),
             @ApiResponse(responseCode = "403", description = "Insufficient permission", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
+    @PreAuthorize("hasAuthority('ADMIN') and hasAnyAuthority('MANAGE_USER_STATUS', 'MANAGE_ADMIN_STATUS')")
     @PostMapping("/{id}/restore")
     public ResponseEntity<SuccessResponse<Void>> restore(@PathVariable UUID id, Authentication authentication) {
         adminUserService.setActive(id, true, authentication.getName());

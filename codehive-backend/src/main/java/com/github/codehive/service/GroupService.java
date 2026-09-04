@@ -142,6 +142,7 @@ public class GroupService {
     @Transactional
     public void removeStudent(UUID id, UUID studentId, String email) {
         ClassGroup group = requireOwnedGroup(id, email);
+        requireWritable(group);
         GroupEnrollment enrollment = enrollmentRepository.findByGroupIdAndStudentId(id, studentId)
                 .filter(item -> item.getStatus() == EnrollmentStatus.ACTIVE)
                 .orElseThrow(() -> new EntityNotFoundException("Active enrollment not found"));

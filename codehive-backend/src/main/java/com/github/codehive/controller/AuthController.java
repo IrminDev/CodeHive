@@ -136,8 +136,10 @@ public class AuthController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Password updated successfully"),
             @ApiResponse(responseCode = "400", description = "Validation error"),
-            @ApiResponse(responseCode = "401", description = "Invalid current password or token")
+            @ApiResponse(responseCode = "401", description = "Invalid current password or token"),
+            @ApiResponse(responseCode = "429", description = "Too many requests")
     })
+    @RateLimit(limit = 5, duration = 300, message = "Too many password change attempts. Please try again in 5 minutes.")
     @PutMapping("/me/password")
     public ResponseEntity<SuccessResponse<Void>> updatePassword(
             Authentication authentication,

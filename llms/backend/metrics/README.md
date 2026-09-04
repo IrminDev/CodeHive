@@ -384,6 +384,133 @@ apellido ascendente:
 | Métricas por tarea | `GET /api/groups/{groupId}/metrics/assignments` |
 | Métricas por alumno | `GET /api/groups/{groupId}/metrics/students` |
 | Detalle de una tarea | `GET /api/assignments/{assignmentId}/metrics` |
+| Mi resumen en un grupo (alumno) | `GET /api/groups/{groupId}/metrics/me` |
+| Mi desglose por tarea (alumno) | `GET /api/groups/{groupId}/metrics/me/assignments` |
+
+## Métricas orientadas al estudiante
+
+Complemento del panel docente: permiten a un alumno consultar **su propio** desempeño.
+Reutilizan el mismo cálculo por-alumno del catálogo anterior, con tres diferencias.
+
+### Reglas específicas
+
+1. **Autorización por inscripción activa**, no por propiedad. El alumno debe tener
+   `GroupEnrollment.status = ACTIVE` en un grupo con `isActive = true`; en caso contrario el
+   sistema responde `403` (autenticado sin inscripción activa) o `404` (grupo inexistente o
+   eliminado lógicamente), consistente con la consulta de estudiantes del grupo. Los
+   endpoints están reservados al rol `STUDENT`.
+2. **Calificaciones solo `RETURNED`**: los borradores (`GradeStatus.DRAFT`) se ocultan al
+   alumno. `averageScore`, `gradedAssignments` y la calificación por tarea usan únicamente
+   calificaciones devueltas. (El docente ve borradores y devueltas; el alumno no.)
+3. **Solo datos propios**: ningún endpoint expone información de otros alumnos.
+
+Se aplican los mismos fundamentos de cálculo del catálogo (alumnos activos, entrega
+vigente, ejecución representativa, nulos frente a cero, redondeo, tarea publicada).
+
+### RF-MET-005
+
+**ID:** RF-MET-005
+**Título:** Consultar mi resumen de métricas en un grupo
+**Descripción:** Permite a un alumno con inscripción activa obtener sus propios agregados
+sobre las tareas publicadas del grupo: finalización, puntualidad, promedio de
+calificaciones devueltas, intentos y tareas faltantes.
+**Usuario involucrado:** Estudiante inscrito.
+**Precondiciones:** El usuario está autenticado con rol `STUDENT` y tiene inscripción
+activa en el grupo.
+**Descripción del flujo principal:**
+
+1. El alumno solicita su resumen del grupo.
+2. El sistema obtiene la identidad del JWT y verifica su inscripción activa.
+3. El sistema calcula los agregados del alumno sobre las tareas publicadas, contando solo
+   calificaciones devueltas.
+4. El sistema devuelve el resumen, usando `null` donde no hay datos.
+
+**Flujos alternativos:**
+
+2.1. Si el usuario no tiene inscripción activa, el sistema deniega el acceso y finaliza.
+2.2. Si el grupo no existe o está eliminado, el sistema responde como no encontrado.
+
+**Postcondiciones:** No se modifica información; solo se exponen datos del propio alumno.
+
+### RF-MET-006
+
+**ID:** RF-MET-006
+**Título:** Consultar mi desglose por tarea
+**Descripción:** Devuelve, para cada tarea publicada del grupo, el detalle propio del
+alumno: estado de su trabajo, entrega vigente, veredicto, intentos y calificación devuelta.
+**Usuario involucrado:** Estudiante inscrito.
+**Precondiciones:** Iguales a RF-MET-005.
+**Descripción del flujo principal:**
+
+1. El alumno solicita su desglose por tarea del grupo.
+2. El sistema verifica su inscripción activa.
+3. El sistema arma una fila por tarea publicada con el detalle del propio alumno, ordenadas
+   por fecha de creación descendente.
+4. El sistema devuelve la lista; una tarea sin entrega vigente reporta `NOT_SUBMITTED` con
+   entrega y veredicto nulos, aunque `attempts` puede ser mayor a cero si hubo entregas
+   retiradas o reemplazadas.
+
+**Flujos alternativos:** iguales a RF-MET-005.
+
+**Postcondiciones:** No se modifica información; solo se exponen datos del propio alumno.
+
+### Contrato HTTP
+
+Códigos: `200` alumno inscrito · `401` sin JWT · `403` autenticado sin inscripción activa ·
+`404` grupo inexistente o eliminado.
+
+#### `GET /api/groups/{groupId}/metrics/me`
+
+Mismo objeto por-alumno del listado docente (`.../metrics/students`), pero solo del alumno
+autenticado y con `averageScore`/`gradedAssignments` restringidos a calificaciones
+devueltas.
+
+```json
+{
+  "success": true,
+  "message": "Your group metrics retrieved successfully",
+  "data": {
+    "studentId": "uuid",
+    "fullName": "Ada Lovelace",
+    "enrollmentNumber": "2023630001",
+    "joinedAt": "2026-02-01T10:00:00",
+    "publishedAssignments": 8,
+    "submittedCount": 7,
+    "completionRate": 87.50,
+    "lateCount": 1,
+    "averageScore": 81.25,
+    "gradedAssignments": 6,
+    "totalAttempts": 15,
+    "missingAssignmentIds": ["uuid"]
+  }
+}
+```
+
+#### `GET /api/groups/{groupId}/metrics/me/assignments`
+
+Lista ordenada por `createdAt` descendente, una fila por tarea publicada.
+
+```json
+{
+  "data": [
+    {
+      "assignmentId": "uuid",
+      "title": "Práctica 3 — Grafos",
+      "dueDate": "2026-08-01T05:00:00Z",
+      "closeDate": "2026-08-03T05:00:00Z",
+      "maxPoints": 100.00,
+      "workStatus": "SUBMITTED",
+      "currentSubmissionId": "uuid",
+      "deliveredLate": false,
+      "attempts": 3,
+      "verdict": "AC",
+      "timeMs": 210,
+      "memoryMb": 22,
+      "grade": { "value": 95.00, "maxPoints": 100.00, "status": "RETURNED" }
+    }
+  ]
+}
+```
 
 ## Pendiente de definir (v2)
 
