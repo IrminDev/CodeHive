@@ -8,7 +8,7 @@
 - `/teacher/assignments/:assignmentId/clone` — editable clone form.
 - `/teacher/assignments/:assignmentId/edit` — metadata, schedule, and public-example update form.
 - `/teacher/assignments/:assignmentId/revalidate` — explicit source, private-test, constraints, and execution-settings revision form.
-- `/teacher/groups` — owned active, archived, and deleted groups.
+- `/teacher/groups` — owned active and archived groups.
 - `/teacher/groups/create` — group creation form.
 - `/teacher/groups/:groupId` — roster, lifecycle, assignments, join code, and metrics.
 - `/teacher/grades` — student work, submission evidence, execution reports, grade history, draft/returned grades, and feedback.

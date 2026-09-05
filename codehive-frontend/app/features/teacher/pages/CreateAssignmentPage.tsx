@@ -1,9 +1,11 @@
 import { useRef, useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import {
-  BookOpen, Plus, ArrowLeft, ChevronRight, X, Check, Info,
+  BookOpen, Plus, ArrowLeft, X, Check, Info,
 } from "lucide-react";
 import { CodeEditor } from "~/shared/components/CodeEditor";
+import { CalendarInput } from "~/shared/components/ui/CalendarInput";
+import { Dropdown } from "~/shared/components/ui/Dropdown";
 import { sileo } from "sileo";
 import { createAssignment, getActiveTeacherGroups } from "../api/assignment.api";
 import type { AssignmentExample, Language, ComparatorType, TeacherGroup } from "../api/assignment.api";
@@ -113,21 +115,6 @@ function StyledInput({ id, value, onChange, placeholder, required, type = "text"
                  placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-azure dark:focus:ring-yellow
                  focus:border-transparent transition-all text-sm"
     />
-  );
-}
-
-function StyledSelect({ id, value, onChange, children }: {
-  id?: string; value: string; onChange: (v: string) => void; children: React.ReactNode;
-}) {
-  return (
-    <select
-      id={id} value={value} onChange={(e) => onChange(e.target.value)}
-      className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-dark-card text-gray-900 dark:text-white
-                 focus:outline-none focus:ring-2 focus:ring-azure dark:focus:ring-yellow focus:border-transparent
-                 transition-all text-sm appearance-none cursor-pointer"
-    >
-      {children}
-    </select>
   );
 }
 
@@ -467,7 +454,7 @@ export function CreateAssignmentPage() {
     }
     setIsSubmitting(true);
     try {
-      await createAssignment(
+      const assignment = await createAssignment(
         {
           groupId,
           title: title.trim(), description: description.trim(),
@@ -487,7 +474,7 @@ export function CreateAssignmentPage() {
         testCaseFiles
       );
       sileo.success({ title: "Assignment created! Test generation in progress." });
-      navigate("/teacher/assignments");
+      navigate(`/teacher/assignments?groupId=${encodeURIComponent(assignment.groupId)}`);
     } catch (err) {
       sileo.error({ title: err instanceof Error ? err.message : "Something went wrong." });
     } finally {
@@ -629,45 +616,16 @@ export function CreateAssignmentPage() {
               {/* ── 02 Configuration ── */}
               <SectionCard number="02" title="Configuration" badge="Required">
                 <div className="grid sm:grid-cols-2 gap-5">
-                  {/* Reference language */}
-                  <div>
-                    <FieldLabel htmlFor="refLang">Reference language</FieldLabel>
-                    <div className="relative">
-                      <StyledSelect id="refLang" value={referenceLanguage}
-                        onChange={(v) => handleRefLang(v as Language)}>
-                        {LANGUAGES.map((l) => (
-                          <option key={l.value} value={l.value}>{l.label}</option>
-                        ))}
-                      </StyledSelect>
-                      <ChevronRight size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 rotate-90 pointer-events-none" />
-                    </div>
-                  </div>
-
                   {/* Assign to group */}
                   <div>
                     <FieldLabel htmlFor="group">Assign to group</FieldLabel>
-                    <div className="relative">
-                      <StyledSelect id="group" value={groupId} onChange={setGroupId}>
-                        <option value="">{groupsLoading ? "Loading groups…" : "— Select group"}</option>
-                        {groups.map((g) => (
-                          <option key={g.id} value={g.id}>{g.name}</option>
-                        ))}
-                      </StyledSelect>
-                      <ChevronRight size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 rotate-90 pointer-events-none" />
-                    </div>
+                    <Dropdown id="group" value={groupId} onChange={setGroupId} disabled={groupsLoading} placeholder={groupsLoading ? "Loading groups…" : "Select group"} options={groups.map((group) => ({ value: group.id, label: group.name }))} />
                   </div>
 
                   {/* Output comparator */}
                   <div>
                     <FieldLabel htmlFor="comparator">Output comparator</FieldLabel>
-                    <div className="relative">
-                      <StyledSelect id="comparator" value={comparatorType}
-                        onChange={(v) => setComparatorType(v as ComparatorType)}>
-                        <option value="EXACT_MATCH">Exact match</option>
-                        <option value="FLOATING_POINT">Floating point</option>
-                      </StyledSelect>
-                      <ChevronRight size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 rotate-90 pointer-events-none" />
-                    </div>
+                    <Dropdown id="comparator" value={comparatorType} onChange={(value) => setComparatorType(value as ComparatorType)} options={[{ value: "EXACT_MATCH", label: "Exact match", description: "Output must match exactly" }, { value: "FLOATING_POINT", label: "Floating point", description: "Allows numeric tolerance" }]} />
                   </div>
 
                   {/* Time limit */}
@@ -708,26 +666,20 @@ export function CreateAssignmentPage() {
                   {publishMode === "scheduled" && (
                     <div>
                       <FieldLabel htmlFor="launchDate">Launch date</FieldLabel>
-                      <StyledInput
-                        id="launchDate" type="datetime-local" min={minimumDate} value={launchDate} onChange={setLaunchDate} required
-                      />
+                      <CalendarInput id="launchDate" type="datetime-local" min={minimumDate} value={launchDate} onChange={setLaunchDate} required />
                     </div>
                   )}
 
                   {/* Due date */}
                   <div>
                     <FieldLabel htmlFor="dueDate">Due date <span className="text-gray-600 font-normal">(optional)</span></FieldLabel>
-                    <StyledInput
-                      id="dueDate" type="datetime-local" min={(publishMode === "scheduled" && launchDate) || minimumDate} value={dueDate} onChange={setDueDate}
-                    />
+                    <CalendarInput id="dueDate" type="datetime-local" min={(publishMode === "scheduled" && launchDate) || minimumDate} value={dueDate} onChange={setDueDate} />
                   </div>
 
                   {/* Close date */}
                   <div>
                     <FieldLabel htmlFor="closeDate">Close date <span className="text-gray-600 font-normal">(optional)</span></FieldLabel>
-                    <StyledInput
-                      id="closeDate" type="datetime-local" min={dueDate || (publishMode === "scheduled" && launchDate) || minimumDate} value={closeDate} onChange={setCloseDate}
-                    />
+                    <CalendarInput id="closeDate" type="datetime-local" min={dueDate || (publishMode === "scheduled" && launchDate) || minimumDate} value={closeDate} onChange={setCloseDate} />
                   </div>
                 </div>
                 {datesOutOfOrder && <p className="mt-3 text-sm text-red-400">Dates must satisfy launch ≤ due ≤ close.</p>}
@@ -765,15 +717,20 @@ export function CreateAssignmentPage() {
                 </div>
                 {solutionMode === "editor" ? (
                   <div className="rounded-xl overflow-hidden border border-gray-700/50">
-                    <div className="flex items-center gap-2 px-4 py-2 bg-dark-surface border-b border-gray-700">
-                      <div className="flex gap-1.5">
-                        <div className="w-3 h-3 rounded-full bg-red-500" />
-                        <div className="w-3 h-3 rounded-full bg-yellow" />
-                        <div className="w-3 h-3 rounded-full bg-green-500" />
+                    <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2 bg-dark-surface border-b border-gray-700">
+                      <div className="flex items-center gap-2">
+                        <div className="flex gap-1.5">
+                          <div className="w-3 h-3 rounded-full bg-red-500" />
+                          <div className="w-3 h-3 rounded-full bg-yellow" />
+                          <div className="w-3 h-3 rounded-full bg-green-500" />
+                        </div>
+                        <span className="text-xs text-gray-500 ml-2">
+                          solution.{LANGUAGES.find((l) => l.value === referenceLanguage)?.ext}
+                        </span>
                       </div>
-                      <span className="text-xs text-gray-500 ml-2">
-                        solution.{LANGUAGES.find((l) => l.value === referenceLanguage)?.ext}
-                      </span>
+                      <label className="flex items-center gap-2 text-xs font-medium text-gray-400">Language
+                        <Dropdown value={referenceLanguage} onChange={(value) => handleRefLang(value as Language)} options={LANGUAGES.map((language) => ({ value: language.value, label: language.label }))} size="compact" className="w-32" />
+                      </label>
                     </div>
                     <div style={{ height: 320 }}>
                       <CodeEditor

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router";
-import { Users } from "lucide-react";
+import { useNavigate } from "react-router";
+import { DoorOpenIcon } from "lucide-react";
 import { joinGroup, listMyGroups } from "../api/group.api";
 import { StudentHeader } from "../components/StudentHeader";
 import { StudentSidebar } from "../components/StudentSidebar";
@@ -107,11 +107,13 @@ export function JoinGroupPage() {
 
             {/* Hero */}
             <div className="text-center mb-8">
-              <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-yellow/10 text-yellow mb-5">
-                <Users size={28} />
-              </div>
-              <div className="inline-flex items-center px-4 py-1.5 rounded-full border border-yellow/40 bg-yellow/5 text-yellow text-[10px] font-semibold uppercase tracking-widest mb-4">
-                Join a class
+              <div className="flex items-center justify-center">
+                <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mr-2.5 bg-yellow/10 text-yellow mb-5">
+                  <DoorOpenIcon size={28} />
+                </div>
+                <div className="inline-flex items-center px-4 py-1.5 rounded-full ml-2.5 border border-yellow/40 bg-yellow/5 text-yellow text-[10px] font-semibold uppercase tracking-widest mb-4">
+                  Join a class
+                </div>
               </div>
               <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
                 Enter your{" "}

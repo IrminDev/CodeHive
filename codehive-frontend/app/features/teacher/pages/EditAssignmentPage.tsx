@@ -13,6 +13,8 @@ import { sileo } from "sileo";
 
 import { DashboardLayout } from "~/shared/components/DashboardLayout";
 import { CodeEditor } from "~/shared/components/CodeEditor";
+import { CalendarInput } from "~/shared/components/ui/CalendarInput";
+import { Dropdown } from "~/shared/components/ui/Dropdown";
 import {
   getTeacherAssignment,
   getTeacherAssignmentPreview,
@@ -736,16 +738,7 @@ export function EditAssignmentPage({
               </label>
               <label className="grid gap-2 text-sm">
                 Comparator
-                <select
-                  value={comparatorType}
-                  onChange={(event) =>
-                    setComparatorType(event.target.value as ComparatorType)
-                  }
-                  className={inputClass}
-                >
-                  <option value="EXACT_MATCH">Exact match</option>
-                  <option value="FLOATING_POINT">Floating point</option>
-                </select>
+                <Dropdown value={comparatorType} onChange={(value) => setComparatorType(value as ComparatorType)} options={[{ value: "EXACT_MATCH", label: "Exact match" }, { value: "FLOATING_POINT", label: "Floating point" }]} />
               </label>
             </div>
             <div>
@@ -788,19 +781,7 @@ export function EditAssignmentPage({
                   <h3 className="font-medium">Reference solution</h3>
                 </div>
                 <div className="flex items-center gap-2">
-                  <select
-                    value={referenceLanguage}
-                    onChange={(event) =>
-                      setReferenceLanguage(event.target.value as Language)
-                    }
-                    className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-dark-card px-3 py-1.5 text-sm"
-                  >
-                    {LANGUAGES.map((language) => (
-                      <option key={language.value} value={language.value}>
-                        {language.label}
-                      </option>
-                    ))}
-                  </select>
+                  <Dropdown value={referenceLanguage} onChange={(value) => setReferenceLanguage(value as Language)} options={LANGUAGES.map((language) => ({ value: language.value, label: language.label, description: `Main.${language.ext}` }))} size="compact" className="w-36" />
                   <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 hover:border-azure/60">
                     <Upload size={15} />
                     Import file
@@ -1079,17 +1060,12 @@ export function EditAssignmentPage({
                       : "none"}
                   </span>
                 </label>
-                <input
+                <CalendarInput
                   type="datetime-local"
                   min={minimumDate}
                   disabled={clear as boolean}
                   value={value as string}
-                  onChange={(event) =>
-                    (setValue as React.Dispatch<React.SetStateAction<string>>)(
-                      event.target.value,
-                    )
-                  }
-                  className={inputClass}
+                  onChange={(next) => (setValue as React.Dispatch<React.SetStateAction<string>>)(next)}
                 />
                 <label className="inline-flex items-center gap-2 text-sm">
                   <input

@@ -62,9 +62,7 @@ public class GroupService {
     public List<GroupDTO> listMine(String email, boolean includeDeleted) {
         User user = requireUser(email);
         Map<UUID, GroupDTO> groups = new LinkedHashMap<>();
-        List<ClassGroup> owned = includeDeleted
-                ? groupRepository.findByOwnerIdOrderByCreatedAtDesc(user.getId())
-                : groupRepository.findByOwnerIdAndIsActiveTrueOrderByCreatedAtDesc(user.getId());
+        List<ClassGroup> owned = groupRepository.findByOwnerIdAndIsActiveTrueOrderByCreatedAtDesc(user.getId());
         owned.forEach(group -> groups.put(group.getId(), GroupMapper.toDTO(group, true)));
         if (user.getRole() == Role.STUDENT) {
             enrollmentRepository.findByStudentIdAndStatus(user.getId(), EnrollmentStatus.ACTIVE).stream()
@@ -81,13 +79,13 @@ public class GroupService {
     public GroupDTO get(UUID id, String email) {
         User user = requireUser(email);
         ClassGroup group = requireGroup(id);
+        if (!Boolean.TRUE.equals(group.getIsActive())) {
+            throw new EntityNotFoundException("Group not found: " + id);
+        }
         boolean owner = group.getOwner().getId().equals(user.getId());
         boolean enrolled = enrollmentRepository.existsByGroupIdAndStudentIdAndStatus(
                 id, user.getId(), EnrollmentStatus.ACTIVE);
         if (!owner && !enrolled) throw new AccessDeniedException("You cannot access this group");
-        if (!owner && !Boolean.TRUE.equals(group.getIsActive())) {
-            throw new EntityNotFoundException("Group not found: " + id);
-        }
         return GroupMapper.toDTO(group, owner);
     }
 

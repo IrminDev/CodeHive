@@ -29,6 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/shared/components/ui/Select";
+import { Dropdown } from "~/shared/components/ui/Dropdown";
 import type {
   AssignmentManagementStatus,
   AssignmentValidationStatus,
@@ -159,12 +160,7 @@ export function AssignmentContextBar({
 
           <label className="grid gap-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
             Validation
-            <select value={validationStatus} onChange={(event) => onValidationChange(event.target.value as "" | AssignmentValidationStatus)} className={`${inputClass} py-2.5 text-sm normal-case tracking-normal`}>
-              <option value="">All statuses</option>
-              <option value="READY">Ready</option>
-              <option value="PROCESSING">Processing</option>
-              <option value="FAILED">Failed</option>
-            </select>
+            <Dropdown value={validationStatus} onChange={(value) => onValidationChange(value as "" | AssignmentValidationStatus)} options={[{ value: "", label: "All statuses" }, { value: "READY", label: "Ready" }, { value: "PROCESSING", label: "Processing" }, { value: "FAILED", label: "Failed" }]} />
           </label>
 
           <button type="button" onClick={onClear} disabled={!hasFilters} className={compactButtonClass}>Clear filters</button>

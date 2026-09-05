@@ -8,6 +8,7 @@ export const studentRoutes = [
   route("grades", "features/student/routes/student.grades.tsx"),
   route("groups", "features/student/routes/student.groups.tsx"),
   route("groups/join", "features/student/routes/student.join-group.tsx"),
+  route("groups/:groupId/metrics", "features/student/routes/student.metrics.tsx"),
   route("groups/:groupId", "features/student/routes/student.group.tsx"),
   route("notifications", "features/student/routes/student.notifications.tsx"),
 ] satisfies RouteConfig;

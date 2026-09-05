@@ -8,6 +8,8 @@ import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import com.github.codehive.model.dto.metrics.CurrentSubmissionRow;
 import com.github.codehive.model.entity.StudentAssignmentWork;
@@ -18,6 +20,8 @@ public interface StudentAssignmentWorkRepository extends JpaRepository<StudentAs
     List<StudentAssignmentWork> findByStudentIdAndAssignmentIdIn(
             UUID studentId, Collection<UUID> assignmentIds);
     List<StudentAssignmentWork> findByAssignmentIdIn(Collection<UUID> assignmentIds);
+    Page<StudentAssignmentWork> findByStudentId(UUID studentId, Pageable pageable);
+    long countByStudentId(UUID studentId);
 
     @Query("""
             select new com.github.codehive.model.dto.metrics.CurrentSubmissionRow(

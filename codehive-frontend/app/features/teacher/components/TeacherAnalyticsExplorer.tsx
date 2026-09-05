@@ -10,6 +10,7 @@ import {
   Users,
 } from "lucide-react";
 import { Link } from "react-router";
+import { Dropdown } from "~/shared/components/ui/Dropdown";
 
 import type {
   AssignmentMetrics,
@@ -320,8 +321,8 @@ function ExplorerHeader({ title, description, query, queryPlaceholder, filter, s
         <div><h2 className="text-sm font-semibold">{title}</h2><p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{description}</p></div>
         <div className="grid gap-2 sm:grid-cols-[minmax(190px,1fr)_160px_170px]">
           <span className="relative"><Search size={13} className="absolute left-3 top-3 text-gray-400" /><input value={query} onChange={(event) => onQuery(event.target.value)} placeholder={queryPlaceholder} className={`${inputClass} py-2 pl-8 text-xs`} /></span>
-          <select value={filter} onChange={(event) => onFilter(event.target.value)} aria-label="Filter analytics" className={`${inputClass} py-2 text-xs`}>{filters.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
-          <select value={sort} onChange={(event) => onSort(event.target.value)} aria-label="Sort analytics" className={`${inputClass} py-2 text-xs`}>{sorts.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+          <Dropdown value={filter} onChange={onFilter} ariaLabel="Filter analytics" size="compact" options={filters.map(([value, label]) => ({ value, label }))} />
+          <Dropdown value={sort} onChange={onSort} ariaLabel="Sort analytics" size="compact" options={sorts.map(([value, label]) => ({ value, label }))} />
         </div>
       </div>
     </header>

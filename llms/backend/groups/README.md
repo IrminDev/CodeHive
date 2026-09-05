@@ -36,7 +36,7 @@ Propietario (User autorizado con CREATE_GROUP)
 ### Ciclo de vida de grupos
 
 1. `isActive = true` significa que el grupo no está eliminado lógicamente.
-2. `isActive = false` significa eliminación lógica. El grupo se oculta a estudiantes y se conserva para que su propietario consulte y clone sus tareas históricas.
+2. `isActive = false` significa eliminación lógica. El grupo no se expone en listados ni detalle a ningún usuario.
 3. `archived = true` significa que el grupo es de solo lectura. No permite uniones, modificaciones, creación de tareas ni nuevas ejecuciones o entregas.
 4. Restaurar un grupo eliminado lo deja archivado; el propietario debe desarchivarlo explícitamente antes de modificarlo o recibir actividad.
 5. La eliminación lógica también archiva el grupo.

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router";
 import { CheckCircle2, Clock, Cpu, History, RotateCcw, Scale, Sparkles } from "lucide-react";
 import { CodeEditor } from "~/shared/components/CodeEditor";
+import { Dropdown } from "~/shared/components/ui/Dropdown";
 import {
   AssignmentDetailsPanel,
   type AssignmentDetailsTab,
@@ -395,15 +396,7 @@ export function AssignmentPage() {
               <span className="hidden lg:inline">Withdraw to update</span>
             </button>
           )}
-          <select
-            value={selectedLanguage}
-            onChange={(e) => handleLanguageChange(e.target.value as Language)}
-            className="text-xs px-2.5 py-1.5 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-dark-card text-gray-800 dark:text-gray-200 focus:outline-none focus:border-azure transition-colors font-mono"
-          >
-            {allowedLangs.map((lang) => (
-              <option key={lang} value={lang}>{LANGUAGE_LABELS[lang]}</option>
-            ))}
-          </select>
+          <Dropdown value={selectedLanguage} onChange={(value) => handleLanguageChange(value as Language)} size="compact" className="w-28 font-mono" ariaLabel="Programming language" options={allowedLangs.map((language) => ({ value: language, label: LANGUAGE_LABELS[language] }))} />
 
           <button
             onClick={() => runExecution(ExecutionType.PRACTICE)}

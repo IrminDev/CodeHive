@@ -1,4 +1,4 @@
-import { BookOpen, ClipboardList, GraduationCap, Home, Users } from "lucide-react";
+import { DoorOpenIcon, ClipboardList, GraduationCap, Home, Users } from "lucide-react";
 import { Link } from "react-router";
 import type { ReactNode } from "react";
 
@@ -19,8 +19,8 @@ export function StudentSidebar({ active }: { active: StudentNavigation }) {
       </Link>
       <nav className="flex flex-col items-center gap-1 flex-1 w-full px-2" aria-label="Student navigation">
         <SidebarLink icon={<Home size={20} />} label="Dashboard" to="/dashboard" active={active === "dashboard"} />
-        <SidebarLink icon={<BookOpen size={20} />} label="My groups" to="/groups" active={active === "groups"} />
-        <SidebarLink icon={<Users size={20} />} label="Join group" to="/groups/join" active={active === "join"} />
+        <SidebarLink icon={<Users size={20} />} label="My groups" to="/groups" active={active === "groups"} />
+        <SidebarLink icon={<DoorOpenIcon size={20} />} label="Join group" to="/groups/join" active={active === "join"} />
         <SidebarLink icon={<ClipboardList size={20} />} label="Assignments" to="/assignments" active={active === "assignments"} />
         <SidebarLink icon={<GraduationCap size={20} />} label="Grades" to="/grades" active={active === "grades"} />
       </nav>

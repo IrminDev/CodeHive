@@ -190,6 +190,13 @@ focus:outline-none focus:ring-2 focus:ring-azure dark:focus:ring-yellow
 
 Labels use `text-sm font-medium text-gray-700 dark:text-gray-300`. Keep validation near field; reserve red panels for page/request failures.
 
+Use shared controls instead of native select/date fields:
+
+- `Dropdown` from `app/shared/components/ui/Dropdown.tsx` for option lists. It provides consistent Radix keyboard navigation, selected indicators, portal layering, descriptions, disabled states, and compact sizing.
+- `CalendarInput` from `app/shared/components/ui/CalendarInput.tsx` for `date` and `datetime-local` values. It preserves native calendar accessibility while adding brand focus states, calendar/clock affordances, optional clearing, and compact sizing.
+
+Do not add raw `<select>`, `<input type="date">`, or `<input type="datetime-local">` controls in feature views.
+
 ### Loading, empty, and error states
 
 - Loading: geometry-matched `animate-pulse` gray blocks, usually `rounded-2xl`.

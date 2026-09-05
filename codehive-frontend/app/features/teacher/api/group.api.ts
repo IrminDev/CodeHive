@@ -12,8 +12,8 @@ export function createGroup(payload: CreateGroupPayload): Promise<TeacherGroup> 
   return teacherRequest<TeacherGroup>("/api/groups", { method: "POST", ...jsonRequest(payload) });
 }
 
-export function listTeacherGroups(includeDeleted = false): Promise<TeacherGroup[]> {
-  return teacherRequest<TeacherGroup[]>(`/api/groups?includeDeleted=${includeDeleted}`);
+export function listTeacherGroups(_includeDeleted = false): Promise<TeacherGroup[]> {
+  return teacherRequest<TeacherGroup[]>("/api/groups");
 }
 
 export function getTeacherGroup(groupId: string): Promise<TeacherGroup> {

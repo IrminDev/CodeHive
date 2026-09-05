@@ -75,7 +75,7 @@ public class CheckExecutionController {
         }
     )
     @RateLimit(
-        limit = 10,
+        limit = 5,
         duration = 60,
         message = "Too many execution requests. Please try again in 1 minute."
     )

@@ -31,6 +31,7 @@ import com.github.codehive.model.enums.Role;
 import com.github.codehive.model.enums.Scope;
 import com.github.codehive.model.exception.auth.AlreadyRegisteredEmailException;
 import com.github.codehive.model.exception.auth.AlreadyRegisteredEnrollmentNumberException;
+import com.github.codehive.model.exception.auth.BlockedUserException;
 import com.github.codehive.model.exception.auth.IncorrectCredentialsException;
 import com.github.codehive.model.mapper.UserMapper;
 import com.github.codehive.model.request.auth.LoginRequest;
@@ -92,6 +93,9 @@ public class AuthService {
 
         if (user == null || !Boolean.TRUE.equals(user.getIsActive()) || !passwordMatches) {
             throw new IncorrectCredentialsException("Invalid credentials");
+        }
+        if (Boolean.TRUE.equals(user.getBlocked())) {
+            throw new BlockedUserException();
         }
 
         String token = generateToken(user);

@@ -44,6 +44,8 @@ dependencies {
 	implementation("com.bucket4j:bucket4j_jdk17-core:8.15.0")
 	implementation("org.springframework.boot:spring-boot-starter-cache")
 	implementation("org.springframework.boot:spring-boot-starter-aop")
+	implementation("org.flywaydb:flyway-core")
+	runtimeOnly("org.flywaydb:flyway-database-postgresql")
 
 	runtimeOnly("org.postgresql:postgresql")
 	

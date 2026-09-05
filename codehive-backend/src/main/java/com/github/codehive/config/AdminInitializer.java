@@ -17,8 +17,6 @@ public class AdminInitializer implements CommandLineRunner {
 
     private static final Logger logger = LoggerFactory.getLogger(AdminInitializer.class);
 
-    private static final String LEGACY_DEFAULT_PASSWORD = "Admin@12345";
-
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
@@ -47,9 +45,6 @@ public class AdminInitializer implements CommandLineRunner {
         if (adminEmail == null || adminEmail.isBlank() || adminPassword == null || adminPassword.isBlank()) {
             throw new IllegalStateException(
                     "Set ADMIN_EMAIL and ADMIN_PASSWORD to bootstrap the initial super admin");
-        }
-        if (LEGACY_DEFAULT_PASSWORD.equals(adminPassword)) {
-            throw new IllegalStateException("ADMIN_PASSWORD must not be the well-known default value");
         }
         if (userRepository.findByEmail(adminEmail).isPresent()) {
             logger.info("Super admin already exists: {}", adminEmail);

@@ -33,6 +33,7 @@ import com.github.codehive.model.entity.User;
 import com.github.codehive.model.enums.Role;
 import com.github.codehive.model.exception.auth.AlreadyRegisteredEmailException;
 import com.github.codehive.model.exception.auth.AlreadyRegisteredEnrollmentNumberException;
+import com.github.codehive.model.exception.auth.BlockedUserException;
 import com.github.codehive.model.exception.auth.IncorrectCredentialsException;
 import com.github.codehive.model.request.auth.LoginRequest;
 import com.github.codehive.model.request.auth.SignUpRequest;
@@ -172,6 +173,20 @@ class AuthServiceTest {
                     .hasMessage("Invalid credentials");
 
             verify(passwordEncoder).matches(loginRequest.getPassword(), testUser.getPassword());
+            verify(jwtUtil, never()).generateToken(any(), anyString());
+        }
+
+        @Test
+        @DisplayName("Throws blocked-user exception when blocked user provides valid credentials")
+        void login_WithBlockedUser_ThrowsBlockedUserException() {
+            testUser.setBlocked(true);
+            when(userRepository.findByEmail(loginRequest.getIdentifier())).thenReturn(Optional.of(testUser));
+            when(passwordEncoder.matches(loginRequest.getPassword(), testUser.getPassword())).thenReturn(true);
+
+            assertThatThrownBy(() -> authService.login(loginRequest))
+                    .isInstanceOf(BlockedUserException.class)
+                    .hasMessage("User account is blocked");
+
             verify(jwtUtil, never()).generateToken(any(), anyString());
         }
 

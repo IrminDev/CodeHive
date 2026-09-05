@@ -51,7 +51,7 @@ public class JWTAuthenticationFilter extends OncePerRequestFilter {
             }
 
             UserDetails userDetails = userDetailsService.loadUserByUsername(email);
-            if (!userDetails.isEnabled() || !jwtUtil.isTokenValid(token, email)) {
+            if (!userDetails.isEnabled() || !userDetails.isAccountNonLocked() || !jwtUtil.isTokenValid(token, email)) {
                 return;
             }
             if (userDetails instanceof User user && jwtUtil.extractTokenVersion(token) != user.getTokenVersion()) {

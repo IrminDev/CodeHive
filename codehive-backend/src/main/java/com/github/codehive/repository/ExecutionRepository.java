@@ -10,6 +10,8 @@ import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import com.github.codehive.model.dto.metrics.SubmissionResultRow;
 import com.github.codehive.model.entity.Execution;
@@ -50,8 +52,29 @@ public interface ExecutionRepository extends JpaRepository<Execution, UUID> {
     List<Execution> findBySubmissionIsNull();
     
     long countByStatus(ExecutionStatus status);
+    Page<Execution> findByUserId(UUID userId, Pageable pageable);
+    long countByUserId(UUID userId);
+    long countByUserIdAndExecutionType(UUID userId, ExecutionType executionType);
+    long countByUserIdAndStatus(UUID userId, ExecutionStatus status);
+    long countByCreatedAtBetweenAndUserIsActiveTrue(LocalDateTime from, LocalDateTime to);
+
+    @Query("""
+            select count(e) from Execution e
+            where e.createdAt >= :from and e.createdAt < :to
+              and e.user.isActive = true and e.user.blocked = false
+            """)
+    long countVisibleInPeriod(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
+
+    @Query("""
+            select count(e) from Execution e
+            where e.status = :status and e.user.isActive = true
+            """)
+    long countVisibleByStatus(@Param("status") ExecutionStatus status);
 
     Optional<Execution> findTopBySubmissionIdOrderByCreatedAtDesc(UUID submissionId);
+
+    Optional<Execution> findTopBySubmissionIdAndCreatedAtBeforeOrderByCreatedAtDesc(
+            UUID submissionId, LocalDateTime createdAt);
 
     @Query("""
             select execution from Execution execution

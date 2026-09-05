@@ -18,7 +18,7 @@ import {
 import { TeacherShell } from "../components/TeacherShell";
 import { TeacherError, TeacherPageHeader } from "../components/TeacherUI";
 
-const TABS: GroupTab[] = ["active", "archived", "deleted"];
+const TABS: GroupTab[] = ["active", "archived"];
 
 export function TeacherGroupsPage() {
   const [groups, setGroups] = useState<GroupCardData[]>([]);
@@ -32,7 +32,7 @@ export function TeacherGroupsPage() {
     setLoading(true);
     setError(null);
     try {
-      const items = await listTeacherGroups(true);
+      const items = (await listTeacherGroups()).filter((group) => group.isActive);
       const metricResults = await Promise.allSettled(
         items.map((group) => getGroupMetricsOverview(group.id)),
       );
@@ -69,7 +69,7 @@ export function TeacherGroupsPage() {
           ...result,
           [value]: groups.filter((group) => lifecycle(group) === value).length,
         }),
-        { active: 0, archived: 0, deleted: 0 },
+        { active: 0, archived: 0 },
       ),
     [groups],
   );

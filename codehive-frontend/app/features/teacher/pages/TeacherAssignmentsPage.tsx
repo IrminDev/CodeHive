@@ -35,6 +35,7 @@ import type {
 import type { TeacherGroup } from "../types/group.types";
 
 const PAGE_SIZE = 20;
+const VALIDATION_REFRESH_INTERVAL_MS = 5_000;
 
 export function TeacherAssignmentsPage() {
   const [params, setParams] = useSearchParams();
@@ -130,6 +131,12 @@ export function TeacherAssignmentsPage() {
   }, [groupId, lifecycle, page, query, refreshVersion, validationStatus]);
 
   useEffect(() => { void loadAssignments(); }, [loadAssignments]);
+
+  useEffect(() => {
+    if (!shouldPollAssignmentValidation(result?.content ?? [])) return;
+    const timer = window.setTimeout(() => setRefreshVersion((value) => value + 1), VALIDATION_REFRESH_INTERVAL_MS);
+    return () => window.clearTimeout(timer);
+  }, [result]);
 
   useEffect(() => { setQueryInput(query); }, [query]);
 
@@ -257,4 +264,8 @@ function compareGroupPriority(left: TeacherGroup, right: TeacherGroup): number {
 
 function errorMessage(cause: unknown, fallback: string): string {
   return cause instanceof Error ? cause.message : fallback;
+}
+
+export function shouldPollAssignmentValidation(assignments: readonly Pick<TeacherAssignment, "validationStatus">[]): boolean {
+  return assignments.some((assignment) => assignment.validationStatus === "PROCESSING");
 }

@@ -8,6 +8,7 @@
 - `/groups` — all accessible student groups.
 - `/groups/join` — join a group with an eight-character code.
 - `/groups/:groupId` — authorized group detail with assignments and student delivery status.
+- `/groups/:groupId/metrics` — personal delivery, grading, and execution metrics for an active group enrollment.
 - `/assignment/:id` — assignment workspace.
 - `/assignment/:id/submissions` — student submission history.
 - `/assignment/:id/report/:executionId` — execution report.
@@ -37,6 +38,13 @@ only for explicit join actions.
 Students can leave a group from its detail page after confirmation. The page posts to
 `POST /api/groups/{id}/leave`, returns to My groups on success, and explains that a
 future join with the code restores historical enrollment.
+
+## Group Metrics
+
+`/groups/:groupId/metrics` loads the group plus the student's own summary and per-assignment
+metrics in parallel. It is available only to active student enrollments. It visualizes completion,
+returned-grade average, on-time delivery, attempts, latest verdict, runtime/memory, and returned
+grades. Draft grades remain hidden; unavailable aggregate values render as an em dash, not zero.
 
 ## Notification Settings
 

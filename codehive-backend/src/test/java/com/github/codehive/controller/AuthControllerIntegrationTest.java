@@ -192,6 +192,24 @@ class AuthControllerIntegrationTest {
         }
 
         @Test
+        @DisplayName("Returns 403 when user account is blocked")
+        void login_WithBlockedUser_ReturnsForbidden() throws Exception {
+            testUser.setBlocked(true);
+            userRepository.saveAndFlush(testUser);
+
+            LoginRequest loginRequest = new LoginRequest();
+            loginRequest.setIdentifier("existing@example.com");
+            loginRequest.setPassword("password123");
+
+            mockMvc.perform(post("/api/auth/login")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(loginRequest)))
+                    .andExpect(status().isForbidden())
+                    .andExpect(jsonPath("$.message").value("Login failed"))
+                    .andExpect(jsonPath("$.error").value("User account is blocked"));
+        }
+
+        @Test
         @DisplayName("Returns 400 when identifier is empty")
         void login_WithEmptyIdentifier_ReturnsBadRequest() throws Exception {
             // Given

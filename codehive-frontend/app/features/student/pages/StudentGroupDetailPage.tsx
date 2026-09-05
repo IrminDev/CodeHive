@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import {
   ArrowLeft, CalendarDays, ChevronRight, CircleCheck, CircleAlert, Clock3,
-  HardDrive, LogOut, RefreshCw, UserRound, Users,
+  BarChart3, HardDrive, LogOut, RefreshCw, UserRound, Users,
 } from "lucide-react";
 
 import { listAssignments } from "../api/assignment.api";
@@ -175,6 +175,7 @@ export function StudentGroupDetailPage() {
                     <p className="max-w-2xl mt-2 text-sm leading-relaxed text-gray-500 dark:text-gray-400">{group.description || "No group description provided."}</p>
                   </div>
                   <div className="flex self-start items-center gap-2">
+                    <Link to={`/groups/${group.id}/metrics`} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:text-azure dark:hover:text-yellow transition-colors"><BarChart3 size={13} /> Progress</Link>
                     <button onClick={() => void load()} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-100 transition-colors"><RefreshCw size={13} /> Refresh</button>
                     <button onClick={() => { setLeaveError(null); setShowLeaveConfirm(true); }} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border border-red-500/30 text-red-500 hover:bg-red-500/10 transition-colors"><LogOut size={13} /> Leave class</button>
                   </div>

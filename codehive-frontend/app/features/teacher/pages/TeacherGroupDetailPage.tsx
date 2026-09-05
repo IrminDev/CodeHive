@@ -4,10 +4,7 @@ import { ArrowLeft, CircleAlert } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router";
 import { sileo } from "sileo";
 
-import {
-  getTeacherAssignmentPage,
-  getTeacherAssignments,
-} from "../api/assignment.api";
+import { getTeacherAssignments } from "../api/assignment.api";
 import {
   archiveGroup,
   deleteGroup,
@@ -74,15 +71,16 @@ export function TeacherGroupDetailPage() {
       setFatalError(null);
       try {
         const groupResult = await getTeacherGroup(groupId);
+        if (!groupResult.isActive) {
+          setGroup(null);
+          setFatalError("This group is unavailable.");
+          return;
+        }
         setGroup(groupResult);
         setName(groupResult.name);
         setDescription(groupResult.description ?? "");
 
-        const assignmentRequest = groupResult.isActive
-          ? getTeacherAssignments(groupId)
-          : getTeacherAssignmentPage(groupId, 0, 100, {
-              includeDeleted: true,
-            }).then((page) => page.content);
+        const assignmentRequest = getTeacherAssignments(groupId);
         const [studentResult, assignmentResult, metricsResult] =
           await Promise.allSettled([
             listGroupStudents(groupId),

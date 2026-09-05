@@ -58,7 +58,7 @@ public class GroupController {
                 "Group created successfully", groupService.create(request, authentication.getName())));
     }
 
-    @Operation(summary = "List accessible groups", description = "Returns groups owned by the caller plus active student enrollments. Deleted owned groups are optional.")
+    @Operation(summary = "List accessible groups", description = "Returns active groups owned by the caller plus active student enrollments.")
     @ApiResponse(responseCode = "200", description = "Groups retrieved")
     @GetMapping
     public ResponseEntity<SuccessResponse<List<GroupDTO>>> list(
