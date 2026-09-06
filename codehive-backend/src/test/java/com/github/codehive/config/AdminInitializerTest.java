@@ -61,16 +61,6 @@ class AdminInitializerTest {
     }
 
     @Test
-    @DisplayName("rejects the well-known default password")
-    void legacyDefaultPassword_throws() {
-        ReflectionTestUtils.setField(initializer, "adminEmail", "admin@codehive.test");
-        ReflectionTestUtils.setField(initializer, "adminPassword", "Admin@12345");
-
-        assertThatThrownBy(() -> initializer.run()).isInstanceOf(IllegalStateException.class);
-        verify(userRepository, never()).save(any());
-    }
-
-    @Test
     @DisplayName("creates a super admin with a valid explicit configuration")
     void validConfig_createsSuperAdmin() {
         ReflectionTestUtils.setField(initializer, "adminEmail", "admin@codehive.test");

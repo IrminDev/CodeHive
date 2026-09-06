@@ -35,9 +35,9 @@
     "semantic_hash": "b4f283bc53e5d352fb0120827fd4fafa"
   },
   "codehive-backend/build.gradle.kts": {
-    "mtime": 1784956319.289385,
-    "ast_hash": "210a37e02c33461a9acd3984040b45ba",
-    "semantic_hash": "210a37e02c33461a9acd3984040b45ba"
+    "mtime": 1788648376.8686032,
+    "ast_hash": "1b3e724d6b9c358adcedab5f616ed4ba",
+    "semantic_hash": ""
   },
   "codehive-backend/gradlew": {
     "mtime": 1784422446.5059397,
@@ -1065,8 +1065,8 @@
     "semantic_hash": "a3bb17bc5aad130b20ae9976b03fa904"
   },
   "codehive-backend/src/test/java/com/github/codehive/controller/AdminUserControllerIntegrationTest.java": {
-    "mtime": 1788587035.3417268,
-    "ast_hash": "d8d845407d173613e647c166ba6f3d0f",
+    "mtime": 1788648377.45461,
+    "ast_hash": "0e34e48a7da9510d11ab1cc0583ec0cc",
     "semantic_hash": ""
   },
   "codehive-backend/src/test/java/com/github/codehive/controller/AssignmentControllerIntegrationTest.java": {
@@ -3825,8 +3825,8 @@
     "semantic_hash": ""
   },
   "codehive-frontend/app/features/student/pages/StudentMetricsPage.tsx": {
-    "mtime": 1788644592.9108872,
-    "ast_hash": "30bd7efa3ba892d27a89e0a5f67509a2",
+    "mtime": 1788648111.180553,
+    "ast_hash": "d8648ba23197885b010c9442d1959039",
     "semantic_hash": ""
   },
   "codehive-frontend/app/features/student/routes/student.metrics.tsx": {
@@ -3837,11 +3837,6 @@
   "codehive-frontend/app/features/student/types/metrics.types.ts": {
     "mtime": 1788644583.959061,
     "ast_hash": "2d59fea6f0f7f19ad83217ecf844585b",
-    "semantic_hash": ""
-  },
-  "codehive-frontend/app/features/teacher/pages/TeacherAssignmentsPage.test.tsx": {
-    "mtime": 1788647735.2561944,
-    "ast_hash": "555acb2032478835bc3b0fed862d6d40",
     "semantic_hash": ""
   },
   "codehive-testing-files/assignments/topological-sort/reference.cpp": {
@@ -3862,6 +3857,11 @@
   "codehive-testing-files/assignments/topological-sort/verdicts/README.md": {
     "mtime": 1788646851.8751526,
     "ast_hash": "b1d2e4ce5ca89fc5c3753434272aca39",
+    "semantic_hash": ""
+  },
+  "codehive-backend/src/main/resources/db/migration/V2__allow_view_audit_log_scope.sql": {
+    "mtime": 1788648377.3276086,
+    "ast_hash": "c61acb62ab14332a19318391cacd4c3a",
     "semantic_hash": ""
   }
 }

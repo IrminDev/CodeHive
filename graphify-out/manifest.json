@@ -955,8 +955,8 @@
     "semantic_hash": ""
   },
   "codehive-backend/src/main/java/com/github/codehive/service/ExecutionRequestService.java": {
-    "mtime": 1788497192.8682315,
-    "ast_hash": "91f1cd648405ad6cc89d902b6b23c5be",
+    "mtime": 1788673808.2406683,
+    "ast_hash": "3b0db5b54e3cd693ca8fd179d19954d8",
     "semantic_hash": ""
   },
   "codehive-backend/src/main/java/com/github/codehive/service/ExecutionResultService.java": {
@@ -3615,8 +3615,8 @@
     "semantic_hash": ""
   },
   "codehive-backend/src/test/java/com/github/codehive/config/AdminInitializerTest.java": {
-    "mtime": 1788496467.7284255,
-    "ast_hash": "e6132fb5fcbfac32efd5a842b795f8dd",
+    "mtime": 1788673685.2896638,
+    "ast_hash": "b3b1206453a0012fcde5038f52a5f75e",
     "semantic_hash": ""
   },
   "codehive-backend/src/test/java/com/github/codehive/config/CorsConfigIntegrationTest.java": {
@@ -3857,11 +3857,6 @@
   "codehive-testing-files/assignments/topological-sort/verdicts/README.md": {
     "mtime": 1788646851.8751526,
     "ast_hash": "b1d2e4ce5ca89fc5c3753434272aca39",
-    "semantic_hash": ""
-  },
-  "codehive-backend/src/main/resources/db/migration/V2__allow_view_audit_log_scope.sql": {
-    "mtime": 1788648377.3276086,
-    "ast_hash": "c61acb62ab14332a19318391cacd4c3a",
     "semantic_hash": ""
   }
 }

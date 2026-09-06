@@ -32,6 +32,7 @@ import com.github.codehive.model.enums.Language;
 import com.github.codehive.model.exception.ValidationException;
 import org.springframework.security.access.AccessDeniedException;
 import com.github.codehive.model.enums.ExecutionType;
+import com.github.codehive.model.enums.ExecutionStatus;
 import com.github.codehive.model.exception.EntityNotFoundException;
 import com.github.codehive.model.exception.ArtifactExpiredException;
 import com.github.codehive.model.mapper.ExecutionMapper;
@@ -179,7 +180,7 @@ public class ExecutionRequestService {
         Execution execution = executionRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Execution not found with id: " + id));
 
-        authorizeExecutionRead(execution, authenticatedEmail);
+        User requester = authorizeExecutionRead(execution, authenticatedEmail);
         if (execution.getArtifactsPurgedAt() != null || (execution.getArtifactsExpireAt() != null
                 && !Instant.now().isBefore(execution.getArtifactsExpireAt()))) {
             throw new ArtifactExpiredException("Detailed artifacts for execution " + id
@@ -189,7 +190,11 @@ public class ExecutionRequestService {
                 ? ObjectKeyBuilder.practiceExecutionReport(id)
                 : ObjectKeyBuilder.executionReport(id);
         try (InputStream reportStream = objectStorageService.download(reportKey)) {
-            return objectMapper.readValue(reportStream, ExecutionReport.class);
+            ExecutionReport report = objectMapper.readValue(reportStream, ExecutionReport.class);
+            if (execution.getExecutionType() == ExecutionType.DEFINITIVE && !isGroupOwner(execution, requester)) {
+                redactPrivateDefinitiveDiagnostics(report);
+            }
+            return report;
         } catch (Exception e) {
             if (execution.getStatus() != null && execution.getStatus().name().equals("PENDING")) {
                 throw new EntityNotFoundException("Report not available yet: execution " + id + " is still pending");
@@ -326,13 +331,25 @@ public class ExecutionRequestService {
         }
     }
 
-    private void authorizeExecutionRead(Execution execution, String authenticatedEmail) {
+    private User authorizeExecutionRead(Execution execution, String authenticatedEmail) {
         User user = userRepository.findByEmail(authenticatedEmail)
                 .orElseThrow(() -> new EntityNotFoundException("Authenticated user not found"));
-        if (execution.getUser() != null && execution.getUser().getId().equals(user.getId())) return;
-        if (execution.getSubmission() != null
-                && execution.getSubmission().getAssignment().getGroup().getOwner().getId()
-                    .equals(user.getId())) return;
+        if (execution.getUser() != null && execution.getUser().getId().equals(user.getId())) return user;
+        if (isGroupOwner(execution, user)) return user;
         throw new AccessDeniedException("You cannot access this execution");
+    }
+
+    private boolean isGroupOwner(Execution execution, User user) {
+        return execution.getSubmission() != null
+                && execution.getSubmission().getAssignment().getGroup().getOwner().getId()
+                        .equals(user.getId());
+    }
+
+    private void redactPrivateDefinitiveDiagnostics(ExecutionReport report) {
+        report.getTestCaseResults().forEach(result -> {
+            result.setExpectedOutput(null);
+            result.setActualOutput(null);
+            result.setFeedback(result.getStatus() == ExecutionStatus.AC ? "Passed" : "Private test result");
+        });
     }
 }
