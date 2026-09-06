@@ -27,8 +27,11 @@ Returns ExecutionResult with:
 - output / errorOutput
 - executionTimeMs
 - memoryUsedMb
+- sessionPeakMemoryMb (internal aggregation value)
 - exitCode
 - compilationError (when applicable)
+
+Job-supplied limits are clamped to 100–10,000 ms, 16–1,000 MB, and at most 50 test cases per job.
 
 ## Container Security Hardening
 All containers (both compile and execute phases) apply these restrictions:
@@ -53,38 +56,55 @@ Seccomp profile blocks: `unshare`, `ptrace`, `bpf`, `io_uring_*`, `keyctl`, `mou
 Temp directory permissions are set to `rwxrwxrwx` so `nobody` can access the workspace. Source and input files are set to `r--r--r--`.
 
 ## Output Size Limit (OLE verdict)
-stdout and stderr are captured with a shared 4 MB cap across both streams. When exceeded the executor returns `ExecutionResult.outputLimitExceeded()` with status `OLE`.
+stdout and stderr are captured with a shared 8 MB cap across both streams. When exceeded the executor returns `ExecutionResult.outputLimitExceeded()` with status `OLE`.
 
-Compilation stderr is separately capped at 256 KB.
+Compilation stderr is separately capped at 256 KB. Report diagnostics retain a
+sanitized maximum of 8 KiB per test; NUL bytes and ANSI control sequences are removed.
 
 The `getContainerLogsLimited` method in each executor implements this via a synchronized shared byte counter in the Docker log callback.
 
 ## Timeout and Memory Signals
-- Timeout: Future.get(timeLimitMs + 1000) → TLE on TimeoutException.
-- Memory: exit code 137 (SIGKILL from OOM killer) → MLE.
+- Timeout: GNU `timeout --kill-after=2s` returns exit code 124 → TLE.
+- Memory: MLE is detected from exit code 137, cgroup OOM/oom-kill counters, or a
+  non-zero exit plus a known managed-runtime OOM marker such as Java
+  `OutOfMemoryError` or Python `MemoryError`.
+- Ordinary non-zero exits remain RTE and preserve bounded stderr plus exit code.
+
+## Memory Telemetry
+`ContainerMemoryTracker` starts before test execution and closes in `finally`.
+It combines streaming Docker stats (`MemoryStatsConfig.usage/maxUsage/failcnt` when
+available) with fixed in-container cgroup reads:
+- cgroup v2: `memory.current`, `memory.peak`, `memory.events`.
+- cgroup v1: `memory.usage_in_bytes`, `memory.max_usage_in_bytes`,
+  `memory.failcnt`.
+
+Worker-controlled cgroup commands are fixed strings and run as `nobody`. Values are
+reported in MiB with ceiling conversion. Missing or unreliable telemetry stays null;
+it is never replaced with a fabricated zero.
 
 ## Language-Specific Behavior
 Java:
 - compile: `javac Main.java` (512 MB memory, 64 PID limit)
 - execute: `java Main` or `java Main < input.txt`
+- managed heap exhaustion is MLE even when JVM exits with code 1 and container survives
 
 Python:
-- no compile phase
-- syntax errors (SyntaxError in stderr) → CE
+- static compile preflight runs `compile(...)` in the Python runtime image
+- syntax/indentation errors → CE; runtime tracebacks → RTE
 - `PYTHONDONTWRITEBYTECODE=1` prevents `__pycache__` writes
 
 C:
-- compile: `gcc -o program main.c -lm`
+- compile: `gcc -std=c2x -o program main.c -lm` using `gcc:13-bookworm`
 - execute: `./program` or `./program < input.txt`
 
 C++:
-- compile: `g++ -o program main.cpp -std=c++17 -lm`
+- compile: `g++ -o program main.cpp -std=c++23 -lm`
 - execute: `./program` or `./program < input.txt`
 
 All executors:
 - optionally pipe input.txt when test input is non-empty
 - capture stdout/stderr with OLE check
-- read peak memory via Docker stats snapshot after container exits
+- stream Docker stats while running and read cgroup peak/events before cleanup
 - clean up container and temporary directory in finally blocks using symlink-safe `walkFileTree` deletion
 
 ## Image Management
@@ -95,7 +115,8 @@ On executor initialization:
 Default images:
 - Java: eclipse-temurin:21-jdk-ubi10-minimal
 - Python: python:3.11-slim
-- C/C++: gcc:latest
+- C compile: gcc:13-bookworm; execution: irmindev/c-exec:latest (Debian 12 runtime)
+- C++: gcc:12
 
 ## Seccomp Profile
 File: `codehive-worker/src/main/resources/seccomp/sandbox-profile.json`

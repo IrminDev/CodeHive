@@ -80,6 +80,16 @@ class RecoveryPasswordServiceTest {
         validToken.setUser(testUser);
     }
 
+    private static String sha256Hex(String value) {
+        try {
+            byte[] hash = java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(value.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            return java.util.HexFormat.of().formatHex(hash);
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
     @Nested
     @DisplayName("Send Password Reset Email Tests")
     class SendPasswordResetEmailTests {
@@ -98,13 +108,18 @@ class RecoveryPasswordServiceTest {
             // Then
             assertThat(isEnrollmentNumber).isFalse();
             ArgumentCaptor<PasswordResetToken> tokenCaptor = ArgumentCaptor.forClass(PasswordResetToken.class);
+            ArgumentCaptor<String> rawTokenCaptor = ArgumentCaptor.forClass(String.class);
             verify(userRepository).findByEmail(email);
             verify(passwordResetTokenRepository).findByUserAndUsedFalse(testUser);
             verify(passwordResetTokenRepository).save(tokenCaptor.capture());
-            verify(mailSenderService).sendPasswordResetEmail(eq(testUser.getEmail()), anyString());
+            verify(mailSenderService).sendPasswordResetEmail(eq(testUser.getEmail()), rawTokenCaptor.capture());
 
             PasswordResetToken savedToken = tokenCaptor.getValue();
+            String emailedRawToken = rawTokenCaptor.getValue();
             assertThat(savedToken.getToken()).isNotNull();
+            // Persist the hash, never the raw token that was emailed.
+            assertThat(savedToken.getToken()).isNotEqualTo(emailedRawToken);
+            assertThat(savedToken.getToken()).isEqualTo(sha256Hex(emailedRawToken));
             assertThat(savedToken.getUser()).isEqualTo(testUser);
             assertThat(savedToken.getUsed()).isFalse();
             assertThat(savedToken.getExpiryDate()).isAfter(LocalDateTime.now());
@@ -270,14 +285,14 @@ class RecoveryPasswordServiceTest {
             String newPassword = "newSecurePassword123";
             String encodedPassword = "encodedNewPassword";
             
-            when(passwordResetTokenRepository.findByToken(token)).thenReturn(Optional.of(validToken));
+            when(passwordResetTokenRepository.findByToken(anyString())).thenReturn(Optional.of(validToken));
             when(passwordEncoder.encode(newPassword)).thenReturn(encodedPassword);
 
             // When
             recoveryPasswordService.resetPassword(token, newPassword);
 
             // Then
-            verify(passwordResetTokenRepository).findByToken(token);
+            verify(passwordResetTokenRepository).findByToken(anyString());
             verify(passwordEncoder).encode(newPassword);
             verify(userRepository).save(testUser);
             verify(passwordResetTokenRepository).save(validToken);
@@ -287,20 +302,46 @@ class RecoveryPasswordServiceTest {
         }
 
         @Test
+        @DisplayName("Looks up the token by its hash, not the raw value")
+        void resetPassword_LooksUpByHashedToken() {
+            String rawToken = "raw-reset-token";
+            when(passwordResetTokenRepository.findByToken(sha256Hex(rawToken)))
+                    .thenReturn(Optional.of(validToken));
+            when(passwordEncoder.encode(anyString())).thenReturn("encodedNewPassword");
+
+            recoveryPasswordService.resetPassword(rawToken, "newSecurePassword123");
+
+            verify(passwordResetTokenRepository).findByToken(sha256Hex(rawToken));
+        }
+
+        @Test
+        @DisplayName("Increments token version to invalidate previously issued JWTs")
+        void resetPassword_IncrementsTokenVersion() {
+            String token = "valid-token-123";
+            when(passwordResetTokenRepository.findByToken(anyString())).thenReturn(Optional.of(validToken));
+            when(passwordEncoder.encode(anyString())).thenReturn("encodedNewPassword");
+            int before = testUser.getTokenVersion();
+
+            recoveryPasswordService.resetPassword(token, "newSecurePassword123");
+
+            assertThat(testUser.getTokenVersion()).isEqualTo(before + 1);
+        }
+
+        @Test
         @DisplayName("Throws exception when token not found")
         void resetPassword_WithNonExistentToken_ThrowsTokenNotFoundException() {
             // Given
             String token = "non-existent-token";
             String newPassword = "newPassword123";
             
-            when(passwordResetTokenRepository.findByToken(token)).thenReturn(Optional.empty());
+            when(passwordResetTokenRepository.findByToken(anyString())).thenReturn(Optional.empty());
 
             // When & Then
             assertThatThrownBy(() -> recoveryPasswordService.resetPassword(token, newPassword))
                     .isInstanceOf(TokenNotFoundException.class)
                     .hasMessageContaining("Invalid password reset token");
 
-            verify(passwordResetTokenRepository).findByToken(token);
+            verify(passwordResetTokenRepository).findByToken(anyString());
             verify(passwordEncoder, never()).encode(anyString());
             verify(userRepository, never()).save(any());
         }
@@ -313,14 +354,14 @@ class RecoveryPasswordServiceTest {
             String newPassword = "newPassword123";
             
             validToken.setExpiryDate(LocalDateTime.now().minusMinutes(10)); // Expired
-            when(passwordResetTokenRepository.findByToken(token)).thenReturn(Optional.of(validToken));
+            when(passwordResetTokenRepository.findByToken(anyString())).thenReturn(Optional.of(validToken));
 
             // When & Then
             assertThatThrownBy(() -> recoveryPasswordService.resetPassword(token, newPassword))
                     .isInstanceOf(ExpiredRecoveryTokenException.class)
                     .hasMessageContaining("Password reset token has expired");
 
-            verify(passwordResetTokenRepository).findByToken(token);
+            verify(passwordResetTokenRepository).findByToken(anyString());
             verify(passwordEncoder, never()).encode(anyString());
             verify(userRepository, never()).save(any());
         }
@@ -333,14 +374,14 @@ class RecoveryPasswordServiceTest {
             String newPassword = "newPassword123";
             
             validToken.setUsed(true);
-            when(passwordResetTokenRepository.findByToken(token)).thenReturn(Optional.of(validToken));
+            when(passwordResetTokenRepository.findByToken(anyString())).thenReturn(Optional.of(validToken));
 
             // When & Then
             assertThatThrownBy(() -> recoveryPasswordService.resetPassword(token, newPassword))
                     .isInstanceOf(TokenAlreadyUsedException.class)
                     .hasMessageContaining("This password reset token has already been used");
 
-            verify(passwordResetTokenRepository).findByToken(token);
+            verify(passwordResetTokenRepository).findByToken(anyString());
             verify(passwordEncoder, never()).encode(anyString());
             verify(userRepository, never()).save(any());
         }
@@ -353,7 +394,7 @@ class RecoveryPasswordServiceTest {
             String newPassword = "myNewPassword123!";
             String encodedPassword = "super-secure-encoded-password";
             
-            when(passwordResetTokenRepository.findByToken(token)).thenReturn(Optional.of(validToken));
+            when(passwordResetTokenRepository.findByToken(anyString())).thenReturn(Optional.of(validToken));
             when(passwordEncoder.encode(newPassword)).thenReturn(encodedPassword);
 
             // When
@@ -375,7 +416,7 @@ class RecoveryPasswordServiceTest {
             String newPassword = "newPassword123";
             
             validToken.setExpiryDate(LocalDateTime.now().plusSeconds(1));
-            when(passwordResetTokenRepository.findByToken(token)).thenReturn(Optional.of(validToken));
+            when(passwordResetTokenRepository.findByToken(anyString())).thenReturn(Optional.of(validToken));
             when(passwordEncoder.encode(anyString())).thenReturn("encoded");
 
             // When - Should still work as it's not expired yet
@@ -395,7 +436,7 @@ class RecoveryPasswordServiceTest {
             String originalPassword = testUser.getPassword();
             
             validToken.setExpiryDate(LocalDateTime.now().minusMinutes(1));
-            when(passwordResetTokenRepository.findByToken(token)).thenReturn(Optional.of(validToken));
+            when(passwordResetTokenRepository.findByToken(anyString())).thenReturn(Optional.of(validToken));
 
             // When & Then
             assertThatThrownBy(() -> recoveryPasswordService.resetPassword(token, newPassword))

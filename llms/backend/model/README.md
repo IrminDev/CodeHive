@@ -21,6 +21,8 @@ File: model/entity/User.java
 - Implements UserDetails for Spring Security integration.
 - createdAt defaults to LocalDateTime.now(); isActive defaults to true; temporaryPassword defaults to false.
 - scopes stored as element collection in user_scopes table.
+- persisted scopes become Spring Security authorities; `SUPER_ADMIN` expands to all scopes.
+- new teachers receive `CREATE_GROUP` before their first persistence.
 
 ### PasswordResetToken
 File: model/entity/PasswordResetToken.java
@@ -31,19 +33,54 @@ File: model/entity/PasswordResetToken.java
 
 ### Assignment
 File: model/entity/Assignment.java
+- Belongs to one `ClassGroup` and records the teacher author.
 - title: length 200, non-null
 - description: TEXT, non-null
 - timeLimitMs, memoryLimitMb: non-null
 - comparatorType: enum string, non-null
-- isActive: defaults to false on creation; set to true after worker confirms test output generation
+- isActive: logical deletion flag; independent from worker validation and launch visibility
 - allowedLanguages, constraints, hints, tags: element collections in dedicated tables
-- dueDate: nullable
+- launchDate, dueDate, closeDate use absolute timestamps and satisfy launch <= due <= close when present
+- validationStatus: PROCESSING, READY, or FAILED
+- examples: ordered `AssignmentExample` entities with TEXT input, output, and explanation
+
+### ClassGroup and GroupEnrollment
+- `ClassGroup` has exactly one teacher owner, a unique case-insensitive join code, `archived`, and `isActive` flags.
+- Archived groups are read-only. `isActive=false` is logical deletion and preserves assignments for cloning.
+- `GroupEnrollment` is a history-preserving join entity with ACTIVE, LEFT, and REMOVED states.
+- The `(group_id, student_id)` pair is unique; rejoining reactivates the historical record.
 
 ### Submission
 File: model/entity/Submission.java
 - ManyToOne assignment (non-null)
+- ManyToOne student (non-null)
+- `deliveredLate` is calculated when a definitive delivery is created.
+- Extending or clearing `dueDate` may reconcile `deliveredLate` from true to false when
+  historical submission time now falls within deadline. Deadline shortening never changes
+  an existing false flag to true.
 - language: enum string (non-null)
 - createdAt initialized in constructor
+- Belongs to one `StudentAssignmentWork` aggregate.
+- Status is `SUBMITTED`, `WITHDRAWN`, or `SUPERSEDED`; withdrawal preserves history.
+- Source code has a permanent submission-scoped object key.
+
+### Student assignment work, feedback, and grade
+
+- `StudentAssignmentWork` is unique per `(assignment, student)` and selects the
+  current submission.
+- Feedback belongs to student work, not a submission. It can be published or
+  logically deleted, but never edited.
+- `AssignmentGrade` is a draft until returned. Grade history records updates,
+  returns, and clearing caused by resubmission, max-point changes, or test changes.
+- A new submission, a promoted test-suite revision, or a max-points change
+  clears the current grade while retaining its audit history.
+
+### Assignment revisions
+
+- Reference solutions and test suites are immutable revisions.
+- `Assignment` points to the active reference and test-suite revisions.
+- `AssignmentUpdate` stages a proposal until asynchronous validation succeeds.
+- `ReevaluationBatch` tracks fan-out executions for a promoted test revision.
 
 ### Execution
 File: model/entity/Execution.java
@@ -55,15 +92,21 @@ File: model/entity/Execution.java
 
 ### TestCase
 File: model/entity/TestCase.java
-- assignment relation required
+- assignment and test-suite revision relations required
 - order stored as order_index, non-null; represents 1-based upload position
 - isSample defaults to false
 
-### ReferenceSolution
-File: model/entity/ReferenceSolution.java
-- assignment relation required
-- language: enum required
-- one ReferenceSolution per assignment per language; stored in MinIO at ObjectKeyBuilder.referenceSolutionSourceCode
+### Reference solution revisions
+- `ReferenceSolutionRevision` is immutable source metadata for an assignment revision.
+- It stores language, revision-scoped MinIO `objectKey`, status, and activation timestamps.
+- `Assignment.activeReferenceSolutionRevision` selects validated source used for practice execution.
+
+### Notification preferences
+
+- `UserNotificationSettings` stores the global email switch, IANA timezone, and locale.
+- `UserNotificationPreference` stores sparse per-type overrides with a unique `(user_id, notification_type)` constraint.
+- `NotificationDispatchLog` stores deterministic keys only for scheduled notification deduplication; RabbitMQ stores pending work.
+- `NotificationType` declares the intended role, whether the type is a reminder, and its default lead time.
 
 ## Request Contract Structure
 Request classes live under model/request grouped by domain:
@@ -75,11 +118,13 @@ Request classes live under model/request grouped by domain:
 - assignment/CreateAssignmentRequest
 
 ### CreateAssignmentRequest fields
+- groupId, launchDate, dueDate, closeDate, examples
 - title, description, constraints, hints, tags
-- timeLimitMs (@Min 100), memoryLimitMb (@Min 16)
+- timeLimitMs (100–10,000 ms), memoryLimitMb (16–1,000 MB)
 - comparatorType, allowedLanguages, referenceLanguage
 - dueDate (nullable)
 - sampleFlags: parallel list to uploaded files; true = sample test case
+- A task may include at most 50 test case inputs.
 
 Validation patterns:
 - @NotBlank for required strings
@@ -103,7 +148,7 @@ Auth-specific responses:
 
 ## DTO and Mapper Layer
 Application DTOs:
-- UserDTO, ExecutionDTO, AssignmentDTO, SubmissionDTO, TestCaseDTO, ReferenceSolutionDTO
+- UserDTO, ExecutionDTO, AssignmentDTO, SubmissionDTO
 
 Queue DTOs (model/dto/queue):
 - ExecutionJob — student execution job sent to worker
@@ -113,14 +158,14 @@ Queue DTOs (model/dto/queue):
 - TestGenerationResult — outcome of output generation; drives assignment activation
 
 Mappers convert entity <-> DTO:
-- ExecutionMapper, UserMapper, AssignmentMapper, SubmissionMapper, TestCaseMapper, ReferenceSolutionMapper
+- ExecutionMapper, UserMapper, AssignmentMapper, SubmissionMapper
 
 ## Enum Strategy
 Enums are persisted and transferred as string values:
 - Role, Scope
 - Language (JAVA, PYTHON, C, CPP)
 - ExecutionType (PRACTICE, DEFINITIVE)
-- ExecutionStatus (AC, WA, CE, RTE, TLE, MLE, OLE, PENDING) — OLE = Output Limit Exceeded (> 4 MB combined stdout+stderr)
+- ExecutionStatus (AC, WA, CE, RTE, TLE, MLE, OLE, PENDING) — OLE = Output Limit Exceeded (> 8 MB combined stdout+stderr)
 - ComparatorType (EXACT_MATCH, FLOATING_POINT)
 
 ## Exception Model

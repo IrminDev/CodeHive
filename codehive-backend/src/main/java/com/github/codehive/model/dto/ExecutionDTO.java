@@ -2,6 +2,7 @@ package com.github.codehive.model.dto;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
+import java.time.Instant;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.github.codehive.model.enums.ExecutionStatus;
@@ -18,6 +19,7 @@ public class ExecutionDTO {
     private Long memoryMb;
     private Boolean isOutdated;
     private LocalDateTime createdAt;
+    private Instant artifactsExpireAt;
 
     public UUID getId() {
         return id;
@@ -90,4 +92,7 @@ public class ExecutionDTO {
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
     }
+
+    public Instant getArtifactsExpireAt() { return artifactsExpireAt; }
+    public void setArtifactsExpireAt(Instant artifactsExpireAt) { this.artifactsExpireAt = artifactsExpireAt; }
 }

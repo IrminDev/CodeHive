@@ -18,7 +18,9 @@ import io.jsonwebtoken.ExpiredJwtException;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -26,8 +28,10 @@ import org.springframework.web.multipart.MultipartFile;
 import com.github.codehive.model.dto.UserDTO;
 import com.github.codehive.model.entity.User;
 import com.github.codehive.model.enums.Role;
+import com.github.codehive.model.enums.Scope;
 import com.github.codehive.model.exception.auth.AlreadyRegisteredEmailException;
 import com.github.codehive.model.exception.auth.AlreadyRegisteredEnrollmentNumberException;
+import com.github.codehive.model.exception.auth.BlockedUserException;
 import com.github.codehive.model.exception.auth.IncorrectCredentialsException;
 import com.github.codehive.model.mapper.UserMapper;
 import com.github.codehive.model.request.auth.LoginRequest;
@@ -35,6 +39,7 @@ import com.github.codehive.model.request.auth.SignUpRequest;
 import com.github.codehive.model.response.auth.AuthResponse;
 import com.github.codehive.model.response.auth.CsvBulkRegisterResponse;
 import com.github.codehive.repository.UserRepository;
+import com.github.codehive.utils.EnrollmentNumberRules;
 import com.github.codehive.utils.JwtUtil;
 import com.github.codehive.utils.PasswordGenerator;
 
@@ -49,6 +54,9 @@ public class AuthService {
     private static final Pattern EMAIL_PATTERN = Pattern.compile(
             "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
     );
+
+    // Verified against on failed lookups so login cost doesn't reveal whether an account exists.
+    private static final String DUMMY_HASH = new BCryptPasswordEncoder().encode("account-timing-equalizer");
 
     public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtUtil jwtUtil,
                         MailSenderService mailSenderService) {
@@ -79,10 +87,15 @@ public class AuthService {
             userOptional = userRepository.findByEnrollmentNumber(identifier);
         }
 
-        User user = userOptional.orElseThrow(() -> new IncorrectCredentialsException("Invalid credentials"));
+        User user = userOptional.orElse(null);
+        String encodedPassword = user != null ? user.getPassword() : DUMMY_HASH;
+        boolean passwordMatches = passwordEncoder.matches(loginRequest.getPassword(), encodedPassword);
 
-        if (!passwordEncoder.matches(loginRequest.getPassword(), user.getPassword())) {
+        if (user == null || !Boolean.TRUE.equals(user.getIsActive()) || !passwordMatches) {
             throw new IncorrectCredentialsException("Invalid credentials");
+        }
+        if (Boolean.TRUE.equals(user.getBlocked())) {
+            throw new BlockedUserException();
         }
 
         String token = generateToken(user);
@@ -94,6 +107,8 @@ public class AuthService {
     @Transactional
     public UserDTO register(SignUpRequest signUpRequest) throws AlreadyRegisteredEmailException,
             AlreadyRegisteredEnrollmentNumberException {
+        EnrollmentNumberRules.validate(
+                signUpRequest.getRole(), signUpRequest.getEnrollmentNumber());
         if (userRepository.findByEmail(signUpRequest.getEmail()).isPresent()) {
             throw new AlreadyRegisteredEmailException("Email is already registered");
         }
@@ -119,6 +134,19 @@ public class AuthService {
         mailSenderService.sendWelcomeEmail(savedUser.getEmail(), savedUser.getName(), rawPassword);
 
         return UserMapper.toDTO(savedUser);
+    }
+
+    @Transactional
+    public UserDTO registerAuthorized(SignUpRequest request, String requesterEmail) {
+        User requester = userRepository.findByEmail(requesterEmail)
+                .orElseThrow(() -> new IncorrectCredentialsException("User not found"));
+        Scope required = request.getRole() == Role.ADMIN ? Scope.CREATE_ADMINS : Scope.CREATE_USERS;
+        boolean authorized = requester.getAuthorities().stream()
+                .anyMatch(authority -> authority.getAuthority().equals(required.name()));
+        if (requester.getRole() != Role.ADMIN || !authorized) {
+            throw new AccessDeniedException("Missing scope: " + required.name());
+        }
+        return register(request);
     }
 
     @Transactional
@@ -160,6 +188,10 @@ public class AuthService {
                     errors.add("Row " + rowNumber + ": Invalid role '" + roleStr + "'. Must be STUDENT, TEACHER, or ADMIN");
                     continue;
                 }
+                if (role == Role.ADMIN) {
+                    errors.add("Row " + rowNumber + ": Admin accounts cannot be created through CSV signup");
+                    continue;
+                }
 
                 // Validate required fields
                 List<String> rowErrors = new ArrayList<>();
@@ -167,6 +199,10 @@ public class AuthService {
                 if (fatherLastName.isEmpty()) rowErrors.add("father last name is empty");
                 if (motherLastName.isEmpty()) rowErrors.add("mother last name is empty");
                 if (enrollmentNumber.isEmpty()) rowErrors.add("enrollment number is empty");
+                String enrollmentError = EnrollmentNumberRules.error(role, enrollmentNumber);
+                if (!enrollmentNumber.isEmpty() && enrollmentError != null) {
+                    rowErrors.add(enrollmentError);
+                }
                 if (email.isEmpty()) rowErrors.add("email is empty");
                 if (!email.isEmpty() && !EMAIL_PATTERN.matcher(email).matches()) rowErrors.add("email is invalid");
 
@@ -242,6 +278,7 @@ public class AuthService {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", user.getId());
         claims.put("role", user.getRole().name());
+        claims.put("tokenVersion", user.getTokenVersion());
         return jwtUtil.generateToken(claims, user.getEmail());
     }
 
@@ -256,6 +293,7 @@ public class AuthService {
 
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         user.setTemporaryPassword(false);
+        user.setTokenVersion(user.getTokenVersion() + 1);
         userRepository.save(user);
     }
 }

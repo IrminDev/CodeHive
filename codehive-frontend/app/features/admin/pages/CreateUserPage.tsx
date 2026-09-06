@@ -1,256 +1,42 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { ArrowLeft, UserPlus } from "lucide-react";
+import { Link } from "react-router";
+import { sileo } from "sileo";
+import { useAuth } from "~/core/providers/AuthProvider";
+import { Dropdown } from "~/shared/components/ui/Dropdown";
 import { AuthService } from "~/features/auth/services/auth.service";
-import { Role } from "~/shared/types/model/User";
-import { AppHeader } from "~/shared/components/AppHeader";
+import { Role, Scope } from "~/shared/types/model/User";
+import { AdminShell } from "../components/AdminShell";
+import { AdminPageHeader, inputClass, panelClass, primaryCompactClass } from "../components/AdminUI";
+import { hasEffectiveScope } from "../utils/permissions";
 
-const ROLE_OPTIONS = [
-  { value: Role.STUDENT, label: "Student" },
-  { value: Role.TEACHER, label: "Teacher" },
-  { value: Role.ADMIN, label: "Admin" },
-];
+const emptyForm = { name: "", fatherLastName: "", motherLastName: "", enrollmentNumber: "", email: "" };
 
 export function CreateUserPage() {
-  const [name, setName] = useState("");
-  const [fatherLastName, setFatherLastName] = useState("");
-  const [motherLastName, setMotherLastName] = useState("");
-  const [enrollmentNumber, setEnrollmentNumber] = useState("");
-  const [email, setEmail] = useState("");
-  const [role, setRole] = useState<Role>(Role.STUDENT);
-  const [isLoading, setIsLoading] = useState(false);
-  const [successMessage, setSuccessMessage] = useState("");
-  const [errorMessage, setErrorMessage] = useState("");
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setSuccessMessage("");
-    setErrorMessage("");
-
-    try {
-      await AuthService.signUp({
-        email,
-        name,
-        fatherLastName,
-        motherLastName,
-        enrollmentNumber,
-        role,
-      });
-      setSuccessMessage(
-        "User created successfully. A welcome email with temporary credentials has been sent."
-      );
-      setName("");
-      setFatherLastName("");
-      setMotherLastName("");
-      setEnrollmentNumber("");
-      setEmail("");
-      setRole(Role.STUDENT);
-    } catch (error: unknown) {
-      setErrorMessage(error instanceof Error ? error.message : "Registration failed");
-    }
-    setIsLoading(false);
-  };
-
-  return (
-    <div className="min-h-screen bg-gray-50 dark:bg-dark-bg transition-colors duration-300">
-      {/* Background orb */}
-      <div className="fixed top-0 right-0 w-96 h-96 bg-azure/5 dark:bg-azure/10 rounded-full blur-3xl pointer-events-none" />
-
-      <AppHeader badge="Admin" logoLinkTo="/admin" />
-
-      {/* Content */}
-      <main className="relative max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        {/* Page header */}
-        <div className="mb-8">
-          <a
-            href="/admin"
-            className="inline-flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-azure dark:hover:text-yellow transition-colors mb-4"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-            Back to Admin
-          </a>
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-azure/10 dark:bg-yellow/10 border border-azure/20 dark:border-yellow/20 mb-4">
-            <span className="text-sm font-medium text-azure dark:text-yellow">New User</span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            Register a <span className="gradient-text">new user</span>
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            A temporary password will be generated and sent to the user's email.
-          </p>
-        </div>
-
-        {/* Form card */}
-        <div className="bg-white dark:bg-dark-card rounded-2xl border border-gray-200 dark:border-gray-700/50 overflow-hidden">
-          {/* Status banners */}
-          {successMessage && (
-            <div className="flex items-start gap-3 mx-6 mt-6 p-4 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
-              <svg className="w-5 h-5 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <p className="text-sm text-green-700 dark:text-green-400">{successMessage}</p>
-            </div>
-          )}
-
-          {errorMessage && (
-            <div className="flex items-start gap-3 mx-6 mt-6 p-4 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
-              <svg className="w-5 h-5 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <p className="text-sm text-red-700 dark:text-red-400">{errorMessage}</p>
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="p-6 lg:p-8 space-y-5">
-            {/* Role */}
-            <div>
-              <label htmlFor="role" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Role
-              </label>
-              <select
-                id="role"
-                value={role}
-                onChange={(e) => setRole(e.target.value as Role)}
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700
-                           bg-white dark:bg-dark-surface text-gray-900 dark:text-white
-                           focus:outline-none focus:ring-2 focus:ring-azure dark:focus:ring-yellow
-                           focus:border-transparent transition-all duration-200"
-              >
-                {ROLE_OPTIONS.map((r) => (
-                  <option key={r.value} value={r.value}>{r.label}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Name row */}
-            <div className="grid sm:grid-cols-3 gap-4">
-              <div className="sm:col-span-3">
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Name(s)
-                </label>
-                <input
-                  id="name"
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Juan"
-                  required
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700
-                             bg-white dark:bg-dark-surface text-gray-900 dark:text-white
-                             placeholder:text-gray-400 dark:placeholder:text-gray-500
-                             focus:outline-none focus:ring-2 focus:ring-azure dark:focus:ring-yellow
-                             focus:border-transparent transition-all duration-200"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="fatherLastName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Father's Last Name
-                </label>
-                <input
-                  id="fatherLastName"
-                  type="text"
-                  value={fatherLastName}
-                  onChange={(e) => setFatherLastName(e.target.value)}
-                  placeholder="García"
-                  required
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700
-                             bg-white dark:bg-dark-surface text-gray-900 dark:text-white
-                             placeholder:text-gray-400 dark:placeholder:text-gray-500
-                             focus:outline-none focus:ring-2 focus:ring-azure dark:focus:ring-yellow
-                             focus:border-transparent transition-all duration-200"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="motherLastName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Mother's Last Name
-                </label>
-                <input
-                  id="motherLastName"
-                  type="text"
-                  value={motherLastName}
-                  onChange={(e) => setMotherLastName(e.target.value)}
-                  placeholder="López"
-                  required
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700
-                             bg-white dark:bg-dark-surface text-gray-900 dark:text-white
-                             placeholder:text-gray-400 dark:placeholder:text-gray-500
-                             focus:outline-none focus:ring-2 focus:ring-azure dark:focus:ring-yellow
-                             focus:border-transparent transition-all duration-200"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="enrollmentNumber" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Enrollment Number
-                </label>
-                <input
-                  id="enrollmentNumber"
-                  type="text"
-                  value={enrollmentNumber}
-                  onChange={(e) => setEnrollmentNumber(e.target.value)}
-                  placeholder="2021630000"
-                  required
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700
-                             bg-white dark:bg-dark-surface text-gray-900 dark:text-white
-                             placeholder:text-gray-400 dark:placeholder:text-gray-500
-                             focus:outline-none focus:ring-2 focus:ring-azure dark:focus:ring-yellow
-                             focus:border-transparent transition-all duration-200"
-                />
-              </div>
-            </div>
-
-            {/* Email */}
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Email address
-              </label>
-              <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="user@example.com"
-                required
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700
-                           bg-white dark:bg-dark-surface text-gray-900 dark:text-white
-                           placeholder:text-gray-400 dark:placeholder:text-gray-500
-                           focus:outline-none focus:ring-2 focus:ring-azure dark:focus:ring-yellow
-                           focus:border-transparent transition-all duration-200"
-              />
-            </div>
-
-            {/* Divider */}
-            <div className="h-px bg-gray-100 dark:bg-gray-700/50" />
-
-            {/* Submit */}
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full btn-primary py-3.5 text-base disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:scale-100"
-            >
-              {isLoading ? (
-                <span className="inline-flex items-center justify-center gap-2">
-                  <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                  Creating user…
-                </span>
-              ) : (
-                <span className="inline-flex items-center justify-center gap-2">
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-                  </svg>
-                  Create User
-                </span>
-              )}
-            </button>
-          </form>
-        </div>
-      </main>
-    </div>
-  );
+  const { user } = useAuth(); const [form, setForm] = useState(emptyForm); const [role, setRole] = useState<Role | null>(null); const [busy, setBusy] = useState(false);
+  const roles = useMemo(() => {
+    const result: Role[] = [];
+    if (hasEffectiveScope(user, Scope.CREATE_USERS)) result.push(Role.STUDENT, Role.TEACHER);
+    if (hasEffectiveScope(user, Scope.CREATE_ADMINS)) result.push(Role.ADMIN);
+    return result;
+  }, [user]);
+  const selectedRole = role && roles.includes(role) ? role : roles[0];
+  async function submit(event: React.FormEvent) {
+    event.preventDefault(); if (!selectedRole) return; setBusy(true);
+    try { await AuthService.signUp({ ...form, role: selectedRole }); sileo.success({ title: "User created. Temporary credentials were emailed." }); setForm(emptyForm); setRole(null); }
+    catch (cause) { sileo.error({ title: cause instanceof Error ? cause.message : "Registration failed." }); }
+    finally { setBusy(false); }
+  }
+  function field(key: keyof typeof form, value: string) { setForm((current) => ({ ...current, [key]: value })); }
+  return <AdminShell active="users" breadcrumbs={[{ label: "Admin", to: "/admin" }, { label: "Users", to: "/admin/users" }, { label: "Create" }]} contentClassName="max-w-3xl">
+    <AdminPageHeader eyebrow="Registration" title="Create user" description="Create one permitted account. Temporary credentials are delivered by email." actions={<Link to="/admin/users" className="inline-flex items-center gap-1.5 text-xs text-gray-500 hover:text-azure dark:hover:text-yellow"><ArrowLeft size={14} /> Users</Link>} />
+    <form onSubmit={(event) => void submit(event)} className={`${panelClass} p-5 sm:p-7 space-y-5`}>
+      <Field label="Role"><Dropdown value={selectedRole ?? ""} onChange={(value) => setRole(value as Role)} required options={roles.map((item) => ({ value: item, label: item[0] + item.slice(1).toLowerCase() }))} /></Field>
+      <div className="grid gap-4 sm:grid-cols-2"><Field label="Name(s)"><input className={inputClass} value={form.name} onChange={(event) => field("name", event.target.value)} required minLength={2} maxLength={50} /></Field><Field label="Email"><input className={inputClass} type="email" value={form.email} onChange={(event) => field("email", event.target.value)} required maxLength={100} /></Field><Field label="Father's last name"><input className={inputClass} value={form.fatherLastName} onChange={(event) => field("fatherLastName", event.target.value)} required /></Field><Field label="Mother's last name"><input className={inputClass} value={form.motherLastName} onChange={(event) => field("motherLastName", event.target.value)} required /></Field></div>
+      <Field label="Enrollment number"><input className={`${inputClass} font-mono`} value={form.enrollmentNumber} onChange={(event) => field("enrollmentNumber", event.target.value)} required maxLength={10} pattern={selectedRole === Role.STUDENT ? "(199[4-9]|[2-9][0-9]{3})630[0-9]{3}" : "[A-Za-z0-9._-]{1,10}"} /><p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{selectedRole === Role.STUDENT ? "Format YYYY630XXX; year 1994 or later." : "Up to 10 letters, numbers, dots, underscores, or hyphens."}</p></Field>
+      <button type="submit" disabled={busy || !selectedRole} className={`${primaryCompactClass} w-full py-3 text-sm`}><UserPlus size={16} /> {busy ? "Creating…" : "Create user"}</button>
+    </form>
+  </AdminShell>;
 }
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label className="block"><span className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{label}</span>{children}</label>; }

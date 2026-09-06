@@ -1,6 +1,7 @@
 package com.github.codehive.config;
 import java.util.List;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -8,8 +9,8 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -27,6 +28,9 @@ public class SecurityConfig {
     private final UserDetailsServiceImplementation userDetailsService;
     private final JWTAuthenticationFilter jwtAuthenticationFilter;
 
+    @Value("${frontend.url:http://localhost:5173}")
+    private String frontendOrigins;
+
     public SecurityConfig(UserDetailsServiceImplementation userDetailsService, JWTAuthenticationFilter jwtAuthenticationFilter) {
         this.userDetailsService = userDetailsService;
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
@@ -39,8 +43,8 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(
                 request -> {
                     var corsConfig = new org.springframework.web.cors.CorsConfiguration();
-                    corsConfig.addAllowedOriginPattern("*");
-                    corsConfig.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE"));
+                    corsConfig.setAllowedOrigins(List.of(frontendOrigins.split("\\s*,\\s*")));
+                    corsConfig.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE"));
                     corsConfig.setAllowedHeaders(List.of("*"));
                     corsConfig.setAllowCredentials(true);
                     return corsConfig;
@@ -55,8 +59,6 @@ public class SecurityConfig {
                 .requestMatchers("/ws/**").permitAll()
                 // Swagger/OpenAPI documentation
                 .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
-                // Assignment upload restricted to teachers
-                .requestMatchers(HttpMethod.POST, "/api/assignments").hasAnyAuthority("TEACHER", "ADMIN")
                 // All other requests require authentication
                 .anyRequest().authenticated()
             )

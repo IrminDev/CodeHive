@@ -1,16 +1,21 @@
 package com.github.codehive.model.dto;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+import java.math.BigDecimal;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.github.codehive.model.enums.ComparatorType;
 import com.github.codehive.model.enums.Language;
+import com.github.codehive.model.enums.AssignmentValidationStatus;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class AssignmentDTO {
     private UUID id;
+    private UUID groupId;
+    private UUID authorId;
     private String title;
     private String description;
     private List<String> constraints;
@@ -21,10 +26,30 @@ public class AssignmentDTO {
     private ComparatorType comparatorType;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
-    private LocalDateTime dueDate;
+    private Instant launchDate;
+    private Instant dueDate;
+    private Instant closeDate;
     private List<Language> allowedLanguages;
     private Boolean isActive;
+    private AssignmentValidationStatus validationStatus;
+    private List<AssignmentExampleDTO> examples;
     private List<SampleTestCaseDTO> sampleTestCases;
+    private BigDecimal maxPoints;
+    private UUID activeTestSuiteRevisionId;
+    private UUID activeReferenceSolutionRevisionId;
+
+    public UUID getGroupId() { return groupId; }
+    public void setGroupId(UUID groupId) { this.groupId = groupId; }
+    public UUID getAuthorId() { return authorId; }
+    public void setAuthorId(UUID authorId) { this.authorId = authorId; }
+    public Instant getLaunchDate() { return launchDate; }
+    public void setLaunchDate(Instant launchDate) { this.launchDate = launchDate; }
+    public Instant getCloseDate() { return closeDate; }
+    public void setCloseDate(Instant closeDate) { this.closeDate = closeDate; }
+    public AssignmentValidationStatus getValidationStatus() { return validationStatus; }
+    public void setValidationStatus(AssignmentValidationStatus validationStatus) { this.validationStatus = validationStatus; }
+    public List<AssignmentExampleDTO> getExamples() { return examples; }
+    public void setExamples(List<AssignmentExampleDTO> examples) { this.examples = examples; }
 
     public Boolean getIsActive() {
         return isActive;
@@ -122,11 +147,11 @@ public class AssignmentDTO {
         this.updatedAt = updatedAt;
     }
 
-    public LocalDateTime getDueDate() {
+    public Instant getDueDate() {
         return dueDate;
     }
 
-    public void setDueDate(LocalDateTime dueDate) {
+    public void setDueDate(Instant dueDate) {
         this.dueDate = dueDate;
     }
 
@@ -145,4 +170,11 @@ public class AssignmentDTO {
     public void setSampleTestCases(List<SampleTestCaseDTO> sampleTestCases) {
         this.sampleTestCases = sampleTestCases;
     }
+
+    public BigDecimal getMaxPoints() { return maxPoints; }
+    public void setMaxPoints(BigDecimal maxPoints) { this.maxPoints = maxPoints; }
+    public UUID getActiveTestSuiteRevisionId() { return activeTestSuiteRevisionId; }
+    public void setActiveTestSuiteRevisionId(UUID id) { this.activeTestSuiteRevisionId = id; }
+    public UUID getActiveReferenceSolutionRevisionId() { return activeReferenceSolutionRevisionId; }
+    public void setActiveReferenceSolutionRevisionId(UUID id) { this.activeReferenceSolutionRevisionId = id; }
 }

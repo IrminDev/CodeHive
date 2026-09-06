@@ -1,0 +1,220 @@
+package com.github.codehive.service;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.Page;
+import org.springframework.security.access.AccessDeniedException;
+
+import com.github.codehive.messaging.producer.TestGenerationRequestProducer;
+import com.github.codehive.model.entity.Assignment;
+import com.github.codehive.model.entity.ClassGroup;
+import com.github.codehive.model.entity.User;
+import com.github.codehive.model.enums.AssignmentValidationStatus;
+import com.github.codehive.model.enums.Role;
+import com.github.codehive.model.exception.EntityNotFoundException;
+import com.github.codehive.model.exception.ValidationException;
+import com.github.codehive.model.request.assignment.CreateAssignmentRequest;
+import com.github.codehive.repository.AssignmentRepository;
+import com.github.codehive.repository.GroupEnrollmentRepository;
+import com.github.codehive.repository.ReferenceSolutionRevisionRepository;
+import com.github.codehive.repository.TestCaseRepository;
+import com.github.codehive.repository.TestSuiteRevisionRepository;
+import com.github.codehive.repository.UserRepository;
+
+class AssignmentServiceTest {
+    private static final UUID OWNER_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
+    private static final UUID STUDENT_ID = UUID.fromString("00000000-0000-0000-0000-000000000002");
+    private static final UUID GROUP_ID = UUID.fromString("00000000-0000-0000-0000-000000000003");
+    private static final UUID ASSIGNMENT_ID = UUID.fromString("00000000-0000-0000-0000-000000000004");
+
+    private AssignmentRepository assignmentRepository;
+    private TestCaseRepository testCaseRepository;
+    private TestGenerationRequestProducer generationProducer;
+    private UserRepository userRepository;
+    private GroupEnrollmentRepository enrollmentRepository;
+    private GroupService groupService;
+    private AssignmentService service;
+    private User owner;
+    private ClassGroup group;
+
+    @BeforeEach
+    void setUp() {
+        assignmentRepository = mock(AssignmentRepository.class);
+        testCaseRepository = mock(TestCaseRepository.class);
+        generationProducer = mock(TestGenerationRequestProducer.class);
+        userRepository = mock(UserRepository.class);
+        enrollmentRepository = mock(GroupEnrollmentRepository.class);
+        groupService = mock(GroupService.class);
+        service = new AssignmentService(assignmentRepository, testCaseRepository,
+                mock(ReferenceSolutionRevisionRepository.class), mock(TestSuiteRevisionRepository.class),
+                mock(ObjectStorageService.class), generationProducer, userRepository,
+                enrollmentRepository, groupService);
+        owner = user(OWNER_ID, "owner@example.com", Role.TEACHER);
+        group = new ClassGroup("Algorithms", "", owner, "ABC12345");
+        group.setId(GROUP_ID);
+    }
+
+    @Test
+    void createRejectsEmptyTestSuiteBeforePersistingOrPublishing() {
+        CreateAssignmentRequest request = new CreateAssignmentRequest();
+        request.setGroupId(GROUP_ID);
+        when(userRepository.findByEmail(owner.getEmail())).thenReturn(Optional.of(owner));
+        when(groupService.requireOwnedWritableGroup(GROUP_ID, owner)).thenReturn(group);
+
+        assertThatThrownBy(() -> service.createAssignment(request, null, List.of(), owner.getEmail()))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("At least one test case input");
+
+        verify(assignmentRepository, never()).save(org.mockito.ArgumentMatchers.any());
+        verify(generationProducer, never()).sendTestGenerationRequest(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void createRejectsMoreThanFiftyTestCasesBeforePersistingOrPublishing() {
+        CreateAssignmentRequest request = new CreateAssignmentRequest();
+        request.setGroupId(GROUP_ID);
+        request.setTimeLimitMs(10_000L);
+        request.setMemoryLimitMb(1_000L);
+        when(userRepository.findByEmail(owner.getEmail())).thenReturn(Optional.of(owner));
+        when(groupService.requireOwnedWritableGroup(GROUP_ID, owner)).thenReturn(group);
+        org.springframework.web.multipart.MultipartFile testCase =
+                mock(org.springframework.web.multipart.MultipartFile.class);
+        List<org.springframework.web.multipart.MultipartFile> testCases =
+                java.util.Collections.nCopies(51, testCase);
+
+        assertThatThrownBy(() -> service.createAssignment(request, null, testCases, owner.getEmail()))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("At most 50 test cases are allowed");
+
+        verify(assignmentRepository, never()).save(org.mockito.ArgumentMatchers.any());
+        verify(generationProducer, never()).sendTestGenerationRequest(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void getAssignmentHidesReadyAssignmentFromStudentWithoutActiveEnrollment() {
+        User student = user(STUDENT_ID, "student@example.com", Role.STUDENT);
+        Assignment assignment = assignment();
+        assignment.setValidationStatus(AssignmentValidationStatus.READY);
+        when(assignmentRepository.findById(ASSIGNMENT_ID)).thenReturn(Optional.of(assignment));
+        when(userRepository.findByEmail(student.getEmail())).thenReturn(Optional.of(student));
+        when(enrollmentRepository.existsByGroupIdAndStudentIdAndStatus(
+                GROUP_ID, STUDENT_ID, com.github.codehive.model.enums.EnrollmentStatus.ACTIVE)).thenReturn(false);
+
+        assertThatThrownBy(() -> service.getAssignmentById(ASSIGNMENT_ID, student.getEmail()))
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessageContaining("Assignment not found");
+
+        verify(testCaseRepository, never()).findByTestSuiteRevisionIdAndIsSampleOrderByOrderAsc(
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyBoolean());
+    }
+
+    @Test
+    void softDeleteMarksAssignmentInactiveForOwner() {
+        Assignment assignment = assignment();
+        when(assignmentRepository.findById(ASSIGNMENT_ID)).thenReturn(Optional.of(assignment));
+        when(userRepository.findByEmail(owner.getEmail())).thenReturn(Optional.of(owner));
+
+        service.softDelete(ASSIGNMENT_ID, owner.getEmail());
+
+        assertThat(assignment.getIsActive()).isFalse();
+        assertThat(assignment.getDeletedAt()).isNotNull();
+    }
+
+    @Test
+    void softDeleteRejectsNonOwnerWithoutChangingAssignment() {
+        User otherTeacher = user(STUDENT_ID, "other@example.com", Role.TEACHER);
+        Assignment assignment = assignment();
+        when(assignmentRepository.findById(ASSIGNMENT_ID)).thenReturn(Optional.of(assignment));
+        when(userRepository.findByEmail(otherTeacher.getEmail())).thenReturn(Optional.of(otherTeacher));
+
+        assertThatThrownBy(() -> service.softDelete(ASSIGNMENT_ID, otherTeacher.getEmail()))
+                .isInstanceOf(AccessDeniedException.class);
+
+        assertThat(assignment.getIsActive()).isTrue();
+    }
+
+    @Test
+    void restoreReactivatesDeletedAssignmentInWritableOwnedGroup() {
+        Assignment assignment = assignment();
+        assignment.setIsActive(false);
+        assignment.setDeletedAt(java.time.Instant.parse("2026-08-20T12:00:00Z"));
+        when(assignmentRepository.findById(ASSIGNMENT_ID)).thenReturn(Optional.of(assignment));
+        when(userRepository.findByEmail(owner.getEmail())).thenReturn(Optional.of(owner));
+        when(groupService.requireOwnedWritableGroup(GROUP_ID, owner)).thenReturn(group);
+        when(assignmentRepository.save(assignment)).thenReturn(assignment);
+
+        var result = service.restore(ASSIGNMENT_ID, owner.getEmail());
+
+        assertThat(result.getId()).isEqualTo(ASSIGNMENT_ID);
+        assertThat(assignment.getIsActive()).isTrue();
+        assertThat(assignment.getDeletedAt()).isNull();
+        verify(assignmentRepository).save(assignment);
+    }
+
+    @Test
+    void restoreRejectsGroupThatIsNotWritableWithoutChangingAssignment() {
+        Assignment assignment = assignment();
+        assignment.setIsActive(false);
+        when(assignmentRepository.findById(ASSIGNMENT_ID)).thenReturn(Optional.of(assignment));
+        when(userRepository.findByEmail(owner.getEmail())).thenReturn(Optional.of(owner));
+        when(groupService.requireOwnedWritableGroup(GROUP_ID, owner))
+                .thenThrow(new ValidationException("Archived groups are read-only"));
+
+        assertThatThrownBy(() -> service.restore(ASSIGNMENT_ID, owner.getEmail()))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("read-only");
+
+        assertThat(assignment.getIsActive()).isFalse();
+        verify(assignmentRepository, never()).save(assignment);
+    }
+
+    @Test
+    void ownerListingNormalizesMissingTitleQueryToEmptyString() {
+        when(userRepository.findByEmail(owner.getEmail())).thenReturn(Optional.of(owner));
+        when(groupService.getGroupForAssignmentAccess(GROUP_ID, owner)).thenReturn(group);
+        when(assignmentRepository.findTeacherManaged(
+                org.mockito.ArgumentMatchers.eq(GROUP_ID),
+                org.mockito.ArgumentMatchers.eq(false),
+                org.mockito.ArgumentMatchers.eq(false),
+                org.mockito.ArgumentMatchers.eq(""),
+                org.mockito.ArgumentMatchers.isNull(),
+                org.mockito.ArgumentMatchers.any()))
+                .thenReturn(Page.empty());
+
+        var result = service.listGroupAssignments(GROUP_ID, 0, 20, owner.getEmail());
+
+        assertThat(result).isEmpty();
+        verify(assignmentRepository).findTeacherManaged(
+                org.mockito.ArgumentMatchers.eq(GROUP_ID),
+                org.mockito.ArgumentMatchers.eq(false),
+                org.mockito.ArgumentMatchers.eq(false),
+                org.mockito.ArgumentMatchers.eq(""),
+                org.mockito.ArgumentMatchers.isNull(),
+                org.mockito.ArgumentMatchers.any());
+    }
+
+    private Assignment assignment() {
+        Assignment assignment = new Assignment();
+        assignment.setId(ASSIGNMENT_ID);
+        assignment.setGroup(group);
+        assignment.setIsActive(true);
+        return assignment;
+    }
+
+    private User user(UUID id, String email, Role role) {
+        User user = new User("Test", "User", id.toString(), email, "password", role);
+        user.setId(id);
+        return user;
+    }
+}

@@ -23,14 +23,15 @@ export function Header() {
   const navLinks = [
     { name: "Features", href: "#features" },
     { name: "How it Works", href: "#how-it-works" },
-    { name: "Team", href: "#creators" },
     { name: "Contact", href: "#contact" },
   ];
 
   return (
     <header
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        isScrolled
+        isMobileMenuOpen
+          ? "bg-white dark:bg-dark-bg shadow-lg"
+          : isScrolled
           ? "glass shadow-lg"
           : "bg-transparent"
       }`}

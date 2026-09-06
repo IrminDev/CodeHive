@@ -1,7 +1,7 @@
 # Backend Messaging Implementation
 
 ## Scope
-This document covers backend message production/consumption for code execution and assignment creation workflows.
+This document covers backend message production/consumption for code execution, assignment creation, and email notification workflows.
 
 Key classes:
 - config/RabbitConfig.java
@@ -9,6 +9,8 @@ Key classes:
 - messaging/producer/TestGenerationRequestProducer.java
 - messaging/listener/ExecutionResultListener.java
 - messaging/listener/TestGenerationResultListener.java
+- messaging/producer/NotificationProducer.java
+- messaging/listener/NotificationEmailListener.java
 
 ## Queue Topology
 All queues are declared durable with Jackson JSON message conversion.
@@ -21,6 +23,11 @@ Configured in RabbitConfig via system properties (defaults shown):
 | `RESULT_QUEUE_NAME` | `codehive_result_queue` | worker → backend |
 | `TEST_GENERATION_QUEUE_NAME` | `codehive_test_generation_queue` | backend → worker |
 | `TEST_GENERATION_RESULT_QUEUE_NAME` | `codehive_test_generation_result_queue` | worker → backend |
+| `NOTIFICATION_EMAIL_QUEUE` | `codehive_notification_email_queue` | backend → backend SMTP consumer |
+| `NOTIFICATION_EMAIL_RETRY_QUEUE` | `codehive_notification_email_retry_queue` | delayed retry |
+| `NOTIFICATION_EMAIL_DLQ` | `codehive_notification_email_dlq` | exhausted or incompatible messages |
+
+Notification queues use durable direct exchanges and are described in `llms/backend/notifications/README.md`.
 
 ## Execution Flow (student submissions)
 
@@ -53,7 +60,8 @@ Payload: `model/dto/queue/TestGenerationJob`
 TestGenerationResultListener:
 1. Listens on `codehive_test_generation_result_queue`.
 2. On success: sets `assignment.isActive = true` in the database.
-3. On failure: logs error — assignment stays inactive.
+3. On failure: stores worker diagnostic output on the failed test-suite revision,
+   marks the assignment failed when it has no active suite, and notifies the teacher.
 
 Payload: `model/dto/queue/TestGenerationResult`
 
@@ -67,6 +75,9 @@ Payload: `model/dto/queue/TestGenerationResult`
 - If fields are added, coordinate worker and backend deployment.
 - Keep default queue names stable unless infrastructure update is coordinated.
 - Both sides (backend and worker) declare the same queues — no exchange routing is used.
+- Worker compilation stderr is already capped at 256 KiB. The backend persists that
+  bounded diagnostic in `TestSuiteRevision.failureMessage`; email rendering applies a
+  smaller display cap.
 
 ## Operational Tips
 - Verify backend and worker use matching queue names.

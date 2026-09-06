@@ -22,6 +22,7 @@ public class ExecutionMapper {
         dto.setMemoryMb(execution.getMemoryMb());
         dto.setIsOutdated(execution.getIsOutdated());
         dto.setCreatedAt(execution.getCreatedAt());
+        dto.setArtifactsExpireAt(execution.getArtifactsExpireAt());
         return dto;
     }
 
@@ -38,6 +39,7 @@ public class ExecutionMapper {
         execution.setMemoryMb(dto.getMemoryMb());
         execution.setIsOutdated(dto.getIsOutdated());
         execution.setCreatedAt(dto.getCreatedAt());
+        execution.setArtifactsExpireAt(dto.getArtifactsExpireAt());
         return execution;
     }
 

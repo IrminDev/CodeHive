@@ -1,48 +1,192 @@
 import { API_BASE_URL } from "~/core/config/env";
-import { getAuthToken } from "~/core/storage/token.storage";
+import { teacherAuthHeaders, teacherRequest } from "./client";
+import type {
+  AssignmentPage,
+  AssignmentManagementStatus,
+  AssignmentPreview,
+  AssignmentUpdate,
+  CloneAssignmentForm,
+  CloneAssignmentPayload,
+  CreateAssignmentMetadata,
+  TeacherAssignment,
+  UpdateAssignmentMetadata,
+} from "../types/assignment.types";
+import type { TeacherGroup } from "../types/group.types";
 
-export type ComparatorType = "EXACT_MATCH" | "FLOATING_POINT";
-export type Language = "JAVA" | "PYTHON" | "CPP" | "C";
+export type {
+  AssignmentExample,
+  AssignmentPage,
+  AssignmentPreview,
+  AssignmentPreviewTestCase,
+  AssignmentUpdate,
+  CloneAssignmentForm,
+  CloneAssignmentPayload,
+  ComparatorType,
+  CreateAssignmentMetadata,
+  Language,
+  TeacherAssignment,
+  UpdateAssignmentMetadata,
+} from "../types/assignment.types";
+export type { TeacherGroup } from "../types/group.types";
 
-export interface CreateAssignmentMetadata {
-  title: string;
-  description: string;
-  constraints: string[];
-  hints: string[];
-  tags: string[];
-  timeLimitMs: number;
-  memoryLimitMb: number;
-  comparatorType: ComparatorType;
-  allowedLanguages: Language[];
-  referenceLanguage: Language;
-  dueDate?: string;
-  sampleFlags: boolean[];
-}
-
-export async function createAssignment(
-  metadata: CreateAssignmentMetadata,
-  referenceSolution: File,
-  testCaseInputs: File[]
-): Promise<void> {
-  const token = getAuthToken();
-  if (!token) throw new Error("Not authenticated. Please sign in again.");
-
+function multipartMetadata(metadata: unknown): FormData {
   const formData = new FormData();
   formData.append(
     "metadata",
-    new Blob([JSON.stringify(metadata)], { type: "application/json" })
+    new Blob([JSON.stringify(metadata)], { type: "application/json" }),
   );
-  formData.append("referenceSolution", referenceSolution);
-  testCaseInputs.forEach((file) => formData.append("testCaseInputs", file));
+  return formData;
+}
 
-  const response = await fetch(`${API_BASE_URL}/api/assignments`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
+function normalizeAssignment(assignment: TeacherAssignment): TeacherAssignment {
+  return {
+    ...assignment,
+    constraints: assignment.constraints ?? [],
+    hints: assignment.hints ?? [],
+    tags: assignment.tags ?? [],
+    allowedLanguages: assignment.allowedLanguages ?? [],
+    examples: assignment.examples ?? [],
+    sampleTestCases: assignment.sampleTestCases ?? [],
+  };
+}
+
+async function multipartRequest<T>(path: string, method: "POST" | "PATCH", formData: FormData): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method,
+    headers: teacherAuthHeaders(),
     body: formData,
   });
-
+  const body = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error((err as { message?: string }).message || "Failed to create assignment.");
+    const error = body as { message?: string; error?: string; errors?: string[] };
+    throw new Error(error.message || error.error || error.errors?.join(", ") || `HTTP ${response.status}`);
   }
+  return (body as { data: T }).data;
+}
+
+export function createAssignment(
+  metadata: CreateAssignmentMetadata,
+  referenceSolution: File,
+  testCaseInputs: File[],
+): Promise<TeacherAssignment> {
+  const formData = multipartMetadata(metadata);
+  formData.append("referenceSolution", referenceSolution);
+  testCaseInputs.forEach((file) => formData.append("testCaseInputs", file));
+  return multipartRequest<TeacherAssignment>("/api/assignments", "POST", formData);
+}
+
+export function updateAssignment(
+  assignmentId: string,
+  metadata: UpdateAssignmentMetadata,
+  referenceSolution?: File,
+  testCaseInputs: File[] = [],
+): Promise<AssignmentUpdate> {
+  const formData = multipartMetadata(metadata);
+  if (referenceSolution) formData.append("referenceSolution", referenceSolution);
+  testCaseInputs.forEach((file) => formData.append("testCaseInputs", file));
+  return multipartRequest<AssignmentUpdate>(
+    `/api/assignments/${encodeURIComponent(assignmentId)}`,
+    "PATCH",
+    formData,
+  );
+}
+
+export function getAssignmentUpdate(updateId: string): Promise<AssignmentUpdate> {
+  return teacherRequest<AssignmentUpdate>(
+    `/api/assignments/updates/${encodeURIComponent(updateId)}`,
+  );
+}
+
+export function getTeacherAssignment(assignmentId: string): Promise<TeacherAssignment> {
+  return teacherRequest<TeacherAssignment>(
+    `/api/assignments/${encodeURIComponent(assignmentId)}`,
+  ).then(normalizeAssignment);
+}
+
+export function getTeacherAssignmentPreview(assignmentId: string): Promise<AssignmentPreview> {
+  return teacherRequest<AssignmentPreview>(
+    `/api/assignments/${encodeURIComponent(assignmentId)}/preview`,
+  ).then((preview) => ({
+    ...preview,
+    assignment: normalizeAssignment(preview.assignment),
+    testCases: preview.testCases ?? [],
+  }));
+}
+
+export function getTeacherAssignmentPage(
+  groupId: string,
+  page = 0,
+  size = 20,
+  filters: {
+    query?: string;
+    validationStatus?: string;
+    includeDeleted?: boolean;
+    deletedOnly?: boolean;
+  } = {},
+): Promise<AssignmentPage> {
+  const params = new URLSearchParams({ groupId, page: String(page), size: String(size) });
+  if (filters.query) params.set("query", filters.query);
+  if (filters.validationStatus) params.set("validationStatus", filters.validationStatus);
+  if (filters.includeDeleted) params.set("includeDeleted", "true");
+  if (filters.deletedOnly) params.set("deletedOnly", "true");
+  return teacherRequest<AssignmentPage>(`/api/assignments?${params}`).then((result) => ({
+    ...result,
+    content: result.content.map(normalizeAssignment),
+  }));
+}
+
+export async function getTeacherAssignments(groupId: string): Promise<TeacherAssignment[]> {
+  return (await getTeacherAssignmentPage(groupId, 0, 100)).content;
+}
+
+export async function getActiveTeacherGroups(): Promise<TeacherGroup[]> {
+  const groups = await teacherRequest<TeacherGroup[]>("/api/groups");
+  return groups.filter((group) => group.isActive && !group.archived);
+}
+
+export function getCloneAssignmentForm(assignmentId: string): Promise<CloneAssignmentForm> {
+  return teacherRequest<CloneAssignmentForm>(
+    `/api/assignments/${encodeURIComponent(assignmentId)}/clone-form`,
+  ).then((form) => ({
+    ...form,
+    constraints: form.constraints ?? [],
+    hints: form.hints ?? [],
+    tags: form.tags ?? [],
+    allowedLanguages: form.allowedLanguages ?? [],
+    examples: form.examples ?? [],
+    testCases: form.testCases ?? [],
+  }));
+}
+
+export function cloneAssignment(
+  assignmentId: string,
+  payload: CloneAssignmentPayload,
+): Promise<TeacherAssignment> {
+  return teacherRequest<TeacherAssignment>(
+    `/api/assignments/${encodeURIComponent(assignmentId)}/clone`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
+export function deleteAssignment(assignmentId: string): Promise<void> {
+  return teacherRequest<void>(`/api/assignments/${encodeURIComponent(assignmentId)}`, {
+    method: "DELETE",
+  });
+}
+
+export function restoreAssignment(assignmentId: string): Promise<TeacherAssignment> {
+  return teacherRequest<TeacherAssignment>(
+    `/api/assignments/${encodeURIComponent(assignmentId)}/restore`,
+    { method: "POST" },
+  ).then(normalizeAssignment);
+}
+
+export function getAssignmentManagementStatus(assignmentId: string): Promise<AssignmentManagementStatus> {
+  return teacherRequest<AssignmentManagementStatus>(
+    `/api/assignments/${encodeURIComponent(assignmentId)}/management-status`,
+  );
 }

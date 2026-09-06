@@ -1,14 +1,19 @@
 package com.github.codehive.model.entity;
 
 import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
+
+import org.hibernate.annotations.ColumnDefault;
 
 import com.github.codehive.model.enums.Role;
 import com.github.codehive.model.enums.Scope;
@@ -22,11 +27,15 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
 @Entity
-@Table(name = "users")
+@Table(name = "users", indexes = {
+        @Index(name = "idx_users_admin_status_role", columnList = "is_active,blocked,role")
+})
 public class User implements UserDetails {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -60,6 +69,23 @@ public class User implements UserDetails {
     @Column(nullable = false)
     private Boolean temporaryPassword;
 
+    // Bumped on every password change so previously issued JWTs stop authenticating.
+    @Column(nullable = false)
+    @ColumnDefault("0")
+    private int tokenVersion = 0;
+
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private Boolean blocked;
+
+    private Instant blockedAt;
+
+    private Instant deletedAt;
+
+    @Column(nullable = false, columnDefinition = "bigint default 0")
+    private Long rateLimitViolationCount;
+
+    private Instant lastRateLimitViolationAt;
+
     @ElementCollection(targetClass = Scope.class)
     @Enumerated(EnumType.STRING)
     @CollectionTable(name = "user_scopes", joinColumns = @JoinColumn(name = "user_id"))
@@ -71,6 +97,8 @@ public class User implements UserDetails {
         this.scopes = new ArrayList<>();
         this.isActive = true;
         this.temporaryPassword = false;
+        this.blocked = false;
+        this.rateLimitViolationCount = 0L;
     }
 
     public User(String name, String lastName, String enrollmentNumber, String email, String password, Role role) {
@@ -83,6 +111,8 @@ public class User implements UserDetails {
         this.createdAt = LocalDateTime.now();
         this.isActive = true;
         this.temporaryPassword = false;
+        this.blocked = false;
+        this.rateLimitViolationCount = 0L;
         this.scopes = new ArrayList<>();
     }
 
@@ -166,6 +196,33 @@ public class User implements UserDetails {
         this.temporaryPassword = temporaryPassword;
     }
 
+    public int getTokenVersion() {
+        return tokenVersion;
+    }
+
+    public void setTokenVersion(int tokenVersion) {
+        this.tokenVersion = tokenVersion;
+    }
+
+    public Boolean getBlocked() { return blocked; }
+    public void setBlocked(Boolean blocked) { this.blocked = blocked; }
+    public Instant getBlockedAt() { return blockedAt; }
+    public void setBlockedAt(Instant blockedAt) { this.blockedAt = blockedAt; }
+    public Instant getDeletedAt() { return deletedAt; }
+    public void setDeletedAt(Instant deletedAt) { this.deletedAt = deletedAt; }
+    public Long getRateLimitViolationCount() { return rateLimitViolationCount; }
+    public void setRateLimitViolationCount(Long rateLimitViolationCount) { this.rateLimitViolationCount = rateLimitViolationCount; }
+    public Instant getLastRateLimitViolationAt() { return lastRateLimitViolationAt; }
+    public void setLastRateLimitViolationAt(Instant lastRateLimitViolationAt) { this.lastRateLimitViolationAt = lastRateLimitViolationAt; }
+
+    public boolean isApplicationVisible() {
+        return Boolean.TRUE.equals(isActive);
+    }
+
+    public boolean canParticipate() {
+        return isApplicationVisible() && !Boolean.TRUE.equals(blocked);
+    }
+
     public List<Scope> getScopes() {
         return scopes;
     }
@@ -184,9 +241,37 @@ public class User implements UserDetails {
         }
     }
 
+    public boolean hasScope(Scope scope) {
+        return scopes != null && scopes.contains(scope);
+    }
+
+    public boolean canManageGroups() {
+        return canParticipate()
+                && (role == Role.STUDENT || role == Role.TEACHER)
+                && hasScope(Scope.CREATE_GROUP);
+    }
+
+    @PrePersist
+    void applyDefaultScopes() {
+        if (role == Role.TEACHER) {
+            addScope(Scope.CREATE_GROUP);
+        }
+    }
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of(new SimpleGrantedAuthority(role.name()));
+        Set<Scope> effectiveScopes = new LinkedHashSet<>();
+        if (scopes != null) effectiveScopes.addAll(scopes);
+        if (effectiveScopes.contains(Scope.SUPER_ADMIN)) {
+            effectiveScopes.addAll(List.of(Scope.values()));
+        }
+        List<GrantedAuthority> authorities = new ArrayList<>();
+        authorities.add(new SimpleGrantedAuthority(role.name()));
+        effectiveScopes.stream()
+                .map(Scope::name)
+                .map(SimpleGrantedAuthority::new)
+                .forEach(authorities::add);
+        return authorities;
     }
 
     @Override
@@ -201,7 +286,7 @@ public class User implements UserDetails {
 
     @Override
     public boolean isAccountNonLocked() {
-        return isActive;
+        return !Boolean.TRUE.equals(blocked);
     }
 
     @Override
@@ -211,6 +296,6 @@ public class User implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return isActive;
+        return Boolean.TRUE.equals(isActive);
     }
 }

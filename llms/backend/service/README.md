@@ -12,6 +12,7 @@ Service classes:
 - ExecutionResultService
 - ObjectStorageService
 - MailSenderService
+- AdminUserService
 
 ## Service Layer Role
 - Own business logic and workflows.
@@ -56,13 +57,45 @@ Execution model:
 
 ## AssignmentService
 Responsibilities:
-- Create Assignment, ReferenceSolution, and TestCase entities in one transaction.
+- Enforce group ownership and read access through active enrollment.
+- Create Assignment, ReferenceSolutionRevision, TestSuiteRevision, and TestCase entities in one transaction.
+- Persist ordered instructional examples separately from executable test cases.
+- Validate launch/due/close ordering.
+- Build owner-only clone-form snapshots from assignment metadata plus MinIO reference/test input content.
+- Create clones from the complete edited snapshot in another owned active writable group; clone dates
+  remain null unless the teacher explicitly supplies new values.
+- Reject explicitly supplied launch, due, or close dates before current time during create,
+  clone, and update flows; still enforce `launchDate <= dueDate <= closeDate`.
+- When due date is extended, change late submissions whose creation time now falls on or
+  before new deadline to on-time. Clearing due date changes every late submission to on-time.
+  Deadline shortening does not retroactively mark submissions late.
 - Upload reference solution and test case inputs to MinIO via ObjectStorageService.
 - Publish TestGenerationJob to `codehive_test_generation_queue`.
-- Assignment is created with `isActive = false`; activated only after worker confirms output generation.
+- Assignment is logically active on creation and has validationStatus PROCESSING until the worker reports READY or FAILED.
+
+## GroupService
+Responsibilities:
+- Create scope-authorized groups with random, unique join codes.
+- Enroll only STUDENT users while retaining leave/removal history.
+- Enforce owner-only roster, archive, logical-delete, restore, update, and join-code rotation operations regardless of owner role.
+- Treat archived groups as read-only and hide logically deleted groups from students.
+
+## AdminUserService
+Responsibilities:
+- Paginated user lookup and profile updates.
+- Reversible account deactivation while preserving related academic data.
+- Target-role-specific authorization for user and admin management.
+- Guarded scope delegation, self-management prevention, and last-superadmin protection.
+
+## Delivery validation
+- Execution identity always comes from the authenticated JWT principal; client requesterId is ignored.
+- Students require active enrollment and assignments must be launched, logically active, and READY.
+- Definitive deliveries are accepted repeatedly until closeDate and create immutable Submission rows.
+- Deliveries after dueDate are persisted with deliveredLate=true, subject to later
+  late-to-on-time reconciliation when teacher extends or clears due date.
 
 Key dependencies:
-- AssignmentRepository, TestCaseRepository, ReferenceSolutionRepository
+- AssignmentRepository, TestCaseRepository, ReferenceSolutionRevisionRepository
 - ObjectStorageService, TestGenerationRequestProducer
 
 Key detail: `sampleFlags` from the request is a parallel list to the uploaded files indicating which test cases are samples. Missing flags default to false.
@@ -70,7 +103,7 @@ Key detail: `sampleFlags` from the request is a parallel list to the uploaded fi
 ## ExecutionRequestService
 Responsibilities:
 - Load Assignment entity to get real time/memory limits, comparator, and test count.
-- Load ReferenceSolution to determine reference language and storage path.
+- Load active ReferenceSolutionRevision to determine reference language and storage path.
 - Create Execution entity.
 - Upload source code to MinIO.
 - Build and publish ExecutionJob to `codehive_queue`.
@@ -82,11 +115,12 @@ Key methods:
 - `getExecutionReport(UUID)` — downloads `report.json` from MinIO and deserializes via ObjectMapper; returns 404 if pending or not found
 
 Key dependencies:
-- ExecutionRepository, AssignmentRepository, ReferenceSolutionRepository, TestCaseRepository
+- ExecutionRepository, AssignmentRepository, TestCaseRepository
 - ObjectStorageService, ExecutionRequestProducer, UserRepository, ObjectMapper
 
-PRACTICE mode: uses inline testCases, resolves reference solution from DB.
-DEFINITIVE mode: numTests counted from TestCaseRepository, no reference solution needed at runtime.
+PRACTICE mode: uses inline testCases and active reference-solution revision.
+DEFINITIVE mode: ordered test cases and complete object keys come from the
+active test-suite revision; no reference solution is needed at runtime.
 
 ## ExecutionResultService
 Responsibilities:
@@ -104,11 +138,17 @@ All keys follow ObjectKeyBuilder conventions.
 ## MailSenderService
 Responsibilities:
 - Send password recovery emails with reset links.
-- Send welcome emails with temporary credentials.
+- Queue welcome emails with temporary credentials on a bounded async executor so
+  user creation and CSV processing do not wait for SMTP.
+- Log welcome-email delivery failures without rolling back the created account;
+  users can recover access through the forgot-password flow.
 
 Configuration-driven fields:
 - frontend.url
 - spring.mail.username
+- app.email.welcome.core-pool-size (default 2)
+- app.email.welcome.max-pool-size (default 4)
+- app.email.welcome.queue-capacity (default 5000)
 
 ## Transaction and Error Patterns
 - Write operations use @Transactional.

@@ -26,6 +26,7 @@ import com.github.codehive.model.enums.Role;
 import com.github.codehive.model.response.auth.CsvProgressMessage;
 import com.github.codehive.model.response.auth.CsvProgressMessage.Status;
 import com.github.codehive.repository.UserRepository;
+import com.github.codehive.utils.EnrollmentNumberRules;
 import com.github.codehive.utils.PasswordGenerator;
 import com.github.codehive.websocket.CsvProgressWebSocketHandler;
 
@@ -36,9 +37,6 @@ public class CsvRegistrationService {
 
     private static final Pattern EMAIL_PATTERN = Pattern.compile(
             "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
-
-    private static final Pattern ENROLLMENT_PATTERN = Pattern.compile(
-            "^(199[4-9]|[2-9]\\d{3})630\\d{3}$");
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -58,7 +56,8 @@ public class CsvRegistrationService {
 
     public String submitCsvJob(byte[] csvData) {
         String taskId = UUID.randomUUID().toString();
-        webSocketHandler.queueTask(taskId, () -> selfProvider.getObject().processAsync(csvData, taskId));
+        // Run the import now on the async executor; the websocket is only a progress channel.
+        selfProvider.getObject().processAsync(csvData, taskId);
         return taskId;
     }
 
@@ -137,14 +136,19 @@ public class CsvRegistrationService {
         } catch (IllegalArgumentException e) {
             return "Row " + rowNumber + ": Invalid role '" + roleStr + "'. Must be STUDENT, TEACHER, or ADMIN";
         }
+        if (role == Role.ADMIN) {
+            return "Row " + rowNumber + ": Admin accounts cannot be created through CSV signup";
+        }
 
         List<String> rowErrors = new ArrayList<>();
         if (name.isEmpty()) rowErrors.add("name is empty");
         if (fatherLastName.isEmpty()) rowErrors.add("father last name is empty");
         if (motherLastName.isEmpty()) rowErrors.add("mother last name is empty");
         if (enrollmentNumber.isEmpty()) rowErrors.add("enrollment number is empty");
-        if (!enrollmentNumber.isEmpty() && !ENROLLMENT_PATTERN.matcher(enrollmentNumber).matches())
-            rowErrors.add("enrollment number is invalid (must be 10 digits: year >=1994, then 630, then 3 digits)");
+        String enrollmentError = EnrollmentNumberRules.error(role, enrollmentNumber);
+        if (!enrollmentNumber.isEmpty() && enrollmentError != null) {
+            rowErrors.add(enrollmentError);
+        }
         if (email.isEmpty()) rowErrors.add("email is empty");
         if (!email.isEmpty() && !EMAIL_PATTERN.matcher(email).matches()) rowErrors.add("email is invalid");
 
@@ -153,17 +157,17 @@ public class CsvRegistrationService {
         }
 
         if (!csvEmails.add(email)) {
-            return "Row " + rowNumber + ": Duplicate email '" + email + "' in CSV";
+            return "Row " + rowNumber + ": Duplicate email in CSV";
         }
         if (!csvEnrollments.add(enrollmentNumber)) {
-            return "Row " + rowNumber + ": Duplicate enrollment number '" + enrollmentNumber + "' in CSV";
+            return "Row " + rowNumber + ": Duplicate enrollment number in CSV";
         }
 
         if (userRepository.findByEmail(email).isPresent()) {
-            return "Row " + rowNumber + ": Email '" + email + "' is already registered";
+            return "Row " + rowNumber + ": Email is already registered";
         }
         if (userRepository.findByEnrollmentNumber(enrollmentNumber).isPresent()) {
-            return "Row " + rowNumber + ": Enrollment number '" + enrollmentNumber + "' is already registered";
+            return "Row " + rowNumber + ": Enrollment number is already registered";
         }
 
         String rawPassword = PasswordGenerator.generate();
