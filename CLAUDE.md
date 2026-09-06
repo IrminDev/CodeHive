@@ -64,9 +64,9 @@ Each language executor (`sandbox/java`, `sandbox/python`, `sandbox/c`, `sandbox/
 Security posture applied to all containers:
 - `nobody` user, no Linux capabilities (`CAP_ALL` dropped)
 - Read-only root fs, tmpfs at `/tmp` and `/run`
-- PID limit (64 JVM/Python, 32 C/C++)
+- PID limit (16 JVM/Python, 8 C/C++)
 - Custom seccomp profile blocking ptrace, bpf, io_uring, clone+NEWUSER
-- fsize ulimit, stdout+stderr cap at 4 MB (→ OLE verdict)
+- fsize ulimit, stdout+stderr cap at 8 MB (→ OLE verdict)
 - Memory limit exceeded detected via exit code 137 (SIGKILL)
 
 Verdicts: `AC`, `WA`, `CE`, `TLE`, `MLE`, `OLE`, `RTE`, `PENDING`. Priority when multiple failures: `CE > TLE > MLE > RTE > WA`.
