@@ -504,7 +504,7 @@ public class AssignmentUpdateService {
             throw new ValidationException("Memory limit must be between 16 and 1000MB");
         }
         if (replacementTestCases == null || replacementTestCases.isEmpty()) return;
-        int total = replacementTestCases.size();
+        long total = replacementTestCases.size();
         if (request.getTestSuiteUpdateMode() == null
                 || request.getTestSuiteUpdateMode() == TestSuiteUpdateMode.APPEND) {
             TestSuiteRevision active = assignment.getActiveTestSuiteRevision();
