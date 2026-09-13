@@ -15,7 +15,18 @@
 - `/teacher/analytics` — group overview, assignment details, and student metrics.
 - `/teacher/notifications` — authenticated email notification preferences.
 
-All routes use `ProtectedRoute` with `Role.TEACHER`.
+Management routes use `GroupManagementRoute`, which admits teachers and students holding
+`CREATE_GROUP` (`canManageGroups` in `app/shared/lib/group-management.ts`), mirroring the
+backend rule that group owners manage their groups regardless of role. `/teacher/notifications`
+stays `Role.TEACHER` only, because notification catalogs are role-specific.
+
+## Student Group Owners
+
+A student with `CREATE_GROUP` reaches this workspace from **Manage groups** in the student
+sidebar. `GET /api/groups` returns that student's owned and enrolled groups together, so teacher
+group lists (`listTeacherGroups`, `getActiveTeacherGroups`) keep only groups whose `ownerId`
+matches the signed-in user. For student users, `TeacherShell` links its notification bell to
+`/notifications` and adds a **Student area** link back to `/dashboard`.
 
 ## Application Shell
 

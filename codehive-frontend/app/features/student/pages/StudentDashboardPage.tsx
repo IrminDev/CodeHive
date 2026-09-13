@@ -14,6 +14,7 @@ import type { ClassGroup } from "../types/group.types";
 import type { GroupSubmission } from "../types/group-submission.types";
 import type { RecentSubmission, SubmissionResultStatus } from "../types/submission.types";
 import { assignmentProgress, type AssignmentProgress } from "../utils/assignment-progress";
+import { splitGroupsByOwnership } from "../utils/group-membership";
 
 const LANG_ABBR: Record<Language, string> = {
   PYTHON: "PY",
@@ -90,7 +91,7 @@ export function StudentDashboardPage() {
     setLoadingSubmissions(true);
     setAssignmentError(null);
     try {
-      const groupItems = (await listMyGroups()).filter((group) => group.isActive && !group.archived);
+      const groupItems = splitGroupsByOwnership(await listMyGroups(), user?.id).enrolled.filter((group) => group.isActive && !group.archived);
       setGroups(groupItems);
       const [assignmentResult, submissionResult] = await Promise.allSettled([
         listMyAssignmentOverviews(),
@@ -113,7 +114,7 @@ export function StudentDashboardPage() {
       setLoadingAssignments(false);
       setLoadingSubmissions(false);
     }
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => { void loadDashboard(); }, [loadDashboard]);
 

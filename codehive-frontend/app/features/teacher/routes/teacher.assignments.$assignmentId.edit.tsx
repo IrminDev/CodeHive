@@ -1,6 +1,5 @@
 import type { Route } from "./+types/teacher.assignments.$assignmentId.edit";
-import { ProtectedRoute } from "~/core/components/ProtectedRoute";
-import { Role } from "~/shared/types/model/User";
+import { GroupManagementRoute } from "../components/GroupManagementRoute";
 import { EditAssignmentPage } from "../pages/EditAssignmentPage";
 
 export function meta({}: Route.MetaArgs) {
@@ -11,5 +10,5 @@ export function meta({}: Route.MetaArgs) {
 }
 
 export default function TeacherEditAssignment() {
-  return <ProtectedRoute roles={[Role.TEACHER]}><EditAssignmentPage /></ProtectedRoute>;
+  return <GroupManagementRoute><EditAssignmentPage /></GroupManagementRoute>;
 }

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Plus } from "lucide-react";
 import { Link, useSearchParams } from "react-router";
 import { sileo } from "sileo";
+import { useAuth } from "~/core/providers/AuthProvider";
 
 import {
   deleteAssignment,
@@ -38,6 +39,7 @@ const PAGE_SIZE = 20;
 const VALIDATION_REFRESH_INTERVAL_MS = 5_000;
 
 export function TeacherAssignmentsPage() {
+  const ownerId = useAuth().user?.id ?? "";
   const [params, setParams] = useSearchParams();
   const [groups, setGroups] = useState<TeacherGroup[]>([]);
   const [result, setResult] = useState<AssignmentPage | null>(null);
@@ -78,7 +80,7 @@ export function TeacherAssignmentsPage() {
     setGroupsLoading(true);
     setGroupsError(null);
     try {
-      const items = await listTeacherGroups(true);
+      const items = await listTeacherGroups(ownerId, true);
       setGroups(items);
       setParams((current) => {
         const currentId = current.get("groupId");
@@ -97,7 +99,7 @@ export function TeacherAssignmentsPage() {
     } finally {
       setGroupsLoading(false);
     }
-  }, [setParams]);
+  }, [ownerId, setParams]);
 
   useEffect(() => { void loadGroups(); }, [loadGroups]);
 

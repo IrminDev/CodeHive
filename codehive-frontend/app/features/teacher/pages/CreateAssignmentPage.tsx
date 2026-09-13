@@ -7,6 +7,7 @@ import { CodeEditor } from "~/shared/components/CodeEditor";
 import { CalendarInput } from "~/shared/components/ui/CalendarInput";
 import { Dropdown } from "~/shared/components/ui/Dropdown";
 import { sileo } from "sileo";
+import { useAuth } from "~/core/providers/AuthProvider";
 import { createAssignment, getActiveTeacherGroups } from "../api/assignment.api";
 import type { AssignmentExample, Language, ComparatorType, TeacherGroup } from "../api/assignment.api";
 import { TeacherShell } from "../components/TeacherShell";
@@ -210,6 +211,7 @@ function UploadZone({ file, onFile, accept, hint }: {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export function CreateAssignmentPage() {
+  const ownerId = useAuth().user?.id ?? "";
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -253,7 +255,7 @@ export function CreateAssignmentPage() {
 
   useEffect(() => {
     let cancelled = false;
-    void getActiveTeacherGroups()
+    void getActiveTeacherGroups(ownerId)
       .then((items) => {
         if (cancelled) return;
         setGroups(items);
@@ -271,7 +273,7 @@ export function CreateAssignmentPage() {
         if (!cancelled) setGroupsLoading(false);
       });
     return () => { cancelled = true; };
-  }, [searchParams]);
+  }, [ownerId, searchParams]);
 
   // ── Tag helpers ──
   function addTag() {

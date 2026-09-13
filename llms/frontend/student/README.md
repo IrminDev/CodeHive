@@ -33,11 +33,23 @@ withdrawn submission history is not treated as a delivery.
 
 `StudentHeader` and `StudentSidebar` keep dashboard and group pages visually and
 functionally aligned. Group navigation points to `/groups`; `/groups/join` is used
-only for explicit join actions.
+only for explicit join actions. Students holding `CREATE_GROUP` also get **Manage groups**,
+which opens the shared group-management workspace at `/teacher/groups`.
 
 Students can leave a group from its detail page after confirmation. The page posts to
 `POST /api/groups/{id}/leave`, returns to My groups on success, and explains that a
 future join with the code restores historical enrollment.
+
+## Owned and Enrolled Groups
+
+`GET /api/groups` returns a student's enrolled groups and, when the student holds
+`CREATE_GROUP`, the groups they own. `splitGroupsByOwnership` separates both sets by `ownerId`:
+
+- My groups, the dashboard group panel, and the join page list only enrolled groups.
+- My groups adds **Groups you manage** for students with `CREATE_GROUP`, linking each owned group
+  to `/teacher/groups/{id}` and `/teacher/analytics?groupId={id}`, plus group creation.
+- Opening `/groups/{id}` for an owned group redirects to its management page, so student-only
+  actions such as Progress and Leave class never target a group the student owns.
 
 ## Group Metrics
 

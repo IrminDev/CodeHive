@@ -12,8 +12,9 @@ export function createGroup(payload: CreateGroupPayload): Promise<TeacherGroup> 
   return teacherRequest<TeacherGroup>("/api/groups", { method: "POST", ...jsonRequest(payload) });
 }
 
-export function listTeacherGroups(_includeDeleted = false): Promise<TeacherGroup[]> {
-  return teacherRequest<TeacherGroup[]>("/api/groups");
+export async function listTeacherGroups(ownerId: string, _includeDeleted = false): Promise<TeacherGroup[]> {
+  const groups = await teacherRequest<TeacherGroup[]>("/api/groups");
+  return groups.filter((group) => group.ownerId === ownerId);
 }
 
 export function getTeacherGroup(groupId: string): Promise<TeacherGroup> {

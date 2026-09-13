@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router";
+import { useAuth } from "~/core/providers/AuthProvider";
 import {
   ArrowLeft,
   CalendarClock,
@@ -59,6 +60,7 @@ type StudentFilter = "all" | "to-grade" | "draft" | "returned" | "missing";
 type ReviewTab = "code" | "tests" | "history";
 
 export function TeacherGradesPage() {
+  const ownerId = useAuth().user?.id ?? "";
   const [params, setParams] = useSearchParams();
   const [groups, setGroups] = useState<TeacherGroup[]>([]);
   const [assignments, setAssignments] = useState<AssignmentMetrics[]>([]);
@@ -128,7 +130,7 @@ export function TeacherGradesPage() {
 
   useEffect(() => {
     let cancelled = false;
-    void listTeacherGroups(false)
+    void listTeacherGroups(ownerId, false)
       .then((items) => {
         const active = items.filter((item) => item.isActive && !item.archived);
         if (!cancelled) {
@@ -148,7 +150,7 @@ export function TeacherGradesPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [ownerId]);
   const loadAssignments = useCallback(async () => {
     if (!groupId) return setAssignments([]);
     setLoading(true);

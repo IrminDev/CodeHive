@@ -80,7 +80,8 @@ Behavior details:
 
 ## Teacher Group API
 
-- Creates, lists, retrieves, and updates owned groups.
+- Creates, lists, retrieves, and updates owned groups. Group lists take the signed-in user id
+  and drop groups the user is only enrolled in.
 - Lists active roster entries and removes active students.
 - Archives, unarchives, logically deletes, restores, and rotates join codes.
 

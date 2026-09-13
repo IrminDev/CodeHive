@@ -13,6 +13,7 @@ import {
   X,
 } from "lucide-react";
 import { sileo } from "sileo";
+import { useAuth } from "~/core/providers/AuthProvider";
 
 import { CodeEditor } from "~/shared/components/CodeEditor";
 import { CalendarInput } from "~/shared/components/ui/CalendarInput";
@@ -96,6 +97,7 @@ function SectionHeading({ number, title, description, badge }: {
 }
 
 export function CloneAssignmentPage() {
+  const ownerId = useAuth().user?.id ?? "";
   const navigate = useNavigate();
   const { assignmentId = "" } = useParams<{ assignmentId: string }>();
   const [form, setForm] = useState<CloneAssignmentForm | null>(null);
@@ -116,7 +118,7 @@ export function CloneAssignmentPage() {
     let cancelled = false;
     void Promise.all([
       getCloneAssignmentForm(assignmentId),
-      getActiveTeacherGroups(),
+      getActiveTeacherGroups(ownerId),
     ])
       .then(([snapshot, activeGroups]) => {
         if (cancelled) return;
@@ -133,7 +135,7 @@ export function CloneAssignmentPage() {
         if (!cancelled) setLoading(false);
       });
     return () => { cancelled = true; };
-  }, [assignmentId]);
+  }, [assignmentId, ownerId]);
 
   function patch<K extends keyof CloneAssignmentForm>(key: K, value: CloneAssignmentForm[K]) {
     setForm((current) => current ? { ...current, [key]: value } : current);

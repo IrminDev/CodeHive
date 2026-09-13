@@ -139,9 +139,9 @@ export async function getTeacherAssignments(groupId: string): Promise<TeacherAss
   return (await getTeacherAssignmentPage(groupId, 0, 100)).content;
 }
 
-export async function getActiveTeacherGroups(): Promise<TeacherGroup[]> {
+export async function getActiveTeacherGroups(ownerId: string): Promise<TeacherGroup[]> {
   const groups = await teacherRequest<TeacherGroup[]>("/api/groups");
-  return groups.filter((group) => group.isActive && !group.archived);
+  return groups.filter((group) => group.ownerId === ownerId && group.isActive && !group.archived);
 }
 
 export function getCloneAssignmentForm(assignmentId: string): Promise<CloneAssignmentForm> {
