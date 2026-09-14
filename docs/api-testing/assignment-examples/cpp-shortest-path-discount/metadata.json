@@ -1,0 +1,45 @@
+{
+  "groupId": "00000000-0000-0000-0000-000000000001",
+  "title": "Shortest Path with One Discount",
+  "description": "You are given a directed weighted graph from city 1 to city N. You may apply one coupon to one edge, reducing its cost to floor(weight / 2). Find the minimum possible route cost. If city N is unreachable, print -1.",
+  "constraints": [
+    "2 <= N <= 200000 and 1 <= M <= 300000.",
+    "Each edge is directed and has an integer weight W where 1 <= W <= 1000000000.",
+    "Use the coupon at most once; applying it to an edge of weight 1 costs 0.",
+    "Use 64-bit integers for distances."
+  ],
+  "hints": [
+    "Treat each city as two states: coupon unused and coupon already used.",
+    "Run Dijkstra over the 2 * N states."
+  ],
+  "tags": [
+    "graphs",
+    "dijkstra",
+    "shortest path",
+    "dynamic programming"
+  ],
+  "timeLimitMs": 2000,
+  "memoryLimitMb": 256,
+  "comparatorType": "EXACT_MATCH",
+  "allowedLanguages": [
+    "CPP",
+    "JAVA",
+    "PYTHON",
+    "C"
+  ],
+  "referenceLanguage": "CPP",
+  "sampleFlags": [
+    true,
+    false,
+    false,
+    false
+  ],
+  "maxPoints": 100,
+  "examples": [
+    {
+      "input": "5 6\n1 2 5\n2 5 5\n1 3 2\n3 4 2\n4 5 8\n2 3 1",
+      "output": "7",
+      "explanation": "Use the coupon on edge 1 -> 2: floor(5 / 2) = 2. Route 1 -> 2 -> 5 then costs 2 + 5 = 7."
+    }
+  ]
+}

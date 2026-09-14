@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component;
 public class JavaExecutor extends AbstractLanguageExecutor {
     private static final String COMPILE_IMAGE = "eclipse-temurin:21-jdk-ubi10-minimal";
     private static final String EXEC_IMAGE = "irmindev/java-exec:latest";
-    private static final long PIDS_LIMIT = 64L;
+    private static final long PIDS_LIMIT = 16L;
 
     public JavaExecutor(DockerClient dockerClient) {
         super(dockerClient);
@@ -47,5 +47,11 @@ public class JavaExecutor extends AbstractLanguageExecutor {
     @Override
     protected String runCommand() {
         return "java Main";
+    }
+
+    @Override
+    protected boolean isMemoryLimitError(String stderr) {
+        return stderr != null && (stderr.contains("java.lang.OutOfMemoryError")
+                || stderr.contains("OutOfMemoryError:"));
     }
 }

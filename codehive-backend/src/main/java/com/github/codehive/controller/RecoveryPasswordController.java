@@ -18,12 +18,14 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/recovery-password")
 @Tag(name = "Password Recovery", description = "Password reset and recovery APIs")
+@SecurityRequirements
 public class RecoveryPasswordController {
     private final RecoveryPasswordService recoveryPasswordService;
 

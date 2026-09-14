@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component;
 public class CPPExecutor extends AbstractLanguageExecutor {
     private static final String COMPILE_IMAGE = "gcc:12";
     private static final String EXEC_IMAGE = "irmindev/cpp-exec:latest";
-    private static final long PIDS_LIMIT = 32L;
+    private static final long PIDS_LIMIT = 8L;
 
     public CPPExecutor(DockerClient dockerClient) {
         super(dockerClient);
@@ -47,5 +47,13 @@ public class CPPExecutor extends AbstractLanguageExecutor {
     @Override
     protected String runCommand() {
         return "./program";
+    }
+
+    @Override
+    protected boolean isMemoryLimitError(String stderr) {
+        if (stderr == null) return false;
+        String lower = stderr.toLowerCase();
+        return lower.contains("std::bad_alloc") || lower.contains("bad_alloc")
+                || lower.contains("cannot allocate memory");
     }
 }

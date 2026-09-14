@@ -22,26 +22,35 @@ Controller: codehive-backend/src/main/java/com/github/codehive/controller/AuthCo
 
 Service implementation: codehive-backend/src/main/java/com/github/codehive/service/AuthService.java
 
-## Registration Flow (Admin Only)
-1. Endpoint is protected with @PreAuthorize("hasAuthority('ADMIN')").
+## Registration Flow (Scoped Admin)
+1. The caller must have role `ADMIN`; creating students/teachers requires `CREATE_USERS`, while creating admins requires `CREATE_ADMINS`.
 2. Request is validated through SignUpRequest.
 3. Service checks duplicate email and enrollment number.
 4. Temporary password is generated and encoded.
 5. User is created with temporaryPassword=true and isActive=true.
-6. Welcome email is sent with temporary credentials.
+6. Welcome email is queued on the dedicated async email executor with temporary
+   credentials; SMTP latency does not delay the signup response.
 
 ## Bulk Registration Flow (CSV)
 1. Admin uploads CSV to /api/auth/signup/csv.
 2. Controller validates file and creates taskId.
 3. CsvRegistrationService.processAsync parses and validates rows.
 4. Progress is streamed through WebSocket channel /ws/csv-progress.
-5. Each valid row creates a user and sends welcome email.
+5. Each valid row creates a user and queues its welcome email without waiting for SMTP.
+
+Welcome-email failures are logged with the recipient address and do not roll back
+account creation. A user who did not receive the temporary credentials can use the
+forgot-password flow to establish a new password.
 
 Important validation rules:
 - Exactly 6 columns expected per row.
-- Role must be STUDENT, TEACHER, or ADMIN.
+- Role must be STUDENT or TEACHER; admin creation is intentionally unavailable through CSV.
 - Required fields cannot be empty.
 - Email format must be valid.
+- Student enrollment numbers must contain exactly 10 digits: a year of 1994 or later,
+  followed by `630`, followed by any three digits.
+- Teacher enrollment numbers may contain up to 10 letters, digits, hyphens, periods,
+  or underscores. The same staff rule applies to admins created through single signup.
 - Duplicate email/enrollment is blocked both in-file and in-database.
 
 ## Current User (/me)
@@ -84,5 +93,6 @@ User storage model:
 
 ## Notes for Future Changes
 - If role/permission model expands, update JWT claims and authorities mapping.
+- Scopes are loaded from the database for each request and do not need to be embedded in JWT claims.
 - Keep LoginRequest backward compatible because frontend and clients depend on identifier semantics.
 - Bulk CSV should remain async to avoid request timeouts.

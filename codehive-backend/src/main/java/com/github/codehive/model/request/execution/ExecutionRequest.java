@@ -18,6 +18,7 @@ public class ExecutionRequest {
     
     private UUID requesterId;
 
+    @NotNull(message = "Assignment ID is required")
     private UUID assignmentId;
     
     private List<String> testCases;

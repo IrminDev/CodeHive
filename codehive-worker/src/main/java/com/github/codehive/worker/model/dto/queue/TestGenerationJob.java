@@ -4,6 +4,8 @@ import java.util.List;
 import java.util.UUID;
 
 import com.github.codehive.worker.model.enums.Language;
+import com.github.codehive.worker.model.enums.ComparatorType;
+import com.github.codehive.worker.model.enums.TestGenerationMode;
 
 public class TestGenerationJob {
     private UUID assignmentId;
@@ -12,6 +14,11 @@ public class TestGenerationJob {
     private List<TestCaseInfo> testCases;
     private Long timeLimitMs;
     private Long memoryLimitMb;
+    private UUID assignmentUpdateId;
+    private UUID testSuiteRevisionId;
+    private UUID referenceSolutionRevisionId;
+    private TestGenerationMode mode = TestGenerationMode.TEST_SUITE_GENERATION;
+    private ComparatorType comparatorType;
 
     public TestGenerationJob() {
     }
@@ -63,4 +70,15 @@ public class TestGenerationJob {
     public void setMemoryLimitMb(Long memoryLimitMb) {
         this.memoryLimitMb = memoryLimitMb;
     }
+
+    public UUID getAssignmentUpdateId() { return assignmentUpdateId; }
+    public void setAssignmentUpdateId(UUID assignmentUpdateId) { this.assignmentUpdateId = assignmentUpdateId; }
+    public UUID getTestSuiteRevisionId() { return testSuiteRevisionId; }
+    public void setTestSuiteRevisionId(UUID testSuiteRevisionId) { this.testSuiteRevisionId = testSuiteRevisionId; }
+    public UUID getReferenceSolutionRevisionId() { return referenceSolutionRevisionId; }
+    public void setReferenceSolutionRevisionId(UUID referenceSolutionRevisionId) { this.referenceSolutionRevisionId = referenceSolutionRevisionId; }
+    public TestGenerationMode getMode() { return mode; }
+    public void setMode(TestGenerationMode mode) { this.mode = mode; }
+    public ComparatorType getComparatorType() { return comparatorType; }
+    public void setComparatorType(ComparatorType comparatorType) { this.comparatorType = comparatorType; }
 }

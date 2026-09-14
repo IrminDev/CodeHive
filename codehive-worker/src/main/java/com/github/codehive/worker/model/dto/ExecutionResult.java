@@ -8,6 +8,7 @@ public class ExecutionResult {
     private String errorOutput;
     private Long executionTimeMs;
     private Long memoryUsedMb;
+    private Long sessionPeakMemoryMb;
     private Integer exitCode;
     private String compilationError;
 
@@ -112,6 +113,14 @@ public class ExecutionResult {
 
     public void setMemoryUsedMb(Long memoryUsedMb) {
         this.memoryUsedMb = memoryUsedMb;
+    }
+
+    public Long getSessionPeakMemoryMb() {
+        return sessionPeakMemoryMb;
+    }
+
+    public void setSessionPeakMemoryMb(Long sessionPeakMemoryMb) {
+        this.sessionPeakMemoryMb = sessionPeakMemoryMb;
     }
 
     public Integer getExitCode() {

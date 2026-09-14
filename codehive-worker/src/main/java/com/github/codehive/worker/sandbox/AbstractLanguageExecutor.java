@@ -92,6 +92,11 @@ public abstract class AbstractLanguageExecutor implements LanguageExecutor {
         return null;
     }
 
+    /** Return true when a managed/native runtime reports allocation exhaustion. */
+    protected boolean isMemoryLimitError(String stderr) {
+        return false;
+    }
+
     // ── Constructor ──────────────────────────────────────────────────────
 
     protected AbstractLanguageExecutor(DockerClient dockerClient) {
@@ -145,7 +150,9 @@ public abstract class AbstractLanguageExecutor implements LanguageExecutor {
                 .withTmpFs(Map.of(
                         "/tmp", RUN_TMPFS_TMP,
                         "/run", RUN_TMPFS_RUN))
-                .withUlimits(new Ulimit[] { new Ulimit("fsize", RUN_ULIMIT_FSIZE, RUN_ULIMIT_FSIZE) })
+                .withUlimits(new Ulimit[] {
+                        new Ulimit("fsize", RUN_ULIMIT_FSIZE, RUN_ULIMIT_FSIZE),
+                        new Ulimit("nofile", RUN_ULIMIT_NOFILE, RUN_ULIMIT_NOFILE) })
                 .withSecurityOpts(buildSecurityOpts());
     }
 
@@ -166,7 +173,9 @@ public abstract class AbstractLanguageExecutor implements LanguageExecutor {
                 .withTmpFs(Map.of(
                         "/tmp", COMPILE_TMPFS_TMP,
                         "/run", COMPILE_TMPFS_RUN))
-                .withUlimits(new Ulimit[] { new Ulimit("fsize", COMPILE_ULIMIT_FSIZE, COMPILE_ULIMIT_FSIZE) })
+                .withUlimits(new Ulimit[] {
+                        new Ulimit("fsize", COMPILE_ULIMIT_FSIZE, COMPILE_ULIMIT_FSIZE),
+                        new Ulimit("nofile", COMPILE_ULIMIT_NOFILE, COMPILE_ULIMIT_NOFILE) })
                 .withSecurityOpts(buildSecurityOpts());
     }
 
@@ -261,6 +270,10 @@ public abstract class AbstractLanguageExecutor implements LanguageExecutor {
         timeLimitMs = timeLimitMs != null ? timeLimitMs : DEFAULT_TIME_LIMIT_MS;
         memoryLimitMb = memoryLimitMb != null ? memoryLimitMb : DEFAULT_MEMORY_LIMIT_MB;
 
+        // Clamp to hard bounds so a malformed/oversized job cannot exhaust the host.
+        timeLimitMs = clamp(timeLimitMs, MIN_TIME_LIMIT_MS, MAX_TIME_LIMIT_MS);
+        memoryLimitMb = clamp(memoryLimitMb, MIN_MEMORY_LIMIT_MB, MAX_MEMORY_LIMIT_MB);
+
         Path tempDir = Files.createTempDirectory(tempDirPrefix());
         Files.setPosixFilePermissions(tempDir, PosixFilePermissions.fromString("rwxrwxrwx"));
 
@@ -327,8 +340,12 @@ public abstract class AbstractLanguageExecutor implements LanguageExecutor {
         boolean[] truncated = { false };
 
         long startTime = System.currentTimeMillis();
+        ContainerMemoryTracker memoryTracker = ContainerMemoryTracker.start(
+                dockerClient, session.getContainerId());
+        ContainerMemoryTracker.MemoryMeasurement memoryMeasurement;
 
-        dockerClient.execStartCmd(execId)
+        try {
+            dockerClient.execStartCmd(execId)
                 .exec(new ResultCallback.Adapter<Frame>() {
                     @Override
                     public void onNext(Frame frame) {
@@ -357,6 +374,9 @@ public abstract class AbstractLanguageExecutor implements LanguageExecutor {
                     }
                 })
                 .awaitCompletion(session.getTimeLimitMs() + 5000, TimeUnit.MILLISECONDS);
+        } finally {
+            memoryMeasurement = memoryTracker.stop();
+        }
 
         long executionTime = System.currentTimeMillis() - startTime;
 
@@ -367,25 +387,28 @@ public abstract class AbstractLanguageExecutor implements LanguageExecutor {
         String stdout = stdoutBaos.toString(StandardCharsets.UTF_8);
         String stderr = stderrBaos.toString(StandardCharsets.UTF_8);
 
-        cleanupBetweenRuns(session);
-
+        ExecutionResult result;
         if (truncated[0]) {
-            return ExecutionResult.outputLimitExceeded(
-                    stdout + "\n[Output truncated: exceeded 4 MB limit]", executionTime);
-        }
-        if (exitCode == 124L) {
-            return ExecutionResult.timeLimitExceeded(session.getTimeLimitMs());
-        }
-        if (exitCode == 137L) {
-            return ExecutionResult.memoryLimitExceeded(session.getMemoryLimitMb());
-        }
-        if (exitCode != 0) {
+            result = ExecutionResult.outputLimitExceeded(
+                    stdout + "\n[Output truncated: exceeded 8 MB limit]", executionTime);
+        } else if (exitCode == 124L) {
+            result = ExecutionResult.timeLimitExceeded(session.getTimeLimitMs());
+        } else if (exitCode == 137L || memoryMeasurement.oomDetected()
+                || (exitCode != 0 && isMemoryLimitError(stderr))) {
+            result = ExecutionResult.memoryLimitExceeded(memoryMeasurement.testPeakMemoryMb());
+        } else if (exitCode != 0) {
             ExecutionResult special = classifyNonZeroExit(exitCode, stdout, stderr, executionTime);
-            if (special != null)
-                return special;
-            return ExecutionResult.runtimeError(stderr, exitCode.intValue(), executionTime);
+            result = special != null
+                    ? special
+                    : ExecutionResult.runtimeError(stderr, exitCode.intValue(), executionTime);
+        } else {
+            result = ExecutionResult.success(stdout, executionTime,
+                    memoryMeasurement.testPeakMemoryMb());
         }
-        return ExecutionResult.success(stdout, executionTime, 0L);
+
+        enrichExecutionResult(result, memoryMeasurement, stdout, stderr, exitCode, executionTime);
+        cleanupBetweenRuns(session);
+        return result;
     }
 
     // ── cleanup() ────────────────────────────────────────────────────────
@@ -424,6 +447,22 @@ public abstract class AbstractLanguageExecutor implements LanguageExecutor {
                     .awaitCompletion(3, TimeUnit.SECONDS);
         } catch (Exception e) {
             logger.warn("Failed to clean /tmp between runs", e);
+        }
+    }
+
+    private void enrichExecutionResult(ExecutionResult result,
+                                       ContainerMemoryTracker.MemoryMeasurement memory,
+                                       String stdout, String stderr, Long exitCode, long executionTime) {
+        // Preserve stdout from failed runs for PRACTICE result diagnostics. Do not
+        // replace the explicit OLE truncation marker created above.
+        if (result.getOutput() == null) result.setOutput(stdout);
+        if (result.getMemoryUsedMb() == null) result.setMemoryUsedMb(memory.testPeakMemoryMb());
+        result.setSessionPeakMemoryMb(memory.sessionPeakMemoryMb());
+        if (result.getExecutionTimeMs() == null) result.setExecutionTimeMs(executionTime);
+        if (result.getExitCode() == null && exitCode != null) result.setExitCode(exitCode.intValue());
+        if (result.getStatus() != com.github.codehive.worker.model.enums.ExecutionStatus.AC
+                && result.getErrorOutput() == null && stderr != null && !stderr.isBlank()) {
+            result.setErrorOutput(stderr);
         }
     }
 

@@ -33,13 +33,13 @@ public class ExecutionRequestListener {
         logger.info("[WORKFLOW] Execution Type: {}", job.getExecutionType());
         logger.info("[WORKFLOW] Source Path: {}", job.getSource());
         logger.info("[WORKFLOW] Reference Path: {}", job.getReference());
-        logger.info("[WORKFLOW] Output Path: {}", job.getOutputPath());
-        logger.info("[WORKFLOW] Tests Path: {}", job.getTestsPath());
-        logger.info("[WORKFLOW] Num Tests: {}", job.getNumTests());
+        logger.info("[WORKFLOW] Report Path: {}", job.getReportPath());
+        logger.info("[WORKFLOW] Test Suite Revision: {}", job.getTestSuiteRevisionId());
+        logger.info("[WORKFLOW] Trigger: {}", job.getTrigger());
         logger.info("[WORKFLOW] Time Limit (ms): {}", job.getTimeLimitMs());
         logger.info("[WORKFLOW] Memory Limit (MB): {}", job.getMemoryLimitMb());
         logger.info("[WORKFLOW] Comparator Type: {}", job.getComparatorType());
-        logger.info("[WORKFLOW] Test Cases: {}", job.getTestCases() != null ? job.getTestCases().size() + " inline tests" : "null");
+        logger.info("[WORKFLOW] Test Cases: {}", job.getTestCases() != null ? job.getTestCases().size() : 0);
         logger.info("[WORKFLOW] =============================");
         
         try {

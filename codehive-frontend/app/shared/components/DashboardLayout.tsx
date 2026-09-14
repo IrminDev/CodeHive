@@ -3,6 +3,7 @@ import { Link, useLocation } from "react-router";
 import { X } from "lucide-react";
 
 import { AppHeader } from "./AppHeader";
+import { TeacherShell, type TeacherNavigation } from "~/features/teacher/components/TeacherShell";
 
 export interface DashboardNavLink {
   label: string;
@@ -27,6 +28,22 @@ export function DashboardLayout({ children, navLinks, sidebarItems, logoLinkTo }
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const location = useLocation();
   const currentLocation = `${location.pathname}${location.hash}`;
+
+  if (logoLinkTo === "/teacher") {
+    const active: TeacherNavigation = location.pathname.startsWith("/teacher/assignments") || location.pathname === "/teacher/create-assignment"
+      ? "assignments"
+      : location.pathname.startsWith("/teacher/groups")
+        ? "groups"
+        : location.pathname.startsWith("/teacher/grades")
+          ? "grades"
+          : location.pathname.startsWith("/teacher/analytics")
+            ? "analytics"
+            : location.pathname.startsWith("/teacher/notifications")
+              ? "notifications"
+              : "dashboard";
+    const label = active === "dashboard" ? "Dashboard" : active.charAt(0).toUpperCase() + active.slice(1);
+    return <TeacherShell active={active} breadcrumbs={[{ label: "Teacher", to: "/teacher" }, { label }]}>{children}</TeacherShell>;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-dark-bg text-gray-900 dark:text-white flex flex-col font-sans transition-colors duration-200">

@@ -16,8 +16,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.UUID;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -26,6 +24,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.core.Authentication;
 
 /**
  * Controller for code execution endpoints.
@@ -38,11 +37,6 @@ import org.springframework.web.bind.annotation.RestController;
     description = "Code execution and result checking APIs"
 )
 public class CheckExecutionController {
-
-    private static final Logger logger = LoggerFactory.getLogger(
-        CheckExecutionController.class
-    );
-
     private final ExecutionRequestService executionRequestService;
 
     public CheckExecutionController(
@@ -81,16 +75,17 @@ public class CheckExecutionController {
         }
     )
     @RateLimit(
-        limit = 10,
+        limit = 5,
         duration = 60,
         message = "Too many execution requests. Please try again in 1 minute."
     )
     @PostMapping("/check")
     public ResponseEntity<SuccessResponse<ExecutionDTO>> submitExecution(
-        @Valid @RequestBody ExecutionRequest request
+        @Valid @RequestBody ExecutionRequest request,
+        Authentication authentication
     ) {
         ExecutionDTO execution = executionRequestService.requestExecution(
-            request
+            request, authentication.getName()
         );
 
         SuccessResponse<ExecutionDTO> response = new SuccessResponse<>(
@@ -128,8 +123,9 @@ public class CheckExecutionController {
             description = "Execution ID",
             required = true
         ) @PathVariable UUID id
+        , Authentication authentication
     ) {
-        ExecutionDTO execution = executionRequestService.getExecutionById(id);
+        ExecutionDTO execution = executionRequestService.getExecutionById(id, authentication.getName());
         SuccessResponse<ExecutionDTO> response = new SuccessResponse<>(
             "Execution retrieved successfully",
             execution
@@ -157,6 +153,13 @@ public class CheckExecutionController {
                     schema = @Schema(implementation = ErrorResponse.class)
                 )
             ),
+            @ApiResponse(
+                responseCode = "410",
+                description = "Execution report artifacts expired",
+                content = @Content(
+                    schema = @Schema(implementation = ErrorResponse.class)
+                )
+            ),
         }
     )
     @GetMapping("/check/{id}/report")
@@ -165,8 +168,9 @@ public class CheckExecutionController {
             description = "Execution ID",
             required = true
         ) @PathVariable UUID id
+        , Authentication authentication
     ) {
-        ExecutionReport report = executionRequestService.getExecutionReport(id);
+        ExecutionReport report = executionRequestService.getExecutionReport(id, authentication.getName());
         SuccessResponse<ExecutionReport> response = new SuccessResponse<>(
             "Execution report retrieved successfully",
             report

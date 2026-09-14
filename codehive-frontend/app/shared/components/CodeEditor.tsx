@@ -7,7 +7,6 @@ function defineThemes(monaco: Monaco) {
     base: "vs-dark",
     inherit: true,
     rules: [
-      { token: "keyword", foreground: "FDC500", fontStyle: "bold" },
       { token: "string", foreground: "a5d6ff" },
       { token: "number", foreground: "79c0ff" },
       { token: "comment", foreground: "8b949e", fontStyle: "italic" },
@@ -17,14 +16,14 @@ function defineThemes(monaco: Monaco) {
       { token: "operator", foreground: "ff7b72" },
     ],
     colors: {
-      "editor.background": "#0a0f1a",
+      "editor.background": "#0d1525",
       "editor.foreground": "#e6edf3",
       "editor.lineHighlightBackground": "#1a2234",
       "editor.selectionBackground": "#00509D40",
       "editor.inactiveSelectionBackground": "#00509D20",
       "editorLineNumber.foreground": "#3d4b62",
       "editorLineNumber.activeForeground": "#FDC500",
-      "editorGutter.background": "#0d1420",
+      "editorGutter.background": "#0d1525",
       "editorCursor.foreground": "#FDC500",
       "editorIndentGuide.background1": "#1a2234",
       "editorIndentGuide.activeBackground1": "#00509D40",
@@ -74,6 +73,7 @@ interface CodeEditorProps {
   language: string;
   height?: string | number;
   readOnly?: boolean;
+  forceDark?: boolean;
   options?: editor.IStandaloneEditorConstructionOptions;
 }
 
@@ -83,10 +83,12 @@ export function CodeEditor({
   language,
   height = "100%",
   readOnly = false,
+  forceDark = false,
   options,
 }: CodeEditorProps) {
   const { theme } = useTheme();
-  const monacoTheme = theme === "dark" ? "codehive-dark" : "codehive-light";
+  const resolvedTheme = forceDark ? "dark" : theme;
+  const monacoTheme = resolvedTheme === "dark" ? "codehive-dark" : "codehive-light";
 
   return (
     <Editor

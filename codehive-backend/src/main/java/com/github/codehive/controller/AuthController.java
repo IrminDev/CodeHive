@@ -30,6 +30,7 @@ import com.github.codehive.service.AuthService;
 import com.github.codehive.service.CsvRegistrationService;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -64,10 +65,13 @@ public class AuthController {
     }
 
     @Operation(summary = "User login", description = "Authenticate user with email and password")
+    @SecurityRequirements
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Login successful",
                     content = @Content(schema = @Schema(implementation = SuccessResponse.class))),
             @ApiResponse(responseCode = "401", description = "Invalid credentials",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "403", description = "User account is blocked",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @ApiResponse(responseCode = "400", description = "Validation error",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
@@ -82,11 +86,12 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
-    @Operation(summary = "Register a new user (Admin only)", description = "Register a new user account. Only admins can perform this action. A temporary password will be generated and sent via email.")
+    @Operation(summary = "Register a new user", description = "Creates an account with a temporary password. " +
+            "Creating students or teachers requires CREATE_USERS; creating admins requires CREATE_ADMINS.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Registration successful",
                     content = @Content(schema = @Schema(implementation = SuccessResponse.class))),
-            @ApiResponse(responseCode = "403", description = "Access denied - Admin role required",
+            @ApiResponse(responseCode = "403", description = "Access denied - required admin scope missing",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @ApiResponse(responseCode = "409", description = "Email or enrollment number already exists",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
@@ -95,16 +100,18 @@ public class AuthController {
             @ApiResponse(responseCode = "429", description = "Too many requests",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN') and hasAnyAuthority('CREATE_USERS', 'CREATE_ADMINS')")
     @RateLimit(limit = 3, duration = 300, message = "Too many registration attempts. Please try again in 5 minutes.")
     @PostMapping("/signup")
-    public ResponseEntity<SuccessResponse<UserDTO>> signup(@Valid @RequestBody SignUpRequest signUpRequest) {
-        UserDTO userDTO = authService.register(signUpRequest);
+    public ResponseEntity<SuccessResponse<UserDTO>> signup(@Valid @RequestBody SignUpRequest signUpRequest,
+                                                            Authentication authentication) {
+        UserDTO userDTO = authService.registerAuthorized(signUpRequest, authentication.getName());
         SuccessResponse<UserDTO> response = new SuccessResponse<>("Registration successful", userDTO);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    @Operation(summary = "Bulk register users from CSV (Admin only)", description = "Upload a CSV file to register multiple users. CSV columns: role (STUDENT/TEACHER/ADMIN), name, father last name, mother last name, enrollment number, email. Returns a taskId to track progress via a plain WebSocket at /ws/csv-progress; after connecting, send the taskId as a message to receive progress updates.")
+    @Operation(summary = "Bulk register users from CSV", description = "Uploads students and teachers in CSV columns: role, name, father last name, mother last name, enrollment number, email. " +
+            "Requires CREATE_USERS; ADMIN rows are rejected. Returns a taskId tracked through /ws/csv-progress.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "202", description = "CSV processing started",
                     content = @Content(schema = @Schema(implementation = SuccessResponse.class))),
@@ -113,7 +120,7 @@ public class AuthController {
             @ApiResponse(responseCode = "400", description = "Invalid CSV file",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN') and hasAuthority('CREATE_USERS')")
     @PostMapping(value = "/signup/csv", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<SuccessResponse<Map<String, String>>> signupFromCsv(
             @RequestParam("file") MultipartFile file) throws IOException {
@@ -131,8 +138,10 @@ public class AuthController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Password updated successfully"),
             @ApiResponse(responseCode = "400", description = "Validation error"),
-            @ApiResponse(responseCode = "401", description = "Invalid current password or token")
+            @ApiResponse(responseCode = "401", description = "Invalid current password or token"),
+            @ApiResponse(responseCode = "429", description = "Too many requests")
     })
+    @RateLimit(limit = 5, duration = 300, message = "Too many password change attempts. Please try again in 5 minutes.")
     @PutMapping("/me/password")
     public ResponseEntity<SuccessResponse<Void>> updatePassword(
             Authentication authentication,

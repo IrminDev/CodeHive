@@ -3,39 +3,65 @@ package com.github.codehive.utils;
 import java.util.UUID;
 
 public class ObjectKeyBuilder {
-    public static String testCaseInput(UUID assignmentId, UUID testCaseId) {
-        return String.format("test-suites/assignments/%s/tc-%s/tc%s.in", assignmentId, testCaseId, testCaseId);
+    private ObjectKeyBuilder() {
     }
 
-    public static String testCaseOutput(UUID assignmentId, UUID testCaseId) {
-        return String.format("test-suites/assignments/%s/tc-%s/tc%s.out", assignmentId, testCaseId, testCaseId);
+    public static String testSuitePath(UUID assignmentId, UUID revisionId) {
+        return String.format("assignments/%s/test-suite-revisions/%s/", assignmentId, revisionId);
     }
 
-    public static String testsPath(UUID assignmentId) {
-        return String.format("test-suites/assignments/%s/", assignmentId);
+    public static String testCaseInput(UUID assignmentId, UUID revisionId, UUID testCaseId) {
+        return testSuitePath(assignmentId, revisionId)
+                + String.format("test-cases/%s/input.in", testCaseId);
+    }
+
+    public static String testCaseExpectedOutput(UUID assignmentId, UUID revisionId, UUID testCaseId) {
+        return testSuitePath(assignmentId, revisionId)
+                + String.format("test-cases/%s/expected.out", testCaseId);
     }
 
     public static String submissionSourceCode(UUID assignmentId, UUID submissionId, String fileExtension) {
-        return String.format("submissions/assignments/%s/submission-%s/Main.%s", assignmentId, submissionId, fileExtension);
+        return String.format("assignments/%s/submissions/%s/source/Main.%s",
+                assignmentId, submissionId, fileExtension);
     }
 
-    public static String executionOutput(UUID submissionId, UUID executionId, String fileExtension) {
-        return String.format("executions/assignments/%s/execution-%s/output.%s", submissionId, executionId, fileExtension);
+    public static String referenceSolutionSourceCode(UUID assignmentId, UUID revisionId, String fileExtension) {
+        return testSuitePath(assignmentId, revisionId)
+                + String.format("reference/Main.%s", fileExtension);
     }
 
-    public static String referenceSolutionSourceCode(UUID assignmentId, String fileExtension) {
-        return String.format("test-suites/assignments/%s/reference/Main.%s", assignmentId, fileExtension);
-    }
-
-    public static String executionTestCaseOutput(UUID executionId) {
-        return String.format("test-execution/execution-%s/output/", executionId);
-    }
-
-    public static String executionSourceCode(UUID executionId, String fileExtension) {
-        return String.format("test-execution/execution-%s/source.%s", executionId, fileExtension);
+    public static String referenceValidationOutput(UUID assignmentId, UUID updateId, UUID testCaseId) {
+        return String.format("assignment-update-validations/%s/%s/test-cases/%s/candidate.out",
+                assignmentId, updateId, testCaseId);
     }
 
     public static String executionReport(UUID executionId) {
-        return String.format("test-execution/execution-%s/output/report.json", executionId);
+        return String.format("executions/%s/report.json", executionId);
+    }
+
+    public static String executionTestCaseStdout(UUID executionId, UUID testCaseId) {
+        return String.format("executions/%s/test-cases/%s/stdout.txt", executionId, testCaseId);
+    }
+
+    public static String executionTestCaseStderr(UUID executionId, UUID testCaseId) {
+        return String.format("executions/%s/test-cases/%s/stderr.txt", executionId, testCaseId);
+    }
+
+    public static String practiceExecutionSourceCode(UUID executionId, String fileExtension) {
+        return String.format("practice-executions/%s/source/Main.%s", executionId, fileExtension);
+    }
+
+    public static String practiceExecutionReport(UUID executionId) {
+        return String.format("practice-executions/%s/report.json", executionId);
+    }
+
+    public static String practiceExecutionTestCaseStdout(UUID executionId, int testCaseNumber) {
+        return String.format("practice-executions/%s/test-cases/%d/stdout.txt",
+                executionId, testCaseNumber);
+    }
+
+    public static String practiceExecutionTestCaseStderr(UUID executionId, int testCaseNumber) {
+        return String.format("practice-executions/%s/test-cases/%d/stderr.txt",
+                executionId, testCaseNumber);
     }
 }

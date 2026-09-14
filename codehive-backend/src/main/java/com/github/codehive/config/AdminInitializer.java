@@ -20,10 +20,10 @@ public class AdminInitializer implements CommandLineRunner {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
-    @Value("${app.admin.email:admin@codehive.com}")
+    @Value("${app.admin.email:}")
     private String adminEmail;
 
-    @Value("${app.admin.password:Admin@12345}")
+    @Value("${app.admin.password:}")
     private String adminPassword;
 
     @Value("${app.admin.name:Super}")
@@ -42,6 +42,10 @@ public class AdminInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
+        if (adminEmail == null || adminEmail.isBlank() || adminPassword == null || adminPassword.isBlank()) {
+            throw new IllegalStateException(
+                    "Set ADMIN_EMAIL and ADMIN_PASSWORD to bootstrap the initial super admin");
+        }
         if (userRepository.findByEmail(adminEmail).isPresent()) {
             logger.info("Super admin already exists: {}", adminEmail);
             return;
@@ -50,12 +54,8 @@ public class AdminInitializer implements CommandLineRunner {
         User admin = new User(adminName, adminLastName, adminEnrollmentNumber, adminEmail,
                 passwordEncoder.encode(adminPassword), Role.ADMIN);
         admin.addScope(Scope.SUPER_ADMIN);
-        admin.addScope(Scope.MANAGE_USERS);
-        admin.addScope(Scope.MANAGE_GROUPS);
-        admin.addScope(Scope.CHECK_ANALYTICS);
-        admin.addScope(Scope.CREATE_GROUP);
 
         userRepository.save(admin);
-        logger.info("Default super admin created: {}", adminEmail);
+        logger.info("Super admin created: {}", adminEmail);
     }
 }

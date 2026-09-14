@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<body style="margin:0;background:#f3f6fb;font-family:Inter,Arial,sans-serif;color:#111827;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="padding:32px 12px;"><tr><td align="center">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:600px;background:#fff;border-radius:24px;overflow:hidden;border:1px solid #dbe4f0;">
+    <tr><td style="padding:34px 36px;background:#00296B;background-image:linear-gradient(135deg,#00509D,#003F88,#00296B);color:#fff;">
+      <div style="font-size:26px;font-weight:800;">Code<span style="color:#FDC500;">Hive</span></div>
+      <h1 style="margin:24px 0 8px;font-size:30px;">Welcome to the hive</h1>
+      <p style="margin:0;color:#dbeafe;">Where coding meets classroom.</p>
+    </td></tr>
+    <tr><td style="padding:36px;">
+      <p style="font-size:17px;" th:text="'Hi ' + ${name} + ','">Hi,</p>
+      <p style="color:#4b5563;line-height:1.7;">Your CodeHive account is ready. Use these temporary credentials to sign in:</p>
+      <div style="padding:20px;border-radius:16px;background:#0A0F1A;color:#d1d5db;font:14px/1.8 ui-monospace,monospace;">
+        <div>Email: <strong style="color:#FDC500;" th:text="${email}">email</strong></div>
+        <div>Temporary password: <strong style="color:#FDC500;" th:text="${temporaryPassword}">password</strong></div>
+      </div>
+      <p style="color:#4b5563;line-height:1.7;">Change your temporary password after signing in.</p>
+      <a th:href="${loginUrl}" style="display:inline-block;padding:14px 22px;border-radius:12px;background:#00509D;color:#fff;text-decoration:none;font-weight:700;">Sign in to CodeHive</a>
+    </td></tr>
+  </table>
+</td></tr></table>
+</body>
+</html>

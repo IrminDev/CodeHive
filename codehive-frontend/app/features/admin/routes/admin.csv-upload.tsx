@@ -1,7 +1,7 @@
 import type { Route } from "./+types/admin.csv-upload";
 import { ProtectedRoute } from "~/core/components/ProtectedRoute";
 import { CsvUploadPage } from "../pages/CsvUploadPage";
-import { Role } from "~/shared/types/model/User";
+import { Role, Scope } from "~/shared/types/model/User";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -12,7 +12,7 @@ export function meta({}: Route.MetaArgs) {
 
 export default function AdminCsvUpload() {
   return (
-    <ProtectedRoute roles={[Role.ADMIN]}>
+    <ProtectedRoute roles={[Role.ADMIN]} scopes={[Scope.CREATE_USERS]}>
       <CsvUploadPage />
     </ProtectedRoute>
   );

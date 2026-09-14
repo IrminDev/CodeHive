@@ -1,0 +1,1 @@
+{"nodes": [{"id": "codehive_testing_files_requests_test_cases_input4_sliding_window_single_element_input", "name": "Single-element sliding-window input", "file_type": "code", "source_file": "codehive-testing-files/requests/test_cases/input4.txt", "rationale": "Single-element boundary fixture with window size one; expected maximum is 7."}], "edges": [], "hyperedges": []}

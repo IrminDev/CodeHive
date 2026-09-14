@@ -4,6 +4,7 @@
 
 /* shadcn/ui CSS variable system for the practice workspace */
 :root {
+  --hex-grid-stroke: rgba(0, 80, 157, 0.05);
   --background: 0 0% 100%;
   --foreground: 222.2 84% 4.9%;
   --card: 0 0% 100%;
@@ -26,6 +27,7 @@
 }
 
 .dark {
+  --hex-grid-stroke: rgba(253, 197, 0, 0.04);
   --background: 222.2 84% 4.9%;
   --foreground: 210 40% 98%;
   --card: 222.2 84% 4.9%;
@@ -88,9 +90,9 @@
   --color-gold-light: #ffe866;
   
   /* Dark mode backgrounds */
-  --color-dark-bg: #0a0f1a;
-  --color-dark-surface: #111827;
-  --color-dark-card: #1a2234;
+  --color-dark-bg: #060c18;
+  --color-dark-surface: #0d1525;
+  --color-dark-card: #162033;
 }
 
 html {
@@ -101,6 +103,14 @@ html,
 body {
   @apply bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100;
   transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Hide scrollbar but keep scroll */
+.scrollbar-hide {
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
 }
 
 /* Custom scrollbar */
@@ -224,6 +234,15 @@ body {
 
 .animate-fade-scale {
   animation: smooth-fade-scale 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.animate-blink {
+  animation: blink 1s step-end infinite;
 }
 
 .animation-delay-100 {

@@ -16,6 +16,11 @@ public class SubmissionMapper {
             submission.getAssignment().getId() : null);
         dto.setLanguage(submission.getLanguage());
         dto.setCreatedAt(submission.getCreatedAt());
+        dto.setStudentId(submission.getStudent() != null ? submission.getStudent().getId() : null);
+        dto.setDeliveredLate(submission.getDeliveredLate());
+        dto.setStudentWorkId(submission.getStudentWork() != null ? submission.getStudentWork().getId() : null);
+        dto.setStatus(submission.getStatus());
+        dto.setWithdrawnAt(submission.getWithdrawnAt());
         return dto;
     }
 
@@ -28,6 +33,9 @@ public class SubmissionMapper {
         // Note: Assignment must be set separately via assignment repository
         submission.setLanguage(dto.getLanguage());
         submission.setCreatedAt(dto.getCreatedAt());
+        submission.setDeliveredLate(dto.getDeliveredLate());
+        submission.setStatus(dto.getStatus());
+        submission.setWithdrawnAt(dto.getWithdrawnAt());
         return submission;
     }
 

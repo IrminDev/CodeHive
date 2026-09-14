@@ -1,0 +1,1 @@
+{"nodes": [{"id": "llms_frontend_student_readme_student_frontend_placeholder", "name": "Student frontend placeholder", "type": "rationale", "source_file": "llms/frontend/student/README.md", "location": null, "attributes": {"rationale": "Dedicated student routes, modules, and service logic are not implemented yet."}}], "edges": [], "hyperedges": []}

@@ -1,0 +1,38 @@
+{
+  "groupId": "00000000-0000-0000-0000-000000000001",
+  "title": "Merge overlapping intervals",
+  "description": "Merge all overlapping inclusive integer intervals and print the resulting disjoint intervals in ascending order.",
+  "constraints": [
+    "The first line contains N, where 1 <= N <= 200000.",
+    "Each of the next N lines contains integers L and R with L <= R.",
+    "Intervals that only touch at an endpoint are considered overlapping."
+  ],
+  "hints": [
+    "Sort intervals by their left endpoint before scanning them."
+  ],
+  "tags": [
+    "sorting",
+    "intervals",
+    "greedy"
+  ],
+  "timeLimitMs": 2000,
+  "memoryLimitMb": 128,
+  "comparatorType": "EXACT_MATCH",
+  "allowedLanguages": [
+    "CPP"
+  ],
+  "referenceLanguage": "CPP",
+  "sampleFlags": [
+    true,
+    false,
+    false
+  ],
+  "maxPoints": 100,
+  "examples": [
+    {
+      "input": "4\n1 3\n2 6\n8 10\n9 12",
+      "output": "2\n1 6\n8 12",
+      "explanation": "The first two intervals merge, and the last two intervals merge."
+    }
+  ]
+}

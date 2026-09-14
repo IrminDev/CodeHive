@@ -7,6 +7,9 @@ public class TestGenerationResult {
     private boolean success;
     private int generatedCount;
     private String errorMessage;
+    private UUID assignmentUpdateId;
+    private UUID testSuiteRevisionId;
+    private UUID referenceSolutionRevisionId;
 
     public TestGenerationResult() {
     }
@@ -49,4 +52,11 @@ public class TestGenerationResult {
     public void setErrorMessage(String errorMessage) {
         this.errorMessage = errorMessage;
     }
+
+    public UUID getAssignmentUpdateId() { return assignmentUpdateId; }
+    public void setAssignmentUpdateId(UUID assignmentUpdateId) { this.assignmentUpdateId = assignmentUpdateId; }
+    public UUID getTestSuiteRevisionId() { return testSuiteRevisionId; }
+    public void setTestSuiteRevisionId(UUID testSuiteRevisionId) { this.testSuiteRevisionId = testSuiteRevisionId; }
+    public UUID getReferenceSolutionRevisionId() { return referenceSolutionRevisionId; }
+    public void setReferenceSolutionRevisionId(UUID referenceSolutionRevisionId) { this.referenceSolutionRevisionId = referenceSolutionRevisionId; }
 }

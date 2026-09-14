@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router";
 
-import type { Role, Scope } from "~/shared/types/model/User";
+import { Scope, type Role } from "~/shared/types/model/User";
 import { useAuth } from "~/core/providers/AuthProvider";
 import { getDashboardRoute } from "~/shared/lib/role-routing";
 
@@ -30,7 +30,7 @@ export function ProtectedRoute({ children, roles, scopes }: ProtectedRouteProps)
 
     if (scopes && scopes.length > 0) {
       const userScopes = user.scopes ?? [];
-      if (!scopes.some((s) => userScopes.includes(s))) {
+      if (!userScopes.includes(Scope.SUPER_ADMIN) && !scopes.some((s) => userScopes.includes(s))) {
         navigate(getDashboardRoute(user.role), { replace: true });
       }
     }
@@ -71,7 +71,7 @@ export function ProtectedRoute({ children, roles, scopes }: ProtectedRouteProps)
   if (roles && roles.length > 0 && !roles.includes(user.role)) return null;
   if (scopes && scopes.length > 0) {
     const userScopes = user.scopes ?? [];
-    if (!scopes.some((s) => userScopes.includes(s))) return null;
+    if (!userScopes.includes(Scope.SUPER_ADMIN) && !scopes.some((s) => userScopes.includes(s))) return null;
   }
 
   return <>{children}</>;

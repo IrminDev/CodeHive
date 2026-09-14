@@ -6,6 +6,7 @@ public class TestCaseInfo {
     private UUID testCaseId;
     private String inputPath;
     private String outputPath;
+    private String baselineOutputPath;
 
     public TestCaseInfo() {
     }
@@ -39,4 +40,7 @@ public class TestCaseInfo {
     public void setOutputPath(String outputPath) {
         this.outputPath = outputPath;
     }
+
+    public String getBaselineOutputPath() { return baselineOutputPath; }
+    public void setBaselineOutputPath(String baselineOutputPath) { this.baselineOutputPath = baselineOutputPath; }
 }

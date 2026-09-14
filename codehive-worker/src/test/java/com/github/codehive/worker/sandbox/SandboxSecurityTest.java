@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.github.codehive.worker.model.dto.ExecutionResult;
 import com.github.codehive.worker.model.enums.ExecutionStatus;
 import com.github.codehive.worker.sandbox.python.PythonExecutor;
+import com.github.codehive.worker.sandbox.java.JavaExecutor;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.core.DefaultDockerClientConfig;
 import com.github.dockerjava.core.DockerClientImpl;
@@ -29,6 +30,7 @@ class SandboxSecurityTest {
 
     private static DockerClient dockerClient;
     private static PythonExecutor executor;
+    private static JavaExecutor javaExecutor;
 
     @BeforeAll
     static void setUp() {
@@ -46,6 +48,7 @@ class SandboxSecurityTest {
 
         dockerClient = DockerClientImpl.getInstance(config, httpClient);
         executor = new PythonExecutor(dockerClient);
+        javaExecutor = new JavaExecutor(dockerClient);
     }
 
     @AfterAll
@@ -73,6 +76,20 @@ class SandboxSecurityTest {
         return run(code, 5000L, 128L);
     }
 
+    private ExecutionResult runJava(String code, long timeLimitMs, long memoryMb) throws Exception {
+        ContainerSession session = javaExecutor.prepare(
+                new ByteArrayInputStream(code.getBytes(StandardCharsets.UTF_8)),
+                timeLimitMs, memoryMb);
+        if (session.isCompilationFailed()) {
+            throw new IllegalStateException("Unexpected Java compilation error: " + session.getCompilationError());
+        }
+        try {
+            return javaExecutor.runTestCase(session, null);
+        } finally {
+            javaExecutor.cleanup(session);
+        }
+    }
+
     // ── Tests ─────────────────────────────────────────────────────────────
 
     @Test
@@ -95,6 +112,52 @@ class SandboxSecurityTest {
         ExecutionResult result = run(code, 15000L, 64L);
 
         assertThat(result.getStatus()).isEqualTo(ExecutionStatus.MLE);
+        assertThat(result.getSessionPeakMemoryMb()).isPositive();
+    }
+
+    @Test
+    @DisplayName("Java managed heap exhaustion → MLE with diagnostic")
+    void javaOutOfMemoryErrorCausesMemoryLimitExceeded() throws Exception {
+        String code = """
+                import java.util.ArrayList;
+                import java.util.List;
+
+                public class Main {
+                    public static void main(String[] args) {
+                        List<byte[]> retained = new ArrayList<>();
+                        while (true) retained.add(new byte[1024 * 1024]);
+                    }
+                }
+                """;
+
+        ExecutionResult result = runJava(code, 15000L, 64L);
+
+        assertThat(result.getStatus()).isEqualTo(ExecutionStatus.MLE);
+        assertThat(result.getExitCode()).isEqualTo(1);
+        assertThat(result.getErrorOutput()).contains("java.lang.OutOfMemoryError");
+        assertThat(result.getSessionPeakMemoryMb()).isPositive();
+    }
+
+    @Test
+    @DisplayName("Python syntax failure → CE before runtime")
+    void pythonSyntaxFailureIsCompilationError() throws Exception {
+        ContainerSession session = executor.prepare(
+                new ByteArrayInputStream("if True print('broken')".getBytes(StandardCharsets.UTF_8)),
+                5000L, 128L);
+
+        assertThat(session.isCompilationFailed()).isTrue();
+        assertThat(session.getCompilationError()).contains("SyntaxError");
+    }
+
+    @Test
+    @DisplayName("Python runtime failure → RTE with traceback")
+    void pythonRuntimeErrorPreservesTraceback() throws Exception {
+        ExecutionResult result = run("print(1 / 0)");
+
+        assertThat(result.getStatus()).isEqualTo(ExecutionStatus.RTE);
+        assertThat(result.getErrorOutput()).contains("ZeroDivisionError");
+        assertThat(result.getExitCode()).isEqualTo(1);
+        assertThat(result.getSessionPeakMemoryMb()).isPositive();
     }
 
     @Test
@@ -213,6 +276,48 @@ class SandboxSecurityTest {
         ExecutionResult result = run(code, 60000L, 128L);
 
         assertThat(result.getStatus()).isEqualTo(ExecutionStatus.OLE);
+    }
+
+    @Test
+    @DisplayName("memfd exec: fexecve an in-memory file → blocked (seccomp)")
+    void memfdExecIsBlocked() throws Exception {
+        // memfd_create + execveat is the classic bypass of `noexec` tmpfs:
+        // the payload never touches the filesystem. Seccomp must block memfd_create.
+        String code = """
+                import ctypes, os
+                libc = ctypes.CDLL(None, use_errno=True)
+                fd = libc.memfd_create(b'x', 0)
+                if fd < 0:
+                    print('memfd_blocked')
+                else:
+                    os.write(fd, open('/bin/sh', 'rb').read())
+                    try:
+                        os.execv('/proc/self/fd/%d' % fd, ['sh', '-c', 'echo pwned'])
+                    except OSError:
+                        print('exec_blocked')
+                """;
+
+        ExecutionResult result = run(code);
+
+        if (result.getStatus() == ExecutionStatus.AC) {
+            assertThat(result.getOutput())
+                    .as("memfd_create must be blocked so no in-memory exec is possible")
+                    .doesNotContain("pwned")
+                    .containsAnyOf("memfd_blocked", "exec_blocked");
+        } else {
+            assertThat(result.getStatus()).isEqualTo(ExecutionStatus.RTE);
+        }
+    }
+
+    @Test
+    @DisplayName("Limit clamp: absurd memory request is capped, not honoured")
+    void oversizedMemoryLimitIsClamped() throws Exception {
+        // Request 1 TB. If clamping failed, Docker would reject/OOM the host.
+        // With clamping the container is created at the ceiling and runs normally.
+        ExecutionResult result = run("print('ok')", 1000L, 1_000_000L);
+
+        assertThat(result.getStatus()).isEqualTo(ExecutionStatus.AC);
+        assertThat(result.getOutput()).contains("ok");
     }
 
     @Test
