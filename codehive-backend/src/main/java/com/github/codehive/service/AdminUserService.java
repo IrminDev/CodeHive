@@ -162,6 +162,8 @@ public class AdminUserService {
         }
 
         Role previous = target.getRole();
+        boolean regainsGroupCreation = previous == Role.STUDENT && request.role() == Role.TEACHER
+                && !target.hasScope(Scope.CREATE_GROUP);
         if (activeEnrollments > 0) cancelActiveEnrollments(target);
         if (request.role() == Role.ADMIN) {
             terminalDeleteOwnedGroups(target, GroupDeletionReason.ROLE_CHANGED_TO_ADMIN);
@@ -177,8 +179,9 @@ public class AdminUserService {
             scopes.remove(Scope.CREATE_GROUP);
             target.setScopes(new ArrayList<>(scopes));
         }
+        int restoredGroups = regainsGroupCreation ? restoreScopeRevokedGroups(target) : 0;
         auditService.success(requester, target, AdminAuditAction.USER_ROLE_CHANGED,
-                request.reason(), previous + " -> " + request.role());
+                request.reason(), previous + " -> " + request.role() + restoredGroupsDetail(restoredGroups));
         return detail(target);
     }
 
@@ -239,12 +242,15 @@ public class AdminUserService {
             requireAnotherActiveSuperAdmin();
         }
 
+        boolean regainsGroupCreation = target.getRole() == Role.STUDENT
+                && !target.hasScope(Scope.CREATE_GROUP) && request.getGrant().contains(Scope.CREATE_GROUP);
         Set<Scope> scopes = new HashSet<>(target.getScopes());
         scopes.addAll(request.getGrant());
         scopes.removeAll(request.getRevoke());
         target.setScopes(new ArrayList<>(scopes));
-        auditService.success(requester, target, AdminAuditAction.USER_SCOPES_CHANGED,
-                request.getReason(), "grant=" + request.getGrant() + ", revoke=" + request.getRevoke());
+        int restoredGroups = regainsGroupCreation ? restoreScopeRevokedGroups(target) : 0;
+        auditService.success(requester, target, AdminAuditAction.USER_SCOPES_CHANGED, request.getReason(),
+                "grant=" + request.getGrant() + ", revoke=" + request.getRevoke() + restoredGroupsDetail(restoredGroups));
         return detail(target);
     }
 
@@ -301,6 +307,9 @@ public class AdminUserService {
         Instant now = Instant.now();
         LocalDateTime updatedAt = LocalDateTime.now();
         for (ClassGroup group : groupRepository.findByOwnerIdOrderByCreatedAtDesc(owner.getId())) {
+            // Groups the owner deleted keep their reason; only recoverable revocations become terminal.
+            if (!Boolean.TRUE.equals(group.getIsActive())
+                    && group.getDeletionReason() != GroupDeletionReason.SCOPE_REVOKED) continue;
             boolean notify = Boolean.TRUE.equals(group.getIsActive()) && !Boolean.TRUE.equals(group.getArchived());
             group.setArchived(true);
             group.setIsActive(false);
@@ -312,6 +321,26 @@ public class AdminUserService {
                         NotificationType.GROUP_ARCHIVED, owner.getId(), null, group.getId(), null, null));
             }
         }
+    }
+
+    private int restoreScopeRevokedGroups(User owner) {
+        LocalDateTime updatedAt = LocalDateTime.now();
+        int restored = 0;
+        for (ClassGroup group : groupRepository.findByOwnerIdOrderByCreatedAtDesc(owner.getId())) {
+            if (Boolean.TRUE.equals(group.getIsActive())
+                    || group.getDeletionReason() != GroupDeletionReason.SCOPE_REVOKED) continue;
+            group.setIsActive(true);
+            group.setArchived(true);
+            group.setDeletedAt(null);
+            group.setDeletionReason(null);
+            group.setUpdatedAt(updatedAt);
+            restored++;
+        }
+        return restored;
+    }
+
+    private String restoredGroupsDetail(int restoredGroups) {
+        return restoredGroups > 0 ? ", restoredGroups=" + restoredGroups : "";
     }
 
     private void cancelActiveEnrollments(User student) {

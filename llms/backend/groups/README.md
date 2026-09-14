@@ -43,6 +43,8 @@ Propietario (User autorizado con CREATE_GROUP)
 6. La eliminación lógica notifica a los estudiantes con inscripción activa (evento `GROUP_ARCHIVED`), igual que archivar el grupo explícitamente.
 7. Restaurar solo es válido sobre un grupo eliminado lógicamente (`isActive = false`). Intentar restaurar un grupo activo se rechaza.
 8. Un código de unión que pertenece a un grupo eliminado lógicamente se trata como si no existiera: el sistema no distingue "código inexistente" de "código de un grupo eliminado" para no revelar el historial del grupo a quien no es su propietario.
+9. Revocar `CREATE_GROUP` a un estudiante elimina lógicamente sus grupos vigentes con motivo `SCOPE_REVOKED`, sin borrar asignaciones, inscripciones, entregas ni calificaciones. Si el estudiante recupera el permiso, ya sea porque un administrador se lo otorga de nuevo o porque cambia su rol a docente, esos grupos se restauran automáticamente como vigentes y archivados; el propietario debe desarchivarlos para reanudar la actividad.
+10. La restauración automática no alcanza a los grupos que el propietario eliminó por su cuenta, que conservan su motivo original. Si un grupo eliminado por revocación vuelve a eliminarse por promoción a administrador o por eliminación de la cuenta, adopta ese motivo terminal y ya no se restaura.
 
 ### Tareas y ejemplos
 
