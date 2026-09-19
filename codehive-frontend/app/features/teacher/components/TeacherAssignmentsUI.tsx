@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, type ReactNode } from "react";
 import {
   AlertTriangle,
   ArchiveRestore,
@@ -11,7 +11,6 @@ import {
   Eye,
   FileCode2,
   LoaderCircle,
-  MoreHorizontal,
   Pencil,
   RefreshCw,
   Search,
@@ -30,6 +29,7 @@ import {
   SelectValue,
 } from "~/shared/components/ui/Select";
 import { Dropdown } from "~/shared/components/ui/Dropdown";
+import { ActionMenu } from "./TeacherActionMenu";
 import type {
   AssignmentManagementStatus,
   AssignmentValidationStatus,
@@ -299,46 +299,22 @@ function AssignmentRow({ assignment, deleted, canRestore, onStatus, onDelete, on
 }
 
 function AssignmentMenu({ assignment, onStatus, onDelete }: { assignment: TeacherAssignment; onStatus: () => void; onDelete: () => void }) {
-  const [open, setOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    function closeOutside(event: MouseEvent) {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
-    }
-    function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setOpen(false);
-        triggerRef.current?.focus();
-      }
-    }
-    document.addEventListener("mousedown", closeOutside);
-    document.addEventListener("keydown", closeOnEscape);
-    return () => {
-      document.removeEventListener("mousedown", closeOutside);
-      document.removeEventListener("keydown", closeOnEscape);
-    };
-  }, [open]);
-
   return (
-    <div ref={rootRef} className="relative">
-      <button ref={triggerRef} type="button" onClick={() => setOpen((value) => !value)} className={compactButtonClass} aria-haspopup="menu" aria-expanded={open} aria-label={`More actions for ${assignment.title}`}><MoreHorizontal size={14} /></button>
-      {open && (
-        <div role="menu" className="absolute right-0 z-20 mt-1 w-48 rounded-xl border border-gray-200 bg-white p-1 shadow-xl dark:border-gray-700 dark:bg-dark-card">
-          <MenuButton icon={<ClipboardCheck size={14} />} label="Validation status" onClick={() => { setOpen(false); onStatus(); }} />
-          <MenuLink to={`/teacher/assignments/${assignment.id}/revalidate`} icon={<RefreshCw size={14} />} label="Update tests/code" />
-          <MenuLink to={`/teacher/assignments/${assignment.id}/clone`} icon={<Copy size={14} />} label="Clone assignment" />
-          <button type="button" role="menuitem" onClick={() => { setOpen(false); onDelete(); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs text-red-500 hover:bg-red-500/10"><Trash2 size={14} /> Delete assignment</button>
-        </div>
+    <ActionMenu label={`More actions for ${assignment.title}`}>
+      {(close) => (
+        <>
+          <MenuButton icon={<ClipboardCheck size={14} />} label="Validation status" onClick={() => { close(); onStatus(); }} />
+          <MenuLink to={`/teacher/assignments/${assignment.id}/revalidate`} icon={<RefreshCw size={14} />} label="Update tests/code" onClick={close} />
+          <MenuLink to={`/teacher/assignments/${assignment.id}/clone`} icon={<Copy size={14} />} label="Clone assignment" onClick={close} />
+          <button type="button" role="menuitem" onClick={() => { close(); onDelete(); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs text-red-500 hover:bg-red-500/10"><Trash2 size={14} /> Delete assignment</button>
+        </>
       )}
-    </div>
+    </ActionMenu>
   );
 }
 
-function MenuLink({ to, icon, label }: { to: string; icon: ReactNode; label: string }) {
-  return <Link role="menuitem" to={to} className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-surface">{icon}{label}</Link>;
+function MenuLink({ to, icon, label, onClick }: { to: string; icon: ReactNode; label: string; onClick?: () => void }) {
+  return <Link role="menuitem" to={to} onClick={onClick} className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-surface">{icon}{label}</Link>;
 }
 
 function MenuButton({ icon, label, onClick }: { icon: ReactNode; label: string; onClick: () => void }) {

@@ -38,8 +38,13 @@ confirmation, field, and panel patterns live in `components/TeacherUI.tsx`.
 
 ## Management Workflows
 
-- Assignment list filters by group, lifecycle, validation status, and title. Deleted records can be
-  restored; each assignment exposes preview, edit, revalidate, clone, grade, and management status.
+- Assignment list filters by group, lifecycle, validation status, and title. The *Deleted* lifecycle
+  lists soft-deleted assignments and restores them into a writable group; each assignment exposes
+  preview, edit, revalidate, clone, grade, and management status.
+- Row and hero menus use `ActionMenu` (`components/TeacherActionMenu.tsx`), which renders the menu in a
+  portal with fixed positioning anchored to its trigger. Teacher panels use `overflow-hidden`, which
+  clipped the previous absolute menus and hid actions such as **Delete assignment**, **Delete group**,
+  and **Remove student**. The menu closes on selection, outside click, `Escape`, scroll, and resize.
 - Management status combines latest validation failure, update history, and latest reevaluation batch.
 - Grade review drawer exposes every attempt, retained source, execution evidence, and grade audit history.
 - The gradebook offers archived groups next to active ones, active first (`gradableGroups`), because an

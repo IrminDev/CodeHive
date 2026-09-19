@@ -31,6 +31,7 @@ import {
   panelClass,
   StatusPill,
 } from "./TeacherUI";
+import { ActionMenu } from "./TeacherActionMenu";
 
 type Lifecycle = "active" | "archived" | "deleted";
 
@@ -167,29 +168,29 @@ export function GroupHero({
             )}
 
             {status !== "deleted" && (
-              <details className="relative">
-                <summary
-                  className={`${compactButtonClass} list-none cursor-pointer h-full`}
-                  aria-label="More group actions"
-                >
-                  <MoreHorizontal size={15} /> More
-                </summary>
-                <div className="absolute right-0 z-20 mt-1 w-52 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-dark-card shadow-xl p-1">
-                  {status === "active" && (
-                    <>
-                      <MenuAction icon={<Edit3 size={14} />} label="Edit details" onClick={onEdit} />
-                      <MenuAction icon={<RotateCcw size={14} />} label="Rotate join code" onClick={onRotateCode} />
-                      <MenuAction icon={<Archive size={14} />} label="Archive group" onClick={onArchiveToggle} />
-                    </>
-                  )}
-                  <MenuAction
-                    icon={<Trash2 size={14} />}
-                    label="Delete group"
-                    onClick={onDelete}
-                    danger
-                  />
-                </div>
-              </details>
+              <ActionMenu
+                label="More group actions"
+                width="w-52"
+                trigger={<><MoreHorizontal size={15} /> More</>}
+              >
+                {(close) => (
+                  <>
+                    {status === "active" && (
+                      <>
+                        <MenuAction icon={<Edit3 size={14} />} label="Edit details" onClick={() => { close(); onEdit(); }} />
+                        <MenuAction icon={<RotateCcw size={14} />} label="Rotate join code" onClick={() => { close(); onRotateCode(); }} />
+                        <MenuAction icon={<Archive size={14} />} label="Archive group" onClick={() => { close(); onArchiveToggle(); }} />
+                      </>
+                    )}
+                    <MenuAction
+                      icon={<Trash2 size={14} />}
+                      label="Delete group"
+                      onClick={() => { close(); onDelete(); }}
+                      danger
+                    />
+                  </>
+                )}
+              </ActionMenu>
             )}
           </div>
         </div>
@@ -356,26 +357,24 @@ export function RosterPanel({
                 </p>
               </div>
               {writable && (
-                <details className="relative flex-shrink-0">
-                  <summary
-                    className="w-9 h-9 grid place-items-center rounded-lg list-none cursor-pointer text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-dark-card"
-                    aria-label={`Actions for ${enrollment.student.fullName}`}
-                  >
-                    <MoreHorizontal size={15} />
-                  </summary>
-                  <div className="absolute right-0 z-10 mt-1 w-44 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-dark-card shadow-xl p-1">
+                <ActionMenu
+                  label={`Actions for ${enrollment.student.fullName}`}
+                  width="w-44"
+                  triggerClassName="w-9 h-9 grid place-items-center rounded-lg flex-shrink-0 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-dark-card"
+                  trigger={<MoreHorizontal size={15} />}
+                >
+                  {(close) => (
                     <button
+                      type="button"
+                      role="menuitem"
                       disabled={busy}
-                      onClick={(event) => {
-                        event.currentTarget.closest("details")?.removeAttribute("open");
-                        onRemove(enrollment);
-                      }}
+                      onClick={() => { close(); onRemove(enrollment); }}
                       className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-red-500 hover:bg-red-500/10 disabled:opacity-50"
                     >
                       <UserMinus size={14} /> Remove student
                     </button>
-                  </div>
-                </details>
+                  )}
+                </ActionMenu>
               )}
             </div>
           ))}
