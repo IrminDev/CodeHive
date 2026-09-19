@@ -17,7 +17,9 @@ import com.github.codehive.model.entity.ClassGroup;
 import com.github.codehive.model.entity.GroupEnrollment;
 import com.github.codehive.model.entity.User;
 import com.github.codehive.model.enums.EnrollmentStatus;
+import com.github.codehive.model.enums.GroupDeletionReason;
 import com.github.codehive.model.enums.Role;
+import com.github.codehive.model.enums.Scope;
 import com.github.codehive.model.exception.EntityNotFoundException;
 import com.github.codehive.model.exception.ValidationException;
 import com.github.codehive.model.mapper.GroupMapper;
@@ -62,7 +64,9 @@ public class GroupService {
     public List<GroupDTO> listMine(String email, boolean includeDeleted) {
         User user = requireUser(email);
         Map<UUID, GroupDTO> groups = new LinkedHashMap<>();
-        List<ClassGroup> owned = groupRepository.findByOwnerIdAndIsActiveTrueOrderByCreatedAtDesc(user.getId());
+        List<ClassGroup> owned = includeDeleted
+                ? groupRepository.findByOwnerIdOrderByCreatedAtDesc(user.getId())
+                : groupRepository.findByOwnerIdAndIsActiveTrueOrderByCreatedAtDesc(user.getId());
         owned.forEach(group -> groups.put(group.getId(), GroupMapper.toDTO(group, true)));
         if (user.getRole() == Role.STUDENT) {
             enrollmentRepository.findByStudentIdAndStatus(user.getId(), EnrollmentStatus.ACTIVE).stream()
@@ -79,10 +83,12 @@ public class GroupService {
     public GroupDTO get(UUID id, String email) {
         User user = requireUser(email);
         ClassGroup group = requireGroup(id);
-        if (!Boolean.TRUE.equals(group.getIsActive())) {
-            throw new EntityNotFoundException("Group not found: " + id);
-        }
         boolean owner = group.getOwner().getId().equals(user.getId());
+        if (!Boolean.TRUE.equals(group.getIsActive())) {
+            // A deleted group stays consultable for its owner and stops existing for everyone else.
+            if (!owner) throw new EntityNotFoundException("Group not found: " + id);
+            return GroupMapper.toDTO(group, true);
+        }
         boolean enrolled = enrollmentRepository.existsByGroupIdAndStudentIdAndStatus(
                 id, user.getId(), EnrollmentStatus.ACTIVE);
         if (!owner && !enrolled) throw new AccessDeniedException("You cannot access this group");
@@ -183,6 +189,7 @@ public class GroupService {
         ClassGroup group = requireOwnedGroup(id, email);
         group.setIsActive(false);
         group.setArchived(true);
+        group.setDeletionReason(GroupDeletionReason.OWNER_REQUEST);
         if (group.getDeletedAt() == null) group.setDeletedAt(java.time.Instant.now());
         touch(group);
         notificationPublisher.publish(NotificationDomainEvent.of(
@@ -192,13 +199,22 @@ public class GroupService {
 
     @Transactional
     public GroupDTO restore(UUID id, String email) {
+        User owner = requireUser(email);
         ClassGroup group = requireOwnedGroup(id, email);
+        if (!owner.hasScope(Scope.CREATE_GROUP)) {
+            throw new AccessDeniedException("Restoring a group requires the group creation permission");
+        }
         if (Boolean.TRUE.equals(group.getIsActive())) {
             throw new ValidationException("Group is not deleted");
+        }
+        GroupDeletionReason reason = group.getDeletionReason();
+        if (reason != null && reason.isTerminal()) {
+            throw new ValidationException("Groups deleted by an administrative action cannot be restored");
         }
         group.setIsActive(true);
         group.setArchived(true);
         group.setDeletedAt(null);
+        group.setDeletionReason(null);
         touch(group);
         return GroupMapper.toDTO(group, true);
     }

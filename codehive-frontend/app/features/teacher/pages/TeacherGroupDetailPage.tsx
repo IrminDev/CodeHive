@@ -71,11 +71,6 @@ export function TeacherGroupDetailPage() {
       setFatalError(null);
       try {
         const groupResult = await getTeacherGroup(groupId);
-        if (!groupResult.isActive) {
-          setGroup(null);
-          setFatalError("This group is unavailable.");
-          return;
-        }
         setGroup(groupResult);
         setName(groupResult.name);
         setDescription(groupResult.description ?? "");

@@ -169,7 +169,7 @@ class GroupControllerIntegrationTest {
     }
 
     @Test
-    void archivedGroupIsReadOnlyAndDeletedGroupIsHiddenFromOwner() throws Exception {
+    void archivedGroupIsReadOnlyAndDeletedGroupLeavesTheDefaultListing() throws Exception {
         ClassGroup group = groupRepository.save(new ClassGroup("Algorithms", "", teacher, "JOIN5678"));
 
         mockMvc.perform(post("/api/groups/{id}/archive", group.getId())
@@ -184,12 +184,43 @@ class GroupControllerIntegrationTest {
         mockMvc.perform(delete("/api/groups/{id}", group.getId())
                         .header("Authorization", "Bearer " + teacherToken))
                 .andExpect(status().isOk());
-        mockMvc.perform(get("/api/groups").param("includeDeleted", "true")
+        mockMvc.perform(get("/api/groups")
                         .header("Authorization", "Bearer " + teacherToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data", hasSize(0)));
+    }
+
+    @Test
+    void deletedGroupStaysConsultableForItsOwnerAndDisappearsForItsStudents() throws Exception {
+        ClassGroup group = groupRepository.save(new ClassGroup("Algorithms", "", teacher, "OWNRONLY"));
+        mockMvc.perform(post("/api/groups/join")
+                        .header("Authorization", "Bearer " + studentToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"joinCode\":\"OWNRONLY\"}"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(delete("/api/groups/{id}", group.getId())
+                        .header("Authorization", "Bearer " + teacherToken))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/groups").param("includeDeleted", "true")
+                        .header("Authorization", "Bearer " + teacherToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data", hasSize(1)))
+                .andExpect(jsonPath("$.data[0].id").value(group.getId().toString()))
+                .andExpect(jsonPath("$.data[0].isActive").value(false))
+                .andExpect(jsonPath("$.data[0].archived").value(true));
         mockMvc.perform(get("/api/groups/{id}", group.getId())
                         .header("Authorization", "Bearer " + teacherToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.isActive").value(false));
+
+        mockMvc.perform(get("/api/groups")
+                        .header("Authorization", "Bearer " + studentToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data", hasSize(0)));
+        mockMvc.perform(get("/api/groups/{id}", group.getId())
+                        .header("Authorization", "Bearer " + studentToken))
                 .andExpect(status().isNotFound());
     }
 

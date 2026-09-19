@@ -108,6 +108,7 @@ export function GroupHero({
 }) {
   const status = lifecycle(group);
   const style = lifecycleStyle[status];
+  const joinCode = status === "deleted" ? undefined : group.joinCode;
 
   return (
     <section className={`${panelClass} relative overflow-hidden`}>
@@ -209,10 +210,10 @@ export function GroupHero({
                 Join code
               </p>
               <strong className="block mt-0.5 truncate font-mono text-lg tracking-widest text-azure dark:text-yellow">
-                {group.joinCode || "Unavailable"}
+                {joinCode || "Unavailable"}
               </strong>
             </div>
-            {group.joinCode && (
+            {joinCode && (
               <button
                 onClick={onCopyCode}
                 className="w-9 h-9 grid place-items-center rounded-lg text-gray-400 hover:text-azure dark:hover:text-yellow hover:bg-white dark:hover:bg-dark-surface transition-colors"
@@ -456,12 +457,14 @@ export function AssignmentsPanel({
                 >
                   <BookOpen size={13} /> Preview
                 </Link>
-                <Link
-                  to={`/teacher/grades?groupId=${group.id}&assignmentId=${assignment.id}`}
-                  className={compactButtonClass}
-                >
-                  <GraduationCap size={13} /> Grade
-                </Link>
+                {group.isActive && (
+                  <Link
+                    to={`/teacher/grades?groupId=${group.id}&assignmentId=${assignment.id}`}
+                    className={compactButtonClass}
+                  >
+                    <GraduationCap size={13} /> Grade
+                  </Link>
+                )}
               </div>
             </article>
           ))}

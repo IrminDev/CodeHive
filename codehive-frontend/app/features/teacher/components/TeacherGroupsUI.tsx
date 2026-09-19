@@ -5,6 +5,7 @@ import {
   CalendarDays,
   ClipboardList,
   Search,
+  Trash2,
   Users,
 } from "lucide-react";
 import { Link } from "react-router";
@@ -13,7 +14,7 @@ import { Dropdown } from "~/shared/components/ui/Dropdown";
 import { inputClass, panelClass, StatusPill } from "./TeacherUI";
 import type { TeacherGroup } from "../types/group.types";
 
-export type GroupTab = "active" | "archived";
+export type GroupTab = "active" | "archived" | "deleted";
 export type GroupSort = "updated" | "name" | "students" | "assignments";
 export type GroupCardData = TeacherGroup & {
   students: number | null;
@@ -52,9 +53,19 @@ const LIFECYCLE_UI: Record<
     iconStyle: "bg-orange-500/10 text-orange-500",
     tone: "warning",
   },
+  deleted: {
+    icon: <Trash2 size={17} />,
+    label: "Deleted",
+    description: "Kept for you to restore",
+    selected: "border-red-500/40 bg-red-500/5",
+    accent: "bg-red-500",
+    iconStyle: "bg-red-500/10 text-red-500",
+    tone: "error",
+  },
 };
 
 export function lifecycle(group: TeacherGroup): GroupTab {
+  if (!group.isActive) return "deleted";
   return group.archived ? "archived" : "active";
 }
 
@@ -69,7 +80,7 @@ export function LifecycleSummary({
 }) {
   return (
     <div
-      className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5"
+      className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5"
       role="tablist"
       aria-label="Group lifecycle"
     >
@@ -185,7 +196,7 @@ export function TeacherGroupCard({ group }: { group: GroupCardData }) {
         />
       </div>
       <div className="px-5 py-3 flex items-center justify-between bg-gray-50 dark:bg-dark-card text-xs font-medium text-gray-500 dark:text-gray-400 group-hover:text-azure dark:group-hover:text-yellow transition-colors">
-        View group <ArrowRight size={14} />
+        {status === "deleted" ? "View and restore" : "View group"} <ArrowRight size={14} />
       </div>
     </Link>
   );
@@ -217,6 +228,7 @@ export function GroupsEmptyState({
   const descriptions: Record<GroupTab, string> = {
     active: "Create a group to organize students and assignments.",
     archived: "Archived groups remain available as read-only history.",
+    deleted: "Deleted groups stay here with their history until you restore them.",
   };
   return (
     <div className={`${panelClass} py-14 px-6 text-center`}>

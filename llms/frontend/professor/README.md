@@ -8,7 +8,7 @@
 - `/teacher/assignments/:assignmentId/clone` — editable clone form.
 - `/teacher/assignments/:assignmentId/edit` — metadata, schedule, and public-example update form.
 - `/teacher/assignments/:assignmentId/revalidate` — explicit source, private-test, constraints, and execution-settings revision form.
-- `/teacher/groups` — owned active and archived groups.
+- `/teacher/groups` — owned groups across their lifecycle: active, archived, and deleted.
 - `/teacher/groups/create` — group creation form.
 - `/teacher/groups/:groupId` — roster, lifecycle, assignments, join code, and metrics.
 - `/teacher/grades` — student work, submission evidence, execution reports, grade history, draft/returned grades, and feedback.
@@ -47,6 +47,10 @@ confirmation, field, and panel patterns live in `components/TeacherUI.tsx`.
 - Archived state uses the same orange lifecycle accent as the groups list and group detail: an orange rail
   above the gradebook toolbar, an orange selector outline, an `archived` pill on the group option, and an
   orange notice explaining that students see the group as read-only while grading stays open.
+- The groups list requests `includeDeleted` and offers a third red **Deleted** lifecycle tab. Its cards read
+  *View and restore* and open the group detail in consultation mode, where the hero keeps only **Restore
+  group**. A deleted group shows no join code and no grading entry point, because the gradebook only serves
+  groups that still exist. Restoring returns the group archived, matching the backend rule.
 - Teacher dashboard aggregates owned active groups, students, assignments, grading queue, validation
   problems, upcoming lifecycle dates, and recent submissions server-side.
 

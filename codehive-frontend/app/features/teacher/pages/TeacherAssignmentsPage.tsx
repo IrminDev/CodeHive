@@ -80,7 +80,7 @@ export function TeacherAssignmentsPage() {
     setGroupsLoading(true);
     setGroupsError(null);
     try {
-      const items = await listTeacherGroups(ownerId, true);
+      const items = await listTeacherGroups(ownerId, false);
       setGroups(items);
       setParams((current) => {
         const currentId = current.get("groupId");
