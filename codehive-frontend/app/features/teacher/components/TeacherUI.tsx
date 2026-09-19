@@ -21,8 +21,8 @@ export function TeacherError({ message, onRetry }: { message: string; onRetry?: 
   return <div className="rounded-2xl border border-red-500/20 bg-red-500/5 p-8 text-center"><CircleAlert size={28} className="mx-auto text-red-500" /><h2 className="mt-3 font-semibold">Could not load this page</h2><p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{message}</p>{onRetry && <button onClick={onRetry} className="btn-primary mt-5">Try again</button>}</div>;
 }
 
-export function StatusPill({ label, tone = "neutral" }: { label: string; tone?: "success" | "warning" | "error" | "info" | "neutral" }) {
-  const styles = { success: "bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20", warning: "bg-yellow/10 text-yellow border-yellow/20", error: "bg-red-500/10 text-red-500 border-red-500/20", info: "bg-azure/10 text-azure dark:text-yellow border-azure/20 dark:border-yellow/20", neutral: "bg-gray-500/10 text-gray-500 border-gray-500/20" };
+export function StatusPill({ label, tone = "neutral" }: { label: string; tone?: "success" | "warning" | "error" | "info" | "neutral" | "alert" }) {
+  const styles = { success: "bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20", warning: "bg-yellow/10 text-yellow border-yellow/20", error: "bg-red-500/10 text-red-500 border-red-500/20", info: "bg-azure/10 text-azure dark:text-yellow border-azure/20 dark:border-yellow/20", neutral: "bg-gray-500/10 text-gray-500 border-gray-500/20", alert: "bg-orange-500/10 text-orange-500 border-orange-500/20" };
   return <span className={`inline-flex items-center px-2 py-0.5 rounded-full border text-[10px] font-semibold uppercase tracking-wide ${styles[tone]}`}>{label}</span>;
 }
 

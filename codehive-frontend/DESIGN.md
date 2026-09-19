@@ -49,6 +49,7 @@ Theme changes use `.dark` on the document root. Every visible color needs light 
 | Late | `orange-500` | overdue or late delivery |
 | Error / closed / failed | `red-500` | failure panels and unavailable states |
 | Runtime resource issue | `purple-500`, `pink-500` | MLE and OLE verdicts |
+| Archived / read-only history | `orange-500` | archived groups across teacher views |
 | Neutral / unavailable | `gray-500` | read-only and not-open states |
 
 Use soft fills with matching borders for state pills: `bg-<color>/10 text-<color> border-<color>/20`.

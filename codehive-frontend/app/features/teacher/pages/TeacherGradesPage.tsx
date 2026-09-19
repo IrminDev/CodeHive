@@ -46,6 +46,7 @@ import {
   TeacherPageHeader,
 } from "../components/TeacherUI";
 import type { TeacherGroup } from "../types/group.types";
+import { gradableGroups } from "../utils/gradebook-groups";
 import type {
   AssignmentMetrics,
   AssignmentMetricsDetail,
@@ -132,11 +133,11 @@ export function TeacherGradesPage() {
     let cancelled = false;
     void listTeacherGroups(ownerId, false)
       .then((items) => {
-        const active = items.filter((item) => item.isActive && !item.archived);
+        const visible = gradableGroups(items);
         if (!cancelled) {
-          setGroups(active);
-          if (!active.some((item) => item.id === groupId))
-            navigate(active[0]?.id);
+          setGroups(visible);
+          if (!visible.some((item) => item.id === groupId))
+            navigate(visible[0]?.id);
         }
       })
       .catch((cause) =>

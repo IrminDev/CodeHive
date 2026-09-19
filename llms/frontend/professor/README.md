@@ -42,6 +42,11 @@ confirmation, field, and panel patterns live in `components/TeacherUI.tsx`.
   restored; each assignment exposes preview, edit, revalidate, clone, grade, and management status.
 - Management status combines latest validation failure, update history, and latest reevaluation batch.
 - Grade review drawer exposes every attempt, retained source, execution evidence, and grade audit history.
+- The gradebook offers archived groups next to active ones, active first (`gradableGroups`), because an
+  owner keeps grading, grade return, and feedback on archived groups. Deleted groups stay out.
+- Archived state uses the same orange lifecycle accent as the groups list and group detail: an orange rail
+  above the gradebook toolbar, an orange selector outline, an `archived` pill on the group option, and an
+  orange notice explaining that students see the group as read-only while grading stays open.
 - Teacher dashboard aggregates owned active groups, students, assignments, grading queue, validation
   problems, upcoming lifecycle dates, and recent submissions server-side.
 
