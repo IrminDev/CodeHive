@@ -60,7 +60,7 @@ const lifecycleStyle: Record<
     accent: "bg-red-500",
     icon: "bg-red-500/10 text-red-500",
     tone: "error",
-    note: "This deleted group is visible as historical data and can be restored.",
+    note: "This group has been deleted and is no longer available.",
   },
 };
 
@@ -96,7 +96,6 @@ export function GroupHero({
   onRotateCode,
   onArchiveToggle,
   onDelete,
-  onRestore,
 }: {
   group: TeacherGroup;
   busy: boolean;
@@ -105,11 +104,9 @@ export function GroupHero({
   onRotateCode: () => void;
   onArchiveToggle: () => void;
   onDelete: () => void;
-  onRestore: () => void;
 }) {
   const status = lifecycle(group);
   const style = lifecycleStyle[status];
-  const joinCode = status === "deleted" ? undefined : group.joinCode;
 
   return (
     <section className={`${panelClass} relative overflow-hidden`}>
@@ -157,15 +154,7 @@ export function GroupHero({
               >
                 <RefreshCw size={14} /> Unarchive group
               </button>
-            ) : (
-              <button
-                disabled={busy}
-                onClick={onRestore}
-                className="btn-primary inline-flex items-center gap-1.5"
-              >
-                <RotateCcw size={14} /> Restore group
-              </button>
-            )}
+            ) : null}
 
             {status !== "deleted" && (
               <ActionMenu
@@ -211,10 +200,10 @@ export function GroupHero({
                 Join code
               </p>
               <strong className="block mt-0.5 truncate font-mono text-lg tracking-widest text-azure dark:text-yellow">
-                {joinCode || "Unavailable"}
+                {group.joinCode || "Unavailable"}
               </strong>
             </div>
-            {joinCode && (
+            {group.joinCode && (
               <button
                 onClick={onCopyCode}
                 className="w-9 h-9 grid place-items-center rounded-lg text-gray-400 hover:text-azure dark:hover:text-yellow hover:bg-white dark:hover:bg-dark-surface transition-colors"
@@ -456,14 +445,12 @@ export function AssignmentsPanel({
                 >
                   <BookOpen size={13} /> Preview
                 </Link>
-                {group.isActive && (
-                  <Link
-                    to={`/teacher/grades?groupId=${group.id}&assignmentId=${assignment.id}`}
-                    className={compactButtonClass}
-                  >
-                    <GraduationCap size={13} /> Grade
-                  </Link>
-                )}
+                <Link
+                  to={`/teacher/grades?groupId=${group.id}&assignmentId=${assignment.id}`}
+                  className={compactButtonClass}
+                >
+                  <GraduationCap size={13} /> Grade
+                </Link>
               </div>
             </article>
           ))}

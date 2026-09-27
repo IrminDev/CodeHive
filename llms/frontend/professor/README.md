@@ -3,12 +3,12 @@
 ## Routes
 
 - `/teacher` — action dashboard with validation failures, grading queue, deadlines, and recent submissions.
-- `/teacher/assignments` — paginated assignment management across active, archived, and deleted groups.
+- `/teacher/assignments` — paginated assignment management across active and archived groups.
 - `/teacher/create-assignment` — assignment form.
 - `/teacher/assignments/:assignmentId/clone` — editable clone form.
 - `/teacher/assignments/:assignmentId/edit` — metadata, schedule, and public-example update form.
 - `/teacher/assignments/:assignmentId/revalidate` — explicit source, private-test, constraints, and execution-settings revision form.
-- `/teacher/groups` — owned groups across their lifecycle: active, archived, and deleted.
+- `/teacher/groups` — owned active and archived groups.
 - `/teacher/groups/create` — group creation form.
 - `/teacher/groups/:groupId` — roster, lifecycle, assignments, join code, and metrics.
 - `/teacher/grades` — student work, submission evidence, execution reports, grade history, draft/returned grades, and feedback.
@@ -38,9 +38,8 @@ confirmation, field, and panel patterns live in `components/TeacherUI.tsx`.
 
 ## Management Workflows
 
-- Assignment list filters by group, lifecycle, validation status, and title. The *Deleted* lifecycle
-  lists soft-deleted assignments and restores them into a writable group; each assignment exposes
-  preview, edit, revalidate, clone, grade, and management status.
+- Assignment list filters by group, validation status, and title; each assignment exposes preview, edit,
+  revalidate, clone, grade, and management status.
 - Row and hero menus use `ActionMenu` (`components/TeacherActionMenu.tsx`), which renders the menu in a
   portal with fixed positioning anchored to its trigger. Teacher panels use `overflow-hidden`, which
   clipped the previous absolute menus and hid actions such as **Delete assignment**, **Delete group**,
@@ -52,10 +51,11 @@ confirmation, field, and panel patterns live in `components/TeacherUI.tsx`.
 - Archived state uses the same orange lifecycle accent as the groups list and group detail: an orange rail
   above the gradebook toolbar, an orange selector outline, an `archived` pill on the group option, and an
   orange notice explaining that students see the group as read-only while grading stays open.
-- The groups list requests `includeDeleted` and offers a third red **Deleted** lifecycle tab. Its cards read
-  *View and restore* and open the group detail in consultation mode, where the hero keeps only **Restore
-  group**. A deleted group shows no join code and no grading entry point, because the gradebook only serves
-  groups that still exist. Restoring returns the group archived, matching the backend rule.
+- Deletion is terminal in the teacher UI: deleting a group or an assignment is permanent from the
+  teacher's side. Deleted groups and assignments are never listed, browsable, or restorable through the
+  frontend, and confirmation copy does not promise recovery. The backend keeps the records and its
+  restore endpoints, but no teacher-facing screen calls them (`INCREMENTOIII.pdf`, CH3-9 and the group
+  lifecycle rules describe deletion without a teacher restore path).
 - Teacher dashboard aggregates owned active groups, students, assignments, grading queue, validation
   problems, upcoming lifecycle dates, and recent submissions server-side.
 

@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, type ReactNode } from "react";
 import {
   AlertTriangle,
-  ArchiveRestore,
   CalendarClock,
   CheckCircle2,
   ChevronLeft,
@@ -54,12 +53,10 @@ export function assignmentGroupLifecycle(group: TeacherGroup): "active" | "archi
 export function AssignmentContextBar({
   groups,
   selected,
-  lifecycle,
   query,
   validationStatus,
   loading,
   onGroupChange,
-  onLifecycleChange,
   onQueryChange,
   onValidationChange,
   onClear,
@@ -67,12 +64,10 @@ export function AssignmentContextBar({
 }: {
   groups: TeacherGroup[];
   selected?: TeacherGroup;
-  lifecycle: AssignmentLifecycle;
   query: string;
   validationStatus: "" | AssignmentValidationStatus;
   loading: boolean;
   onGroupChange: (groupId: string) => void;
-  onLifecycleChange: (lifecycle: AssignmentLifecycle) => void;
   onQueryChange: (query: string) => void;
   onValidationChange: (status: "" | AssignmentValidationStatus) => void;
   onClear: () => void;
@@ -86,7 +81,7 @@ export function AssignmentContextBar({
     }),
     [groups],
   );
-  const hasFilters = Boolean(query.trim() || validationStatus || lifecycle === "deleted");
+  const hasFilters = Boolean(query.trim() || validationStatus);
 
   return (
     <section className={`${panelClass} mb-5 overflow-hidden`}>
@@ -132,24 +127,7 @@ export function AssignmentContextBar({
       </div>
 
       <div className="border-t border-gray-100 bg-gray-50 p-3 dark:border-gray-800/60 dark:bg-dark-card sm:p-4">
-        <div className="grid gap-3 lg:grid-cols-[auto_minmax(220px,1fr)_190px_auto] lg:items-end">
-          <div>
-            <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">Lifecycle</p>
-            <div className="inline-flex rounded-xl border border-gray-200 bg-white p-1 dark:border-gray-700 dark:bg-dark-surface">
-              {(["active", "deleted"] as AssignmentLifecycle[]).map((item) => (
-                <button
-                  type="button"
-                  key={item}
-                  onClick={() => onLifecycleChange(item)}
-                  aria-pressed={lifecycle === item}
-                  className={`rounded-lg px-3 py-2 text-xs font-semibold capitalize transition-colors ${lifecycle === item ? "bg-azure text-white shadow-sm dark:bg-yellow dark:text-imperial" : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"}`}
-                >
-                  {item}
-                </button>
-              ))}
-            </div>
-          </div>
-
+        <div className="grid gap-3 lg:grid-cols-[minmax(220px,1fr)_190px_auto] lg:items-end">
           <label className="grid gap-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
             Search
             <span className="relative">
@@ -172,8 +150,6 @@ export function AssignmentContextBar({
 
 export function AssignmentList({
   assignments,
-  deleted,
-  canRestore,
   loading,
   page,
   pageSize,
@@ -182,11 +158,8 @@ export function AssignmentList({
   onPage,
   onStatus,
   onDelete,
-  onRestore,
 }: {
   assignments: TeacherAssignment[];
-  deleted: boolean;
-  canRestore: boolean;
   loading: boolean;
   page: number;
   pageSize: number;
@@ -195,7 +168,6 @@ export function AssignmentList({
   onPage: (page: number) => void;
   onStatus: (assignment: TeacherAssignment) => void;
   onDelete: (assignment: TeacherAssignment) => void;
-  onRestore: (assignment: TeacherAssignment) => void;
 }) {
   const first = totalElements ? page * pageSize + 1 : 0;
   const last = Math.min((page + 1) * pageSize, totalElements);
@@ -209,8 +181,8 @@ export function AssignmentList({
       )}
       <header className="flex items-center justify-between gap-3 border-b border-gray-100 px-5 py-3.5 dark:border-gray-800/60">
         <div>
-          <h2 className="text-sm font-semibold">{deleted ? "Deleted assignments" : "Assignment library"}</h2>
-          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{deleted ? "Restore assignments when their group permits it." : "Validation, schedule, and management controls."}</p>
+          <h2 className="text-sm font-semibold">Assignment library</h2>
+          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Validation, schedule, and management controls.</p>
         </div>
         <span className="rounded-md bg-gray-100 px-2 py-1 font-mono text-xs text-gray-500 dark:bg-dark-card dark:text-gray-400">{totalElements}</span>
       </header>
@@ -220,11 +192,8 @@ export function AssignmentList({
           <AssignmentRow
             key={assignment.id}
             assignment={assignment}
-            deleted={deleted}
-            canRestore={canRestore}
             onStatus={() => onStatus(assignment)}
             onDelete={() => onDelete(assignment)}
-            onRestore={() => onRestore(assignment)}
           />
         ))}
       </div>
@@ -241,10 +210,10 @@ export function AssignmentList({
   );
 }
 
-function AssignmentRow({ assignment, deleted, canRestore, onStatus, onDelete, onRestore }: { assignment: TeacherAssignment; deleted: boolean; canRestore: boolean; onStatus: () => void; onDelete: () => void; onRestore: () => void }) {
+function AssignmentRow({ assignment, onStatus, onDelete }: { assignment: TeacherAssignment; onStatus: () => void; onDelete: () => void }) {
   const tone = assignment.validationStatus === "READY" ? "success" : assignment.validationStatus === "FAILED" ? "error" : "warning";
-  const rail = deleted ? "bg-gray-400" : assignment.validationStatus === "READY" ? "bg-green-500" : assignment.validationStatus === "FAILED" ? "bg-red-500" : "bg-yellow";
-  const schedule = assignmentSchedule(assignment, deleted);
+  const rail = assignment.validationStatus === "READY" ? "bg-green-500" : assignment.validationStatus === "FAILED" ? "bg-red-500" : "bg-yellow";
+  const schedule = assignmentSchedule(assignment);
 
   return (
     <article className="group relative px-5 py-4 transition-colors hover:bg-gray-50/80 dark:hover:bg-dark-card/40">
@@ -254,7 +223,7 @@ function AssignmentRow({ assignment, deleted, canRestore, onStatus, onDelete, on
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="truncate text-base font-semibold text-gray-900 dark:text-white">{assignment.title}</h3>
             <button type="button" onClick={onStatus} className="rounded-full focus:outline-none focus:ring-2 focus:ring-azure dark:focus:ring-yellow" aria-label={`View ${assignment.title} validation status`}>
-              <StatusPill label={deleted ? "deleted" : assignment.validationStatus} tone={deleted ? "neutral" : tone} />
+              <StatusPill label={assignment.validationStatus} tone={tone} />
             </button>
             <StatusPill label={schedule.label} tone={schedule.tone} />
           </div>
@@ -273,27 +242,18 @@ function AssignmentRow({ assignment, deleted, canRestore, onStatus, onDelete, on
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {deleted ? (
-            <button type="button" disabled={!canRestore} title={canRestore ? "Restore assignment" : "Restore or unarchive group first"} onClick={onRestore} className="inline-flex items-center gap-1.5 rounded-lg bg-azure px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-french disabled:cursor-not-allowed disabled:opacity-50 dark:bg-yellow dark:text-imperial">
-              <ArchiveRestore size={14} /> Restore
-            </button>
+          {assignment.validationStatus === "READY" ? (
+            <Link to={`/teacher/assignments/${assignment.id}/preview`} className="inline-flex items-center gap-1.5 rounded-lg bg-azure/10 px-3 py-2 text-xs font-semibold text-azure transition-colors hover:bg-azure hover:text-white dark:bg-yellow/10 dark:text-yellow dark:hover:bg-yellow dark:hover:text-imperial"><Eye size={14} /> Preview</Link>
           ) : (
-            <>
-              {assignment.validationStatus === "READY" ? (
-                <Link to={`/teacher/assignments/${assignment.id}/preview`} className="inline-flex items-center gap-1.5 rounded-lg bg-azure/10 px-3 py-2 text-xs font-semibold text-azure transition-colors hover:bg-azure hover:text-white dark:bg-yellow/10 dark:text-yellow dark:hover:bg-yellow dark:hover:text-imperial"><Eye size={14} /> Preview</Link>
-              ) : (
-                <button type="button" onClick={onStatus} className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold transition-colors ${assignment.validationStatus === "FAILED" ? "border-red-500/30 bg-red-500/5 text-red-500 hover:bg-red-500/10" : "border-yellow/30 bg-yellow/5 text-yellow-700 hover:bg-yellow/10 dark:text-yellow"}`}>
-                  {assignment.validationStatus === "FAILED" ? <AlertTriangle size={14} /> : <LoaderCircle size={14} className="animate-spin" />}
-                  {assignment.validationStatus === "FAILED" ? "Review error" : "View progress"}
-                </button>
-              )}
-              <Link to={`/teacher/assignments/${assignment.id}/edit`} className={compactButtonClass}><Pencil size={14} /> Edit</Link>
-              <AssignmentMenu assignment={assignment} onStatus={onStatus} onDelete={onDelete} />
-            </>
+            <button type="button" onClick={onStatus} className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold transition-colors ${assignment.validationStatus === "FAILED" ? "border-red-500/30 bg-red-500/5 text-red-500 hover:bg-red-500/10" : "border-yellow/30 bg-yellow/5 text-yellow-700 hover:bg-yellow/10 dark:text-yellow"}`}>
+              {assignment.validationStatus === "FAILED" ? <AlertTriangle size={14} /> : <LoaderCircle size={14} className="animate-spin" />}
+              {assignment.validationStatus === "FAILED" ? "Review error" : "View progress"}
+            </button>
           )}
+          <Link to={`/teacher/assignments/${assignment.id}/edit`} className={compactButtonClass}><Pencil size={14} /> Edit</Link>
+          <AssignmentMenu assignment={assignment} onStatus={onStatus} onDelete={onDelete} />
         </div>
       </div>
-      {deleted && !canRestore && <p className="mt-3 text-xs text-orange-500">Restore or unarchive this assignment’s group before restoring assignment.</p>}
     </article>
   );
 }
@@ -412,8 +372,7 @@ function ReevaluationProgress({ reevaluation }: { reevaluation: NonNullable<Assi
   );
 }
 
-function assignmentSchedule(assignment: TeacherAssignment, deleted: boolean): { label: string; detail: string; tone: "success" | "warning" | "error" | "info" | "neutral" } {
-  if (deleted) return { label: "Deleted", detail: `Deleted assignment · updated ${formatDate(assignment.updatedAt)}`, tone: "neutral" };
+function assignmentSchedule(assignment: TeacherAssignment): { label: string; detail: string; tone: "success" | "warning" | "error" | "info" | "neutral" } {
   const now = Date.now();
   if (assignment.launchDate && Date.parse(assignment.launchDate) > now) return { label: "Scheduled", detail: `Opens ${formatDateTime(assignment.launchDate)}`, tone: "info" };
   if (assignment.closeDate && Date.parse(assignment.closeDate) <= now) return { label: "Closed", detail: `Closed ${formatDateTime(assignment.closeDate)}`, tone: "neutral" };

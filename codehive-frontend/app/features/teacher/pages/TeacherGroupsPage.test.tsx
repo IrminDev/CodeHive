@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -28,18 +28,15 @@ const groups = [group("live", "Algorithms A", true, false), group("gone", "Algor
 afterEach(cleanup);
 
 describe("TeacherGroupsPage", () => {
-  it("keeps deleted groups in their own tab and offers restoring them", async () => {
+  it("hides deleted groups and offers no restore path to the teacher", async () => {
     render(<MemoryRouter><TeacherGroupsPage /></MemoryRouter>);
 
     expect(await screen.findByRole("link", { name: /Algorithms A/ })).toHaveAttribute("href", "/teacher/groups/live");
+    // A deleted group never surfaces in the teacher's group list.
     expect(screen.queryByRole("link", { name: /Algorithms 2024/ })).not.toBeInTheDocument();
-    expect(calls.groupArgs.at(-1)).toEqual(["me", true]);
-
-    fireEvent.click(screen.getByRole("tab", { name: /Deleted/ }));
-
-    const deleted = await screen.findByRole("link", { name: /Algorithms 2024/ });
-    expect(deleted).toHaveAttribute("href", "/teacher/groups/gone");
-    expect(deleted).toHaveTextContent("View and restore");
-    expect(screen.queryByRole("link", { name: /Algorithms A/ })).not.toBeInTheDocument();
+    // There is no Deleted lifecycle tab, so nothing hints that deletion can be undone.
+    expect(screen.queryByRole("tab", { name: /Deleted/ })).not.toBeInTheDocument();
+    // The list is not requested with the includeDeleted flag.
+    expect(calls.groupArgs.every((args) => args[1] !== true)).toBe(true);
   });
 });

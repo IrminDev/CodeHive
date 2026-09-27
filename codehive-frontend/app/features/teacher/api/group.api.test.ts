@@ -25,15 +25,6 @@ describe("teacher group lists", () => {
     expect(result.map((group) => group.id)).toEqual(["owned-active", "owned-archived"]);
   });
 
-  it("ask the backend for deleted groups only when the caller wants them", async () => {
-    mockGroups();
-    await listTeacherGroups("me");
-    expect(globalThis.fetch).toHaveBeenLastCalledWith("http://localhost:8080/api/groups", expect.anything());
-
-    await listTeacherGroups("me", true);
-    expect(globalThis.fetch).toHaveBeenLastCalledWith("http://localhost:8080/api/groups?includeDeleted=true", expect.anything());
-  });
-
   it("offer only owned, writable groups as assignment targets", async () => {
     mockGroups();
     const result = await getActiveTeacherGroups("me");

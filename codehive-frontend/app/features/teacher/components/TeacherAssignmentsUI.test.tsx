@@ -15,11 +15,11 @@ const assignment: TeacherAssignment = {
 };
 
 function renderList(overrides: Partial<Parameters<typeof AssignmentList>[0]> = {}) {
-  const handlers = { onPage: vi.fn(), onStatus: vi.fn(), onDelete: vi.fn(), onRestore: vi.fn() };
+  const handlers = { onPage: vi.fn(), onStatus: vi.fn(), onDelete: vi.fn() };
   render(
     <MemoryRouter>
       <AssignmentList
-        assignments={[assignment]} deleted={false} canRestore loading={false}
+        assignments={[assignment]} loading={false}
         page={0} pageSize={10} totalElements={1} totalPages={1} {...handlers} {...overrides}
       />
     </MemoryRouter>,
@@ -39,17 +39,10 @@ describe("AssignmentList", () => {
     expect(handlers.onDelete).toHaveBeenCalledWith(assignment);
   });
 
-  it("offers restoring while browsing deleted assignments", () => {
-    const handlers = renderList({ deleted: true, assignments: [{ ...assignment, isActive: false }] });
-
-    fireEvent.click(screen.getByRole("button", { name: /Restore/ }));
-    expect(handlers.onRestore).toHaveBeenCalled();
-  });
-
-  it("blocks restoring when the group cannot take the assignment back", () => {
-    renderList({ deleted: true, canRestore: false, assignments: [{ ...assignment, isActive: false }] });
-
-    expect(screen.getByRole("button", { name: /Restore/ })).toBeDisabled();
-    expect(screen.getByText(/Restore or unarchive this assignment/)).toBeInTheDocument();
+  it("never offers a restore action to the teacher", () => {
+    renderList();
+    expect(screen.queryByRole("button", { name: /Restore/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "More actions for Topological Sort" }));
+    expect(screen.queryByRole("menuitem", { name: /Restore/ })).not.toBeInTheDocument();
   });
 });
