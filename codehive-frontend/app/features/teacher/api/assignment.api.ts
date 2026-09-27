@@ -1,6 +1,8 @@
 import { API_BASE_URL } from "~/core/config/env";
 import { teacherAuthHeaders, teacherRequest } from "./client";
 import type {
+  AiPolicySettings,
+  AiPolicyResponse,
   AssignmentPage,
   AssignmentManagementStatus,
   AssignmentPreview,
@@ -14,6 +16,8 @@ import type {
 import type { TeacherGroup } from "../types/group.types";
 
 export type {
+  AiPolicySettings,
+  AiPolicyResponse,
   AssignmentExample,
   AssignmentPage,
   AssignmentPreview,
@@ -101,6 +105,13 @@ export function getTeacherAssignment(assignmentId: string): Promise<TeacherAssig
   return teacherRequest<TeacherAssignment>(
     `/api/assignments/${encodeURIComponent(assignmentId)}`,
   ).then(normalizeAssignment);
+}
+
+export function updateAiPolicy(assignmentId: string, policy: AiPolicySettings): Promise<AiPolicyResponse> {
+  return teacherRequest<AiPolicyResponse>(
+    `/api/assignments/${encodeURIComponent(assignmentId)}/ai-policy`,
+    { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(policy) },
+  );
 }
 
 export function getTeacherAssignmentPreview(assignmentId: string): Promise<AssignmentPreview> {

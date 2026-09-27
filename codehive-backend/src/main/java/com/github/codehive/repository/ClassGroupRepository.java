@@ -7,10 +7,15 @@ import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
 
 import com.github.codehive.model.entity.ClassGroup;
 
 public interface ClassGroupRepository extends JpaRepository<ClassGroup, UUID> {
+    @Query(value = "select * from class_groups where id = :id for update", nativeQuery = true)
+    Optional<ClassGroup> findByIdForUpdate(@Param("id") UUID id);
     Optional<ClassGroup> findByJoinCodeIgnoreCase(String joinCode);
     boolean existsByJoinCodeIgnoreCase(String joinCode);
     List<ClassGroup> findByOwnerIdAndIsActiveTrueOrderByCreatedAtDesc(UUID ownerId);

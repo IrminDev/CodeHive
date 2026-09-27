@@ -10,6 +10,7 @@ Main responsibilities:
 - Persist and query data with JPA repositories.
 - Publish and consume execution-related and assignment-related messages.
 - Return standardized API responses and errors.
+- Maintain assignment AI policy, student-only assistant history and request API, quota transactions, safe context projections, and a guarded model boundary; global switch defaults off.
 
 ## How It Works
 
@@ -34,6 +35,16 @@ Main responsibilities:
 3. Stores source code in MinIO and publishes ExecutionJob to `codehive_queue`.
 4. Worker processes the job and publishes ExecutionReport to `codehive_result_queue`.
 5. Backend updates Execution status; client polls GET /api/execution/check/{id}.
+
+### Assistant backend (stages 0–6)
+- Assignment policy lives in `AssignmentAiPolicy` with its own version so policy-only changes do not invalidate staged worker validation.
+- `AssistantConversation` is unique per assignment/student; interaction rows preserve status and charged usage without storing opted-in context attachments.
+- Group archive/logical deletion clears prompt/answer text and cancels pending interactions in the lifecycle transaction; unarchive does not restore text.
+- Student-only history endpoints read own conversation independently of current assignment eligibility. `AssistantTransactionService` reserves/finalizes under database locks and recovers expired leases.
+- `AssistantContextService` allowlists public assignment fields, separately opted-in editor code, latest student-initiated non-pending execution summary, and policy-compatible retained history.
+- `AssistantGuardrailService` uses a provider-neutral `AssistantModelGateway`, bounded semantic review, structured JSON validation, and at most one regeneration. Google Gemini is available through the Spring AI Google GenAI starter when explicitly selected and given an API key; normal startup remains provider-free.
+- `AssistantService` exposes student-only availability and request flow through `AssistantController`. It reserves quota before model work, rechecks policy/lifecycle before release, and stores only approved output. `ASSISTANT_ENABLED` defaults false; live model traffic and student UI remain gated by later stages.
+- Contract and PostgreSQL development schema checklist live in `docs/AI_ASSISTANT_STAGE_0_CONTRACT.md` and `docs/AI_ASSISTANT_DEV_SCHEMA.sql`.
 
 ## Useful Commands
 Run these from codehive-backend.

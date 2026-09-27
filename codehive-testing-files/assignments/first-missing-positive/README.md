@@ -20,7 +20,6 @@ first-missing-positive/
 ```
 
 ## Manual assignment fields
-
 | Field | Value |
 | --- | --- |
 | Group | Any owned, active, non-archived group |

@@ -64,6 +64,7 @@ public class AdminUserService {
     private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final NotificationDomainEventPublisher notificationPublisher;
     private final AdminAuditService auditService;
+    private final AssistantTextPurgeService assistantTextPurgeService;
 
     public AdminUserService(UserRepository userRepository,
                             ClassGroupRepository groupRepository,
@@ -74,7 +75,8 @@ public class AdminUserService {
                             ExecutionRepository executionRepository,
                             PasswordResetTokenRepository passwordResetTokenRepository,
                             NotificationDomainEventPublisher notificationPublisher,
-                            AdminAuditService auditService) {
+                            AdminAuditService auditService,
+                            AssistantTextPurgeService assistantTextPurgeService) {
         this.userRepository = userRepository;
         this.groupRepository = groupRepository;
         this.enrollmentRepository = enrollmentRepository;
@@ -85,6 +87,7 @@ public class AdminUserService {
         this.passwordResetTokenRepository = passwordResetTokenRepository;
         this.notificationPublisher = notificationPublisher;
         this.auditService = auditService;
+        this.assistantTextPurgeService = assistantTextPurgeService;
     }
 
     @Transactional(readOnly = true)
@@ -285,11 +288,13 @@ public class AdminUserService {
 
     private void archiveOwnedGroups(User owner) {
         LocalDateTime updatedAt = LocalDateTime.now();
-        for (ClassGroup group : groupRepository.findByOwnerIdOrderByCreatedAtDesc(owner.getId())) {
+        for (ClassGroup listed : groupRepository.findByOwnerIdOrderByCreatedAtDesc(owner.getId())) {
+            ClassGroup group = groupRepository.findByIdForUpdate(listed.getId()).orElseThrow();
             if (!Boolean.TRUE.equals(group.getIsActive())) continue;
             boolean notify = !Boolean.TRUE.equals(group.getArchived());
             group.setArchived(true);
             group.setUpdatedAt(updatedAt);
+            assistantTextPurgeService.eraseGroup(group.getId());
             if (notify) {
                 notificationPublisher.publish(NotificationDomainEvent.of(
                         NotificationType.GROUP_ARCHIVED, owner.getId(), null, group.getId(), null, null));
@@ -300,13 +305,15 @@ public class AdminUserService {
     private void terminalDeleteOwnedGroups(User owner, GroupDeletionReason reason) {
         Instant now = Instant.now();
         LocalDateTime updatedAt = LocalDateTime.now();
-        for (ClassGroup group : groupRepository.findByOwnerIdOrderByCreatedAtDesc(owner.getId())) {
+        for (ClassGroup listed : groupRepository.findByOwnerIdOrderByCreatedAtDesc(owner.getId())) {
+            ClassGroup group = groupRepository.findByIdForUpdate(listed.getId()).orElseThrow();
             boolean notify = Boolean.TRUE.equals(group.getIsActive()) && !Boolean.TRUE.equals(group.getArchived());
             group.setArchived(true);
             group.setIsActive(false);
             if (group.getDeletedAt() == null) group.setDeletedAt(now);
             group.setDeletionReason(reason);
             group.setUpdatedAt(updatedAt);
+            assistantTextPurgeService.eraseGroup(group.getId());
             if (notify) {
                 notificationPublisher.publish(NotificationDomainEvent.of(
                         NotificationType.GROUP_ARCHIVED, owner.getId(), null, group.getId(), null, null));

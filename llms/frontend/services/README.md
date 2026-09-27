@@ -51,6 +51,8 @@ Behavior details:
 
 ## Teacher Assignment API
 
+- Sends initial AI policy in create/clone payloads; `updateAiPolicy` calls immediate owner-authorized `PUT /api/assignments/{id}/ai-policy` separately from staged assignment edits.
+
 - Lists active teacher groups and paginated assignments per group.
 - Creates assignments with multipart metadata/reference/test files.
 - Retrieves and updates assignment metadata/schedules through multipart requests.
@@ -63,6 +65,10 @@ Behavior details:
 - Converts backend wrapper responses to typed feature data and surfaces API messages on failure.
 
 ## Student Assignment Data
+
+- Student assistant API loads availability, paginated own conversation history, single interactions,
+  and posts idempotent message requests under `/api/assignments/{id}/assistant`. Missing conversation
+  history (`404`) is an empty list; other errors retain HTTP status, stable code, and `Retry-After`.
 
 - Loads accessible groups from `GET /api/groups`.
 - Loads all student-visible assignments and progress in one request through `GET /api/assignments/mine`.

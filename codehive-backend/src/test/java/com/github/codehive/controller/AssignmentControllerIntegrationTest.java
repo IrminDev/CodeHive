@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -22,6 +23,7 @@ import com.github.codehive.model.entity.Submission;
 import com.github.codehive.model.entity.TestCase;
 import com.github.codehive.model.entity.TestSuiteRevision;
 import com.github.codehive.model.enums.AssignmentValidationStatus;
+import com.github.codehive.model.enums.AiAssistanceLevel;
 import com.github.codehive.model.enums.ComparatorType;
 import com.github.codehive.model.enums.Language;
 import com.github.codehive.model.enums.Role;
@@ -31,6 +33,7 @@ import com.github.codehive.model.request.assignment.AssignmentExampleRequest;
 import com.github.codehive.model.request.assignment.CloneAssignmentRequest;
 import com.github.codehive.model.request.assignment.CloneTestCaseRequest;
 import com.github.codehive.repository.AssignmentRepository;
+import com.github.codehive.repository.AssignmentAiPolicyRepository;
 import com.github.codehive.repository.UserRepository;
 import com.github.codehive.repository.ClassGroupRepository;
 import com.github.codehive.repository.ReferenceSolutionRevisionRepository;
@@ -72,6 +75,7 @@ class AssignmentControllerIntegrationTest {
     @Autowired private MockMvc mockMvc;
     @Autowired private ObjectMapper objectMapper;
     @Autowired private AssignmentRepository assignmentRepository;
+    @Autowired private AssignmentAiPolicyRepository aiPolicyRepository;
     @Autowired private UserRepository userRepository;
     @Autowired private ClassGroupRepository groupRepository;
     @Autowired private ReferenceSolutionRevisionRepository referenceSolutionRevisionRepository;
@@ -125,6 +129,45 @@ class AssignmentControllerIntegrationTest {
     }
 
     // ── LIST ────────────────────────────────────────────────────────────────
+
+    @Test
+    void policyUpdateIsImmediateAndDoesNotChangeAssignmentVersion() throws Exception {
+        Assignment assignment = saveAssignment("Policy test");
+        Long assignmentVersion = assignment.getVersion();
+        mockMvc.perform(put("/api/assignments/{id}/ai-policy", assignment.getId())
+                        .header("Authorization", "Bearer " + teacherToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"aiAssistanceEnabled\":true,\"maxAiRequests\":10,\"aiAssistanceLevel\":\"EXPLANATIONS_GUIDING_AND_SNIPPETS\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.maxAiRequests").value(10));
+        entityManager.flush();
+        entityManager.clear();
+        assertThat(assignmentRepository.findById(assignment.getId()).orElseThrow().getVersion())
+                .isEqualTo(assignmentVersion);
+        assertThat(aiPolicyRepository.findById(assignment.getId()).orElseThrow().isEnabled()).isTrue();
+
+        mockMvc.perform(put("/api/assignments/{id}/ai-policy", assignment.getId())
+                        .header("Authorization", "Bearer " + teacherToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"aiAssistanceEnabled\":false,\"maxAiRequests\":0,\"aiAssistanceLevel\":\"CONCEPTUAL_ONLY\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.maxAiRequests").value(0));
+    }
+
+    @Test
+    void policyUpdateRejectsInvalidQuotaAndStudentAccess() throws Exception {
+        Assignment assignment = saveAssignment("Policy bounds");
+        mockMvc.perform(put("/api/assignments/{id}/ai-policy", assignment.getId())
+                        .header("Authorization", "Bearer " + teacherToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"aiAssistanceEnabled\":true,\"maxAiRequests\":0,\"aiAssistanceLevel\":\"CONCEPTUAL_ONLY\"}"))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(put("/api/assignments/{id}/ai-policy", assignment.getId())
+                        .header("Authorization", "Bearer " + studentToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"aiAssistanceEnabled\":true,\"maxAiRequests\":1,\"aiAssistanceLevel\":\"CONCEPTUAL_ONLY\"}"))
+                .andExpect(status().isForbidden());
+    }
 
     @Nested
     @DisplayName("GET /api/assignments")
@@ -248,7 +291,9 @@ class AssignmentControllerIntegrationTest {
                             .file(testCaseInputPart())
                             .header("Authorization", "Bearer " + teacherToken))
                     .andExpect(status().isAccepted())
-                    .andExpect(jsonPath("$.data.title").value("Test Assignment"));
+                    .andExpect(jsonPath("$.data.title").value("Test Assignment"))
+                    .andExpect(jsonPath("$.data.aiAssistanceEnabled").value(false))
+                    .andExpect(jsonPath("$.data.maxAiRequests").value(0));
         }
 
         @Test
@@ -408,6 +453,9 @@ class AssignmentControllerIntegrationTest {
         request.setReferenceSolution("print(sum(map(int, input().split())))");
         request.setTestCases(List.of(testCase));
         request.setExamples(List.of(example));
+        request.setAiAssistanceEnabled(true);
+        request.setMaxAiRequests(4);
+        request.setAiAssistanceLevel(AiAssistanceLevel.EXPLANATIONS_AND_GUIDING);
 
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
                         .post("/api/assignments/{id}/clone", source.getId())
@@ -419,6 +467,9 @@ class AssignmentControllerIntegrationTest {
                 .andExpect(jsonPath("$.data.title").value("Edited clone"))
                 .andExpect(jsonPath("$.data.allowedLanguages[0]").value("PYTHON"))
                 .andExpect(jsonPath("$.data.examples[0].explanation").value("Edited example"))
+                .andExpect(jsonPath("$.data.aiAssistanceEnabled").value(true))
+                .andExpect(jsonPath("$.data.maxAiRequests").value(4))
+                .andExpect(jsonPath("$.data.aiAssistanceLevel").value("EXPLANATIONS_AND_GUIDING"))
                 .andExpect(jsonPath("$.data.launchDate").doesNotExist())
                 .andExpect(jsonPath("$.data.dueDate").doesNotExist())
                 .andExpect(jsonPath("$.data.closeDate").doesNotExist())

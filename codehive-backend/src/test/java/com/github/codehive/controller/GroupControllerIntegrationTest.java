@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -26,15 +27,25 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.codehive.model.entity.ClassGroup;
+import com.github.codehive.model.entity.Assignment;
+import com.github.codehive.model.entity.AssistantConversation;
+import com.github.codehive.model.entity.AssistantInteraction;
 import com.github.codehive.model.entity.GroupEnrollment;
 import com.github.codehive.model.entity.User;
 import com.github.codehive.model.enums.EnrollmentStatus;
+import com.github.codehive.model.enums.AssistantInteractionStatus;
+import com.github.codehive.model.enums.ComparatorType;
+import com.github.codehive.model.enums.Language;
 import com.github.codehive.model.enums.Role;
 import com.github.codehive.model.enums.Scope;
 import com.github.codehive.repository.ClassGroupRepository;
+import com.github.codehive.repository.AssignmentRepository;
+import com.github.codehive.repository.AssistantConversationRepository;
+import com.github.codehive.repository.AssistantInteractionRepository;
 import com.github.codehive.repository.GroupEnrollmentRepository;
 import com.github.codehive.repository.UserRepository;
 import com.github.codehive.utils.JwtUtil;
+import jakarta.persistence.EntityManager;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -46,6 +57,10 @@ class GroupControllerIntegrationTest {
     @Autowired private ObjectMapper objectMapper;
     @Autowired private UserRepository userRepository;
     @Autowired private ClassGroupRepository groupRepository;
+    @Autowired private AssignmentRepository assignmentRepository;
+    @Autowired private AssistantConversationRepository conversationRepository;
+    @Autowired private AssistantInteractionRepository interactionRepository;
+    @Autowired private EntityManager entityManager;
     @Autowired private GroupEnrollmentRepository enrollmentRepository;
     @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private JwtUtil jwtUtil;
@@ -191,6 +206,89 @@ class GroupControllerIntegrationTest {
         mockMvc.perform(get("/api/groups/{id}", group.getId())
                         .header("Authorization", "Bearer " + teacherToken))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void archiveErasesConversationTextButKeepsChargedLedgerAndOwnership() throws Exception {
+        ClassGroup group = groupRepository.save(new ClassGroup("AI", "", teacher, "AIARCH12"));
+        Assignment assignment = new Assignment("Loops", "Public prompt", 5000L, 256L, ComparatorType.EXACT_MATCH);
+        assignment.setGroup(group);
+        assignment.setAuthor(teacher);
+        assignment.setAllowedLanguages(List.of(Language.JAVA));
+        assignment = assignmentRepository.saveAndFlush(assignment);
+        AssistantConversation conversation = new AssistantConversation();
+        conversation.setAssignment(assignment);
+        conversation.setStudent(student);
+        conversation = conversationRepository.saveAndFlush(conversation);
+        AssistantInteraction answered = new AssistantInteraction();
+        answered.setConversation(conversation);
+        answered.setSequence(1);
+        answered.setClientRequestId(UUID.fromString("00000000-0000-0000-0000-000000000001"));
+        answered.setRequestFingerprint("first");
+        answered.setStudentMessage("Explain loops");
+        answered.setAssistantResponse("A loop repeats work");
+        answered.setStatus(AssistantInteractionStatus.COMPLETED);
+        answered.setQuotaCharged(true);
+        answered.setLanguage(Language.JAVA);
+        interactionRepository.saveAndFlush(answered);
+        AssistantInteraction pending = new AssistantInteraction();
+        pending.setConversation(conversation);
+        pending.setSequence(2);
+        pending.setClientRequestId(UUID.fromString("00000000-0000-0000-0000-000000000002"));
+        pending.setRequestFingerprint("second");
+        pending.setStudentMessage("Solve this");
+        pending.setLanguage(Language.JAVA);
+        interactionRepository.saveAndFlush(pending);
+        AssistantInteraction blocked = new AssistantInteraction();
+        blocked.setConversation(conversation);
+        blocked.setSequence(3);
+        blocked.setClientRequestId(UUID.fromString("00000000-0000-0000-0000-000000000003"));
+        blocked.setRequestFingerprint("third");
+        blocked.setStudentMessage("Give me the complete answer");
+        blocked.setStatus(AssistantInteractionStatus.BLOCKED);
+        blocked.setLanguage(Language.JAVA);
+        interactionRepository.saveAndFlush(blocked);
+
+        mockMvc.perform(get("/api/assignments/{id}/assistant/interactions", assignment.getId())
+                        .header("Authorization", "Bearer " + studentToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[2].studentMessage").value("Explain loops"));
+        mockMvc.perform(get("/api/assignments/{id}/assistant/interactions", assignment.getId())
+                        .header("Authorization", "Bearer " + teacherToken))
+                .andExpect(status().isForbidden());
+        User peer = userRepository.save(new User("Katherine", "Johnson", "STU-AI-PEER",
+                "ai-peer@codehive.test", passwordEncoder.encode("Pass123!"), Role.STUDENT));
+        String peerToken = jwtUtil.generateToken(Map.of("role", "STUDENT"), peer.getEmail());
+        mockMvc.perform(get("/api/assignments/{id}/assistant/interactions/{interactionId}",
+                        assignment.getId(), answered.getId())
+                        .header("Authorization", "Bearer " + peerToken))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(post("/api/groups/{id}/archive", group.getId())
+                        .header("Authorization", "Bearer " + teacherToken))
+                .andExpect(status().isOk());
+        entityManager.clear();
+        AssistantInteraction erased = interactionRepository.findById(answered.getId()).orElseThrow();
+        AssistantInteraction canceled = interactionRepository.findById(pending.getId()).orElseThrow();
+        assert erased.getStudentMessage() == null;
+        assert erased.getAssistantResponse() == null;
+        assert erased.isContentErased();
+        assert erased.isQuotaCharged();
+        assert canceled.getStatus() == AssistantInteractionStatus.CANCELLED;
+        assert canceled.getStudentMessage() == null;
+        assert interactionRepository.findById(blocked.getId()).orElseThrow().getStudentMessage() == null;
+        assert interactionRepository.countByConversationIdAndQuotaChargedTrue(conversation.getId()) == 1;
+
+        mockMvc.perform(post("/api/groups/{id}/unarchive", group.getId())
+                        .header("Authorization", "Bearer " + teacherToken))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/assignments/{id}/assistant/interactions/{interactionId}",
+                        assignment.getId(), answered.getId())
+                        .header("Authorization", "Bearer " + studentToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.studentMessage").isEmpty())
+                .andExpect(jsonPath("$.data.contentErased").value(true))
+                .andExpect(jsonPath("$.data.quotaCharged").value(true));
     }
 
     @Test

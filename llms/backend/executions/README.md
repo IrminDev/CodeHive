@@ -123,6 +123,7 @@ Execution entity fields:
 - timeMs, memoryMb (set from worker result)
 - isOutdated, createdAt
 - optional user, optional submission
+- Assistant context uses `ExecutionRepository.findLatestStudentInitiated` only after student opt-in: latest non-pending PRACTICE or INITIAL_SUBMISSION execution owned by student for assignment; excludes automatic reevaluation. Projection omits private definitive test data and uses persisted summary when report artifacts expired.
 
 Repositories:
 - repository/AssignmentRepository.java

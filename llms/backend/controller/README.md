@@ -58,6 +58,13 @@ Error handling is centralized in:
 - `POST /api/assignments/{id}/restore` restores a logically deleted assignment.
 - Teacher assignment listings accept lifecycle, validation-status, and title-query filters with pagination.
 - `GET /api/assignments/{id}/management-status` returns validation failure, update history, and latest reevaluation progress.
+- `PUT /api/assignments/{id}/ai-policy` updates owner-controlled AI enabled state, lifetime quota, and assistance level immediately.
+
+### AssistantController
+
+- `GET /api/assignments/{id}/assistant` returns student-only eligibility, current policy, quota, and pending interaction ID.
+- `POST /api/assignments/{id}/assistant/interactions` reserves a request, runs guarded model review, and returns only validated completed/redirection content or blocked status; global `ASSISTANT_ENABLED` defaults false.
+- Existing `AssistantHistoryController` serves student-owned history even after assistance eligibility ends.
 
 ### GroupController
 - Any user with `CREATE_GROUP` can create a group; teachers receive the scope by default.

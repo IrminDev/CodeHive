@@ -69,8 +69,14 @@ The workspace header links to `/assignment/{id}/submissions` for complete defini
 history; this avoids a duplicate partial history panel beside problem content.
 
 The workspace also links to the assignment's row in `/grades`, shows returned points when present,
-and uses functional Problem/Editor/Tests panes below `lg`. AI help remains visibly disabled as
-**Coming soon** until a real backend contract exists.
+and uses functional Problem/Editor/Tests panes below `lg`. AI help opens a responsive assistant
+panel. It loads quota/availability and paginated own history, including content-erased metadata
+after group archive. New questions use separate, initially-off editor-code and latest-finished-
+execution opt-ins; editor text is sent only when explicitly selected. Answers appear only after
+the backend commits validated output. Pending work is polled; interrupted requests refresh history
+and can retry with the same in-memory idempotency key. No generated code enters the editor.
+The panel blocks new questions when policy, quota, assignment lifecycle, or enrollment disallows
+them, while retained history remains readable.
 
 When a current definitive submission exists, the workspace disables a new submit and shows a
 confirmed **Withdraw to update** action. Withdrawal retains history and results, then enables the

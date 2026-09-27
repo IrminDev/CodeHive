@@ -12,6 +12,7 @@ import {
   type AssignmentWorkspacePane,
 } from "~/shared/components/AssignmentWorkspace";
 import { useAuth } from "~/core/providers/AuthProvider";
+import { AssistantPanel } from "../components/AssistantPanel";
 import { getAssignment, listMyAssignmentOverviews } from "../api/assignment.api";
 import { withdrawSubmission } from "../api/submission.api";
 import type { Assignment, AssignmentGrade, Language } from "../types/assignment.types";
@@ -134,6 +135,7 @@ export function AssignmentPage() {
   const [testTab, setTestTab] = useState<TestTab>("testcases");
   const [selectedCase, setSelectedCase] = useState(0);
   const [mobilePane, setMobilePane] = useState<AssignmentWorkspacePane>("editor");
+  const [assistantOpen, setAssistantOpen] = useState(false);
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -505,7 +507,8 @@ export function AssignmentPage() {
         )}
       />
 
-      <button disabled title="AI Assistant — coming soon" aria-label="AI Assistant coming soon" className="fixed bottom-6 right-6 z-50 inline-flex items-center gap-2 rounded-xl border border-gray-200 dark:border-gray-700/60 bg-white/95 dark:bg-dark-card/95 px-3 py-2 text-xs font-medium text-gray-400 shadow-lg cursor-not-allowed"><Sparkles size={14} /> AI · Coming soon</button>
+      {!assistantOpen && <button type="button" onClick={() => setAssistantOpen(true)} title="AI educational assistant" aria-label="Open AI educational assistant" className="fixed bottom-6 right-6 z-50 inline-flex items-center gap-2 rounded-xl border border-gray-200 dark:border-gray-700/60 bg-white/95 dark:bg-dark-card/95 px-3 py-2 text-xs font-medium text-gray-700 dark:text-gray-200 shadow-lg hover:border-azure"><Sparkles size={14} /> AI help</button>}
+      {assistantOpen && <AssistantPanel key={assignment.id} assignmentId={assignment.id} language={selectedLanguage} code={code} onClose={() => setAssistantOpen(false)} />}
 
       {showWithdrawConfirm && currentSubmission && (
         <div className="fixed inset-0 z-[60] grid place-items-center bg-dark-bg/50 backdrop-blur-sm p-4" role="dialog" aria-modal="true" aria-labelledby="withdraw-submission-title">

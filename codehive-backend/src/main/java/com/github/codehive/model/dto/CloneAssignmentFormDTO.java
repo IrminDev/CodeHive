@@ -6,6 +6,7 @@ import java.util.UUID;
 
 import com.github.codehive.model.enums.ComparatorType;
 import com.github.codehive.model.enums.Language;
+import com.github.codehive.model.enums.AiAssistanceLevel;
 
 public record CloneAssignmentFormDTO(
         UUID sourceGroupId,
@@ -22,5 +23,8 @@ public record CloneAssignmentFormDTO(
         String referenceSolution,
         List<AssignmentExampleDTO> examples,
         List<CloneAssignmentTestCaseDTO> testCases,
-        BigDecimal maxPoints
+        BigDecimal maxPoints,
+        boolean aiAssistanceEnabled,
+        int maxAiRequests,
+        AiAssistanceLevel aiAssistanceLevel
 ) {}

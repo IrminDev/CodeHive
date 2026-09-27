@@ -202,6 +202,8 @@ public class AssignmentService {
         clone.setCloseDate(request.getCloseDate());
         clone.setMaxPoints(request.getMaxPoints() != null
                 ? request.getMaxPoints() : new java.math.BigDecimal("100.00"));
+        clone.setAiPolicy(AiPolicyRules.create(request.getAiAssistanceEnabled(),
+                request.getMaxAiRequests(), request.getAiAssistanceLevel()));
         clone.setValidationStatus(AssignmentValidationStatus.PROCESSING);
         addExamples(clone, request.getExamples());
         clone = assignmentRepository.save(clone);
@@ -286,7 +288,12 @@ public class AssignmentService {
                 readTextObject(referencePath),
                 examples,
                 testCases,
-                source.getMaxPoints());
+                source.getMaxPoints(),
+                source.getAiPolicy() != null && source.getAiPolicy().isEnabled(),
+                source.getAiPolicy() == null ? 0 : source.getAiPolicy().getMaxAiRequests(),
+                source.getAiPolicy() == null
+                        ? com.github.codehive.model.enums.AiAssistanceLevel.CONCEPTUAL_ONLY
+                        : source.getAiPolicy().getLevel());
     }
 
     @Transactional(readOnly = true)
@@ -358,6 +365,8 @@ public class AssignmentService {
         assignment.setValidationStatus(AssignmentValidationStatus.PROCESSING);
         assignment.setMaxPoints(request.getMaxPoints() != null
                 ? request.getMaxPoints() : new java.math.BigDecimal("100.00"));
+        assignment.setAiPolicy(AiPolicyRules.create(request.getAiAssistanceEnabled(),
+                request.getMaxAiRequests(), request.getAiAssistanceLevel()));
         return assignment;
     }
 

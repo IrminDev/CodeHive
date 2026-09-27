@@ -4,6 +4,17 @@ export type AssignmentValidationStatus = "PROCESSING" | "READY" | "FAILED";
 export type AssignmentUpdateStatus = "VALIDATING" | "APPLIED" | "REJECTED";
 export type AssignmentUpdateKind = "METADATA" | "REFERENCE_ONLY" | "TEST_SUITE";
 export type TestSuiteUpdateMode = "APPEND" | "REPLACE_ALL";
+export type AiAssistanceLevel = "CONCEPTUAL_ONLY" | "EXPLANATIONS_AND_GUIDING" | "EXPLANATIONS_GUIDING_AND_SNIPPETS";
+
+export interface AiPolicySettings {
+  aiAssistanceEnabled: boolean;
+  maxAiRequests: number;
+  aiAssistanceLevel: AiAssistanceLevel;
+}
+
+export interface AiPolicyResponse extends AiPolicySettings {
+  aiPolicyVersion: number;
+}
 
 export interface AssignmentExample {
   input: string;
@@ -16,7 +27,7 @@ export interface SampleTestCase {
   input: string;
 }
 
-export interface TeacherAssignment {
+export interface TeacherAssignment extends AiPolicyResponse {
   id: string;
   groupId: string;
   authorId: string;
@@ -51,7 +62,7 @@ export interface AssignmentPage {
   size: number;
 }
 
-export interface CreateAssignmentMetadata {
+export interface CreateAssignmentMetadata extends AiPolicySettings {
   groupId: string;
   title: string;
   description: string;
@@ -71,7 +82,7 @@ export interface CreateAssignmentMetadata {
   sampleFlags: boolean[];
 }
 
-export interface CloneAssignmentForm {
+export interface CloneAssignmentForm extends AiPolicySettings {
   sourceGroupId: string;
   title: string;
   description: string;

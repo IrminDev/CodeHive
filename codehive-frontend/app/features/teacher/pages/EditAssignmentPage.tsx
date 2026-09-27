@@ -19,6 +19,7 @@ import {
   getTeacherAssignment,
   getTeacherAssignmentPreview,
   updateAssignment,
+  updateAiPolicy,
 } from "../api/assignment.api";
 import { TEACHER_NAV, TEACHER_SIDEBAR_ITEMS } from "../config/dashboard.config";
 import type {
@@ -28,9 +29,11 @@ import type {
   TeacherAssignment,
   TestSuiteUpdateMode,
   UpdateAssignmentMetadata,
+  AiPolicySettings,
 } from "../types/assignment.types";
 import { TeacherShell } from "../components/TeacherShell";
 import { TeacherEmpty, TeacherLoading } from "../components/TeacherUI";
+import { AiPolicyFields, normalizeAiPolicy, validAiPolicy } from "../components/AiPolicyFields";
 
 const LANGUAGES: Array<{
   value: Language;
@@ -149,6 +152,10 @@ export function EditAssignmentPage({
   const [clearCloseDate, setClearCloseDate] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingAiPolicy, setSavingAiPolicy] = useState(false);
+  const [aiPolicy, setAiPolicy] = useState<AiPolicySettings>({
+    aiAssistanceEnabled: false, maxAiRequests: 0, aiAssistanceLevel: "CONCEPTUAL_ONLY",
+  });
   const [minimumDate] = useState(currentMinimumDate);
 
   useEffect(() => {
@@ -171,6 +178,8 @@ export function EditAssignmentPage({
             : new Error("Failed to load assignment.");
         }
         setAssignment(item);
+        setAiPolicy({ aiAssistanceEnabled: item.aiAssistanceEnabled,
+          maxAiRequests: item.maxAiRequests, aiAssistanceLevel: item.aiAssistanceLevel });
         setTitle(item.title);
         setDescription(item.description);
         setConstraints(item.constraints.join("\n"));
@@ -530,6 +539,24 @@ export function EditAssignmentPage({
       });
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function saveAiPolicy() {
+    if (!validAiPolicy(aiPolicy)) {
+      sileo.error({ title: "AI answer quota must be a whole number from 1 to 10." });
+      return;
+    }
+    setSavingAiPolicy(true);
+    try {
+      const saved = await updateAiPolicy(assignmentId, normalizeAiPolicy(aiPolicy));
+      setAiPolicy(saved);
+      setAssignment((current) => current ? { ...current, ...saved } : current);
+      sileo.success({ title: "AI assistance policy updated immediately." });
+    } catch (error) {
+      sileo.error({ title: error instanceof Error ? error.message : "Failed to update AI policy." });
+    } finally {
+      setSavingAiPolicy(false);
     }
   }
 
@@ -1085,6 +1112,17 @@ export function EditAssignmentPage({
             ))}
           </div>
         </section>
+
+        <div>
+          <AiPolicyFields value={aiPolicy} onChange={setAiPolicy} />
+          <div className="mt-3 flex justify-end">
+            <button type="button" onClick={() => void saveAiPolicy()} disabled={savingAiPolicy}
+              className="btn-outline">
+              {savingAiPolicy ? "Saving AI policy…" : "Save AI policy now"}
+            </button>
+          </div>
+          <p className="mt-2 text-xs text-gray-500">AI policy saves separately and immediately; assignment content uses Save changes below.</p>
+        </div>
 
         <div className="flex justify-end gap-3">
           <button

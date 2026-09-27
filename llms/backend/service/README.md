@@ -72,6 +72,7 @@ Responsibilities:
 - Upload reference solution and test case inputs to MinIO via ObjectStorageService.
 - Publish TestGenerationJob to `codehive_test_generation_queue`.
 - Assignment is logically active on creation and has validationStatus PROCESSING until the worker reports READY or FAILED.
+- Create/clone assignment AI policy as disabled/0/conceptual by default. `AssignmentAiPolicyService` applies owner-authorized immediate policy changes on a separate versioned row, without invoking worker validation.
 
 ## GroupService
 Responsibilities:
@@ -79,6 +80,17 @@ Responsibilities:
 - Enroll only STUDENT users while retaining leave/removal history.
 - Enforce owner-only roster, archive, logical-delete, restore, update, and join-code rotation operations regardless of owner role.
 - Treat archived groups as read-only and hide logically deleted groups from students.
+- Archive and logical deletion call `AssistantTextPurgeService` transactionally to erase assistant text and cancel pending responses while retaining charged usage records. Admin-owned group lifecycle changes use the same purge.
+
+## AssistantHistoryService
+- Lists and retrieves authenticated student's own interaction records; current enrollment and assignment openness are not prerequisites for history reads.
+- Only metadata remains after group archive/deletion.
+
+## Assistant stages 3–5
+- `AssistantTransactionService` serializes reservation and finalization with group/conversation locks, uses interaction rows as lifetime quota ledger, enforces idempotency and lease expiry, and never calls a model in a transaction. `AssistantLeaseRecoveryJob` expires abandoned requests.
+- `AssistantContextService` builds allowlisted public assignment data, current editor code only after explicit opt-in, and latest eligible student execution summary only after separate opt-in. It omits definitive hidden diagnostics and policy-incompatible or erased history.
+- `AssistantGuardrailService` classifies inputs, generates structured candidate answers, applies deterministic and semantic output checks, permits one regeneration, and can revalidate an approved candidate against a changed policy without generating another answer. `SpringAiAssistantModelGateway` adapts Spring AI `ChatModel`; the Google GenAI starter supplies Gemini when `ASSISTANT_MODEL_PROVIDER=google-genai` and `GEMINI_API_KEY` are set. `GEMINI_MODEL` defaults to `gemini-2.5-flash`; provider defaults to `none`, so startup needs no key.
+- `AssistantService` orchestrates student-only POST/availability through `AssistantController`, using immutable refreshed policy snapshots to avoid same-request JPA cache/version races. Model calls occur outside ledger transactions; finalization locks group/conversation and rechecks policy and eligibility. Provider failure stops uncharged; archive clears text and prevents late answer release. Global `ASSISTANT_ENABLED` defaults false.
 
 ## AdminUserService
 Responsibilities:

@@ -44,6 +44,7 @@ class GroupServiceTest {
     private GroupEnrollmentRepository enrollmentRepository;
     private UserRepository userRepository;
     private NotificationDomainEventPublisher notificationPublisher;
+    private AssistantTextPurgeService assistantTextPurgeService;
     private GroupService service;
 
     private User owner;
@@ -56,8 +57,9 @@ class GroupServiceTest {
         enrollmentRepository = mock(GroupEnrollmentRepository.class);
         userRepository = mock(UserRepository.class);
         notificationPublisher = mock(NotificationDomainEventPublisher.class);
+        assistantTextPurgeService = mock(AssistantTextPurgeService.class);
         service = new GroupService(groupRepository, enrollmentRepository,
-                userRepository, notificationPublisher);
+                userRepository, notificationPublisher, assistantTextPurgeService);
 
         owner = new User("Grace", "Hopper", "TEA-001", OWNER_EMAIL, "encoded", Role.TEACHER);
         owner.setId(OWNER_ID);
@@ -69,6 +71,7 @@ class GroupServiceTest {
         when(userRepository.findByEmail(OWNER_EMAIL)).thenReturn(Optional.of(owner));
         when(userRepository.findByEmail(STUDENT_EMAIL)).thenReturn(Optional.of(student));
         when(groupRepository.findById(GROUP_ID)).thenReturn(Optional.of(group));
+        when(groupRepository.findByIdForUpdate(GROUP_ID)).thenReturn(Optional.of(group));
     }
 
     @Test

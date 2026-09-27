@@ -27,6 +27,7 @@ import jakarta.persistence.CascadeType;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
+import jakarta.persistence.OneToOne;
 
 @Entity
 @Table(name = "assignments")
@@ -115,6 +116,9 @@ public class Assignment {
     @Version
     @Column(nullable = false)
     private Long version;
+
+    @OneToOne(mappedBy = "assignment", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private AssignmentAiPolicy aiPolicy;
 
     @OneToMany(mappedBy = "assignment", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<AssignmentExample> examples = new ArrayList<>();
@@ -284,4 +288,9 @@ public class Assignment {
     public void setMaxPoints(BigDecimal maxPoints) { this.maxPoints = maxPoints; }
     public Long getVersion() { return version; }
     public void setVersion(Long version) { this.version = version; }
+    public AssignmentAiPolicy getAiPolicy() { return aiPolicy; }
+    public void setAiPolicy(AssignmentAiPolicy aiPolicy) {
+        this.aiPolicy = aiPolicy;
+        if (aiPolicy != null) aiPolicy.setAssignment(this);
+    }
 }
