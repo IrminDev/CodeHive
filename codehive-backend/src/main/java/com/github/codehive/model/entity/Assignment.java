@@ -23,6 +23,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.OrderBy;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Table;
@@ -117,6 +118,7 @@ public class Assignment {
     private Long version;
 
     @OneToMany(mappedBy = "assignment", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("order ASC")
     private List<AssignmentExample> examples = new ArrayList<>();
 
     public Assignment() {
@@ -150,14 +152,32 @@ public class Assignment {
     public AssignmentValidationStatus getValidationStatus() { return validationStatus; }
     public void setValidationStatus(AssignmentValidationStatus validationStatus) { this.validationStatus = validationStatus; }
     public List<AssignmentExample> getExamples() { return examples; }
-    public void setExamples(List<AssignmentExample> examples) {
-        this.examples.clear();
-        if (examples != null) {
-            examples.forEach(this::addExample);
+    public void setExamples(List<AssignmentExample> desired) {
+        List<AssignmentExample> incoming = desired == null ? List.of() : desired;
+        // Update the rows already attached (ordered by order_index) in place so Hibernate never
+        // inserts a new (assignment_id, order_index) before deleting the old one that holds it.
+        for (int index = 0; index < incoming.size(); index++) {
+            AssignmentExample source = incoming.get(index);
+            if (index < this.examples.size()) {
+                AssignmentExample target = this.examples.get(index);
+                target.setOrder(index + 1);
+                target.setInput(source.getInput());
+                target.setOutput(source.getOutput());
+                target.setExplanation(source.getExplanation());
+            } else {
+                source.setAssignment(this);
+                source.setOrder(index + 1);
+                this.examples.add(source);
+            }
+        }
+        // Drop the surplus tail rows (highest order values, so no unique-key overlap on flush).
+        if (this.examples.size() > incoming.size()) {
+            this.examples.subList(incoming.size(), this.examples.size()).clear();
         }
     }
     public void addExample(AssignmentExample example) {
         example.setAssignment(this);
+        example.setOrder(this.examples.size() + 1);
         this.examples.add(example);
     }
 

@@ -39,6 +39,19 @@ describe("AssignmentList", () => {
     expect(handlers.onDelete).toHaveBeenCalledWith(assignment);
   });
 
+  it("surfaces an intermediate Updating state while a new revision validates", () => {
+    const handlers = renderList({ assignments: [{ ...assignment, pendingUpdate: true }] });
+
+    const updating = screen.getByRole("button", { name: "View Topological Sort update progress" });
+    fireEvent.click(updating);
+    expect(handlers.onStatus).toHaveBeenCalledWith({ ...assignment, pendingUpdate: true });
+  });
+
+  it("shows no Updating pill when there is no in-flight update", () => {
+    renderList();
+    expect(screen.queryByRole("button", { name: /update progress/ })).not.toBeInTheDocument();
+  });
+
   it("never offers a restore action to the teacher", () => {
     renderList();
     expect(screen.queryByRole("button", { name: /Restore/ })).not.toBeInTheDocument();

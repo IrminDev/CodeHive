@@ -66,6 +66,7 @@ public class AssignmentService {
     private final TestGenerationRequestProducer testGenerationRequestProducer;
     private final UserRepository userRepository;
     private final GroupEnrollmentRepository enrollmentRepository;
+    private final com.github.codehive.repository.AssignmentUpdateRepository updateRepository;
     private final GroupService groupService;
 
     public AssignmentService(AssignmentRepository assignmentRepository, TestCaseRepository testCaseRepository,
@@ -74,7 +75,8 @@ public class AssignmentService {
                              ObjectStorageService objectStorageService,
                              TestGenerationRequestProducer testGenerationRequestProducer,
                              UserRepository userRepository, GroupEnrollmentRepository enrollmentRepository,
-                             GroupService groupService) {
+                             GroupService groupService,
+                             com.github.codehive.repository.AssignmentUpdateRepository updateRepository) {
         this.assignmentRepository = assignmentRepository;
         this.testCaseRepository = testCaseRepository;
         this.referenceSolutionRevisionRepository = referenceSolutionRevisionRepository;
@@ -84,6 +86,7 @@ public class AssignmentService {
         this.userRepository = userRepository;
         this.enrollmentRepository = enrollmentRepository;
         this.groupService = groupService;
+        this.updateRepository = updateRepository;
     }
 
     @Transactional(readOnly = true)
@@ -102,9 +105,11 @@ public class AssignmentService {
             // Keep this parameter non-null. PostgreSQL otherwise infers a nullable value used by
             // lower(:query) as bytea and rejects it with "function lower(bytea) does not exist".
             String normalizedQuery = query == null || query.isBlank() ? "" : query.trim();
-            return assignmentRepository.findTeacherManaged(
+            Page<AssignmentDTO> managed = assignmentRepository.findTeacherManaged(
                     groupId, includeDeleted || deletedOnly, deletedOnly, normalizedQuery,
                     validationStatus, PageRequest.of(page, size)).map(AssignmentMapper::toDTO);
+            markPendingUpdates(managed.getContent());
+            return managed;
         }
         return assignmentRepository.findStudentVisible(groupId, AssignmentValidationStatus.READY,
                 Instant.now(), PageRequest.of(page, size)).map(AssignmentMapper::toDTO);
@@ -134,7 +139,17 @@ public class AssignmentService {
             }
         }
         dto.setSampleTestCases(sampleDTOs);
+        dto.setPendingUpdate(updateRepository.existsByAssignmentIdAndStatus(
+                id, com.github.codehive.model.enums.AssignmentUpdateStatus.VALIDATING));
         return dto;
+    }
+
+    private void markPendingUpdates(java.util.List<AssignmentDTO> assignments) {
+        java.util.List<UUID> ids = assignments.stream().map(AssignmentDTO::getId).toList();
+        if (ids.isEmpty()) return;
+        java.util.Set<UUID> pending = updateRepository.findAssignmentIdsByStatus(
+                ids, com.github.codehive.model.enums.AssignmentUpdateStatus.VALIDATING);
+        assignments.forEach(dto -> dto.setPendingUpdate(pending.contains(dto.getId())));
     }
 
     @Transactional

@@ -36,6 +36,7 @@ export interface TeacherAssignment {
   allowedLanguages: Language[];
   isActive: boolean;
   validationStatus: AssignmentValidationStatus;
+  pendingUpdate?: boolean;
   examples?: AssignmentExample[];
   sampleTestCases?: SampleTestCase[];
   maxPoints: number;

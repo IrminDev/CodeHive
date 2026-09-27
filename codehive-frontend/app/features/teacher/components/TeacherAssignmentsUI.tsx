@@ -225,6 +225,12 @@ function AssignmentRow({ assignment, onStatus, onDelete }: { assignment: Teacher
             <button type="button" onClick={onStatus} className="rounded-full focus:outline-none focus:ring-2 focus:ring-azure dark:focus:ring-yellow" aria-label={`View ${assignment.title} validation status`}>
               <StatusPill label={assignment.validationStatus} tone={tone} />
             </button>
+            {assignment.pendingUpdate && (
+              <button type="button" onClick={onStatus} className="inline-flex items-center gap-1.5 rounded-full focus:outline-none focus:ring-2 focus:ring-azure dark:focus:ring-yellow" aria-label={`View ${assignment.title} update progress`}>
+                <LoaderCircle size={12} className="animate-spin text-azure dark:text-yellow" />
+                <StatusPill label="updating" tone="info" />
+              </button>
+            )}
             <StatusPill label={schedule.label} tone={schedule.tone} />
           </div>
 

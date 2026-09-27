@@ -37,6 +37,7 @@ public class AssignmentDTO {
     private BigDecimal maxPoints;
     private UUID activeTestSuiteRevisionId;
     private UUID activeReferenceSolutionRevisionId;
+    private boolean pendingUpdate;
 
     public UUID getGroupId() { return groupId; }
     public void setGroupId(UUID groupId) { this.groupId = groupId; }
@@ -48,6 +49,8 @@ public class AssignmentDTO {
     public void setCloseDate(Instant closeDate) { this.closeDate = closeDate; }
     public AssignmentValidationStatus getValidationStatus() { return validationStatus; }
     public void setValidationStatus(AssignmentValidationStatus validationStatus) { this.validationStatus = validationStatus; }
+    public boolean isPendingUpdate() { return pendingUpdate; }
+    public void setPendingUpdate(boolean pendingUpdate) { this.pendingUpdate = pendingUpdate; }
     public List<AssignmentExampleDTO> getExamples() { return examples; }
     public void setExamples(List<AssignmentExampleDTO> examples) { this.examples = examples; }
 

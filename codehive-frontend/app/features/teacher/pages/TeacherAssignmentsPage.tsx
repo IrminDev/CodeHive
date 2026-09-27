@@ -258,6 +258,6 @@ function errorMessage(cause: unknown, fallback: string): string {
   return cause instanceof Error ? cause.message : fallback;
 }
 
-export function shouldPollAssignmentValidation(assignments: readonly Pick<TeacherAssignment, "validationStatus">[]): boolean {
-  return assignments.some((assignment) => assignment.validationStatus === "PROCESSING");
+export function shouldPollAssignmentValidation(assignments: readonly Pick<TeacherAssignment, "validationStatus" | "pendingUpdate">[]): boolean {
+  return assignments.some((assignment) => assignment.validationStatus === "PROCESSING" || assignment.pendingUpdate === true);
 }

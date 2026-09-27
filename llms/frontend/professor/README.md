@@ -45,6 +45,9 @@ confirmation, field, and panel patterns live in `components/TeacherUI.tsx`.
   clipped the previous absolute menus and hid actions such as **Delete assignment**, **Delete group**,
   and **Remove student**. The menu closes on selection, outside click, `Escape`, scroll, and resize.
 - Management status combines latest validation failure, update history, and latest reevaluation batch.
+- A published (READY) assignment with a staged revision still validating shows an intermediate
+  **Updating** pill (`AssignmentDTO.pendingUpdate`); the list keeps polling until the update settles,
+  so the row never sits silently on READY while work is in progress.
 - Grade review drawer exposes every attempt, retained source, execution evidence, and grade audit history.
 - The gradebook offers archived groups next to active ones, active first (`gradableGroups`), because an
   owner keeps grading, grade return, and feedback on archived groups. Deleted groups stay out.
