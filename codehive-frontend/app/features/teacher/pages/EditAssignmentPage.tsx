@@ -520,7 +520,12 @@ export function EditAssignmentPage({
             ? "Update queued for validation."
             : "Assignment updated.",
       });
-      navigate("/teacher/assignments");
+      // Land on the assignments list with this assignment's status panel open so the teacher can
+      // follow the update instead of hunting for it again.
+      const target = new URLSearchParams();
+      if (assignment?.groupId) target.set("groupId", assignment.groupId);
+      target.set("statusId", assignmentId);
+      navigate(`/teacher/assignments?${target.toString()}`);
     } catch (error) {
       sileo.error({
         title:

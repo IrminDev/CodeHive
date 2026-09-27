@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   BarChart3,
   CircleAlert,
@@ -55,6 +55,8 @@ export function AssignmentAnalyticsDrawer({
   const [tab, setTab] = useState<DrawerTab>("overview");
   const open = Boolean(assignment || detail || loading || error);
 
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  useEffect(() => { headingRef.current?.focus({ preventScroll: true }); }, [assignment?.assignmentId]);
   useEffect(() => {
     if (!open) return;
     const close = (event: KeyboardEvent) => {
@@ -80,7 +82,7 @@ export function AssignmentAnalyticsDrawer({
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
               <p className="text-[10px] font-semibold uppercase tracking-widest text-azure dark:text-yellow">Assignment analytics</p>
-              <h2 id="assignment-analytics-title" tabIndex={-1} autoFocus className="mt-1 truncate text-xl font-semibold outline-none">{current?.title ?? "Loading assignment…"}</h2>
+              <h2 ref={headingRef} id="assignment-analytics-title" tabIndex={-1} className="mt-1 truncate text-xl font-semibold outline-none">{current?.title ?? "Loading assignment…"}</h2>
               {current && <div className="mt-2 flex flex-wrap items-center gap-2"><StatusPill label={current.validationStatus} tone={current.validationStatus === "READY" ? "success" : current.validationStatus === "FAILED" ? "error" : "warning"} />{current.overdue && <StatusPill label="overdue" tone="error" />}<span className="text-[10px] font-mono text-gray-500">{current.maxPoints} pts</span></div>}
             </div>
             <button type="button" onClick={onClose} className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-dark-surface dark:hover:text-gray-200" aria-label="Close"><X size={17} /></button>

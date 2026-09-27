@@ -218,18 +218,17 @@ function AssignmentRow({ assignment, onStatus, onDelete }: { assignment: Teacher
   return (
     <article className="group relative px-5 py-4 transition-colors hover:bg-gray-50/80 dark:hover:bg-dark-card/40">
       <span className={`absolute inset-y-3 left-0 w-1 rounded-r-full ${rail}`} aria-hidden="true" />
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
+      <button type="button" onClick={onStatus} aria-label={`Open ${assignment.title} status`} className="absolute inset-0 z-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-inset focus:ring-azure dark:focus:ring-yellow" />
+      <div className="pointer-events-none relative z-10 flex flex-col gap-4 lg:flex-row lg:items-center">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="truncate text-base font-semibold text-gray-900 dark:text-white">{assignment.title}</h3>
-            <button type="button" onClick={onStatus} className="rounded-full focus:outline-none focus:ring-2 focus:ring-azure dark:focus:ring-yellow" aria-label={`View ${assignment.title} validation status`}>
-              <StatusPill label={assignment.validationStatus} tone={tone} />
-            </button>
+            <h3 className="truncate text-base font-semibold text-gray-900 dark:text-white group-hover:text-azure dark:group-hover:text-yellow">{assignment.title}</h3>
+            <StatusPill label={assignment.validationStatus} tone={tone} />
             {assignment.pendingUpdate && (
-              <button type="button" onClick={onStatus} className="inline-flex items-center gap-1.5 rounded-full focus:outline-none focus:ring-2 focus:ring-azure dark:focus:ring-yellow" aria-label={`View ${assignment.title} update progress`}>
+              <span className="inline-flex items-center gap-1.5">
                 <LoaderCircle size={12} className="animate-spin text-azure dark:text-yellow" />
                 <StatusPill label="updating" tone="info" />
-              </button>
+              </span>
             )}
             <StatusPill label={schedule.label} tone={schedule.tone} />
           </div>
@@ -247,7 +246,7 @@ function AssignmentRow({ assignment, onStatus, onDelete }: { assignment: Teacher
           )}
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="pointer-events-auto flex flex-wrap items-center gap-2">
           {assignment.validationStatus === "READY" ? (
             <Link to={`/teacher/assignments/${assignment.id}/preview`} className="inline-flex items-center gap-1.5 rounded-lg bg-azure/10 px-3 py-2 text-xs font-semibold text-azure transition-colors hover:bg-azure hover:text-white dark:bg-yellow/10 dark:text-yellow dark:hover:bg-yellow dark:hover:text-imperial"><Eye size={14} /> Preview</Link>
           ) : (
@@ -291,7 +290,7 @@ export function AssignmentStatusDrawer({ assignment, status, loading, onClose }:
   const headingRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
-    headingRef.current?.focus();
+    headingRef.current?.focus({ preventScroll: true });
     function closeOnEscape(event: KeyboardEvent) {
       if (event.key === "Escape") onClose();
     }

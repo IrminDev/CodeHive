@@ -48,6 +48,20 @@ confirmation, field, and panel patterns live in `components/TeacherUI.tsx`.
 - A published (READY) assignment with a staged revision still validating shows an intermediate
   **Updating** pill (`AssignmentDTO.pendingUpdate`); the list keeps polling until the update settles,
   so the row never sits silently on READY while work is in progress.
+- The status side panel is the primary way to follow an assignment: clicking anywhere on the row card
+  opens it (an overlay `<button className="absolute inset-0">` under `pointer-events-none` content, with
+  the action controls re-enabled via `pointer-events-auto`), mirroring how selecting an assignment opens
+  its drawer in Analytics. After saving an edit, `EditAssignmentPage` returns to
+  `/teacher/assignments?groupId=…&statusId=…` so the teacher lands on the just-modified assignment's
+  status view instead of the general list.
+- Assignment and analytics drawers focus their heading with `focus({ preventScroll: true })`. `autoFocus`
+  (or a plain `focus()`) scrolls the custom `<main>` scroller to reveal the focused node even though the
+  drawer is a `fixed` overlay, which reset the background list to the first assignment; `preventScroll`
+  keeps the list where it was so closing the panel returns the teacher to the same spot.
+- The assignment list persists its navigation context (selected group, validation-status filter, search
+  query, page) in `sessionStorage` under `teacher.assignments.context`. On return with no explicit
+  `groupId`, the page restores that context when the saved group still exists; an explicit `groupId` in
+  the URL (e.g. the post-update `statusId` deep link) takes precedence over the saved context.
 - Grade review drawer exposes every attempt, retained source, execution evidence, and grade audit history.
 - The gradebook offers archived groups next to active ones, active first (`gradableGroups`), because an
   owner keeps grading, grade return, and feedback on archived groups. Deleted groups stay out.

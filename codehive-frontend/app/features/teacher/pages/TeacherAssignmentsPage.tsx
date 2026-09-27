@@ -36,6 +36,31 @@ import type { TeacherGroup } from "../types/group.types";
 const PAGE_SIZE = 20;
 const VALIDATION_REFRESH_INTERVAL_MS = 5_000;
 
+// Remember the last browsed group and filters per tab, so returning to the bare
+// /teacher/assignments route (e.g. after visiting a detail page) restores that context
+// instead of snapping back to the first group.
+const LIST_CONTEXT_KEY = "teacher.assignments.context";
+type ListContext = { groupId: string; validationStatus?: string; query?: string; page?: string };
+
+function readListContext(): ListContext | null {
+  try {
+    const raw = sessionStorage.getItem(LIST_CONTEXT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as ListContext;
+    return parsed && typeof parsed.groupId === "string" ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeListContext(context: ListContext): void {
+  try {
+    sessionStorage.setItem(LIST_CONTEXT_KEY, JSON.stringify(context));
+  } catch {
+    /* sessionStorage may be unavailable; navigation still works from the URL. */
+  }
+}
+
 export function TeacherAssignmentsPage() {
   const ownerId = useAuth().user?.id ?? "";
   const [params, setParams] = useSearchParams();
@@ -82,8 +107,16 @@ export function TeacherAssignmentsPage() {
       setParams((current) => {
         const currentId = current.get("groupId");
         if (currentId && items.some((group) => group.id === currentId)) return current;
-        const preferred = [...items].sort(compareGroupPriority)[0];
         const next = new URLSearchParams(current);
+        const saved = readListContext();
+        if (saved && items.some((group) => group.id === saved.groupId)) {
+          next.set("groupId", saved.groupId);
+          setParam(next, "validationStatus", saved.validationStatus);
+          setParam(next, "query", saved.query);
+          setParam(next, "page", saved.page);
+          return next;
+        }
+        const preferred = [...items].sort(compareGroupPriority)[0];
         if (preferred) next.set("groupId", preferred.id);
         else next.delete("groupId");
         next.delete("page");
@@ -137,6 +170,16 @@ export function TeacherAssignmentsPage() {
   }, [result]);
 
   useEffect(() => { setQueryInput(query); }, [query]);
+
+  useEffect(() => {
+    if (!groupId) return;
+    writeListContext({
+      groupId,
+      validationStatus: validationStatus || undefined,
+      query: query || undefined,
+      page: page > 0 ? String(page + 1) : undefined,
+    });
+  }, [groupId, validationStatus, query, page]);
 
   useEffect(() => {
     if (queryInput === query) return;
@@ -238,6 +281,11 @@ export function TeacherAssignmentsPage() {
       <ConfirmDialog open={Boolean(action)} title={action ? `Delete ${action.assignment.title}?` : "Delete assignment?"} description="Students lose access, but submissions and grading history remain stored." confirmLabel={busy ? "Working…" : "Delete assignment"} danger busy={busy} onCancel={() => setAction(null)} onConfirm={() => void runAction()} />
     </TeacherShell>
   );
+}
+
+function setParam(params: URLSearchParams, key: string, value: string | undefined): void {
+  if (value) params.set(key, value);
+  else params.delete(key);
 }
 
 function isValidationStatus(value: string | null): value is AssignmentValidationStatus {
