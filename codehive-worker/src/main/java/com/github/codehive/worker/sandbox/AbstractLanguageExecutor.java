@@ -275,12 +275,12 @@ public abstract class AbstractLanguageExecutor implements LanguageExecutor {
         memoryLimitMb = clamp(memoryLimitMb, MIN_MEMORY_LIMIT_MB, MAX_MEMORY_LIMIT_MB);
 
         Path tempDir = Files.createTempDirectory(tempDirPrefix());
-        setPermissions(tempDir, "rwxrwxrwx");
+        Files.setPosixFilePermissions(tempDir, PosixFilePermissions.fromString("rwxrwxrwx"));
 
         Path sourceFile = tempDir.resolve(sourceFileName());
         byte[] sourceBytes = sourceCode.readNBytes(SOURCE_SIZE_LIMIT_BYTES);
         Files.write(sourceFile, sourceBytes);
-        setPermissions(sourceFile, "r--r--r--");
+        Files.setPosixFilePermissions(sourceFile, PosixFilePermissions.fromString("r--r--r--"));
 
         ExecutionResult compileResult = compile(tempDir);
         if (compileResult != null) {
@@ -315,7 +315,7 @@ public abstract class AbstractLanguageExecutor implements LanguageExecutor {
         if (testInput != null) {
             byte[] inputBytes = testInput.readNBytes(INPUT_SIZE_LIMIT_BYTES);
             Files.write(inputFile, inputBytes);
-            setPermissions(inputFile, "r--r--r--");
+            Files.setPosixFilePermissions(inputFile, PosixFilePermissions.fromString("r--r--r--"));
         } else {
             Files.deleteIfExists(inputFile);
         }
@@ -473,17 +473,6 @@ public abstract class AbstractLanguageExecutor implements LanguageExecutor {
             opts.add("seccomp=" + SECCOMP_PROFILE);
         }
         return opts;
-    }
-
-    /**
-     * Applies POSIX permissions where the host filesystem supports them. Windows hosts
-     * (local development with Docker Desktop) have no POSIX attributes; the bind mount
-     * already exposes the files to the container user there.
-     */
-    private static void setPermissions(Path path, String permissions) throws java.io.IOException {
-        if (path.getFileSystem().supportedFileAttributeViews().contains("posix")) {
-            Files.setPosixFilePermissions(path, PosixFilePermissions.fromString(permissions));
-        }
     }
 
     private void deleteDirectory(Path directory) {
