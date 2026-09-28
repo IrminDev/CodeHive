@@ -1,5 +1,6 @@
 package com.github.codehive.worker.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import com.github.dockerjava.api.DockerClient;
@@ -14,9 +15,9 @@ import java.time.Duration;
 public class DockerClientConfig {
     
     @Bean
-    public DockerClient dockerClient() {
+    public DockerClient dockerClient(@Value("${docker.host}") String dockerHost) {
         com.github.dockerjava.core.DockerClientConfig config = DefaultDockerClientConfig.createDefaultConfigBuilder()
-                .withDockerHost("unix:///var/run/docker.sock")
+                .withDockerHost(dockerHost)
                 .build();
 
         DockerHttpClient httpClient = new ApacheDockerHttpClient.Builder()
