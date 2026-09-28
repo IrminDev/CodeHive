@@ -230,6 +230,11 @@ public class AssignmentUpdateService {
         boolean datesChanged = datesChanged(assignment, proposed);
         boolean maxPointsChanged = proposed.getMaxPoints() != null
                 && proposed.getMaxPoints().compareTo(assignment.getMaxPoints()) != 0;
+        // A resubmitted suite identical to the active one must not wipe grades or re-run submissions.
+        boolean suiteUnchanged = update.getKind() == AssignmentUpdateKind.TEST_SUITE
+                && !executionSettingsChanged(assignment, proposed)
+                && sameTestCases(assignment, assignment.getActiveTestSuiteRevision(),
+                        update.getTestSuiteRevision());
         if (update.getKind() == AssignmentUpdateKind.TEST_SUITE) {
             TestSuiteRevision previousSuite = assignment.getActiveTestSuiteRevision();
             if (previousSuite != null) previousSuite.setStatus(RevisionStatus.SUPERSEDED);
@@ -248,11 +253,13 @@ public class AssignmentUpdateService {
                             assignment, update.getCreatedBy(), null);
                 }
             }
-            int cleared = gradeService.clearAssignmentGrades(
-                    assignment, GradeChangeReason.CLEARED_TEST_SUITE_CHANGED, update.getCreatedBy());
-            if (cleared > 0) publishAssignmentEvent(
-                    NotificationType.ASSIGNMENT_GRADES_CLEARED,
-                    assignment, update.getCreatedBy(), update.getCreatedBy().getId());
+            if (!suiteUnchanged) {
+                int cleared = gradeService.clearAssignmentGrades(
+                        assignment, GradeChangeReason.CLEARED_TEST_SUITE_CHANGED, update.getCreatedBy());
+                if (cleared > 0) publishAssignmentEvent(
+                        NotificationType.ASSIGNMENT_GRADES_CLEARED,
+                        assignment, update.getCreatedBy(), update.getCreatedBy().getId());
+            }
         }
 
         ReferenceSolutionRevision proposedReference = update.getReferenceSolutionRevision();
@@ -277,7 +284,7 @@ public class AssignmentUpdateService {
         }
         update.setStatus(AssignmentUpdateStatus.APPLIED);
         update.setCompletedAt(Instant.now());
-        if (update.getKind() == AssignmentUpdateKind.TEST_SUITE) {
+        if (update.getKind() == AssignmentUpdateKind.TEST_SUITE && !suiteUnchanged) {
             if (wasStudentPublished) {
                 publishAssignmentEvent(NotificationType.ASSIGNMENT_TESTS_UPDATED,
                         assignment, update.getCreatedBy(), null);
@@ -588,6 +595,49 @@ public class AssignmentUpdateService {
 
     private boolean idsEqual(ReferenceSolutionRevision revision, UUID id) {
         return revision == null ? id == null : revision.getId().equals(id);
+    }
+
+    private boolean executionSettingsChanged(Assignment assignment, UpdateAssignmentRequest proposed) {
+        return (proposed.getTimeLimitMs() != null
+                    && !proposed.getTimeLimitMs().equals(assignment.getTimeLimitMs()))
+                || (proposed.getMemoryLimitMb() != null
+                    && !proposed.getMemoryLimitMb().equals(assignment.getMemoryLimitMb()))
+                || (proposed.getComparatorType() != null
+                    && proposed.getComparatorType() != assignment.getComparatorType());
+    }
+
+    /** True when both revisions hold the same cases in order: sample flag, input, and expected output. */
+    private boolean sameTestCases(Assignment assignment, TestSuiteRevision previous, TestSuiteRevision next) {
+        if (previous == null || next == null) return false;
+        List<TestCase> before = testCaseRepository.findByTestSuiteRevisionIdOrderByOrderAsc(previous.getId());
+        List<TestCase> after = testCaseRepository.findByTestSuiteRevisionIdOrderByOrderAsc(next.getId());
+        if (before.size() != after.size()) return false;
+        for (int index = 0; index < before.size(); index++) {
+            TestCase oldCase = before.get(index);
+            TestCase newCase = after.get(index);
+            if (!java.util.Objects.equals(oldCase.getIsSample(), newCase.getIsSample())) return false;
+            if (!sameObject(
+                    ObjectKeyBuilder.testCaseInput(assignment.getId(), previous.getId(), oldCase.getId()),
+                    ObjectKeyBuilder.testCaseInput(assignment.getId(), next.getId(), newCase.getId()))) {
+                return false;
+            }
+            if (!sameObject(
+                    ObjectKeyBuilder.testCaseExpectedOutput(assignment.getId(), previous.getId(), oldCase.getId()),
+                    ObjectKeyBuilder.testCaseExpectedOutput(assignment.getId(), next.getId(), newCase.getId()))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** Unreadable objects count as different, so storage errors never suppress a grade reset. */
+    private boolean sameObject(String firstKey, String secondKey) {
+        try (java.io.InputStream first = objectStorageService.download(firstKey);
+             java.io.InputStream second = objectStorageService.download(secondKey)) {
+            return java.util.Arrays.equals(first.readAllBytes(), second.readAllBytes());
+        } catch (Exception exception) {
+            return false;
+        }
     }
 
     private void upload(String key, MultipartFile file) {

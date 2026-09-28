@@ -1091,6 +1091,12 @@ export function EditAssignmentPage({
           </div>
         </section>
 
+        {(validationMode || hasRevisionChanges) && (
+          <p className="text-xs text-gray-500 dark:text-gray-400 text-right">
+            If the expected outputs change, published grades are cleared and
+            current submissions are re-evaluated. Identical tests keep grades.
+          </p>
+        )}
         <div className="flex justify-end gap-3">
           <button
             type="button"

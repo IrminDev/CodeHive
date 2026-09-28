@@ -3,7 +3,10 @@ package com.github.codehive.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -35,11 +38,13 @@ import com.github.codehive.model.enums.AssignmentValidationStatus;
 import com.github.codehive.model.enums.AssignmentUpdateKind;
 import com.github.codehive.model.enums.AssignmentUpdateStatus;
 import com.github.codehive.model.enums.ComparatorType;
+import com.github.codehive.model.enums.GradeChangeReason;
 import com.github.codehive.model.enums.RevisionStatus;
 import com.github.codehive.model.enums.Role;
 import com.github.codehive.model.enums.TestGenerationMode;
 import com.github.codehive.model.enums.Language;
 import com.github.codehive.model.exception.ValidationException;
+import com.github.codehive.service.event.ReevaluationRequestedEvent;
 import com.github.codehive.model.request.assignment.UpdateAssignmentRequest;
 import com.github.codehive.notification.NotificationDomainEventPublisher;
 import com.github.codehive.repository.AssignmentRepository;
@@ -373,6 +378,101 @@ class AssignmentUpdateServiceTest {
         assertThat(assignment.getActiveTestSuiteRevision()).isSameAs(suite);
         assertThat(assignment.getActiveReferenceSolutionRevision()).isSameAs(reference);
     }
+
+    @Test
+    void identicalResubmittedSuiteKeepsGradesAndSkipsReevaluation() throws Exception {
+        SuiteFixture fixture = suiteFixture(key -> "4\n");
+
+        fixture.service().processValidationResult(fixture.result());
+
+        assertThat(fixture.update().getStatus()).isEqualTo(AssignmentUpdateStatus.APPLIED);
+        verify(fixture.gradeService(), never()).clearAssignmentGrades(any(), any(), any());
+        verify(fixture.eventPublisher(), never()).publishEvent(any(ReevaluationRequestedEvent.class));
+    }
+
+    @Test
+    void changedExpectedOutputClearsGradesAndRequestsReevaluation() throws Exception {
+        UUID nextSuiteId = UUID.fromString("00000000-0000-0000-0000-000000000011");
+        SuiteFixture fixture = suiteFixture(key ->
+                key.contains(nextSuiteId.toString()) && key.endsWith(".out") ? "3\n" : "4\n");
+
+        fixture.service().processValidationResult(fixture.result());
+
+        verify(fixture.gradeService()).clearAssignmentGrades(
+                eq(fixture.update().getAssignment()), eq(GradeChangeReason.CLEARED_TEST_SUITE_CHANGED), any());
+        verify(fixture.eventPublisher()).publishEvent(any(ReevaluationRequestedEvent.class));
+    }
+
+    private SuiteFixture suiteFixture(java.util.function.Function<String, String> objectContent) throws Exception {
+        AssignmentUpdateRepository updateRepository = mock(AssignmentUpdateRepository.class);
+        TestCaseRepository testCaseRepository = mock(TestCaseRepository.class);
+        ObjectStorageService storage = mock(ObjectStorageService.class);
+        AssignmentGradeService gradeService = mock(AssignmentGradeService.class);
+        ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
+
+        Assignment assignment = new Assignment("Assignment", "Description", 1000L, 128L, ComparatorType.EXACT_MATCH);
+        assignment.setId(ASSIGNMENT_ID);
+        assignment.setVersion(0L);
+        ClassGroup group = new ClassGroup();
+        group.setId(UUID.fromString("00000000-0000-0000-0000-000000000005"));
+        assignment.setGroup(group);
+        User teacher = new User();
+        teacher.setId(UUID.fromString("00000000-0000-0000-0000-000000000006"));
+
+        ReferenceSolutionRevision reference = new ReferenceSolutionRevision();
+        reference.setId(ACTIVE_REFERENCE_ID);
+        assignment.setActiveReferenceSolutionRevision(reference);
+        TestSuiteRevision activeSuite = new TestSuiteRevision();
+        activeSuite.setId(UUID.fromString("00000000-0000-0000-0000-000000000010"));
+        activeSuite.setStatus(RevisionStatus.ACTIVE);
+        assignment.setActiveTestSuiteRevision(activeSuite);
+        TestSuiteRevision nextSuite = new TestSuiteRevision();
+        nextSuite.setId(UUID.fromString("00000000-0000-0000-0000-000000000011"));
+        nextSuite.setReferenceSolutionRevision(reference);
+
+        TestCase activeCase = new TestCase(assignment, activeSuite, 1, true);
+        activeCase.setId(UUID.fromString("00000000-0000-0000-0000-000000000012"));
+        TestCase nextCase = new TestCase(assignment, nextSuite, 1, true);
+        nextCase.setId(UUID.fromString("00000000-0000-0000-0000-000000000013"));
+        when(testCaseRepository.findByTestSuiteRevisionIdOrderByOrderAsc(activeSuite.getId()))
+                .thenReturn(List.of(activeCase));
+        when(testCaseRepository.findByTestSuiteRevisionIdOrderByOrderAsc(nextSuite.getId()))
+                .thenReturn(List.of(nextCase));
+        when(storage.download(anyString())).thenAnswer(invocation -> new ByteArrayInputStream(
+                objectContent.apply(invocation.getArgument(0)).getBytes()));
+
+        AssignmentUpdate update = new AssignmentUpdate();
+        update.setAssignment(assignment);
+        update.setCreatedBy(teacher);
+        update.setKind(AssignmentUpdateKind.TEST_SUITE);
+        update.setReferenceSolutionRevision(reference);
+        update.setTestSuiteRevision(nextSuite);
+        update.setBaseAssignmentVersion(0L);
+        update.setProposedMetadataJson("{}");
+        when(updateRepository.findByIdAndStatus(UPDATE_ID, AssignmentUpdateStatus.VALIDATING))
+                .thenReturn(Optional.of(update));
+
+        AssignmentUpdateService service = new AssignmentUpdateService(
+                mock(AssignmentRepository.class), updateRepository,
+                mock(ReferenceSolutionRevisionRepository.class),
+                mock(TestSuiteRevisionRepository.class), testCaseRepository,
+                mock(SubmissionRepository.class), mock(UserRepository.class), mock(GroupService.class),
+                storage, mock(TestGenerationRequestProducer.class),
+                new ObjectMapper().findAndRegisterModules(), gradeService,
+                mock(NotificationDomainEventPublisher.class), eventPublisher);
+        TestGenerationResult result = new TestGenerationResult(ASSIGNMENT_ID, true, 1, null);
+        result.setAssignmentUpdateId(UPDATE_ID);
+        result.setReferenceSolutionRevisionId(ACTIVE_REFERENCE_ID);
+        result.setTestSuiteRevisionId(nextSuite.getId());
+        return new SuiteFixture(service, update, result, gradeService, eventPublisher);
+    }
+
+    private record SuiteFixture(
+            AssignmentUpdateService service,
+            AssignmentUpdate update,
+            TestGenerationResult result,
+            AssignmentGradeService gradeService,
+            ApplicationEventPublisher eventPublisher) {}
 
     private UpdateFixture updateFixture() {
         AssignmentRepository assignmentRepository = mock(AssignmentRepository.class);
