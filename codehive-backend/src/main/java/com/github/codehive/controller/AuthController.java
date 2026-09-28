@@ -123,12 +123,13 @@ public class AuthController {
     @PreAuthorize("hasAuthority('ADMIN') and hasAuthority('CREATE_USERS')")
     @PostMapping(value = "/signup/csv", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<SuccessResponse<Map<String, String>>> signupFromCsv(
-            @RequestParam("file") MultipartFile file) throws IOException {
+            @RequestParam("file") MultipartFile file, Authentication authentication) throws IOException {
         if (file.isEmpty()) {
             throw new ValidationException("CSV file is empty");
         }
         byte[] csvData = file.getBytes();
-        String taskId = csvRegistrationService.submitCsvJob(csvData);        
+        String taskId = csvRegistrationService.submitCsvJob(csvData);
+        authService.auditCsvSubmission(authentication.getName(), taskId, csvData.length);
         Map<String, String> taskInfo = Map.of("taskId", taskId);
         SuccessResponse<Map<String, String>> response = new SuccessResponse<>("CSV processing started", taskInfo);
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);

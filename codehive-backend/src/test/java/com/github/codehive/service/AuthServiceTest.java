@@ -30,7 +30,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.github.codehive.model.dto.UserDTO;
 import com.github.codehive.model.entity.User;
+import com.github.codehive.model.enums.AdminAuditAction;
 import com.github.codehive.model.enums.Role;
+import com.github.codehive.model.enums.Scope;
 import com.github.codehive.model.exception.auth.AlreadyRegisteredEmailException;
 import com.github.codehive.model.exception.auth.AlreadyRegisteredEnrollmentNumberException;
 import com.github.codehive.model.exception.auth.BlockedUserException;
@@ -58,6 +60,9 @@ class AuthServiceTest {
 
     @Mock
     private MailSenderService mailSenderService;
+
+    @Mock
+    private AdminAuditService auditService;
 
     @InjectMocks
     private AuthService authService;
@@ -805,4 +810,49 @@ class AuthServiceTest {
             assertThat(response.getSuccessCount()).isEqualTo(1);
         }
     }
+
+    @Nested
+    @DisplayName("Admin audit")
+    class AdminAuditTests {
+
+        @Test
+        @DisplayName("Records USER_CREATED with the admin as actor and the new user as target")
+        void registerAuthorized_RecordsUserCreatedAudit() {
+            User admin = new User();
+            admin.setId(UUID.fromString("00000000-0000-0000-0000-000000000009"));
+            admin.setEmail("admin@example.com");
+            admin.setRole(Role.ADMIN);
+            admin.setIsActive(true);
+            admin.addScope(Scope.CREATE_USERS);
+            User savedUser = new User();
+            savedUser.setId(UUID.fromString("00000000-0000-0000-0000-000000000002"));
+            savedUser.setEmail(signUpRequest.getEmail());
+            savedUser.setRole(Role.STUDENT);
+            when(userRepository.findByEmail(admin.getEmail())).thenReturn(Optional.of(admin));
+            when(userRepository.findByEmail(signUpRequest.getEmail())).thenReturn(Optional.empty());
+            when(userRepository.findByEnrollmentNumber(signUpRequest.getEnrollmentNumber())).thenReturn(Optional.empty());
+            when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
+            when(userRepository.save(any(User.class))).thenReturn(savedUser);
+            when(userRepository.findById(savedUser.getId())).thenReturn(Optional.of(savedUser));
+
+            authService.registerAuthorized(signUpRequest, admin.getEmail());
+
+            verify(auditService).success(eq(admin), eq(savedUser), eq(AdminAuditAction.USER_CREATED), any(), eq("role=STUDENT"));
+        }
+
+        @Test
+        @DisplayName("Records CSV_REGISTRATION_SUBMITTED for the uploading admin")
+        void auditCsvSubmission_RecordsSubmission() {
+            User admin = new User();
+            admin.setId(UUID.fromString("00000000-0000-0000-0000-000000000009"));
+            admin.setEmail("admin@example.com");
+            when(userRepository.findByEmail(admin.getEmail())).thenReturn(Optional.of(admin));
+
+            authService.auditCsvSubmission(admin.getEmail(), "task-1", 120);
+
+            verify(auditService).success(eq(admin), eq(null), eq(AdminAuditAction.CSV_REGISTRATION_SUBMITTED), any(),
+                    eq("taskId=task-1, bytes=120"));
+        }
+    }
+
 }
