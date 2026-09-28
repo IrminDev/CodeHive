@@ -75,8 +75,26 @@ after group archive. New questions use separate, initially-off editor-code and l
 execution opt-ins; editor text is sent only when explicitly selected. Answers appear only after
 the backend commits validated output. Pending work is polled; interrupted requests refresh history
 and can retry with the same in-memory idempotency key. No generated code enters the editor.
+The composer discloses before submission that Gemini receives the question, public assignment
+details, and relevant earlier assistant messages. It also explains that editor code and the latest
+finished execution result are shared only when their separate checkboxes are selected.
+Students must open and accept the compact disclosure before asking. Acceptance is stored in
+browser storage per user and disclosure version; accepted users no longer see the disclosure
+button in that browser. Structured answers render explanation, syntax-highlighted code
+snippets, and follow-up question separately; fenced code in legacy answers is also
+highlighted when its language is supported. Code remains inert text.
+Panel and full history render right-aligned student bubbles and left-aligned assistant bubbles,
+without internal result labels or failure codes. New questions appear immediately with an animated
+thinking indicator. Only backend-approved replies receive a local progressive reveal; existing
+history appears immediately. Students can skip the reveal, and reduced-motion preferences disable
+it. Follow-up questions use violet text with separate light/dark colors. The panel follows new
+content while at the bottom, preserves position when loading older questions, and lets students
+scroll back while an answer appears.
 The panel blocks new questions when policy, quota, assignment lifecycle, or enrollment disallows
 them, while retained history remains readable.
+`/assignment/:id/assistant-history` loads directly by conversation ownership, without the normal
+assignment workspace endpoint. It preserves history access after enrollment/assignment eligibility
+ends and renders metadata-only entries after archive/deletion.
 
 When a current definitive submission exists, the workspace disables a new submit and shows a
 confirmed **Withdraw to update** action. Withdrawal retains history and results, then enables the

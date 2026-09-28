@@ -15,7 +15,7 @@ function describeError(error: unknown): string {
     case "POLICY_CHANGED": case "REQUEST_CANCELLED": return "Request cancelled because assignment policy or access changed. No answer was charged.";
     case "OUTPUT_REJECTED": return "Answer did not pass educational checks. No answer was charged.";
     case "MODEL_TIMEOUT": return "Assistant timed out. No answer was charged.";
-    case "MODEL_UNAVAILABLE": case "MODEL_FAILURE": case "MODEL_BUSY": return "Assistant is temporarily unavailable. No answer was charged.";
+    case "MODEL_UNAVAILABLE": case "MODEL_FAILURE": case "MODEL_BUSY": case "MODEL_RATE_LIMITED": return "Assistant is temporarily unavailable. No answer was charged.";
     default: return error.status === 429
       ? `Too many requests. ${error.retryAfter ? `Retry after ${error.retryAfter} seconds.` : "Try again later."}`
       : error.message;
@@ -30,6 +30,8 @@ export function useAssignmentAssistant(assignmentId: string) {
   const [error, setError] = useState<string | null>(null);
   const [lastResult, setLastResult] = useState<AssistantMessageResult | null>(null);
   const [nextPage, setNextPage] = useState<number | null>(null);
+  const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
+  const [revealInteractionId, setRevealInteractionId] = useState<string | null>(null);
   const pendingRequest = useRef<AssistantMessageRequest | null>(null);
   const sendingRef = useRef(false);
 
@@ -54,6 +56,8 @@ export function useAssignmentAssistant(assignmentId: string) {
     setAvailability(null);
     setInteractions([]);
     setError(null);
+    setPendingQuestion(null);
+    setRevealInteractionId(null);
     pendingRequest.current = null;
     void refresh();
   }, [refresh]);
@@ -64,7 +68,10 @@ export function useAssignmentAssistant(assignmentId: string) {
     const timer = window.setInterval(async () => {
       try {
         const interaction = await getAssistantInteraction(assignmentId, id);
-        if (interaction.status !== "PENDING") await refresh();
+        if (interaction.status !== "PENDING") {
+          setRevealInteractionId(interaction.id);
+          await refresh();
+        }
       } catch { /* Next refresh remains available to student. */ }
     }, 3000);
     return () => window.clearInterval(timer);
@@ -90,6 +97,7 @@ export function useAssignmentAssistant(assignmentId: string) {
       ...(includeEditorCode ? { editorCode } : {}),
     };
     pendingRequest.current = request;
+    setPendingQuestion(request.message);
     await send(request);
   }
 
@@ -103,6 +111,7 @@ export function useAssignmentAssistant(assignmentId: string) {
       setLastResult(result);
       setAvailability(result.availability);
       if (result.interaction.status !== "PENDING") {
+        setRevealInteractionId(result.interaction.id);
         pendingRequest.current = null;
         setInteractions((current) => [...current.filter((item) => item.id !== result.interaction.id), result.interaction]);
       } else {
@@ -113,12 +122,13 @@ export function useAssignmentAssistant(assignmentId: string) {
       await refresh();
       setError(describeError(cause));
     } finally {
+      setPendingQuestion(null);
       sendingRef.current = false;
       setSending(false);
     }
   }
 
-  return { availability, interactions, loading, sending, error, lastResult, nextPage,
+  return { availability, interactions, loading, sending, error, lastResult, nextPage, pendingQuestion, revealInteractionId,
     refresh, loadOlder, submit, retry: () => pendingRequest.current ? send(pendingRequest.current) : refresh(),
     hasRetry: pendingRequest.current !== null };
 }

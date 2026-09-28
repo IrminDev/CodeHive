@@ -31,6 +31,7 @@ Current route map:
 - /groups/join -> features/student/routes/student.join-group.tsx
 - /groups/:groupId -> features/student/routes/student.group.tsx
 - /assignment/:id -> features/student/routes/student.assignment.tsx
+- /assignment/:id/assistant-history -> features/student/routes/student.assistant-history.tsx
 - /assignment/:id/submissions -> features/student/routes/student.submissions.tsx
 - /assignment/:id/report/:executionId -> features/student/routes/student.report.tsx
 - /assignments -> features/student/routes/student.assignments.tsx

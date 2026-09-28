@@ -68,7 +68,6 @@ dependencies {
 
 tasks.withType<Test> {
 	useJUnitPlatform()
-	finalizedBy(tasks.jacocoTestReport) // Generate coverage report after tests
 	
 	// Show test results in console
 	testLogging {
@@ -93,6 +92,54 @@ tasks.withType<Test> {
 			println("--------------------")
 		}
 	}))
+}
+
+val postgresAssistantTest by tasks.registering(Test::class) {
+	description = "Runs assistant integration checks against an isolated PostgreSQL database"
+	group = "verification"
+	testClassesDirs = sourceSets.test.get().output.classesDirs
+	classpath = sourceSets.test.get().runtimeClasspath
+	filter {
+		includeTestsMatching("*AssistantTransactionServiceIntegrationTest")
+		includeTestsMatching("*AssistantControllerIntegrationTest")
+		includeTestsMatching("*AssistantPostgresSchemaIntegrationTest")
+	}
+	val databaseUrl = providers.environmentVariable("CODEHIVE_ASSISTANT_TEST_DATABASE_URL")
+	val databasePassword = providers.environmentVariable("CODEHIVE_ASSISTANT_TEST_DATABASE_PASSWORD")
+	doFirst {
+		require(databaseUrl.isPresent && databasePassword.isPresent) {
+			"Set CODEHIVE_ASSISTANT_TEST_DATABASE_URL and CODEHIVE_ASSISTANT_TEST_DATABASE_PASSWORD for a disposable PostgreSQL database"
+		}
+	}
+	systemProperty("spring.datasource.url", databaseUrl.orNull ?: "")
+	systemProperty("spring.datasource.username", providers.environmentVariable("CODEHIVE_ASSISTANT_TEST_DATABASE_USERNAME").orNull ?: "postgres")
+	systemProperty("spring.datasource.password", databasePassword.orNull ?: "")
+	systemProperty("spring.datasource.driver-class-name", "org.postgresql.Driver")
+	systemProperty("spring.jpa.database-platform", "org.hibernate.dialect.PostgreSQLDialect")
+	systemProperty("spring.jpa.hibernate.ddl-auto", "create-drop")
+	systemProperty("spring.flyway.enabled", "false")
+	systemProperty("spring.ai.model.chat", "none")
+}
+
+tasks.test {
+	finalizedBy(tasks.jacocoTestReport) // Generate coverage report after standard tests only
+	useJUnitPlatform {
+		excludeTags("postgres-assistant", "live-assistant")
+	}
+}
+
+val liveAssistantTest by tasks.registering(Test::class) {
+	description = "Runs synthetic assistant safety fixtures against explicitly configured Gemini"
+	group = "verification"
+	testClassesDirs = sourceSets.test.get().output.classesDirs
+	classpath = sourceSets.test.get().runtimeClasspath
+	filter.includeTestsMatching("*LiveAssistantQualificationTest")
+	systemProperty("spring.ai.model.chat", "google-genai")
+	systemProperty("assistant.model-timeout-seconds",
+		providers.environmentVariable("ASSISTANT_MODEL_TIMEOUT_SECONDS").orNull ?: "20")
+	providers.environmentVariable("CODEHIVE_ASSISTANT_LIVE_MODEL").orNull?.let {
+		systemProperty("spring.ai.google.genai.chat.options.model", it)
+	}
 }
 
 tasks.jacocoTestReport {

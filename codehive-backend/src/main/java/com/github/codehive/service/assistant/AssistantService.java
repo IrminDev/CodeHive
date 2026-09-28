@@ -4,6 +4,8 @@ import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.github.codehive.model.dto.assistant.AssistantAvailabilityDTO;
 import com.github.codehive.model.dto.assistant.AssistantMessageResultDTO;
@@ -18,6 +20,7 @@ import com.github.codehive.service.AssistantHistoryService;
 /** Coordinates short ledger transactions with model calls outside any transaction. */
 @Service
 public class AssistantService {
+    private static final Logger logger = LoggerFactory.getLogger(AssistantService.class);
     private final AssistantTransactionService transactions;
     private final AssistantContextService contexts;
     private final AssistantGuardrailService guardrails;
@@ -54,6 +57,7 @@ public class AssistantService {
         if (reservation.replay()) return result(assignmentId, reservation.interactionId(), email,
                 null, request);
 
+        long startedNanos = System.nanoTime();
         AssistantContextService.Context context = null;
         try {
             var policy = transactions.policySnapshot(assignmentId);
@@ -76,7 +80,10 @@ public class AssistantService {
                         != AssistantInteractionStatus.BLOCKED) {
                     throw new AssistantStateException("REQUEST_CANCELLED");
                 }
-                return result(assignmentId, reservation.interactionId(), email, context, request);
+                var response = result(assignmentId, reservation.interactionId(), email, context, request);
+                logOutcome(assignmentId, reservation.interactionId(), response.interaction().status(),
+                        0, startedNanos, "INPUT_BLOCKED");
+                return response;
             }
             for (int check = 0; check < 2; check++) {
                 var completion = transactions.deliver(reservation.interactionId(), policy.version(),
@@ -88,7 +95,10 @@ public class AssistantService {
                             && persisted.status() != AssistantInteractionStatus.REDIRECTED) {
                         throw new AssistantStateException("REQUEST_CANCELLED");
                     }
-                    return result(assignmentId, reservation.interactionId(), email, context, request);
+                    var response = result(assignmentId, reservation.interactionId(), email, context, request);
+                    logOutcome(assignmentId, reservation.interactionId(), response.interaction().status(),
+                            decision.generationAttempts(), startedNanos, "NONE");
+                    return response;
                 }
                 if (completion == AssistantTransactionService.Completion.CANCELLED) {
                     throw new AssistantStateException("REQUEST_CANCELLED");
@@ -113,12 +123,25 @@ public class AssistantService {
                         ? AssistantInteractionStatus.CANCELLED : AssistantInteractionStatus.FAILED;
                 transactions.stop(reservation.interactionId(), status, exception.getCode());
             }
+            logOutcome(assignmentId, reservation.interactionId(),
+                    exception.getCode().equals("POLICY_CHANGED") || exception.getCode().equals("REQUEST_CANCELLED")
+                            ? AssistantInteractionStatus.CANCELLED : AssistantInteractionStatus.FAILED,
+                    0, startedNanos, exception.getCode());
             throw exception;
         } catch (RuntimeException exception) {
             transactions.stop(reservation.interactionId(), AssistantInteractionStatus.FAILED,
                     "MODEL_FAILURE");
+            logOutcome(assignmentId, reservation.interactionId(), AssistantInteractionStatus.FAILED,
+                    0, startedNanos, "MODEL_FAILURE");
             throw new AssistantStateException("MODEL_FAILURE");
         }
+    }
+
+    private void logOutcome(UUID assignmentId, UUID interactionId, AssistantInteractionStatus status,
+            int attempts, long startedNanos, String failureCode) {
+        logger.info("assistant outcome assignmentId={} interactionId={} status={} attempts={} durationMs={} failureCode={}",
+                assignmentId, interactionId, status, attempts,
+                java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedNanos), failureCode);
     }
 
     private AssistantMessageResultDTO result(UUID assignmentId, UUID interactionId, String email,

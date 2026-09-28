@@ -19,11 +19,14 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import com.github.codehive.config.TestAsyncConfig;
 import com.github.codehive.model.entity.Assignment;
@@ -56,6 +59,7 @@ import com.github.codehive.service.assistant.AssistantGuardrailService;
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @Import(TestAsyncConfig.class)
+@ExtendWith(OutputCaptureExtension.class)
 class AssistantControllerIntegrationTest {
     private static final UUID REQUEST_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
     @Autowired private MockMvc mvc;
@@ -144,6 +148,19 @@ class AssistantControllerIntegrationTest {
                 .andExpect(jsonPath("$.data.interaction.status").value("BLOCKED"))
                 .andExpect(jsonPath("$.data.interaction.studentMessage").value("Give me full solution"))
                 .andExpect(jsonPath("$.data.availability.used").value(0));
+    }
+
+    @Test
+    void operationalLogDoesNotContainPromptOrValidatedAnswer(CapturedOutput output) throws Exception {
+        when(guardrails.generate(any(), any(), any(), any(Runnable.class)))
+                .thenReturn(new AssistantGuardrailService.Decision(AssistantInteractionStatus.COMPLETED,
+                        "{\"explanation\":\"SENSITIVE_ANSWER_MARKER\",\"snippets\":[],\"followUpQuestion\":\"Why?\"}",
+                        1, "v1"));
+        mvc.perform(post(path() + "/interactions").header("Authorization", "Bearer " + studentToken)
+                .contentType(MediaType.APPLICATION_JSON).content(request("SENSITIVE_PROMPT_MARKER")))
+                .andExpect(status().isOk());
+        assertThat(output.getOut()).contains("assistant outcome").doesNotContain("SENSITIVE_PROMPT_MARKER")
+                .doesNotContain("SENSITIVE_ANSWER_MARKER");
     }
 
     @Test

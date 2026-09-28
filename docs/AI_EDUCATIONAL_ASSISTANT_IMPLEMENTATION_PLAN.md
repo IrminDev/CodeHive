@@ -1,6 +1,6 @@
 # AI Educational Assistant — Implementation Plan
 
-Status: implementation in progress. Stages 0–8 implemented; PostgreSQL-specific schema/concurrency verification remains outstanding. Live Gemini qualification and disclosure/consent (stage 9), and rollout remain pending. Global assistant switch defaults off.
+Status: stages 0–10 implemented for local development. Owner approved development rollout without real users/data; local assistant switch is on, while checked-in default remains off. Live quality threshold and external-provider disclosure/consent remain unresolved for any real-user deployment. See [rollout runbook](AI_ASSISTANT_ROLLOUT.md).
 
 This plan incorporates the confirmed decisions from the planning discussion based on `docs/AI_PROMPT.md`. Remaining choices are explicitly marked **pending**. Proposed defaults are recommendations, not approved requirements.
 
@@ -352,7 +352,7 @@ Historical access needs route support: the current assignment page may fail its 
 
 ## 7. Spring AI integration
 
-Use Spring AI **1.1.8** compatible with Boot **3.5.x**. Google Gemini is selected through `spring-ai-starter-model-google-genai`; the domain gateway still depends only on Spring AI `ChatModel`. `ASSISTANT_MODEL_PROVIDER=google-genai` selects the provider, `GEMINI_API_KEY` supplies its API key, and `GEMINI_MODEL` selects a supported model (default `gemini-2.5-flash`). Without explicit provider selection, `spring.ai.model.chat=none` and no credentials are needed. See [Spring AI 1.1 Google GenAI configuration](https://docs.spring.io/spring-ai/reference/1.1/api/chat/google-genai-chat.html).
+Use Spring AI **1.1.8** compatible with Boot **3.5.x**. Google Gemini is selected through `spring-ai-starter-model-google-genai`; the domain gateway still depends only on Spring AI `ChatModel`. `ASSISTANT_MODEL_PROVIDER=google-genai` selects the provider, `GEMINI_API_KEY` supplies its API key, and `GEMINI_MODEL` selects a supported model (default `gemini-3.5-flash-lite`, after synthetic smoke). Without explicit provider selection, `spring.ai.model.chat=none` and no credentials are needed. See [Spring AI 1.1 Google GenAI configuration](https://docs.spring.io/spring-ai/reference/1.1/api/chat/google-genai-chat.html).
 
 The application gateway accepts bounded context and returns a candidate answer plus safe usage metadata. Implementation uses `ChatClient`/`ChatModel`; domain services import no provider-specific types. `ChatClient` supports buffered calls and response metadata. See [ChatClient reference](https://docs.spring.io/spring-ai/reference/api/chatclient.html).
 
@@ -554,7 +554,7 @@ Gemini selection still requires gated model evaluation against representative as
 
 ## 13. Implementation stages
 
-Build in reviewable stages. Keep global AI switch off through stages 1–8. Tests use a fake model, so those stages do not depend on choosing a provider. Resolve external-provider disclosure/consent before real student content reaches a provider in stage 9; its unanswered status does not block schema, domain, or fake-model work.
+Build in reviewable stages. Keep global AI switch off through stages 1–8. Tests use a fake model, so those stages do not depend on choosing a provider. Owner explicitly approved local development use without real student data before external-provider disclosure/consent is resolved. Real-user deployment still requires that decision.
 
 | Stage | Goal and affected components | Depends on | Focused verification / exit condition |
 |---|---|---|---|
@@ -567,10 +567,10 @@ Build in reviewable stages. Keep global AI switch off through stages 1–8. Test
 | 6. Backend request flow | Implement `AssistantService`, `AssistantController`, error mapping, rate limit, final eligibility/policy recheck, and read/POST contracts. Wire stages 2–5 with fake model. | 2–5 | Implemented. Controller integration tests cover completion/replay, blocked prompts, policy downgrade, archive during generation, timeout, and role denial. Global switch remains off by default. |
 | 7. Professor controls | Add enable/disable, level, and quota controls to teacher create/edit/clone flows. Reuse existing assignment forms and owner-authorized API. | 1; may run alongside stages 2–6 | Implemented. Shared policy fields validate `1..10`; disabled sends `0`. Create/clone include initial policy; edit saves it immediately through owner-authorized endpoint. Frontend tests cover fields and payloads. |
 | 8. Student assistant UI | Replace disabled AI control with panel, composer, separate editor/execution opt-ins, quota, history, code rendering, and recovery/error states. | 6; can proceed alongside 7 | Implemented. Panel reads availability and paginated history, polls pending results, and refreshes history after interrupted requests. Distinct opt-ins default off; no answer appears before backend validation; archive shows erased-content metadata; closed/enrollment-ended blocks new requests while permitted history remains available. Vitest, typecheck, and build pass. |
-| 9. Provider qualification | Gemini provider is selected and backend configuration added. Resolve disclosure/consent, set real credentials, timeouts and budgets, and evaluate live-model quality/safety without changing domain contracts. | 5, 6; may run alongside 7–8 after consent decision | Deployment configuration starts cleanly with provider enabled; real-model evaluation meets agreed quality threshold; provider failure and cost limits verified. Normal CI still uses fake model. |
-| 10. Rollout | Run affected backend/frontend checks, PostgreSQL race and archive tests, verify docs and operational monitoring, then enable the global switch for rollout. | 6–9 | Existing assignments remain disabled, erasure and no-reset behavior hold, rollback by switch works, and no sensitive prompt/context appears in logs. |
+| 9. Provider qualification | Gemini provider is selected and backend configuration added. Resolve disclosure/consent, set real credentials, timeouts and budgets, and evaluate live-model quality/safety without changing domain contracts. | 5, 6; may run alongside 7–8 | Development configuration complete: real synthetic 3-case smoke passed with Gemini 3.5 Flash-Lite; expanded 10-case run passed 9 and failed one on provider `429`, with no unsafe answer released. Local 3.8 Flash was intermittent. Output token, thinking, temperature, concurrency, per-process provider-call rate, and per-call deadline are bounded. Quality threshold and consent remain pending for real users; normal CI excludes live calls. |
+| 10. Rollout | Run affected backend/frontend checks, PostgreSQL race and archive tests, verify docs and operational monitoring, then enable the global switch for rollout. | 6–9 | Local development rollout enabled by owner direction, with no real users/data: PostgreSQL 16/16 checks passed in disposable database, backend 416/416, frontend 24/24 plus typecheck/build; direct student history route added for ended enrollment/archived group. Local backend started, and development schema indexes/constraints verified against existing local database without erasing data. Checked-in global switch remains off for other environments. Follow [rollout runbook](AI_ASSISTANT_ROLLOUT.md). |
 
-Critical path: **0 → 1/2 → 3/4 → 5 → 6 → 8/9 → 10**. Stage 7 needs only stage 1 and can be reviewed while backend work continues. Stage 9 needs actual provider and disclosure/consent decision, but no earlier stage needs live credentials. Each stage should produce one focused review; keep the global switch disabled until stage 10.
+Critical path: **0 → 1/2 → 3/4 → 5 → 6 → 8/9 → 10**. Stage 7 needs only stage 1 and can be reviewed while backend work continues. Stage 9 needs actual provider and a disclosure/consent decision before real-user deployment. Each stage should produce one focused review; keep the checked-in global switch disabled by default.
 
 Relevant commands during implementation:
 
@@ -581,6 +581,6 @@ Relevant commands during implementation:
 
 ## 14. Remaining decisions
 
-External-provider disclosure/consent requirement remains unspecified. Resolve it before connecting a real provider; it affects student UI, request authorization, and deployment policy.
+External-provider disclosure/consent requirement and live-evaluation quality threshold remain unspecified. Resolve both before enabling student traffic; they affect student UI, request authorization, and deployment policy.
 
 Gemini is the selected provider. Each deployment can select a Gemini model supported by the pinned Spring AI Google GenAI starter, subject to configuration and safety qualification.
