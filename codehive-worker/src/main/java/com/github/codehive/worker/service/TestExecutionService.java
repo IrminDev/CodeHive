@@ -5,6 +5,7 @@ import com.github.codehive.worker.model.dto.ExecutionReport;
 import com.github.codehive.worker.model.dto.ExecutionResult;
 import com.github.codehive.worker.model.dto.TestCaseResult;
 import com.github.codehive.worker.model.dto.queue.ExecutionJob;
+import com.github.codehive.worker.model.dto.queue.ExecutionTestCaseInfo;
 import com.github.codehive.worker.model.enums.ExecutionStatus;
 import com.github.codehive.worker.model.enums.ExecutionType;
 import com.github.codehive.worker.sandbox.ContainerSession;
@@ -52,17 +53,12 @@ public class TestExecutionService {
             if (session.isCompilationFailed()) {
                 report.setCompilationError(session.getCompilationError());
                 report.determineOverallStatus();
-                return report;
-            }
-            if (job.getExecutionType() == ExecutionType.DEFINITIVE) {
+            } else if (job.getExecutionType() == ExecutionType.DEFINITIVE) {
                 executeDefinitiveTests(job, executor, session, report);
             } else {
                 executePracticeTests(job, executor, session, report);
             }
-            report.determineOverallStatus();
-            if (job.getOutputPath() != null) {
-                uploadReport(job.getOutputPath(), report);
-            }
+            if (report.getOverallStatus() == null) report.determineOverallStatus();
         } catch (Exception e) {
             logger.error("Failed to execute job: id={}", job.getId(), e);
             report.setCompilationError("Execution failed: " + e.getMessage());
@@ -70,6 +66,7 @@ public class TestExecutionService {
         } finally {
             if (session != null) executor.cleanup(session);
         }
+        if (job.getReportPath() != null) uploadReport(job.getReportPath(), report);
         return report;
     }
 
@@ -78,29 +75,38 @@ public class TestExecutionService {
      */
     private void executeDefinitiveTests(ExecutionJob job, LanguageExecutor executor,
                                         ContainerSession session, ExecutionReport report) {
-        logger.info("Executing DEFINITIVE tests: {} test cases", job.getNumTests());
+        int requestedTests = job.getTestCases() != null ? job.getTestCases().size() : 0;
+        int numTests = Math.min(requestedTests,
+                com.github.codehive.worker.sandbox.SandboxConstants.MAX_TEST_CASES);
+        if (requestedTests > numTests) {
+            logger.warn("testCases {} exceeds cap {}; truncating", requestedTests, numTests);
+        }
+        logger.info("Executing DEFINITIVE tests: {} test cases", numTests);
 
-        for (int i = 1; i <= job.getNumTests(); i++) {
+        for (int index = 0; index < numTests; index++) {
+            ExecutionTestCaseInfo testCase = job.getTestCases().get(index);
+            int testNumber = testCase.getOrder() != null ? testCase.getOrder() : index + 1;
             try {
-                String inputPath = job.getTestsPath() + "tc-" + i + "/tc-" + i + ".in";
-                String outputPath = job.getTestsPath() + "tc-" + i + "/tc-" + i + ".out";
+                logger.debug("Test case {}: input={}, output={}",
+                        testNumber, testCase.getInputPath(), testCase.getExpectedOutputPath());
 
-                logger.debug("Test case {}: input={}, output={}", i, inputPath, outputPath);
-
-                InputStream testInput = objectStorageService.download(inputPath);
-                InputStream expectedOutputStream = objectStorageService.download(outputPath);
+                InputStream testInput = objectStorageService.download(testCase.getInputPath());
+                InputStream expectedOutputStream = objectStorageService.download(testCase.getExpectedOutputPath());
                 String expectedOutput = new String(expectedOutputStream.readAllBytes(), StandardCharsets.UTF_8);
 
                 ExecutionResult result = executor.runTestCase(session, testInput);
+                report.recordSessionPeakMemory(result.getSessionPeakMemoryMb());
 
-                uploadTestCaseOutputs(job.getOutputPath(), i, result.getOutput(), result.getErrorOutput());
+                uploadTestCaseOutputs(testCase, result.getOutput(), result.getErrorOutput());
 
                 TestCaseResult testResult = new TestCaseResult(
-                    i,
+                    testNumber,
                     result.getStatus(),
                     result.getExecutionTimeMs(),
                     result.getMemoryUsedMb()
                 );
+                testResult.setTestCaseId(testCase.getTestCaseId());
+                copyDiagnostics(result, testResult);
 
                 if (result.getStatus() == ExecutionStatus.AC) {
                     OutputComparatorService.ComparisonResult comparison =
@@ -122,11 +128,12 @@ public class TestExecutionService {
                 report.addTestCaseResult(testResult);
 
             } catch (Exception e) {
-                logger.error("Failed to execute test case {}", i, e);
+                logger.error("Failed to execute test case {}", testNumber, e);
                 TestCaseResult errorResult = new TestCaseResult();
-                errorResult.setTestCaseNumber(i);
+                errorResult.setTestCaseId(testCase.getTestCaseId());
+                errorResult.setTestCaseNumber(testNumber);
                 errorResult.setStatus(ExecutionStatus.RTE);
-                errorResult.setFeedback("Test execution failed: " + e.getMessage());
+                errorResult.setFeedback("Execution infrastructure failed");
                 report.addTestCaseResult(errorResult);
             }
         }
@@ -138,7 +145,12 @@ public class TestExecutionService {
      */
     private void executePracticeTests(ExecutionJob job, LanguageExecutor executor,
                                       ContainerSession studentSession, ExecutionReport report) {
-        logger.info("Executing PRACTICE tests: {} test cases", job.getTestCases().size());
+        int numTestCases = Math.min(job.getTestCases().size(),
+                com.github.codehive.worker.sandbox.SandboxConstants.MAX_TEST_CASES);
+        if (job.getTestCases().size() > numTestCases) {
+            logger.warn("testCases {} exceeds cap {}; truncating", job.getTestCases().size(), numTestCases);
+        }
+        logger.info("Executing PRACTICE tests: {} test cases", numTestCases);
 
         LanguageExecutor referenceExecutor = executorFactory.getExecutor(job.getReferenceLanguage());
         ContainerSession referenceSession = null;
@@ -159,9 +171,10 @@ public class TestExecutionService {
                 return;
             }
 
-            for (int i = 0; i < job.getTestCases().size(); i++) {
+            for (int i = 0; i < numTestCases; i++) {
                 try {
-                    String testInput = job.getTestCases().get(i);
+                    ExecutionTestCaseInfo testCase = job.getTestCases().get(i);
+                    String testInput = testCase.getInlineInput();
                     int testNumber = i + 1;
 
                     // Run reference solution to get expected output
@@ -187,8 +200,9 @@ public class TestExecutionService {
                         studentSession,
                         new ByteArrayInputStream(testInput.getBytes(StandardCharsets.UTF_8))
                     );
+                    report.recordSessionPeakMemory(result.getSessionPeakMemoryMb());
 
-                    uploadTestCaseOutputs(job.getOutputPath(), testNumber, result.getOutput(), result.getErrorOutput());
+                    uploadTestCaseOutputs(testCase, result.getOutput(), result.getErrorOutput());
 
                     TestCaseResult testResult = new TestCaseResult(
                         testNumber,
@@ -196,6 +210,11 @@ public class TestExecutionService {
                         result.getExecutionTimeMs(),
                         result.getMemoryUsedMb()
                     );
+                    copyDiagnostics(result, testResult);
+                    // Practice inputs belong to the requesting student, so retain
+                    // bounded expected and captured stdout for every completed case.
+                    testResult.setExpectedOutput(expectedOutput);
+                    testResult.setActualOutput(result.getOutput());
 
                     if (result.getStatus() == ExecutionStatus.AC) {
                         OutputComparatorService.ComparisonResult comparison =
@@ -207,8 +226,6 @@ public class TestExecutionService {
                         if (!comparison.matches()) {
                             testResult.setStatus(ExecutionStatus.WA);
                             testResult.setFeedback(comparison.getFeedback());
-                            testResult.setExpectedOutput(expectedOutput);
-                            testResult.setActualOutput(result.getOutput());
                         } else {
                             testResult.setFeedback("Passed");
                         }
@@ -223,7 +240,7 @@ public class TestExecutionService {
                     TestCaseResult errorResult = new TestCaseResult();
                     errorResult.setTestCaseNumber(i + 1);
                     errorResult.setStatus(ExecutionStatus.RTE);
-                    errorResult.setFeedback("Test execution failed: " + e.getMessage());
+                    errorResult.setFeedback("Execution infrastructure failed");
                     report.addTestCaseResult(errorResult);
                 }
             }
@@ -235,19 +252,17 @@ public class TestExecutionService {
     /**
      * Upload test case stdout and stderr to MinIO.
      */
-    private void uploadTestCaseOutputs(String path, int testCaseNumber, String stdout, String stderr) {
+    private void uploadTestCaseOutputs(ExecutionTestCaseInfo testCase, String stdout, String stderr) {
         try {
-            String stdoutPath = path + "/tc-" + testCaseNumber + "/stdout.txt";
-            objectStorageService.upload(stdoutPath, stdout != null ? stdout : "");
-            logger.debug("Uploaded stdout for test case {} to: {}", testCaseNumber, stdoutPath);
+            if (testCase.getStdoutPath() != null) {
+                objectStorageService.upload(testCase.getStdoutPath(), stdout != null ? stdout : "");
+            }
 
-            if (stderr != null && !stderr.isEmpty()) {
-                String stderrPath = path + "/tc-" + testCaseNumber + "/stderr.txt";
-                objectStorageService.upload(stderrPath, stderr);
-                logger.debug("Uploaded stderr for test case {} to: {}", testCaseNumber, stderrPath);
+            if (testCase.getStderrPath() != null && stderr != null && !stderr.isEmpty()) {
+                objectStorageService.upload(testCase.getStderrPath(), stderr);
             }
         } catch (Exception e) {
-            logger.error("Failed to upload test case outputs for test {}", testCaseNumber, e);
+            logger.error("Failed to upload test case outputs for test {}", testCase.getOrder(), e);
         }
     }
 
@@ -264,12 +279,16 @@ public class TestExecutionService {
         }
     }
 
-    private void uploadReport(String outputPath, ExecutionReport report) {
+    private void copyDiagnostics(ExecutionResult result, TestCaseResult testResult) {
+        testResult.setStderr(result.getErrorOutput());
+        testResult.setExitCode(result.getExitCode());
+    }
+
+    private void uploadReport(String reportPath, ExecutionReport report) {
         try {
             String jsonReport = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(report);
-            String outputPathFinal = outputPath + "report.json";
-            objectStorageService.upload(outputPathFinal, jsonReport);
-            logger.info("Uploaded execution report to: {}", outputPathFinal);
+            objectStorageService.upload(reportPath, jsonReport);
+            logger.info("Uploaded execution report to: {}", reportPath);
         } catch (Exception e) {
             logger.error("Failed to upload execution report", e);
         }

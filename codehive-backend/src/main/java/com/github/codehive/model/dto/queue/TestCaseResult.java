@@ -1,13 +1,20 @@
 package com.github.codehive.model.dto.queue;
 
+import java.util.UUID;
+
 import com.github.codehive.model.enums.ExecutionStatus;
 
 public class TestCaseResult {
+    private UUID testCaseId;
     private int testCaseNumber;
     private ExecutionStatus status;
     private Long executionTimeMs;
     private Long memoryUsedMb;
     private String feedback;
+    private String stderr;
+    private Integer exitCode;
+    // Present only for PRACTICE test cases. Definitive results keep private
+    // expected output and student stdout out of the report payload.
     private String expectedOutput;
     private String actualOutput;
 
@@ -21,6 +28,9 @@ public class TestCaseResult {
         this.executionTimeMs = executionTimeMs;
         this.memoryUsedMb = memoryUsedMb;
     }
+
+    public UUID getTestCaseId() { return testCaseId; }
+    public void setTestCaseId(UUID testCaseId) { this.testCaseId = testCaseId; }
 
     public int getTestCaseNumber() {
         return testCaseNumber;
@@ -60,6 +70,22 @@ public class TestCaseResult {
 
     public void setFeedback(String feedback) {
         this.feedback = feedback;
+    }
+
+    public String getStderr() {
+        return stderr;
+    }
+
+    public void setStderr(String stderr) {
+        this.stderr = stderr;
+    }
+
+    public Integer getExitCode() {
+        return exitCode;
+    }
+
+    public void setExitCode(Integer exitCode) {
+        this.exitCode = exitCode;
     }
 
     public String getExpectedOutput() {

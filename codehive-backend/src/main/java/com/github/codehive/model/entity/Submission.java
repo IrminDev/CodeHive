@@ -4,6 +4,8 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 import com.github.codehive.model.enums.Language;
+import com.github.codehive.model.enums.SubmissionStatus;
+import java.time.Instant;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -27,6 +29,10 @@ public class Submission {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "assignment_id", nullable = false)
     private Assignment assignment;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "student_id", nullable = false)
+    private User student;
     
     @Column(nullable = false, length = 20)
     @Enumerated(EnumType.STRING)
@@ -35,14 +41,37 @@ public class Submission {
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
+    @Column(nullable = false)
+    private Boolean deliveredLate;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "student_work_id")
+    private StudentAssignmentWork studentWork;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private SubmissionStatus status = SubmissionStatus.SUBMITTED;
+
+    private Instant withdrawnAt;
+
+    @Column(length = 700)
+    private String sourceCodeKey;
+
     public Submission() {
         this.createdAt = LocalDateTime.now();
+        this.deliveredLate = false;
     }
 
     public Submission(Assignment assignment, Language language) {
         this();
         this.assignment = assignment;
         this.language = language;
+    }
+
+    public Submission(Assignment assignment, User student, Language language, Boolean deliveredLate) {
+        this(assignment, language);
+        this.student = student;
+        this.deliveredLate = deliveredLate;
     }
 
     public UUID getId() {
@@ -61,6 +90,11 @@ public class Submission {
         this.assignment = assignment;
     }
 
+    public User getStudent() { return student; }
+    public void setStudent(User student) { this.student = student; }
+    public Boolean getDeliveredLate() { return deliveredLate; }
+    public void setDeliveredLate(Boolean deliveredLate) { this.deliveredLate = deliveredLate; }
+
     public Language getLanguage() {
         return language;
     }
@@ -76,4 +110,13 @@ public class Submission {
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
     }
+
+    public StudentAssignmentWork getStudentWork() { return studentWork; }
+    public void setStudentWork(StudentAssignmentWork studentWork) { this.studentWork = studentWork; }
+    public SubmissionStatus getStatus() { return status; }
+    public void setStatus(SubmissionStatus status) { this.status = status; }
+    public Instant getWithdrawnAt() { return withdrawnAt; }
+    public void setWithdrawnAt(Instant withdrawnAt) { this.withdrawnAt = withdrawnAt; }
+    public String getSourceCodeKey() { return sourceCodeKey; }
+    public void setSourceCodeKey(String sourceCodeKey) { this.sourceCodeKey = sourceCodeKey; }
 }

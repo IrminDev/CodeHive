@@ -21,8 +21,9 @@ public class ExecutionRequestProducer {
     public void sendExecutionRequest(ExecutionJob job) {
         logger.info("[WORKFLOW] RABBITMQ SEND: Preparing to send execution request - executionId={}, language={}, executionType={}", 
             job.getId(), job.getLanguage(), job.getExecutionType());
-        logger.info("[WORKFLOW] RABBITMQ SEND: Job details - sourceKey={}, timeLimitMs={}, memoryLimitMb={}, numTests={}",
-            job.getSource(), job.getTimeLimitMs(), job.getMemoryLimitMb(), job.getNumTests());
+        logger.info("[WORKFLOW] RABBITMQ SEND: Job details - sourceKey={}, reportPath={}, timeLimitMs={}, memoryLimitMb={}, tests={}, trigger={}",
+            job.getSource(), job.getReportPath(), job.getTimeLimitMs(), job.getMemoryLimitMb(),
+            job.getTestCases() != null ? job.getTestCases().size() : 0, job.getTrigger());
         
         try {
             rabbitTemplate.convertAndSend(RabbitConfig.QUEUE_NAME, job);

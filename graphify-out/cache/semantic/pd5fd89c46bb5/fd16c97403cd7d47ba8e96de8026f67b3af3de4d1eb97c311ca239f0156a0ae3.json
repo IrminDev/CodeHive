@@ -1,0 +1,1 @@
+{"nodes": [{"id": "codehive_frontend_docker_compose_frontend_container_service", "name": "Frontend Docker Compose service", "file_type": "code", "source_file": "codehive-frontend/docker-compose.yml", "rationale": "Defines a buildable frontend service with selectable target, VITE_API_URL configuration, and development port mapping."}], "edges": [], "hyperedges": []}

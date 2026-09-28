@@ -1,0 +1,1 @@
+{"nodes": [{"id": "codehive_testing_files_requests_test_cases_input2_sliding_window_hidden_input", "name": "Sliding-window hidden input two", "file_type": "code", "source_file": "codehive-testing-files/requests/test_cases/input2.txt", "rationale": "Hidden eight-element fixture with window size three; expected maximum is 11."}], "edges": [], "hyperedges": []}

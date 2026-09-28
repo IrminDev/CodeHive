@@ -1,58 +1,81 @@
 package com.github.codehive.ratelimit;
 
 import java.time.Duration;
+import java.util.Comparator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import io.github.bucket4j.Bucket;
+import io.github.bucket4j.ConsumptionProbe;
 
 @Service
 public class RateLimitService {
-    private final Map<String, Bucket> cache = new ConcurrentHashMap<>();
+    private static final int MAX_BUCKETS = 100_000;
+    private final Map<String, BucketEntry> cache = new ConcurrentHashMap<>();
 
-    /**
-     * Resolve a bucket for the given key (typically IP address or user ID)
-     * 
-     * @param key The unique identifier (IP or user)
-     * @param limit Maximum number of requests
-     * @param duration Time window in seconds
-     * @return Bucket for rate limiting
-     */
-    public Bucket resolveBucket(String key, int limit, long duration) {
-        return cache.computeIfAbsent(key, k -> createNewBucket(limit, duration));
+    public Decision consume(String subject, String policy, int limit, long durationSeconds) {
+        if (limit < 1 || durationSeconds < 1) throw new IllegalArgumentException("Rate-limit values must be positive");
+        String key = policy + '|' + subject + '|' + limit + '|' + durationSeconds;
+        BucketEntry entry = cache.computeIfAbsent(key, ignored -> {
+            ensureCapacity();
+            return new BucketEntry(createBucket(limit, durationSeconds), durationSeconds);
+        });
+        entry.lastAccessMillis = System.currentTimeMillis();
+        ConsumptionProbe probe = entry.bucket.tryConsumeAndReturnRemaining(1);
+        long retryAfter = probe.isConsumed() ? 0
+                : Math.max(1, (probe.getNanosToWaitForRefill() + 999_999_999L) / 1_000_000_000L);
+        return new Decision(probe.isConsumed(), probe.getRemainingTokens(), retryAfter);
     }
 
-    /**
-     * Check if a request is allowed for the given key
-     * 
-     * @param key The unique identifier
-     * @param limit Maximum number of requests
-     * @param duration Time window in seconds
-     * @return true if request is allowed, false if rate limit exceeded
-     */
     public boolean tryConsume(String key, int limit, long duration) {
-        Bucket bucket = resolveBucket(key, limit, duration);
-        return bucket.tryConsume(1);
+        return consume(key, "legacy", limit, duration).allowed();
     }
 
-    /**
-     * Get the number of available tokens for a key
-     * 
-     * @param key The unique identifier
-     * @param limit Maximum number of requests
-     * @param duration Time window in seconds
-     * @return Number of available tokens
-     */
     public long getAvailableTokens(String key, int limit, long duration) {
-        Bucket bucket = resolveBucket(key, limit, duration);
-        return bucket.getAvailableTokens();
+        String cacheKey = "legacy|" + key + '|' + limit + '|' + duration;
+        BucketEntry entry = cache.computeIfAbsent(cacheKey,
+                ignored -> new BucketEntry(createBucket(limit, duration), duration));
+        entry.lastAccessMillis = System.currentTimeMillis();
+        return entry.bucket.getAvailableTokens();
     }
 
-    private Bucket createNewBucket(int limit, long duration) {
+    @Scheduled(fixedDelayString = "${rate-limit.bucket-cleanup-ms:3600000}")
+    public void cleanup() {
+        long now = System.currentTimeMillis();
+        cache.entrySet().removeIf(entry -> now - entry.getValue().lastAccessMillis
+                > Math.max(3_600_000L, entry.getValue().durationSeconds * 2_000L));
+    }
+
+    int bucketCount() {
+        return cache.size();
+    }
+
+    private void ensureCapacity() {
+        if (cache.size() < MAX_BUCKETS) return;
+        cache.entrySet().stream().min(Comparator.comparingLong(entry -> entry.getValue().lastAccessMillis))
+                .map(Map.Entry::getKey).ifPresent(cache::remove);
+    }
+
+    private Bucket createBucket(int limit, long duration) {
         return Bucket.builder()
-                .addLimit(lim -> lim.capacity(1L*limit).refillIntervally(1L*limit, Duration.ofSeconds(duration)))
+                .addLimit(value -> value.capacity(limit)
+                        .refillIntervally(limit, Duration.ofSeconds(duration)))
                 .build();
+    }
+
+    public record Decision(boolean allowed, long remaining, long retryAfterSeconds) {}
+
+    private static final class BucketEntry {
+        private final Bucket bucket;
+        private final long durationSeconds;
+        private volatile long lastAccessMillis = System.currentTimeMillis();
+
+        private BucketEntry(Bucket bucket, long durationSeconds) {
+            this.bucket = bucket;
+            this.durationSeconds = durationSeconds;
+        }
     }
 }

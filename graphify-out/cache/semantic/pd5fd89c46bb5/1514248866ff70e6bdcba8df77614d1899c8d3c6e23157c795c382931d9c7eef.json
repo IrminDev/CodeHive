@@ -1,0 +1,1 @@
+{"nodes": [{"id": "codehive_testing_files_requests_test_cases_input1_sliding_window_sample_input", "name": "Sliding-window sample input", "file_type": "code", "source_file": "codehive-testing-files/requests/test_cases/input1.txt", "rationale": "Visible sample with five ascending values and window size two; expected maximum is 9."}], "edges": [], "hyperedges": []}
