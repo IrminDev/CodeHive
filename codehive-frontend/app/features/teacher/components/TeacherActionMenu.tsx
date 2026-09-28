@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { MoreHorizontal } from "lucide-react";
 
@@ -7,7 +7,12 @@ import { compactButtonClass } from "./TeacherUI";
 interface Anchor {
   top: number;
   right: number;
+  triggerTop: number;
+  placed: boolean;
 }
+
+const GAP = 4;
+const VIEWPORT_MARGIN = 8;
 
 export function ActionMenu({
   label,
@@ -35,10 +40,25 @@ export function ActionMenu({
     if (open) return close();
     const rect = triggerRef.current?.getBoundingClientRect();
     setAnchor({
-      top: (rect?.bottom ?? 0) + 4,
+      top: (rect?.bottom ?? 0) + GAP,
       right: Math.max(12, window.innerWidth - (rect?.right ?? 0)),
+      triggerTop: rect?.top ?? 0,
+      placed: false,
     });
   }
+
+  // Rows near the bottom of the viewport would push the menu off-screen, so open it upward there.
+  useLayoutEffect(() => {
+    if (!anchor || anchor.placed) return;
+    const height = menuRef.current?.getBoundingClientRect().height ?? 0;
+    const overflowsBelow = anchor.top + height > window.innerHeight - VIEWPORT_MARGIN;
+    const fitsAbove = anchor.triggerTop - GAP - height >= VIEWPORT_MARGIN;
+    setAnchor({
+      ...anchor,
+      top: overflowsBelow && fitsAbove ? anchor.triggerTop - GAP - height : anchor.top,
+      placed: true,
+    });
+  }, [anchor]);
 
   useEffect(() => {
     if (!open) return;
