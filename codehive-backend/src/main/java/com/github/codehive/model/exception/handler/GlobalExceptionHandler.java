@@ -31,6 +31,7 @@ import com.github.codehive.model.exception.recovery.InvalidRecoveryTokenExceptio
 import com.github.codehive.model.exception.recovery.TokenAlreadyUsedException;
 import com.github.codehive.model.exception.recovery.TokenNotFoundException;
 import com.github.codehive.model.response.ErrorResponse;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -98,6 +99,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(EntityNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleEntityNotFound(EntityNotFoundException ex) {
         ErrorResponse errorResponse = new ErrorResponse(ex.getMessage(), "Resource not found");
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ErrorResponse> handleNoResourceFound(NoResourceFoundException ex) {
+        ErrorResponse errorResponse = new ErrorResponse("No endpoint matches this path", "Resource not found");
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
     }
 
