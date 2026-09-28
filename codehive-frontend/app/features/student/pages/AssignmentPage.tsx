@@ -13,9 +13,11 @@ import {
 } from "~/shared/components/AssignmentWorkspace";
 import { useAuth } from "~/core/providers/AuthProvider";
 import { getAssignment, listMyAssignmentOverviews } from "../api/assignment.api";
-import { withdrawSubmission } from "../api/submission.api";
+import { getMySubmissionSource, withdrawSubmission } from "../api/submission.api";
 import type { Assignment, AssignmentGrade, Language } from "../types/assignment.types";
 import type { GroupSubmission } from "../types/group-submission.types";
+import { codeAfterLanguageSwitch } from "../utils/language-switch";
+import { clearCodeDraft, loadCodeDraft, resolveInitialCode, saveCodeDraft } from "../utils/code-draft";
 import {
   submitExecution,
   getExecution,
@@ -108,6 +110,7 @@ function executionDiagnostic(result?: TestCaseResult): string | null {
 export function AssignmentPage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
+  const userId = user?.id;
 
   const [assignment, setAssignment] = useState<Assignment | null>(null);
   const [loading, setLoading] = useState(true);
@@ -116,6 +119,8 @@ export function AssignmentPage() {
   const [selectedLanguage, setSelectedLanguage] = useState<Language>("PYTHON");
   const [code, setCode] = useState(LANGUAGE_TEMPLATES["PYTHON"]);
   const [testCases, setTestCases] = useState<string[]>([""]);
+  // Drafts are written only after the initial code is restored, so the template never overwrites them.
+  const [draftReady, setDraftReady] = useState(false);
 
   const [isRunning, setIsRunning] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -140,12 +145,15 @@ export function AssignmentPage() {
   useEffect(() => {
     if (!id) return;
     setLoading(true);
+    setDraftReady(false);
     getAssignment(id)
       .then(async (a) => {
         setAssignment(a);
+        let delivered: GroupSubmission | null = null;
         try {
           const overview = (await listMyAssignmentOverviews()).find((item) => item.assignment.id === a.id);
-          setCurrentSubmission(overview?.currentSubmission ?? null);
+          delivered = overview?.currentSubmission ?? null;
+          setCurrentSubmission(delivered);
           setReturnedGrade(overview?.grade ?? null);
         } catch {
           setCurrentSubmission(null);
@@ -154,9 +162,21 @@ export function AssignmentPage() {
         setTestCases(practiceInputs(a));
         setSelectedCase(0);
         if (a.allowedLanguages?.length > 0) {
-          setSelectedLanguage(a.allowedLanguages[0]);
-          setCode(LANGUAGE_TEMPLATES[a.allowedLanguages[0]] ?? "");
+          const draft = userId ? loadCodeDraft(userId, a.id) : null;
+          let submitted: { language: Language; code: string } | null = null;
+          if (!draft && delivered) {
+            try {
+              const source = await getMySubmissionSource(delivered.submissionId);
+              submitted = { language: source.language, code: source.sourceCode };
+            } catch {
+              submitted = null;
+            }
+          }
+          const initial = resolveInitialCode({ allowedLanguages: a.allowedLanguages, templates: LANGUAGE_TEMPLATES, draft, submitted });
+          setSelectedLanguage(initial.language);
+          setCode(initial.code);
         }
+        setDraftReady(true);
       })
       .catch(() => {
         if (import.meta.env.DEV) {
@@ -206,15 +226,22 @@ export function AssignmentPage() {
         }
       })
       .finally(() => setLoading(false));
-  }, [id]);
+  }, [id, userId]);
+
+  useEffect(() => {
+    if (!draftReady || !userId || !assignment) return;
+    // An untouched template is not work in progress; dropping it lets the delivered code show next time.
+    if (Object.values(LANGUAGE_TEMPLATES).includes(code)) clearCodeDraft(userId, assignment.id);
+    else saveCodeDraft(userId, assignment.id, selectedLanguage, code);
+  }, [draftReady, userId, assignment, selectedLanguage, code]);
 
   useEffect(() => {
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, []);
 
   function handleLanguageChange(lang: Language) {
+    setCode((current) => codeAfterLanguageSwitch(current, selectedLanguage, lang, LANGUAGE_TEMPLATES));
     setSelectedLanguage(lang);
-    setCode(LANGUAGE_TEMPLATES[lang] ?? "");
   }
 
   async function runExecution(type: ExecutionType) {

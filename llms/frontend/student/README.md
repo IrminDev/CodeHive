@@ -88,6 +88,13 @@ When a current definitive submission exists, the workspace disables a new submit
 confirmed **Withdraw to update** action. Withdrawal retains history and results, then enables the
 student to submit editor code as the next version before the assignment closes.
 
+Editor code survives reloads and language switches. The workspace keeps one draft per student and
+assignment in `localStorage` (`codehive:draft:{userId}:{assignmentId}`, holding `user`, `assignment`,
+`language`, `code`, `updatedAt`). On entry it restores the draft first, then the current submission's
+code from `GET /api/submissions/mine/{submissionId}/source`, then the first allowed language's
+template. Switching language keeps the typed code and only swaps an untouched template; an
+untouched template is never stored as a draft.
+
 Submission history uses persisted backend summaries and never substitutes development mocks.
 Execution-report pages poll pending work, render OLE and other verdicts, and explain the 90-day
 artifact-expiration state without losing the historical verdict.

@@ -74,6 +74,9 @@ Error handling is centralized in:
 - `GET /api/submissions/mine/assignment/{assignmentId}` is student-only and returns every
   definitive attempt newest-first. Persisted verdict/time/memory summaries remain available
   after report artifacts expire; `reportAvailable` controls links to detailed reports.
+- `GET /api/submissions/mine/{submissionId}/source` is student-only and returns the language and
+  stored source of one of the caller's own submissions. Another student's submission answers 404,
+  the same as a missing one, so submission ids cannot be probed.
 
 ### AssignmentStudentWorkController
 
