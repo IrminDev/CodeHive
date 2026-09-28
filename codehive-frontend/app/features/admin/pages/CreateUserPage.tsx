@@ -9,6 +9,7 @@ import { Role, Scope } from "~/shared/types/model/User";
 import { AdminShell } from "../components/AdminShell";
 import { AdminPageHeader, inputClass, panelClass, primaryCompactClass } from "../components/AdminUI";
 import { hasEffectiveScope } from "../utils/permissions";
+import { enrollmentHint, enrollmentPattern } from "../utils/enrollment";
 
 const emptyForm = { name: "", fatherLastName: "", motherLastName: "", enrollmentNumber: "", email: "" };
 
@@ -33,7 +34,7 @@ export function CreateUserPage() {
     <form onSubmit={(event) => void submit(event)} className={`${panelClass} p-5 sm:p-7 space-y-5`}>
       <Field label="Role"><Dropdown value={selectedRole ?? ""} onChange={(value) => setRole(value as Role)} required options={roles.map((item) => ({ value: item, label: item[0] + item.slice(1).toLowerCase() }))} /></Field>
       <div className="grid gap-4 sm:grid-cols-2"><Field label="Name(s)"><input className={inputClass} value={form.name} onChange={(event) => field("name", event.target.value)} required minLength={2} maxLength={50} /></Field><Field label="Email"><input className={inputClass} type="email" value={form.email} onChange={(event) => field("email", event.target.value)} required maxLength={100} /></Field><Field label="Father's last name"><input className={inputClass} value={form.fatherLastName} onChange={(event) => field("fatherLastName", event.target.value)} required /></Field><Field label="Mother's last name"><input className={inputClass} value={form.motherLastName} onChange={(event) => field("motherLastName", event.target.value)} required /></Field></div>
-      <Field label="Enrollment number"><input className={`${inputClass} font-mono`} value={form.enrollmentNumber} onChange={(event) => field("enrollmentNumber", event.target.value)} required maxLength={10} pattern={selectedRole === Role.STUDENT ? "(199[4-9]|[2-9][0-9]{3})630[0-9]{3}" : "[A-Za-z0-9._-]{1,10}"} /><p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{selectedRole === Role.STUDENT ? "Format YYYY630XXX; year 1994 or later." : "Up to 10 letters, numbers, dots, underscores, or hyphens."}</p></Field>
+      <Field label="Enrollment number"><input className={`${inputClass} font-mono`} value={form.enrollmentNumber} onChange={(event) => field("enrollmentNumber", event.target.value)} required maxLength={10} pattern={enrollmentPattern(selectedRole)} /><p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{enrollmentHint(selectedRole)}</p></Field>
       <button type="submit" disabled={busy || !selectedRole} className={`${primaryCompactClass} w-full py-3 text-sm`}><UserPlus size={16} /> {busy ? "Creating…" : "Create user"}</button>
     </form>
   </AdminShell>;
