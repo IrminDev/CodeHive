@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { ChevronRight, Plus, Search, Upload } from "lucide-react";
-import { Link, useSearchParams } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import { useAuth } from "~/core/providers/AuthProvider";
 import { Dropdown } from "~/shared/components/ui/Dropdown";
 import { Role, Scope } from "~/shared/types/model/User";
@@ -89,8 +89,16 @@ function FilterSelect({ label, value, onChange, options }: { label: string; valu
 }
 
 function UserResults({ users }: { users: AdminUserSummary[] }) {
+  const navigate = useNavigate();
+  const openUser = (event: React.MouseEvent, id: string) => {
+    // Inner links navigate on their own; the row only handles clicks elsewhere.
+    if ((event.target as HTMLElement).closest("a, button")) return;
+    const path = `/admin/users/${id}`;
+    if (event.ctrlKey || event.metaKey) window.open(path, "_blank");
+    else navigate(path);
+  };
   return <div className={panelClass}>
-    <div className="hidden md:block overflow-x-auto"><table className="w-full text-left"><thead><tr className="text-[10px] uppercase tracking-wide text-gray-400 border-b border-gray-200 dark:border-gray-800/60"><th className="px-5 py-3">User</th><th className="px-5 py-3">Enrollment</th><th className="px-5 py-3">Role</th><th className="px-5 py-3">Status</th><th className="px-5 py-3">Created</th><th className="w-10" /></tr></thead><tbody className="divide-y divide-gray-100 dark:divide-gray-800/60">{users.map((user) => <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-dark-card transition-colors"><td className="px-5 py-4"><Link to={`/admin/users/${user.id}`} className="font-medium text-sm hover:text-azure dark:hover:text-yellow">{user.name} {user.lastName}</Link><p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{user.email}</p></td><td className="px-5 py-4 text-xs font-mono">{user.enrollmentNumber}</td><td className="px-5 py-4"><StatusPill label={user.role} tone="info" /></td><td className="px-5 py-4"><StatusPill label={user.status} tone={user.status === "ACTIVE" ? "success" : "error"} /></td><td className="px-5 py-4 text-xs text-gray-500">{formatDate(user.createdAt, false)}</td><td><Link to={`/admin/users/${user.id}`} aria-label={`View ${user.name}`}><ChevronRight size={16} /></Link></td></tr>)}</tbody></table></div>
+    <div className="hidden md:block overflow-x-auto"><table className="w-full text-left"><thead><tr className="text-[10px] uppercase tracking-wide text-gray-400 border-b border-gray-200 dark:border-gray-800/60"><th className="px-5 py-3">User</th><th className="px-5 py-3">Enrollment</th><th className="px-5 py-3">Role</th><th className="px-5 py-3">Status</th><th className="px-5 py-3">Created</th><th className="w-10" /></tr></thead><tbody className="divide-y divide-gray-100 dark:divide-gray-800/60">{users.map((user) => <tr key={user.id} onClick={(event) => openUser(event, user.id)} className="cursor-pointer hover:bg-gray-50 dark:hover:bg-dark-card transition-colors"><td className="px-5 py-4"><Link to={`/admin/users/${user.id}`} className="font-medium text-sm hover:text-azure dark:hover:text-yellow">{user.name} {user.lastName}</Link><p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{user.email}</p></td><td className="px-5 py-4 text-xs font-mono">{user.enrollmentNumber}</td><td className="px-5 py-4"><StatusPill label={user.role} tone="info" /></td><td className="px-5 py-4"><StatusPill label={user.status} tone={user.status === "ACTIVE" ? "success" : "error"} /></td><td className="px-5 py-4 text-xs text-gray-500">{formatDate(user.createdAt, false)}</td><td><Link to={`/admin/users/${user.id}`} aria-label={`View ${user.name}`}><ChevronRight size={16} /></Link></td></tr>)}</tbody></table></div>
     <div className="md:hidden divide-y divide-gray-100 dark:divide-gray-800/60">{users.map((user) => <Link key={user.id} to={`/admin/users/${user.id}`} className="block p-4 hover:bg-gray-50 dark:hover:bg-dark-card"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="font-medium truncate">{user.name} {user.lastName}</p><p className="text-xs text-gray-500 truncate">{user.email}</p></div><StatusPill label={user.status} tone={user.status === "ACTIVE" ? "success" : "error"} /></div><div className="mt-3 flex items-center gap-2 text-xs text-gray-500"><span className="font-mono">{user.enrollmentNumber}</span><span>·</span><span>{user.role}</span></div></Link>)}</div>
   </div>;
 }
