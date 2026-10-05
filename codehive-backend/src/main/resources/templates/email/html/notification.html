@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title th:text="${title}">CodeHive notification</title>
+</head>
+<body style="margin:0;background:#f3f6fb;color:#111827;font-family:Inter,Arial,sans-serif;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f3f6fb;padding:32px 12px;">
+  <tr><td align="center">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:600px;background:#ffffff;border:1px solid #dbe4f0;border-radius:24px;overflow:hidden;box-shadow:0 16px 40px rgba(0,41,107,.12);">
+      <tr>
+        <td style="padding:30px 36px;background:#00296B;background-image:linear-gradient(135deg,#00509D,#003F88,#00296B);">
+          <table role="presentation" width="100%"><tr>
+            <td style="font-size:24px;font-weight:800;color:#ffffff;">Code<span style="color:#FDC500;">Hive</span></td>
+            <td align="right"><span style="display:inline-block;padding:7px 12px;border-radius:999px;background:#FDC500;color:#00296B;font-size:11px;font-weight:800;letter-spacing:.08em;" th:text="${badge}">UPDATE</span></td>
+          </tr></table>
+        </td>
+      </tr>
+      <tr><td style="padding:36px;">
+        <h1 style="margin:0 0 14px;font-size:28px;line-height:1.25;color:#111827;" th:text="${title}">Notification title</h1>
+        <p style="margin:0 0 26px;font-size:16px;line-height:1.7;color:#4b5563;" th:text="${message}">Notification message</p>
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 28px;background:#0A0F1A;border-radius:16px;border:1px solid #1f2937;">
+          <tr><td style="padding:20px 22px;">
+            <div style="margin:0 0 12px;color:#FDC500;font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;" th:text="${detailTitle}">Details</div>
+            <div th:each="line : ${detailLines}" style="padding:5px 0;color:#d1d5db;font:14px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;" th:text="${line}">Detail</div>
+          </td></tr>
+        </table>
+        <a th:href="${ctaUrl}" th:text="${ctaLabel}" style="display:inline-block;padding:14px 22px;border-radius:12px;background:#00509D;color:#ffffff;text-decoration:none;font-weight:700;">Open CodeHive</a>
+      </td></tr>
+      <tr><td style="padding:24px 36px;background:#f8fafc;border-top:1px solid #e5e7eb;color:#6b7280;font-size:12px;line-height:1.6;">
+        You received this email because this notification is enabled for your CodeHive account.
+        <a th:href="${preferencesUrl}" style="color:#00509D;">Manage notification preferences</a>.
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>

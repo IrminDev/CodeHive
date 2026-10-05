@@ -1,14 +1,142 @@
-# Professor Frontend Placeholder
+# Teacher Frontend
 
-Professor-specific pages are not implemented yet.
+## Routes
 
-Current status:
-- No dedicated professor routes.
-- No professor-only page modules.
-- No professor-specific service layer logic in frontend.
+- `/teacher` — action dashboard with validation failures, grading queue, deadlines, and recent submissions.
+- `/teacher/assignments` — paginated assignment management across active and archived groups.
+- `/teacher/create-assignment` — assignment form.
+- `/teacher/assignments/:assignmentId/clone` — editable clone form.
+- `/teacher/assignments/:assignmentId/edit` — metadata, schedule, and public-example update form.
+- `/teacher/assignments/:assignmentId/revalidate` — explicit source, private-test, constraints, and execution-settings revision form.
+- `/teacher/groups` — owned active and archived groups.
+- `/teacher/groups/create` — group creation form.
+- `/teacher/groups/:groupId` — roster, lifecycle, assignments, join code, and metrics.
+- `/teacher/grades` — student work, submission evidence, execution reports, grade history, draft/returned grades, and feedback.
+- `/teacher/analytics` — group overview, assignment details, and student metrics.
+- `/teacher/notifications` — authenticated email notification preferences.
 
-When implementation starts, document here:
-1. Route map and entry files.
-2. Page-level flows and permissions.
-3. Service/API integrations.
-4. Shared components and role-based guards.
+Management routes use `GroupManagementRoute`, which admits teachers and students holding
+`CREATE_GROUP` (`canManageGroups` in `app/shared/lib/group-management.ts`), mirroring the
+backend rule that group owners manage their groups regardless of role. `/teacher/notifications`
+stays `Role.TEACHER` only, because notification catalogs are role-specific.
+
+## Student Group Owners
+
+A student with `CREATE_GROUP` reaches this workspace from **Manage groups** in the student
+sidebar. `GET /api/groups` returns that student's owned and enrolled groups together, so teacher
+group lists (`listTeacherGroups`, `getActiveTeacherGroups`) keep only groups whose `ownerId`
+matches the signed-in user. For student users, `TeacherShell` links its notification bell to
+`/notifications` and adds a **Student area** link back to `/dashboard`.
+
+## Application Shell
+
+Teacher pages use `TeacherShell`, matching student workspace geometry: fixed `w-14` icon rail,
+compact `h-12` breadcrumb header, one scrolling main region, and role-aware notification, theme,
+profile, and logout controls. `DashboardLayout` temporarily adapts legacy teacher pages into this
+shell while admin pages retain their existing layout. Shared teacher loading, empty, error, status,
+confirmation, field, and panel patterns live in `components/TeacherUI.tsx`.
+
+## Management Workflows
+
+- Assignment list filters by group, validation status, and title; each assignment exposes preview, edit,
+  revalidate, clone, grade, and management status.
+- Row and hero menus use `ActionMenu` (`components/TeacherActionMenu.tsx`), which renders the menu in a
+  portal with fixed positioning anchored to its trigger. Teacher panels use `overflow-hidden`, which
+  clipped the previous absolute menus and hid actions such as **Delete assignment**, **Delete group**,
+  and **Remove student**. The menu closes on selection, outside click, `Escape`, scroll, and resize.
+- Management status combines latest validation failure, update history, and latest reevaluation batch.
+- A published (READY) assignment with a staged revision still validating shows an intermediate
+  **Updating** pill (`AssignmentDTO.pendingUpdate`); the list keeps polling until the update settles,
+  so the row never sits silently on READY while work is in progress.
+- The status side panel is the primary way to follow an assignment: clicking anywhere on the row card
+  opens it (an overlay `<button className="absolute inset-0">` under `pointer-events-none` content, with
+  the action controls re-enabled via `pointer-events-auto`), mirroring how selecting an assignment opens
+  its drawer in Analytics. After saving an edit, `EditAssignmentPage` returns to
+  `/teacher/assignments?groupId=…&statusId=…` so the teacher lands on the just-modified assignment's
+  status view instead of the general list.
+- Assignment and analytics drawers focus their heading with `focus({ preventScroll: true })`. `autoFocus`
+  (or a plain `focus()`) scrolls the custom `<main>` scroller to reveal the focused node even though the
+  drawer is a `fixed` overlay, which reset the background list to the first assignment; `preventScroll`
+  keeps the list where it was so closing the panel returns the teacher to the same spot.
+- The assignment list persists its navigation context (selected group, validation-status filter, search
+  query, page) in `sessionStorage` under `teacher.assignments.context`. On return with no explicit
+  `groupId`, the page restores that context when the saved group still exists; an explicit `groupId` in
+  the URL (e.g. the post-update `statusId` deep link) takes precedence over the saved context.
+- Grade review drawer exposes every attempt, retained source, execution evidence, and grade audit history.
+- The gradebook offers archived groups next to active ones, active first (`gradableGroups`), because an
+  owner keeps grading, grade return, and feedback on archived groups. Deleted groups stay out.
+- Archived state uses the same orange lifecycle accent as the groups list and group detail: an orange rail
+  above the gradebook toolbar, an orange selector outline, an `archived` pill on the group option, and an
+  orange notice explaining that students see the group as read-only while grading stays open.
+- Deletion is terminal in the teacher UI: deleting a group or an assignment is permanent from the
+  teacher's side. Deleted groups and assignments are never listed, browsable, or restorable through the
+  frontend, and confirmation copy does not promise recovery. The backend keeps the records and its
+  restore endpoints, but no teacher-facing screen calls them (`INCREMENTOIII.pdf`, CH3-9 and the group
+  lifecycle rules describe deletion without a teacher restore path).
+- Teacher dashboard aggregates owned active groups, students, assignments, grading queue, validation
+  problems, upcoming lifecycle dates, and recent submissions server-side.
+
+## Clone Flow
+
+1. Teacher opens Assignments and clicks Clone.
+2. Frontend loads active, non-archived groups from `GET /api/groups`.
+3. Frontend loads full source snapshot from `GET /api/assignments/{id}/clone-form`.
+4. Group, metadata, limits, languages, examples, reference source, and all test inputs are editable.
+5. Launch, due, and close date inputs always start empty; source scheduling is never inherited.
+6. Submit sends complete JSON snapshot to `POST /api/assignments/{id}/clone`.
+7. Backend creates clone with `PROCESSING` validation status and regenerates expected outputs.
+
+Target must be another owned active, non-archived group. Source group remains visible but disabled
+in the selector.
+
+Date inputs use next available minute as minimum. Submit validation rejects past values and
+invalid `launchDate <= dueDate <= closeDate` ordering. Backend repeats these checks as
+authoritative protection for create, clone, and update requests.
+
+## Assignment Publishing
+
+The create-assignment form defaults to **Publish immediately**. It omits `launchDate`,
+so students can access the assignment as soon as asynchronous test generation marks it
+`READY`. Teachers can instead select **Schedule publish**, which requires a future
+launch date and keeps the assignment hidden until then.
+
+## Assignment Editing
+
+`PATCH /api/assignments/{id}` always carries multipart `metadata`. Metadata, public examples,
+and schedule changes apply immediately. Empty schedule fields preserve their current value;
+the explicit clear controls send `clearLaunchDate`, `clearDueDate`, or `clearCloseDate`.
+
+The standard edit page never includes a reference source or private test files, so an ordinary
+metadata change cannot replace a test suite.
+
+The **Update and validate** page loads active reference source and private test inputs into
+editors. It always submits current source plus the complete current input suite with
+`testSuiteUpdateMode: REPLACE_ALL`; this explicitly re-runs worker validation. Constraints, hints,
+limits, comparator, and allowed languages are edited there so their new values apply with the
+validated revision.
+
+- Reference-only update: validates proposed source against active test suite.
+- Test-suite update: regenerates expected outputs. The explicit validation page sends `REPLACE_ALL`
+  from its complete editor state, preserving unchanged inputs and applying edits/removals
+  intentionally.
+- Any source/test revision remains `VALIDATING` until worker succeeds. Existing active revisions
+  remain available if validation rejects update.
+
+Client limits match creation flow: source 500 lines/256 KiB, each test input 1 MiB, selected
+test inputs 5 MiB, and no more than 50 resulting tests. Public examples require input, output,
+and explanation.
+
+## API Module
+
+`app/features/teacher/api/assignment.api.ts` owns teacher group, assignment list,
+create, clone-form, and clone requests.
+
+Other teacher API modules:
+
+- `group.api.ts` — owned group CRUD/lifecycle, roster, removal, and join-code rotation.
+- `student-work.api.ts` — student work, evidence review, grade history, grades, and feedback.
+- `metrics.api.ts` — group/assignment/student performance aggregates.
+- `dashboard.api.ts` — teacher action-center aggregate.
+- `client.ts` — shared bearer-token and `SuccessResponse<T>` parsing.
+
+Typed contracts live under `app/features/teacher/types/` and mirror backend DTOs/enums.

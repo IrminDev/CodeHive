@@ -30,6 +30,7 @@ Main responsibilities:
 
 Safety and reliability concerns:
 - Timeout protection prevents runaway executions.
+- Jobs are capped at 50 test cases, 10,000 ms per test, and 1,000 MB per execution.
 - Language-specific executors isolate compile/run logic.
 - Compilation gate aborts both pipelines early on CE.
 - Results (including failures) are always published — no silent job loss.
@@ -42,7 +43,7 @@ Container security hardening (all executors):
 - Custom seccomp profile blocks dangerous syscalls (ptrace, bpf, io_uring, clone+NEWUSER, etc.).
 - `no-new-privileges:true` security option.
 - fsize ulimit prevents disk exhaustion.
-- Combined stdout+stderr capped at 4 MB — excess returns OLE verdict.
+- Combined stdout+stderr capped at 8 MB — excess returns OLE verdict.
 
 Execution verdicts: AC, WA, TLE, MLE, OLE (output limit exceeded), RTE, CE, PENDING.
 

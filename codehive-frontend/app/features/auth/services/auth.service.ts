@@ -23,9 +23,9 @@ export const AuthService = {
     return authApi.uploadCsv(file, getAuthToken());
   },
 
-  getWebSocketUrl(): string {
+  getWebSocketUrl(ticket?: string): string {
     const base = API_BASE_URL.replace(/^http/, "ws");
-    return `${base}/ws/csv-progress`;
+    return `${base}/ws/csv-progress${ticket ? `?ticket=${encodeURIComponent(ticket)}` : ""}`;
   },
 
   getMe() {

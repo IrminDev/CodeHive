@@ -1,15 +1,24 @@
 package com.github.codehive.worker.model.dto;
 
+import java.util.UUID;
+
 import com.github.codehive.worker.model.enums.ExecutionStatus;
 
 public class TestCaseResult {
+    private static final int MAX_PERSISTED_DIAGNOSTIC_CHARS = 8 * 1024;
+    private static final String TRUNCATION_SUFFIX = "\n[Output truncated for artifact retention]";
+    private UUID testCaseId;
     private int testCaseNumber;
     private ExecutionStatus status;
     private Long executionTimeMs;
     private Long memoryUsedMb;
     private String feedback;
-    private String expectedOutput; // only set for PRACTICE WA
-    private String actualOutput;   // only set for PRACTICE WA
+    private String stderr;
+    private Integer exitCode;
+    // Set only for PRACTICE test cases after reference execution succeeds.
+    // Definitive results never expose private expected output or student stdout.
+    private String expectedOutput;
+    private String actualOutput;
 
     public TestCaseResult() {
     }
@@ -21,6 +30,9 @@ public class TestCaseResult {
         this.executionTimeMs = executionTimeMs;
         this.memoryUsedMb = memoryUsedMb;
     }
+
+    public UUID getTestCaseId() { return testCaseId; }
+    public void setTestCaseId(UUID testCaseId) { this.testCaseId = testCaseId; }
 
     // Getters and setters
     public int getTestCaseNumber() {
@@ -63,12 +75,28 @@ public class TestCaseResult {
         this.feedback = feedback;
     }
 
+    public String getStderr() {
+        return stderr;
+    }
+
+    public void setStderr(String stderr) {
+        this.stderr = truncateDiagnostic(sanitizeDiagnostic(stderr));
+    }
+
+    public Integer getExitCode() {
+        return exitCode;
+    }
+
+    public void setExitCode(Integer exitCode) {
+        this.exitCode = exitCode;
+    }
+
     public String getExpectedOutput() {
         return expectedOutput;
     }
 
     public void setExpectedOutput(String expectedOutput) {
-        this.expectedOutput = expectedOutput;
+        this.expectedOutput = truncateDiagnostic(expectedOutput);
     }
 
     public String getActualOutput() {
@@ -76,6 +104,19 @@ public class TestCaseResult {
     }
 
     public void setActualOutput(String actualOutput) {
-        this.actualOutput = actualOutput;
+        this.actualOutput = truncateDiagnostic(actualOutput);
+    }
+
+    private String truncateDiagnostic(String output) {
+        if (output == null || output.length() <= MAX_PERSISTED_DIAGNOSTIC_CHARS) return output;
+        int end = MAX_PERSISTED_DIAGNOSTIC_CHARS - TRUNCATION_SUFFIX.length();
+        return output.substring(0, end) + TRUNCATION_SUFFIX;
+    }
+
+    private String sanitizeDiagnostic(String output) {
+        if (output == null) return null;
+        return output
+                .replace("\u0000", "")
+                .replaceAll("\\u001B\\[[;?0-9]*[ -/]*[@-~]", "");
     }
 }

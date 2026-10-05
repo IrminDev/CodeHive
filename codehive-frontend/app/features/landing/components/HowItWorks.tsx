@@ -45,9 +45,35 @@ export function HowItWorks() {
   return (
     <section id="how-it-works" className="py-24 lg:py-32 relative overflow-hidden">
       {/* Background */}
-      <div className="absolute inset-0">
+      <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-1/2 left-1/4 w-96 h-96 bg-azure/5 dark:bg-azure/10 rounded-full blur-3xl" />
         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-yellow/5 dark:bg-yellow/10 rounded-full blur-3xl" />
+        <svg className="absolute inset-0 w-full h-full" aria-hidden="true">
+          <defs>
+            <pattern
+              id="hex-pattern-hiw"
+              x="0"
+              y="0"
+              width="51.96"
+              height="90"
+              patternUnits="userSpaceOnUse"
+            >
+              <polygon
+                points="25.98,0 51.96,15 51.96,45 25.98,60 0,45 0,15"
+                fill="none"
+                style={{ stroke: "var(--hex-grid-stroke)" }}
+                strokeWidth="1"
+              />
+              <polygon
+                points="0,45 25.98,60 25.98,90 0,105 -25.98,90 -25.98,60"
+                fill="none"
+                style={{ stroke: "var(--hex-grid-stroke)" }}
+                strokeWidth="1"
+              />
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#hex-pattern-hiw)" />
+        </svg>
       </div>
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

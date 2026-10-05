@@ -1,0 +1,12 @@
+Welcome to CodeHive
+
+Hi [(${name})],
+
+Your CodeHive account is ready.
+
+Email: [(${email})]
+Temporary password: [(${temporaryPassword})]
+
+Change your temporary password after signing in.
+
+Sign in: [(${loginUrl})]

@@ -1,0 +1,38 @@
+{
+  "groupId": "00000000-0000-0000-0000-000000000001",
+  "title": "Balanced brackets",
+  "description": "Determine whether a sequence containing parentheses, square brackets, and braces is correctly balanced.",
+  "constraints": [
+    "The input contains only the characters (), [], and {}.",
+    "The sequence length is between 1 and 200000."
+  ],
+  "hints": [
+    "Push opening brackets onto a stack and match every closing bracket with the stack top."
+  ],
+  "tags": [
+    "stacks",
+    "strings",
+    "validation"
+  ],
+  "timeLimitMs": 1500,
+  "memoryLimitMb": 128,
+  "comparatorType": "EXACT_MATCH",
+  "allowedLanguages": [
+    "JAVA"
+  ],
+  "referenceLanguage": "JAVA",
+  "sampleFlags": [
+    true,
+    false,
+    false,
+    false
+  ],
+  "maxPoints": 100,
+  "examples": [
+    {
+      "input": "([]{})",
+      "output": "YES",
+      "explanation": "Every closing bracket matches the most recent unmatched opening bracket."
+    }
+  ]
+}

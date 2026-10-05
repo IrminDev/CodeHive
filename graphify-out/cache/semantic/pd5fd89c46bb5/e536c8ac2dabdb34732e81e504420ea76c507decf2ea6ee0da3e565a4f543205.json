@@ -1,0 +1,1 @@
+{"nodes": [{"id": "codehive_testing_files_requests_test_cases_input5_sliding_window_mixed_input", "name": "Mixed-value sliding-window input", "file_type": "code", "source_file": "codehive-testing-files/requests/test_cases/input5.txt", "rationale": "Ten-element mixed-value fixture with window size four; expected maximum is 22."}], "edges": [], "hyperedges": []}

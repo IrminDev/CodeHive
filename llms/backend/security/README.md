@@ -12,7 +12,8 @@ Primary classes:
 ## Security Model
 - Stateless authentication with JWT bearer tokens.
 - User principal loaded from users table via UserDetailsService.
-- Role-based authorization via authorities derived from Role enum.
+- Role- and scope-based authorization via authorities derived from `Role` and `Scope`.
+- `SUPER_ADMIN` expands to every scope at authentication time; JWTs do not cache scopes.
 - Method-level authorization enabled with @EnableMethodSecurity.
 
 ## Filter Chain Behavior
@@ -22,7 +23,8 @@ JWTAuthenticationFilter executes once per request:
 3. Extracts subject (email) from token.
 4. Loads user details from repository.
 5. Validates token signature and expiration.
-6. Populates SecurityContext if valid.
+6. Rejects disabled users even when their existing JWT is otherwise valid.
+7. Populates SecurityContext if valid.
 
 Invalid or missing token behavior:
 - Filter does not authenticate and request continues.
@@ -38,7 +40,18 @@ Configured in SecurityConfig:
 - All other routes (including `/api/execution/**`) require authentication via `anyRequest().authenticated()`.
 
 Method-level restrictions:
-- Admin-only actions use @PreAuthorize("hasAuthority('ADMIN')").
+- Admin management requires the `ADMIN` role plus the relevant user-management scope.
+- `CREATE_GROUP` controls group creation independently of role.
+- Regular admins cannot manage themselves or superadmins and can delegate only explicitly held scopes.
+
+User-management scopes:
+- `VIEW_USERS`, `CREATE_USERS`, `UPDATE_USERS`, `MANAGE_USER_STATUS`
+- `CREATE_ADMINS`, `UPDATE_ADMINS`, `MANAGE_ADMIN_STATUS`
+- `MANAGE_SCOPES`, `SUPER_ADMIN`
+
+The former aggregate user-management scope has been removed. New development
+data must use the four explicit non-admin scopes; no runtime compatibility
+alias or data backfill is retained.
 
 ## Password and Identity Handling
 - Password hashing: BCryptPasswordEncoder.

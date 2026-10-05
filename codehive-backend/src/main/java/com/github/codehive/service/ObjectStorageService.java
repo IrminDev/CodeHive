@@ -3,11 +3,16 @@ package com.github.codehive.service;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import io.minio.MinioClient;
+import io.minio.ListObjectsArgs;
+import io.minio.RemoveObjectsArgs;
+import io.minio.messages.DeleteObject;
 import io.minio.PutObjectArgs;
 
 @Service
@@ -54,5 +59,24 @@ public class ObjectStorageService {
                 .object(objectKey)
                 .build()
         );
+    }
+
+    public void deletePrefix(String prefix) throws Exception {
+        List<DeleteObject> objects = new ArrayList<>();
+        for (var result : minioClient.listObjects(ListObjectsArgs.builder()
+                .bucket(bucketName).prefix(prefix).recursive(true).build())) {
+            objects.add(new DeleteObject(result.get().objectName()));
+        }
+        if (objects.isEmpty()) return;
+
+        for (var result : minioClient.removeObjects(RemoveObjectsArgs.builder()
+                .bucket(bucketName).objects(objects).build())) {
+            throw new IllegalStateException("MinIO could not delete object: " + result.get());
+        }
+    }
+
+    public void deleteObject(String objectKey) throws Exception {
+        minioClient.removeObject(io.minio.RemoveObjectArgs.builder()
+                .bucket(bucketName).object(objectKey).build());
     }
 }

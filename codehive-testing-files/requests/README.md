@@ -1,6 +1,6 @@
 # CodeHive — Testing Files
 
-End-to-end testing materials for the **Maximum Sum of Sliding Window** demo assignment. Covers assignment creation, practice runs, definitive submissions, and the full verdict range (AC, TLE, WA).
+End-to-end testing materials for the **Maximum Sum of Sliding Window** demo assignment. Covers assignment creation, practice runs, definitive submissions, and verdict fixtures.
 
 ---
 
@@ -58,6 +58,8 @@ requests/
     ├── 05_poll_execution.http    ← poll any execution by ID
     ├── 06_tle_execution.http     ← DEFINITIVE mode, C brute-force TLE
     └── 07_wa_execution.http      ← PRACTICE mode, Python WA (all-negative)
+programs/
+└── verdicts/                     ← AC, WA, CE, RTE, TLE, MLE, OLE for Java/Python/C/C++
 ```
 
 ---
@@ -168,6 +170,12 @@ Two inline test cases are sent. The all-negative one exposes the `max_sum = 0` i
 |------|----------------|-------------------|----------|
 | PRACTICE | `"PRACTICE"` | Inline in request body (`testCases` list) | Student exploring the problem |
 | DEFINITIVE | `"DEFINITIVE"` | Pre-generated outputs in MinIO | Official graded submission |
+
+## Full verdict matrix
+
+`../programs/verdicts/` contains deterministic submission fixtures for every worker
+verdict and every supported language. Read its README for per-verdict execution limits.
+These fixtures are sandbox-only: do not run resource-exhaustion sources on host.
 
 In PRACTICE mode the worker fetches the reference solution path from the assignment, runs it on each inline test case, and compares outputs. In DEFINITIVE mode the worker counts the pre-generated test cases and compares student output against stored expected outputs.
 
