@@ -1,6 +1,7 @@
 import { route, type RouteConfig } from "@react-router/dev/routes";
 
 export const studentRoutes = [
+  route("ai-usage", "features/student/routes/student.ai-usage.tsx"),
   route("assignment/:id", "features/student/routes/student.assignment.tsx"),
   route("assignment/:id/assistant-history", "features/student/routes/student.assistant-history.tsx"),
   route("assignment/:id/submissions", "features/student/routes/student.submissions.tsx"),

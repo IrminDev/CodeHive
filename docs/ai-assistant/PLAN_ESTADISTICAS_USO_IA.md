@@ -1,6 +1,6 @@
 # Plan de implementación — Estadísticas de uso del asistente de IA
 
-Fecha de revisión: 2026-10-04. Estado: propuesta; no implementada.
+Fecha de revisión: 2026-10-04. Estado: decisiones aprobadas e implementación entregada; ver [contrato y verificación](AI_USAGE_IMPLEMENTATION.md).
 
 ## 1. Objetivo y alcance
 
@@ -50,17 +50,15 @@ Hallazgos importantes:
 
 Los documentos de frontend administrativo tienen referencias antiguas a `app/pages/admin`; para cambios nuevos seguir los archivos reales en `app/features/admin`.
 
-## 3. Decisiones propuestas y pendientes de confirmar
+## 3. Decisiones aprobadas
 
-No tratar estas propuestas como requisitos aprobados:
+Usuario confirmó las cinco propuestas el 2026-10-04:
 
-1. **Costos monetarios:** primera versión con solicitudes, respuestas, llamadas y tokens, sin dinero. Si se requieren costos, agregar catálogo de precios versionado y estimaciones separadas; no inferir facturación exacta multiplicando tokens de logs por una tarifa única.
-2. **Visibilidad docente:** permitir conteos de bloqueos y fallos por alumno, sin contenido ni clasificación de intención. Alternativa: esos conteos solo agregados por grupo/asignación.
-3. **Histórico personal:** permitir lectura de consumo propio tras terminar inscripción, archivar o eliminar lógicamente grupo, consistente con el historial del asistente. Alternativa: restringir desglose a grupos accesibles; definir qué pasa entonces con el total histórico.
-4. **Administración:** reutilizar `CHECK_ANALYTICS` para consumo global y exigir adicionalmente `VIEW_USERS` para identificar usuarios y abrir detalles. Verificar semántica y delegación existentes de ese scope antes de aprobar. Alternativa: scope específico `VIEW_AI_USAGE`.
-5. **Retención:** conservar metadatos por llamada durante el mismo horizonte del ledger, sin texto. Definir política si en el futuro se elimina físicamente una cuenta/grupo; el flujo actual es de eliminación lógica.
-
-El plan puede avanzar con contratos e instrumentación mientras se resuelven estas decisiones. No publicar endpoints con permisos ambiguos ni pantallas de costos antes de confirmarlas.
+1. **Costos monetarios:** no agregar dinero, precios ni estimaciones de facturación.
+2. **Visibilidad docente:** conteos de bloqueos/fallos por alumno, sin contenido ni clasificación de intención.
+3. **Histórico personal:** lectura del consumo propio tras terminar inscripción, archivar o eliminar lógicamente grupo.
+4. **Administración:** ADMIN con `CHECK_ANALYTICS`; adicionalmente `VIEW_USERS` para identidades, filtros por usuario y detalles. Scopes efectivos existentes incluyen SUPER_ADMIN; no se conceden permisos automáticamente.
+5. **Retención:** solo metadatos técnicos, mismo horizonte del ledger, con alcance limitado a eliminaciones lógicas. Eliminaciones físicas y su política de anonimización/retención quedan fuera de este cambio.
 
 ## 4. Catálogo de indicadores y definiciones
 

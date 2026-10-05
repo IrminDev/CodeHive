@@ -1,3 +1,4 @@
+import { PersonalUsageBrief } from "~/features/assistant-usage/PersonalUsageBrief";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router";
 import { ArrowLeft, BarChart3, CheckCircle2, ChevronRight, CircleAlert, Clock3, Gauge, HardDrive, RefreshCw, Target } from "lucide-react";
@@ -85,6 +86,7 @@ export function StudentMetricsPage() {
         <StudentHeader breadcrumbs={[{ label: "Student" }, { label: "Groups", to: "/groups" }, { label: group?.name ?? "Group", to: groupId ? `/groups/${groupId}` : undefined }, { label: "Progress" }]} />
         <main className="flex-1 overflow-y-auto scrollbar-hide p-6 lg:p-8">
           <div className="max-w-6xl mx-auto space-y-6 pb-8">
+            <PersonalUsageBrief groupId={groupId} />
             {loading ? <div className="grid grid-cols-1 md:grid-cols-4 gap-4 animate-pulse"><div className="md:col-span-4 h-32 rounded-2xl bg-gray-100 dark:bg-dark-surface" />{[0, 1, 2, 3].map((item) => <div key={item} className="h-28 rounded-2xl bg-gray-100 dark:bg-dark-surface" />)}<div className="md:col-span-4 h-80 rounded-2xl bg-gray-100 dark:bg-dark-surface" /></div> : error || !group || !summary ? <div className="max-w-xl mx-auto mt-20 text-center rounded-2xl border border-red-500/20 bg-red-500/5 p-8"><CircleAlert className="mx-auto text-red-500 mb-3" size={28} /><h1 className="font-semibold text-lg">Metrics unavailable</h1><p className="mt-2 text-sm text-gray-500 dark:text-gray-400">{error ?? "This group is no longer available."}</p><Link to="/groups" className="inline-flex mt-5 btn-primary">Back to groups</Link></div> : <>
               <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
                 <div><Link to={`/groups/${group.id}`} className="inline-flex items-center gap-1.5 text-xs font-medium mr-2.5 text-gray-500 dark:text-gray-400 hover:text-azure dark:hover:text-yellow transition-colors"><ArrowLeft size={14} /> {group.name}</Link><div className="mt-4 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gray-100 dark:bg-dark-card border border-gray-200 dark:border-gray-700/60 text-xs font-medium text-gray-500 dark:text-gray-400"><BarChart3 size={13} className="text-yellow" /> YOUR PROGRESS</div><h1 className="mt-3 text-3xl font-bold text-gray-900 dark:text-white">Class progress</h1><p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Your delivery, grading, and execution results for {group.name}.</p></div>

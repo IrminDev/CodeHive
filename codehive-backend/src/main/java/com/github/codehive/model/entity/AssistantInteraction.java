@@ -65,6 +65,12 @@ public class AssistantInteraction {
     @Column(nullable = false)
     private long requestedPolicyVersion;
 
+    @Enumerated(EnumType.STRING)
+    @Column(length = 50)
+    private AiAssistanceLevel requestedAssistanceLevel;
+    public AiAssistanceLevel getRequestedAssistanceLevel() { return requestedAssistanceLevel; }
+    public void setRequestedAssistanceLevel(AiAssistanceLevel value) { requestedAssistanceLevel = value; }
+
     private Long completedPolicyVersion;
 
     @Enumerated(EnumType.STRING)

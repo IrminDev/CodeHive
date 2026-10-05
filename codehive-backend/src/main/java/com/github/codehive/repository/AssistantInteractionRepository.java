@@ -14,6 +14,10 @@ import org.springframework.data.repository.query.Param;
 import com.github.codehive.model.entity.AssistantInteraction;
 
 public interface AssistantInteractionRepository extends JpaRepository<AssistantInteraction, UUID> {
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("select i from AssistantInteraction i where i.id = :id")
+    Optional<AssistantInteraction> lockForModelCall(@Param("id") UUID id);
+
     Page<AssistantInteraction> findByConversationIdOrderBySequenceDesc(UUID conversationId, Pageable pageable);
     Optional<AssistantInteraction> findByIdAndConversationId(UUID interactionId, UUID conversationId);
     Optional<AssistantInteraction> findByConversationIdAndClientRequestId(UUID conversationId, UUID clientRequestId);

@@ -7,7 +7,7 @@ import { ProfileSettingsModal } from "~/shared/components/ProfileSettingsModal";
 import { Scope } from "~/shared/types/model/User";
 import { hasAnyEffectiveScope, hasEffectiveScope } from "../utils/permissions";
 
-export type AdminNavigation = "overview" | "users" | "incidents" | "audit";
+export type AdminNavigation = "overview" | "users" | "incidents" | "audit" | "ai-usage";
 export interface AdminBreadcrumb { label: string; to?: string }
 
 export function AdminShell({ active, breadcrumbs, children, contentClassName = "max-w-7xl" }: {
@@ -63,6 +63,7 @@ function AdminSidebar({ active }: { active: AdminNavigation }) {
   const { user } = useAuth();
   const showUsers = hasAnyEffectiveScope(user, [Scope.VIEW_USERS, Scope.CREATE_USERS, Scope.CREATE_ADMINS]);
   const links = [
+    { key: "ai-usage" as const, label: "AI usage", to: "/admin/ai-usage", icon: <Activity size={20} />, show: hasEffectiveScope(user, Scope.CHECK_ANALYTICS) },
     { key: "overview" as const, label: "Overview", to: "/admin", icon: <Gauge size={20} />, show: true },
     { key: "users" as const, label: "Users", to: "/admin/users", icon: <Users size={20} />, show: showUsers },
     { key: "incidents" as const, label: "Rate-limit incidents", to: "/admin/incidents", icon: <Activity size={20} />, show: hasEffectiveScope(user, Scope.VIEW_USERS) },

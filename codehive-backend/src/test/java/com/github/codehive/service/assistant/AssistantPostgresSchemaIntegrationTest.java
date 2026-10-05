@@ -24,11 +24,13 @@ class AssistantPostgresSchemaIntegrationTest {
         String database = jdbc.queryForObject("select current_database()", String.class);
         assertThat(database).contains("assistant_test");
 
-        String schema = Files.readString(Path.of("../docs/AI_ASSISTANT_DEV_SCHEMA.sql"));
+        String schema = Files.readString(Path.of("../docs/ai-assistant/AI_USAGE_DEV_SCHEMA.sql"));
         for (String statement : schema.split(";\\s*\\R\\s*\\R")) {
             if (!statement.isBlank()) jdbc.execute(statement);
         }
 
+        List<String> callIndexes = jdbc.queryForList("select indexname from pg_indexes where tablename = 'assistant_model_calls'", String.class);
+        assertThat(callIndexes).contains("idx_assistant_call_started", "idx_assistant_call_interaction_started");
         List<String> indexes = jdbc.queryForList("""
                 select indexname from pg_indexes where tablename = 'assistant_interactions'
                 """, String.class);

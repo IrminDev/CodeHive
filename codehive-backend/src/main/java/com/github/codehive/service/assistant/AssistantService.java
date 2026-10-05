@@ -72,7 +72,7 @@ public class AssistantService {
                 throw new AssistantStateException("REQUEST_CANCELLED");
             }
             Runnable beforeModelCall = () -> ensureBeforeModel(reservation.interactionId());
-            var decision = guardrails.generate(context, request.message(), policy.level(), beforeModelCall);
+            var decision = guardrails.generate(context, request.message(), policy.level(), beforeModelCall, reservation.interactionId());
             if (decision.status() == AssistantInteractionStatus.BLOCKED) {
                 transactions.stop(reservation.interactionId(), AssistantInteractionStatus.BLOCKED,
                         "INPUT_BLOCKED");
@@ -108,7 +108,7 @@ public class AssistantService {
                         request.includeEditorCode(), request.editorCode(),
                         request.includeExecutionContext(), policy.level());
                 if (!policy.enabled() || !guardrails.revalidate(context, request.message(),
-                        policy.level(), decision.validatedResponseJson(), beforeModelCall)) {
+                        policy.level(), decision.validatedResponseJson(), beforeModelCall, reservation.interactionId())) {
                     transactions.stop(reservation.interactionId(), AssistantInteractionStatus.CANCELLED,
                             "POLICY_CHANGED");
                     throw new AssistantStateException("POLICY_CHANGED");

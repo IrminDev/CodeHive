@@ -118,7 +118,7 @@ class AssistantControllerIntegrationTest {
     @Test
     void completedAnswerChargesOnceAndReplayDoesNotCallModelAgain() throws Exception {
         when(guardrails.generate(any(AssistantContextService.Context.class), eq("Explain this loop"),
-                eq(AiAssistanceLevel.EXPLANATIONS_AND_GUIDING), any(Runnable.class)))
+                eq(AiAssistanceLevel.EXPLANATIONS_AND_GUIDING), any(Runnable.class), any(java.util.UUID.class)))
                 .thenReturn(new AssistantGuardrailService.Decision(AssistantInteractionStatus.COMPLETED,
                         "{\"explanation\":\"safe\",\"snippets\":[],\"followUpQuestion\":\"Why?\"}", 1, "v1"));
         String path = path();
@@ -134,12 +134,12 @@ class AssistantControllerIntegrationTest {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.data.interaction.status").value("COMPLETED"));
         assertThat(interactions.count()).isEqualTo(1);
         org.mockito.Mockito.verify(guardrails, org.mockito.Mockito.times(1))
-                .generate(any(), eq("Explain this loop"), any(), any(Runnable.class));
+                .generate(any(), eq("Explain this loop"), any(), any(Runnable.class), any(java.util.UUID.class));
     }
 
     @Test
     void blockedPromptIsStoredWithoutCharge() throws Exception {
-        when(guardrails.generate(any(), any(), any(), any(Runnable.class)))
+        when(guardrails.generate(any(), any(), any(), any(Runnable.class), any(java.util.UUID.class)))
                 .thenReturn(new AssistantGuardrailService.Decision(AssistantInteractionStatus.BLOCKED,
                         null, 0, "v1"));
         mvc.perform(post(path() + "/interactions").header("Authorization", "Bearer " + studentToken)
@@ -152,7 +152,7 @@ class AssistantControllerIntegrationTest {
 
     @Test
     void operationalLogDoesNotContainPromptOrValidatedAnswer(CapturedOutput output) throws Exception {
-        when(guardrails.generate(any(), any(), any(), any(Runnable.class)))
+        when(guardrails.generate(any(), any(), any(), any(Runnable.class), any(java.util.UUID.class)))
                 .thenReturn(new AssistantGuardrailService.Decision(AssistantInteractionStatus.COMPLETED,
                         "{\"explanation\":\"SENSITIVE_ANSWER_MARKER\",\"snippets\":[],\"followUpQuestion\":\"Why?\"}",
                         1, "v1"));
@@ -165,14 +165,14 @@ class AssistantControllerIntegrationTest {
 
     @Test
     void stricterPolicyCancelsBeforeOutputRelease() throws Exception {
-        when(guardrails.generate(any(), any(), any(), any(Runnable.class))).thenAnswer(invocation -> {
+        when(guardrails.generate(any(), any(), any(), any(Runnable.class), any(java.util.UUID.class))).thenAnswer(invocation -> {
             policyService.update(assignment.getId(), new UpdateAiPolicyRequest(true, 1,
                     AiAssistanceLevel.CONCEPTUAL_ONLY), teacher.getEmail());
             return new AssistantGuardrailService.Decision(AssistantInteractionStatus.COMPLETED,
                     "{\"explanation\":\"hint\",\"snippets\":[],\"followUpQuestion\":\"Why?\"}", 1, "v1");
         });
         when(guardrails.revalidate(any(), any(), eq(AiAssistanceLevel.CONCEPTUAL_ONLY), any(),
-                any(Runnable.class)))
+                any(Runnable.class), any(java.util.UUID.class)))
                 .thenReturn(false);
         mvc.perform(post(path() + "/interactions").header("Authorization", "Bearer " + studentToken)
                 .contentType(MediaType.APPLICATION_JSON).content(request("Explain this loop")))
@@ -192,7 +192,7 @@ class AssistantControllerIntegrationTest {
 
     @Test
     void archiveDuringGenerationCancelsAnswerAndErasesPrompt() throws Exception {
-        when(guardrails.generate(any(), any(), any(), any(Runnable.class))).thenAnswer(invocation -> {
+        when(guardrails.generate(any(), any(), any(), any(Runnable.class), any(java.util.UUID.class))).thenAnswer(invocation -> {
             groupService.setArchived(assignment.getGroup().getId(), true, teacher.getEmail());
             return new AssistantGuardrailService.Decision(AssistantInteractionStatus.COMPLETED,
                     "{\"explanation\":\"late\",\"snippets\":[],\"followUpQuestion\":\"Why?\"}", 1, "v1");
@@ -210,7 +210,7 @@ class AssistantControllerIntegrationTest {
 
     @Test
     void timeoutStoresUnchargedFailureAndReturnsSafeCode() throws Exception {
-        when(guardrails.generate(any(), any(), any(), any(Runnable.class)))
+        when(guardrails.generate(any(), any(), any(), any(Runnable.class), any(java.util.UUID.class)))
                 .thenThrow(new AssistantStateException("MODEL_TIMEOUT"));
         mvc.perform(post(path() + "/interactions").header("Authorization", "Bearer " + studentToken)
                 .contentType(MediaType.APPLICATION_JSON).content(request("Explain this loop")))

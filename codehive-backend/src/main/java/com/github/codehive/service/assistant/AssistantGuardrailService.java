@@ -32,6 +32,11 @@ public class AssistantGuardrailService {
 
     public Decision generate(AssistantContextService.Context context, String studentMessage,
                              AiAssistanceLevel level, Runnable beforeModelCall) {
+        return generate(context, studentMessage, level, beforeModelCall, null);
+    }
+
+    public Decision generate(AssistantContextService.Context context, String studentMessage,
+            AiAssistanceLevel level, Runnable beforeModelCall, java.util.UUID interactionId) {
         if (context == null || level == null || studentMessage == null || studentMessage.isBlank()
                 || studentMessage.length() > 2_000) {
             throw new AssistantStateException("INVALID_MODEL_INPUT");
@@ -39,7 +44,7 @@ public class AssistantGuardrailService {
         String safeContext = json(context);
         if (safeContext.length() > 65_000) throw new AssistantStateException("CONTEXT_TOO_LARGE");
         beforeModelCall.run();
-        String inputReview = model.complete(reviewSystem(), json(new InputReview(
+        String inputReview = complete(interactionId, com.github.codehive.model.enums.AssistantModelCallStage.INPUT_REVIEW, null, reviewSystem(), json(new InputReview(
                 level.name(), context.assignment().title(),
                 bound(context.assignment().description(), 1_000), studentMessage)));
         String classification = decision(inputReview);
@@ -52,13 +57,13 @@ public class AssistantGuardrailService {
         String violation = null;
         for (int attempt = 1; attempt <= 2; attempt++) {
             beforeModelCall.run();
-            String candidate = model.complete(system,
+            String candidate = complete(interactionId, com.github.codehive.model.enums.AssistantModelCallStage.ANSWER_GENERATION, attempt, system,
                     violation == null ? user : user + "\nValidation issue: " + violation);
             AssistantAnswer answer = parseAnswer(candidate);
             violation = deterministicIssue(answer, level);
             if (violation == null) {
                 beforeModelCall.run();
-                String review = model.complete(reviewSystem(), reviewPayload(
+                String review = complete(interactionId, com.github.codehive.model.enums.AssistantModelCallStage.OUTPUT_REVIEW, attempt, reviewSystem(), reviewPayload(
                         context, studentMessage, level, answer));
                 violation = outputReviewIssue(review);
             }
@@ -79,12 +84,23 @@ public class AssistantGuardrailService {
     public boolean revalidate(AssistantContextService.Context context, String studentMessage,
                               AiAssistanceLevel newLevel, String validatedResponseJson,
                               Runnable beforeModelCall) {
+        return revalidate(context, studentMessage, newLevel, validatedResponseJson, beforeModelCall, null);
+    }
+
+    public boolean revalidate(AssistantContextService.Context context, String studentMessage,
+            AiAssistanceLevel newLevel, String validatedResponseJson, Runnable beforeModelCall, java.util.UUID interactionId) {
         AssistantAnswer answer = parseAnswer(validatedResponseJson);
         if (context == null || newLevel == null || studentMessage == null || answer == null
                 || deterministicIssue(answer, newLevel) != null) return false;
         beforeModelCall.run();
-        return outputReviewIssue(model.complete(reviewSystem(),
+        return outputReviewIssue(complete(interactionId, com.github.codehive.model.enums.AssistantModelCallStage.POLICY_REVALIDATION, null, reviewSystem(),
                 reviewPayload(context, studentMessage, newLevel, answer))) == null;
+    }
+
+    private String complete(java.util.UUID interactionId, com.github.codehive.model.enums.AssistantModelCallStage stage,
+            Integer attempt, String system, String payload) {
+        if (interactionId == null) return model.complete(system, payload);
+        return model.complete(new AssistantModelCallContext(interactionId, stage, attempt, PROMPT_VERSION), system, payload).text();
     }
 
     private record InputReview(String level, String assignmentTitle,

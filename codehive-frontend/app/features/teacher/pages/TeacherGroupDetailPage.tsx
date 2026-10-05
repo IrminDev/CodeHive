@@ -230,6 +230,7 @@ export function TeacherGroupDetailPage() {
         <ArrowLeft size={14} /> All groups
       </Link>
 
+      <Link className="inline-block mb-4 text-sm underline" to={`/teacher/analytics?section=ai&groupId=${group.id}`}>AI usage for this group</Link>
       <div className="space-y-5">
         <GroupHero
           group={group}

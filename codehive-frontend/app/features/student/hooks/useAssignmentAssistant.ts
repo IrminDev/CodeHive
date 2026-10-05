@@ -69,6 +69,7 @@ export function useAssignmentAssistant(assignmentId: string) {
       try {
         const interaction = await getAssistantInteraction(assignmentId, id);
         if (interaction.status !== "PENDING") {
+          if (interaction.status === "COMPLETED" || interaction.status === "REDIRECTED") window.dispatchEvent(new Event("assistant-usage-changed"));
           setRevealInteractionId(interaction.id);
           await refresh();
         }
@@ -108,6 +109,7 @@ export function useAssignmentAssistant(assignmentId: string) {
     setError(null);
     try {
       const result = await sendAssistantMessage(assignmentId, request);
+      if (result.interaction.status === "COMPLETED" || result.interaction.status === "REDIRECTED") window.dispatchEvent(new Event("assistant-usage-changed"));
       setLastResult(result);
       setAvailability(result.availability);
       if (result.interaction.status !== "PENDING") {

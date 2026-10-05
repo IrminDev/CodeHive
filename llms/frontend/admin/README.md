@@ -64,3 +64,16 @@ Type dependency:
 - Keep admin flows under app/pages/admin and app/routes/admin.*.
 - Reuse AuthService and typed contracts instead of duplicating fetch logic.
 - For new admin features, include role-gated route wrappers by default.
+
+## AI usage statistics
+
+Shared module: `app/features/assistant-usage`. Personal route `/ai-usage` reads own historical
+usage independently of academic active-enrollment metrics. Teacher route
+`/teacher/analytics?section=ai` uses owned historical group selector and assignment/student tables.
+Admin route `/admin/ai-usage` requires CHECK_ANALYTICS; user rows/details require VIEW_USERS too.
+Admin user detail includes an AI usage tab. Role clients reuse existing authenticated helpers.
+Filters, search, sort and pagination stay in URL; requests abort/ignore stale results on scope
+changes and session identity remounts state. No statistics polling. Technical coverage remains
+explicit; nullable tokens are not zero. Lifetime quota is per assignment and independent of dates.
+Recharts has a UTC daily table alternative. See
+[implementation contract](../../../docs/ai-assistant/AI_USAGE_IMPLEMENTATION.md).

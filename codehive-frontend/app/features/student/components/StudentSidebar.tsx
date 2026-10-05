@@ -1,10 +1,10 @@
-import { DoorOpenIcon, ClipboardList, GraduationCap, Home, Users } from "lucide-react";
+import { BarChart3, DoorOpenIcon, ClipboardList, GraduationCap, Home, Users } from "lucide-react";
 import { Link } from "react-router";
 import type { ReactNode } from "react";
 
 import { useAuth } from "~/core/providers/AuthProvider";
 
-export type StudentNavigation = "dashboard" | "groups" | "join" | "assignments" | "grades" | "notifications";
+export type StudentNavigation = "dashboard" | "groups" | "join" | "assignments" | "grades" | "notifications" | "ai-usage";
 
 export function StudentSidebar({ active }: { active: StudentNavigation }) {
   const { user } = useAuth();
@@ -18,6 +18,7 @@ export function StudentSidebar({ active }: { active: StudentNavigation }) {
         </div>
       </Link>
       <nav className="flex flex-col items-center gap-1 flex-1 w-full px-2" aria-label="Student navigation">
+        <SidebarLink icon={<BarChart3 size={20} />} label="My AI usage" to="/ai-usage" active={active === "ai-usage"} />
         <SidebarLink icon={<Home size={20} />} label="Dashboard" to="/dashboard" active={active === "dashboard"} />
         <SidebarLink icon={<Users size={20} />} label="My groups" to="/groups" active={active === "groups"} />
         <SidebarLink icon={<DoorOpenIcon size={20} />} label="Join group" to="/groups/join" active={active === "join"} />

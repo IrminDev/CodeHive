@@ -31,6 +31,11 @@ public class SpringAiAssistantModelGateway implements AssistantModelGateway {
     @Value("${spring.ai.google.genai.chat.options.model:unknown}")
     private String configuredModel;
     private final ObjectProvider<ChatModel> models;
+    private AssistantModelCallRecorder recorder;
+    @Value("${assistant.provider:google-genai}")
+    private String providerId;
+    @org.springframework.beans.factory.annotation.Autowired
+    public void setRecorder(AssistantModelCallRecorder recorder) { this.recorder = recorder; }
     private final Duration timeout;
     private final Bucket providerBudget;
     private final ThreadPoolExecutor executor = new ThreadPoolExecutor(4, 4, 0, TimeUnit.MILLISECONDS,
@@ -53,29 +58,56 @@ public class SpringAiAssistantModelGateway implements AssistantModelGateway {
 
     @Override
     public String complete(String systemInstruction, String userPayload) {
+        return complete(null, systemInstruction, userPayload).text();
+    }
+
+    @Override
+    public AssistantModelResult complete(AssistantModelCallContext context, String systemInstruction, String userPayload) {
         ChatModel model = models.getIfUnique();
         if (model == null) throw new AssistantStateException("MODEL_UNAVAILABLE");
-        if (!providerBudget.tryConsume(1)) throw new AssistantStateException("MODEL_RATE_LIMITED");
         String modelId = configuredModel == null ? "unknown" : configuredModel;
-        Future<String> future;
+        var callId = new java.util.concurrent.atomic.AtomicReference<java.util.UUID>();
+        var timedOut = new java.util.concurrent.atomic.AtomicBoolean();
+        Future<AssistantModelResult> future;
         try {
             future = executor.submit(() -> {
-                long startedNanos = System.nanoTime();
-                logger.info("assistant provider request started modelId={} timeoutMs={}",
-                        modelId, timeout.toMillis());
-                ChatResponse response = model.call(new Prompt(List.of(
-                        new SystemMessage(systemInstruction), new UserMessage(userPayload))));
-                if (response == null || response.getResult() == null
-                        || response.getResult().getOutput() == null) {
-                    throw new AssistantStateException("MODEL_EMPTY_RESPONSE");
+                if (Thread.currentThread().isInterrupted() || timedOut.get()) throw new AssistantStateException("MODEL_INTERRUPTED");
+                if (!providerBudget.tryConsume(1)) throw new AssistantStateException("MODEL_RATE_LIMITED");
+                if (context != null) {
+                    try { callId.set(recorder.start(context, providerId, modelId)); }
+                    catch (AssistantStateException exception) { throw exception; }
+                    catch (RuntimeException exception) { throw new AssistantStateException("MODEL_RECORDING_FAILED"); }
                 }
-                Usage usage = response.getMetadata() == null ? null : response.getMetadata().getUsage();
-                logger.info("assistant model call modelId={} inputTokens={} outputTokens={} durationMs={}",
-                        response.getMetadata() == null ? "unknown" : response.getMetadata().getModel(),
-                        usage == null ? null : usage.getPromptTokens(),
-                        usage == null ? null : usage.getCompletionTokens(),
-                        TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedNanos));
-                return response.getResult().getOutput().getText();
+                if (timedOut.get() && callId.get() != null) markTimeout(callId.get());
+                long startedNanos = System.nanoTime();
+                AssistantModelResult result = null;
+                String failure = null;
+                try {
+                    ChatResponse response = model.call(new Prompt(List.of(
+                            new SystemMessage(systemInstruction), new UserMessage(userPayload))));
+                    Usage usage = response == null || response.getMetadata() == null ? null : response.getMetadata().getUsage();
+                    String text = response == null || response.getResult() == null || response.getResult().getOutput() == null
+                            ? null : response.getResult().getOutput().getText();
+                    result = new AssistantModelResult(text,
+                            response == null || response.getMetadata() == null ? null : response.getMetadata().getModel(),
+                            usage == null ? null : token(usage.getPromptTokens()),
+                            usage == null ? null : token(usage.getCompletionTokens()),
+                            usage == null ? null : token(usage.getTotalTokens()));
+                    if (text == null || text.isBlank()) { failure = "MODEL_EMPTY_RESPONSE"; throw new AssistantStateException(failure); }
+                    return result;
+                } catch (RuntimeException exception) {
+                    if (failure == null) {
+                        ApiException api = apiException(exception);
+                        failure = api != null && api.code() == 429 ? "MODEL_RATE_LIMITED" : "MODEL_FAILURE";
+                    }
+                    throw new AssistantStateException(failure);
+                } finally {
+                    if (callId.get() != null) {
+                        try { recorder.finish(callId.get(), result, failure,
+                                TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedNanos)); }
+                        catch (RuntimeException exception) { logger.error("assistant call recording incomplete callId={}", callId.get()); }
+                    }
+                }
             });
         } catch (java.util.concurrent.RejectedExecutionException exception) {
             throw new AssistantStateException("MODEL_BUSY");
@@ -83,27 +115,26 @@ public class SpringAiAssistantModelGateway implements AssistantModelGateway {
         try {
             return future.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
         } catch (TimeoutException exception) {
-            logger.warn("assistant provider request timed out modelId={} timeoutMs={}",
-                    modelId, timeout.toMillis());
+            timedOut.set(true);
+            if (callId.get() != null) markTimeout(callId.get());
             future.cancel(true);
             throw new AssistantStateException("MODEL_TIMEOUT");
         } catch (InterruptedException exception) {
-            logger.warn("assistant provider wait interrupted modelId={} timeoutMs={}",
-                    modelId, timeout.toMillis());
+            timedOut.set(true);
+            if (callId.get() != null) markTimeout(callId.get());
             future.cancel(true);
             Thread.currentThread().interrupt();
             throw new AssistantStateException("MODEL_INTERRUPTED");
         } catch (java.util.concurrent.ExecutionException exception) {
-            Throwable cause = exception.getCause();
-            ApiException api = apiException(cause);
-            // Never log provider messages, prompts, context, or response bodies.
-            logger.warn("assistant provider request failed modelId={} causeTypes={} httpStatus={}",
-                    modelId,
-                    causeTypes(cause),
-                    api == null ? "unknown" : api.code());
-            if (api != null && api.code() == 429) throw new AssistantStateException("MODEL_RATE_LIMITED");
+            if (exception.getCause() instanceof AssistantStateException state) throw state;
             throw new AssistantStateException("MODEL_FAILURE");
         }
+    }
+
+    private Long token(Number value) { return value == null || value.longValue() < 0 ? null : value.longValue(); }
+    private void markTimeout(java.util.UUID id) {
+        try { recorder.callerTimedOut(id); }
+        catch (RuntimeException exception) { logger.error("assistant timeout recording incomplete callId={}", id); }
     }
 
     private ApiException apiException(Throwable cause) {

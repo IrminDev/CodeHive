@@ -215,6 +215,7 @@ public class AssistantTransactionService {
         interaction.setEditorContextIncluded(request.includeEditorCode());
         interaction.setExecutionContextIncluded(request.includeExecutionContext());
         interaction.setRequestedPolicyVersion(policy.getVersion());
+        interaction.setRequestedAssistanceLevel(policy.getLevel());
         interaction.setLeaseExpiresAt(clock.instant().plus(DEFAULT_LEASE));
         conversation.setNextSequence(conversation.getNextSequence() + 1);
         conversation.setUpdatedAt(clock.instant());

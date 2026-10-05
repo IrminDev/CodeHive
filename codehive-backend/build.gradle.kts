@@ -103,6 +103,7 @@ val postgresAssistantTest by tasks.registering(Test::class) {
 		includeTestsMatching("*AssistantTransactionServiceIntegrationTest")
 		includeTestsMatching("*AssistantControllerIntegrationTest")
 		includeTestsMatching("*AssistantPostgresSchemaIntegrationTest")
+        includeTestsMatching("*AssistantUsagePostgresIntegrationTest")
 	}
 	val databaseUrl = providers.environmentVariable("CODEHIVE_ASSISTANT_TEST_DATABASE_URL")
 	val databasePassword = providers.environmentVariable("CODEHIVE_ASSISTANT_TEST_DATABASE_PASSWORD")

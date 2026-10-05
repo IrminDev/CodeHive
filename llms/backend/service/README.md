@@ -172,3 +172,12 @@ Configuration-driven fields:
 - Avoid direct HTTP concerns in services.
 - Keep queue and storage payload-building deterministic.
 - Prefer explicit logging at workflow boundaries for observability.
+
+## Assistant usage instrumentation
+
+`AssistantModelCallRecorder` persists technical calls in independent short transactions.
+Context carries interaction ID, stage, attempt, and prompt version through executor explicitly.
+Provider text never enters telemetry. Start failures prevent transmission; terminal writes are
+idempotent. Caller timeout stays separate from late provider results. Scheduled recovery marks
+old STARTED rows UNKNOWN without calling provider. Legacy interaction token columns are unused.
+See [implementation status](../../../docs/ai-assistant/AI_USAGE_IMPLEMENTATION.md).

@@ -94,4 +94,89 @@ class SpringAiAssistantModelGatewayTest {
             gateway.shutdown();
         }
     }
+
+    @Test
+    void recordingFailurePreventsProviderTransmission() {
+        @SuppressWarnings("unchecked") ObjectProvider<ChatModel> provider = mock(ObjectProvider.class);
+        ChatModel model = mock(ChatModel.class);
+        when(provider.getIfUnique()).thenReturn(model);
+        var recorder = mock(AssistantModelCallRecorder.class);
+        when(recorder.start(any(), any(), any())).thenThrow(new IllegalStateException("database detail"));
+        var gateway = new SpringAiAssistantModelGateway(provider, 2, 10);
+        gateway.setRecorder(recorder);
+        org.springframework.test.util.ReflectionTestUtils.setField(gateway,"providerId","test");
+        org.springframework.test.util.ReflectionTestUtils.setField(gateway,"configuredModel","test-model");
+        try {
+            var context = new AssistantModelCallContext(java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                com.github.codehive.model.enums.AssistantModelCallStage.INPUT_REVIEW,null,"v1");
+            assertThatThrownBy(() -> gateway.complete(context,"system","payload")).hasMessage("MODEL_RECORDING_FAILED");
+            org.mockito.Mockito.verifyNoInteractions(model);
+        } finally { gateway.shutdown(); }
+    }
+
+    @Test
+    void lateProviderResultFinishesLedgerWithoutReturningLateText() throws Exception {
+        @SuppressWarnings("unchecked") ObjectProvider<ChatModel> provider = mock(ObjectProvider.class);
+        ChatModel model = mock(ChatModel.class);
+        when(provider.getIfUnique()).thenReturn(model);
+        var recorder = mock(AssistantModelCallRecorder.class);
+        var id = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001");
+        when(recorder.start(any(), any(), any())).thenReturn(id);
+        var entered = new java.util.concurrent.CountDownLatch(1);
+        var release = new java.util.concurrent.CountDownLatch(1);
+        var finished = new java.util.concurrent.CountDownLatch(1);
+        when(model.call(any(Prompt.class))).thenAnswer(invocation -> {
+            entered.countDown();
+            boolean waiting = true;
+            while (waiting) {
+                try { waiting = !release.await(5, java.util.concurrent.TimeUnit.SECONDS); }
+                catch (InterruptedException ignored) { /* Provider may ignore cancellation. */ }
+            }
+            return new ChatResponse(java.util.List.of(new Generation(new AssistantMessage("late untrusted text"))));
+        });
+        org.mockito.Mockito.doAnswer(invocation -> { finished.countDown(); return null; })
+            .when(recorder).finish(org.mockito.ArgumentMatchers.eq(id), any(), org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.anyLong());
+        var gateway = new SpringAiAssistantModelGateway(provider, 1, 10);
+        gateway.setRecorder(recorder);
+        org.springframework.test.util.ReflectionTestUtils.setField(gateway,"providerId","test");
+        org.springframework.test.util.ReflectionTestUtils.setField(gateway,"configuredModel","test-model");
+        try {
+            var context = new AssistantModelCallContext(id,com.github.codehive.model.enums.AssistantModelCallStage.INPUT_REVIEW,null,"v1");
+            assertThatThrownBy(() -> gateway.complete(context,"system","payload")).hasMessage("MODEL_TIMEOUT");
+            assertThat(entered.getCount()).isZero();
+            org.mockito.Mockito.verify(recorder,org.mockito.Mockito.atLeastOnce()).callerTimedOut(id);
+            release.countDown();
+            assertThat(finished.await(5,java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+        } finally { release.countDown(); gateway.shutdown(); }
+    }
+
+    @Test
+    void emptyResponseStillRecordsReportedUsageBeforeEducationalFailure() {
+        @SuppressWarnings("unchecked") ObjectProvider<ChatModel> provider = mock(ObjectProvider.class);
+        ChatModel model = mock(ChatModel.class);
+        when(provider.getIfUnique()).thenReturn(model);
+        var usage = mock(org.springframework.ai.chat.metadata.Usage.class);
+        when(usage.getPromptTokens()).thenReturn(5);
+        when(usage.getCompletionTokens()).thenReturn(0);
+        when(usage.getTotalTokens()).thenReturn(7);
+        var metadata = org.springframework.ai.chat.metadata.ChatResponseMetadata.builder().model("reported").usage(usage).build();
+        when(model.call(any(Prompt.class))).thenReturn(new ChatResponse(java.util.List.of(),metadata));
+        var recorder = mock(AssistantModelCallRecorder.class);
+        var id = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001");
+        when(recorder.start(any(),any(),any())).thenReturn(id);
+        var gateway = new SpringAiAssistantModelGateway(provider, 2, 10);
+        gateway.setRecorder(recorder);
+        org.springframework.test.util.ReflectionTestUtils.setField(gateway,"providerId","test");
+        org.springframework.test.util.ReflectionTestUtils.setField(gateway,"configuredModel","test-model");
+        try {
+            var context = new AssistantModelCallContext(id,com.github.codehive.model.enums.AssistantModelCallStage.ANSWER_GENERATION,1,"v1");
+            assertThatThrownBy(() -> gateway.complete(context,"system","payload")).hasMessage("MODEL_EMPTY_RESPONSE");
+            var captured = ArgumentCaptor.forClass(AssistantModelResult.class);
+            org.mockito.Mockito.verify(recorder).finish(org.mockito.ArgumentMatchers.eq(id),captured.capture(),
+                org.mockito.ArgumentMatchers.eq("MODEL_EMPTY_RESPONSE"),org.mockito.ArgumentMatchers.anyLong());
+            assertThat(captured.getValue().inputTokens()).isEqualTo(5L);
+            assertThat(captured.getValue().outputTokens()).isZero();
+            assertThat(captured.getValue().totalTokens()).isEqualTo(7L);
+        } finally { gateway.shutdown(); }
+    }
 }

@@ -1,5 +1,6 @@
+import { UsageDashboard } from "~/features/assistant-usage/UsageDashboard";
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router";
+import { Link, useSearchParams } from "react-router";
 
 import { listTeacherGroups } from "../api/group.api";
 import {
@@ -44,6 +45,17 @@ import type {
 } from "../types/metrics.types";
 
 export function TeacherAnalyticsPage() {
+  const [params] = useSearchParams();
+  if (params.get("section") !== "ai") return <AcademicTeacherAnalyticsPage />;
+  const academic = new URLSearchParams(params); academic.delete("section");
+  return <TeacherShell active="analytics" breadcrumbs={[{ label: "Teacher", to: "/teacher" }, { label: "AI usage" }]} contentClassName="max-w-7xl">
+    <TeacherPageHeader eyebrow="Assistant" title="AI usage" description="Answers used, questions and measured provider work across current and historical classes." />
+    <Link className="inline-block mb-5 underline text-sm" to={`/teacher/analytics?${academic}`}>Academic analytics</Link>
+    <UsageDashboard audience="owner" />
+  </TeacherShell>;
+}
+
+function AcademicTeacherAnalyticsPage() {
   const [params, setParams] = useSearchParams();
   const [groups, setGroups] = useState<TeacherGroup[]>([]);
   const [overview, setOverview] = useState<GroupMetricsOverview | null>(null);
@@ -242,6 +254,7 @@ export function TeacherAnalyticsPage() {
         description="Spot delivery risk, grading work, and student progress across current and historical classes."
       />
 
+      <Link className="inline-block mb-5 underline text-sm" to={`/teacher/analytics?${new URLSearchParams({ section: "ai", ...(groupId ? { groupId } : {}) })}`}>AI usage</Link>
       {groupsLoading ? (
         <TeacherLoading rows={6} />
       ) : groupsError ? (
