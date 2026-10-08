@@ -535,3 +535,11 @@ through owner/personal/admin usage controllers. Dates default to 30 days, maximu
 GET never writes metadata or recovers quota leases. No monetary estimates or conversation content.
 
 See [usage contract and verification](../../../docs/ai-assistant/AI_USAGE_IMPLEMENTATION.md).
+
+## Detalle académico por alumno para el propietario
+
+`GET /api/groups/{groupId}/metrics/students/{studentId}/assignments` devuelve
+`StudentAssignmentMetricsDTO[]` de las tareas lógicamente activas para un alumno de la matrícula
+activa. Incluye borradores y notas devueltas; el endpoint personal mantiene borradores ocultos y
+solo tareas publicadas. Se autoriza al propietario antes de cargar las proyecciones del grupo.
+Las consultas tienen cantidad fija; no se realiza una consulta por tarea.

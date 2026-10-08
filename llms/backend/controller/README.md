@@ -66,6 +66,11 @@ Error handling is centralized in:
 - `POST /api/assignments/{id}/assistant/interactions` reserves a request, runs guarded model review, and returns only validated completed/redirection content or blocked status; global `ASSISTANT_ENABLED` defaults false.
 - Existing `AssistantHistoryController` serves student-owned history even after assistance eligibility ends.
 
+### PersonalAssistantUsageController
+
+- Personal statistics use the authenticated student and route group ID; query scope overrides are rejected.
+- The controller binder excludes `groupId` and `assignmentId` from `AssistantUsageQuery` because Spring also binds URI variables into `@ModelAttribute`. Explicit query scope parameters still return 400; date and pagination filters remain supported.
+
 ### GroupController
 - Any user with `CREATE_GROUP` can create a group; teachers receive the scope by default.
 - Owners can update, list roster, remove students, archive/unarchive, logical delete/restore, and rotate join code regardless of role.
@@ -126,3 +131,9 @@ Error handling is centralized in:
 4. Add @RateLimit if endpoint can be abused.
 5. Add method security annotations when role-restricted.
 6. Document endpoint with OpenAPI annotations.
+
+### Owner student analytics
+
+- `GET /api/groups/{groupId}/metrics/students/{studentId}/assignments` returns one active student's assignment work and draft/returned grades to the group owner.
+- `GET /api/groups/{groupId}/assistant-usage/students/{studentId}` returns student-scoped group usage; `/assignments` returns paginated assignment usage and lifetime quota.
+- Student scope comes from the route. Client `userId` filters remain rejected. Ownership and the student's enrollment/history association are checked before aggregation.

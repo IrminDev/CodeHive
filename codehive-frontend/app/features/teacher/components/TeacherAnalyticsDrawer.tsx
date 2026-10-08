@@ -1,3 +1,5 @@
+import type { UsageRow } from "~/features/assistant-usage/types";
+import { AssignmentAiUsage } from "./TeacherAiUsage";
 import { useEffect, useState, type ReactNode } from "react";
 import {
   BarChart3,
@@ -7,6 +9,7 @@ import {
   GraduationCap,
   Languages,
   RefreshCw,
+  Sparkles,
   Users,
   X,
 } from "lucide-react";
@@ -26,7 +29,7 @@ import {
 import { formatPercentage } from "./TeacherAnalyticsOverview";
 import { VerdictBar } from "./TeacherAnalyticsExplorer";
 
-type DrawerTab = "overview" | "students";
+type DrawerTab = "overview" | "students" | "ai";
 
 const LANGUAGE_COLOR: Record<Language, string> = {
   PYTHON: "bg-blue-500",
@@ -37,6 +40,11 @@ const LANGUAGE_COLOR: Record<Language, string> = {
 
 export function AssignmentAnalyticsDrawer({
   assignment,
+  aiUsage,
+  aiUsageLoading,
+  aiUsageUnavailable,
+  onRetryAiUsage,
+  onOpenStudent,
   detail,
   groupId,
   loading,
@@ -45,6 +53,11 @@ export function AssignmentAnalyticsDrawer({
   onRetry,
 }: {
   assignment?: AssignmentMetrics;
+  aiUsage?: UsageRow;
+  aiUsageLoading: boolean;
+  aiUsageUnavailable: boolean;
+  onRetryAiUsage: () => void;
+  onOpenStudent: (studentId: string) => void;
   detail: AssignmentMetricsDetail | null;
   groupId: string;
   loading: boolean;
@@ -96,15 +109,18 @@ export function AssignmentAnalyticsDrawer({
         <nav className="flex flex-shrink-0 border-b border-gray-200 px-4 dark:border-gray-700" role="tablist">
           <DrawerTabButton active={tab === "overview"} label="Overview" icon={<BarChart3 size={14} />} onClick={() => setTab("overview")} />
           <DrawerTabButton active={tab === "students"} label="Students" icon={<Users size={14} />} onClick={() => setTab("students")} />
+          <DrawerTabButton active={tab === "ai"} label="AI Usage" icon={<Sparkles size={14} />} onClick={() => setTab("ai")} />
         </nav>
 
         <div className="flex-1 overflow-y-auto p-4 sm:p-5">
-          {loading && !detail ? (
+          {tab === "ai" ? (
+            <AssignmentAiUsage row={aiUsage} loading={aiUsageLoading} unavailable={aiUsageUnavailable} onRetry={onRetryAiUsage} />
+          ) : loading && !detail ? (
             <TeacherLoading rows={5} />
           ) : error ? (
             <DrawerError message={error} onRetry={onRetry} />
           ) : detail ? (
-            tab === "overview" ? <AssignmentOverview detail={detail} /> : <AssignmentStudents detail={detail} groupId={groupId} />
+            tab === "overview" ? <AssignmentOverview detail={detail} /> : <AssignmentStudents detail={detail} groupId={groupId} onOpenStudent={onOpenStudent} />
           ) : null}
         </div>
       </aside>
@@ -164,7 +180,7 @@ function AssignmentOverview({ detail }: { detail: AssignmentMetricsDetail }) {
   );
 }
 
-function AssignmentStudents({ detail, groupId }: { detail: AssignmentMetricsDetail; groupId: string }) {
+function AssignmentStudents({ detail, groupId, onOpenStudent }: { detail: AssignmentMetricsDetail; groupId: string; onOpenStudent: (studentId: string) => void }) {
   if (!detail.perStudent.length) return <p className="py-12 text-center text-sm text-gray-500">No active students.</p>;
   return (
     <section className={`${panelClass} overflow-hidden`}>
@@ -175,7 +191,7 @@ function AssignmentStudents({ detail, groupId }: { detail: AssignmentMetricsDeta
           return (
             <article key={student.studentId} className="p-4">
               <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0"><p className="truncate text-sm font-medium">{student.fullName}</p><p className="text-[10px] font-mono text-gray-500">{student.enrollmentNumber}</p></div>
+                <div className="min-w-0"><p className="truncate text-sm font-medium"><button type="button" onClick={() => onOpenStudent(student.studentId)} className="text-azure dark:text-yellow hover:underline">{student.fullName}</button></p><p className="text-[10px] font-mono text-gray-500">{student.enrollmentNumber}</p></div>
                 <StatusPill label={student.workStatus.replaceAll("_", " ")} tone={workTone(student.workStatus)} />
               </div>
               <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -207,24 +223,24 @@ function ResourceBar({ icon, label, value, limit, unit, ratio }: { icon: ReactNo
   return <div><div className="flex items-center justify-between gap-3 text-xs"><span className="flex items-center gap-1.5 text-gray-500">{icon}{label}</span><span className="font-mono">{value == null ? "No accepted data" : `${value.toFixed(1)} ${unit} / ${limit} ${unit}`}</span></div><div className="mt-2 h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-dark-surface"><div className={`h-full rounded-full ${ratio != null && ratio > 80 ? "bg-orange-500" : "bg-green-500"}`} style={{ width: `${Math.min(100, Math.max(0, ratio ?? 0))}%` }} /></div></div>;
 }
 
-function DrawerMetric({ label, value, detail }: { label: string; value: string; detail: string }) {
+export function DrawerMetric({ label, value, detail }: { label: string; value: string; detail: string }) {
   return <div className="rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-dark-surface"><p className="text-[10px] text-gray-500">{label}</p><p className="mt-1 text-lg font-bold">{value}</p><p className="mt-1 text-[10px] text-gray-400">{detail}</p></div>;
 }
 
-function CountCard({ label, value, tone }: { label: string; value: number; tone: "error" | "warning" | "info" | "success" }) {
+export function CountCard({ label, value, tone }: { label: string; value: number; tone: "error" | "warning" | "info" | "success" }) {
   const style = { error: "text-red-500 bg-red-500/5", warning: "text-orange-500 bg-orange-500/5", info: "text-azure dark:text-yellow bg-azure/5 dark:bg-yellow/5", success: "text-green-600 dark:text-green-400 bg-green-500/5" }[tone];
   return <div className={`rounded-xl p-3 ${style}`}><p className="text-[10px]">{label}</p><p className="mt-1 text-lg font-bold font-mono">{value}</p></div>;
 }
 
-function TinyMetric({ label, value }: { label: string; value: string }) {
+export function TinyMetric({ label, value }: { label: string; value: string }) {
   return <div className="rounded-lg bg-gray-50 px-3 py-2 dark:bg-dark-surface"><p className="text-[9px] uppercase tracking-wide text-gray-400">{label}</p><p className="mt-1 truncate text-[10px] font-mono font-medium">{value}</p></div>;
 }
 
-function SectionTitle({ icon, title }: { icon: ReactNode; title: string }) {
+export function SectionTitle({ icon, title }: { icon: ReactNode; title: string }) {
   return <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300"><span className="text-azure dark:text-yellow">{icon}</span>{title}</h3>;
 }
 
-function DrawerTabButton({ active, label, icon, onClick }: { active: boolean; label: string; icon: ReactNode; onClick: () => void }) {
+export function DrawerTabButton({ active, label, icon, onClick }: { active: boolean; label: string; icon: ReactNode; onClick: () => void }) {
   return <button type="button" role="tab" aria-selected={active} onClick={onClick} className={`flex items-center gap-1.5 border-b-2 px-4 py-3 text-xs font-medium ${active ? "border-azure text-azure dark:border-yellow dark:text-yellow" : "border-transparent text-gray-500"}`}>{icon}{label}</button>;
 }
 

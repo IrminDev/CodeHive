@@ -253,20 +253,36 @@ public class GroupMetricsService {
         User student = context.student();
         GroupSnapshot snapshot = loadGroupSnapshot(context.group());
 
+        return assignmentMetricsForStudent(snapshot, student.getId(), true,
+                publishedAssignments(snapshot.assignments(), Instant.now()));
+    }
+
+    /** Owner-only grades and work for one active student, including drafts and unpublished work. */
+    @Transactional(readOnly = true)
+    public List<StudentAssignmentMetricsDTO> studentAssignmentMetrics(UUID groupId, UUID studentId, String email) {
+        ClassGroup group = requireOwnedGroup(groupId, email);
+        GroupSnapshot snapshot = loadGroupSnapshot(group);
+        if (snapshot.activeEnrollments().stream().noneMatch(e -> e.getStudent().getId().equals(studentId)))
+            throw new EntityNotFoundException("Student is not actively enrolled in this group");
+        return assignmentMetricsForStudent(snapshot, studentId, false, snapshot.assignments());
+    }
+
+    private List<StudentAssignmentMetricsDTO> assignmentMetricsForStudent(GroupSnapshot snapshot, UUID studentId,
+            boolean returnedOnly, List<Assignment> selectedAssignments) {
         Map<UUID, CurrentSubmissionRow> rowByAssignment = snapshot.currentRows().stream()
-                .filter(row -> row.studentId().equals(student.getId()))
+                .filter(row -> row.studentId().equals(studentId))
                 .collect(Collectors.toMap(CurrentSubmissionRow::assignmentId, Function.identity(), (a, b) -> a));
         Map<UUID, Long> attemptsByAssignment = snapshot.attempts().stream()
-                .filter(count -> count.studentId().equals(student.getId()))
+                .filter(count -> count.studentId().equals(studentId))
                 .collect(Collectors.toMap(SubmissionAttemptCount::assignmentId,
                         SubmissionAttemptCount::attempts, Long::sum));
-        // Only RETURNED grades are visible to the student; drafts stay hidden.
+        // Student self views hide drafts; owner views include both grade states.
         Map<UUID, StudentGradeRow> gradeByAssignment = snapshot.gradeRows().stream()
-                .filter(row -> row.studentId().equals(student.getId()))
-                .filter(row -> row.status() == GradeStatus.RETURNED)
+                .filter(row -> row.studentId().equals(studentId))
+                .filter(row -> !returnedOnly || row.status() == GradeStatus.RETURNED)
                 .collect(Collectors.toMap(StudentGradeRow::assignmentId, Function.identity(), (a, b) -> a));
 
-        return publishedAssignments(snapshot.assignments(), Instant.now()).stream()
+        return selectedAssignments.stream()
                 .map(assignment -> {
                     CurrentSubmissionRow row = rowByAssignment.get(assignment.getId());
                     SubmissionResultRow result = row != null

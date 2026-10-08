@@ -1,12 +1,15 @@
 package com.github.codehive.controller;
 import java.util.UUID;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.WebDataBinder;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.access.prepost.PreAuthorize;
 import com.github.codehive.service.assistant.AssistantUsageService;
 import com.github.codehive.service.assistant.AssistantUsageService.Audience;
 import com.github.codehive.repository.AssistantUsageRepository.Dimension;
 import com.github.codehive.model.request.assistant.AssistantUsageQuery;
+import com.github.codehive.model.exception.ValidationException;
 import com.github.codehive.model.dto.assistant.usage.AssistantUsageDTO.*;
 import com.github.codehive.model.response.SuccessResponse;
 @io.swagger.v3.oas.annotations.tags.Tag(name = "PersonalAssistantUsage", description = "Content-free assistant usage, historical ledger counts and measured provider work")
@@ -21,6 +24,14 @@ import com.github.codehive.model.response.SuccessResponse;
 public class PersonalAssistantUsageController {
     private final AssistantUsageService usage;
     public PersonalAssistantUsageController(AssistantUsageService usage) { this.usage=usage; }
+    @InitBinder
+    public void bindPersonalQuery(WebDataBinder binder, HttpServletRequest request) {
+        if (request.getParameterMap().containsKey("groupId") || request.getParameterMap().containsKey("assignmentId"))
+            throw new ValidationException("Personal scope comes from route");
+        // Spring also binds URI variables into @ModelAttribute objects. Keep route scope
+        // separate from client filters; authorization receives it via @PathVariable.
+        binder.setDisallowedFields("groupId", "assignmentId");
+    }
     @GetMapping("/api/assistant-usage/me")
     @io.swagger.v3.oas.annotations.Operation(summary = "Get my AI usage")
     public SuccessResponse<Summary> summary(@org.springdoc.core.annotations.ParameterObject @ModelAttribute AssistantUsageQuery query, Authentication auth) {

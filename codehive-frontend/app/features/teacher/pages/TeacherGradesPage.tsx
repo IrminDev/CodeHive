@@ -56,7 +56,7 @@ import type {
 } from "../types/student-work.types";
 
 type StudentFilter = "all" | "to-grade" | "draft" | "returned" | "missing";
-type ReviewTab = "code" | "tests" | "history";
+import type { ReviewTab } from "../components/TeacherGradebook";
 
 export function TeacherGradesPage() {
   const [params, setParams] = useSearchParams();
@@ -466,6 +466,7 @@ export function TeacherGradesPage() {
             />
             {student ? (
               <Workspace
+                groupId={groupId}
                 student={student}
                 detail={detail}
                 review={review}

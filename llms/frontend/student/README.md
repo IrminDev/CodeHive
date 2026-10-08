@@ -112,9 +112,17 @@ that a real execution consumed `0 MB`.
 
 ## AI usage statistics
 
-Shared module: `app/features/assistant-usage`. Personal route `/ai-usage` reads own historical
-usage independently of academic active-enrollment metrics. Teacher route
-`/teacher/analytics?section=ai` uses owned historical group selector and assignment/student tables.
+Shared module: `app/features/assistant-usage`. Student class progress
+`/groups/:groupId/metrics#ai-usage` embeds `PersonalUsageBrief`: questions, answers used,
+unanswered questions and pending questions for the last 30 days. Loading, retry, empty state,
+manual refresh and local answer-completion refresh are independent of academic enrollment
+metrics, preserving access to own historical counts. No technical details or group-wide quota.
+Legacy `/ai-usage?groupId=...` redirects to class progress; without a group it redirects to
+`/groups`. Assistant panel links directly to its class; no separate sidebar entry. Teacher route
+`/teacher/analytics` embeds a group summary plus per-assignment counts in the assignment drawer's AI Usage tab. Group and assignment counts share the last-30-days window; a paginated
+group request loads assignment usage without per-assignment requests. AI failures and retries
+are independent of academic metrics. Archived/deleted owned groups remain selectable. Legacy
+`section=ai` URLs open the integrated page and discard that parameter.
 Admin route `/admin/ai-usage` requires CHECK_ANALYTICS; user rows/details require VIEW_USERS too.
 Admin user detail includes an AI usage tab. Role clients reuse existing authenticated helpers.
 Filters, search, sort and pagination stay in URL; requests abort/ignore stale results on scope

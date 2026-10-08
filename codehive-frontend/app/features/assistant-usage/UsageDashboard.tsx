@@ -6,12 +6,13 @@ import { hasEffectiveScope } from "~/features/admin/utils/permissions";
 import { ownedUsageGroups, usageQuery, usageRequest } from "./api";
 import { measured, TechnicalUsage, UsageSummary, usageInput, usagePanel } from "./UsageSummary";
 import type { Audience, Breakdown, GroupOption, Models, Summary, UsageRow } from "./types";
+import { AdminAiUsageDashboard } from "~/features/admin/components/AdminAiUsageDashboard";
 
-export function UsageDashboard(props: { audience: Audience; fixedUserId?: string }) {
+export function UsageDashboard(props: { audience: Audience; fixedUserId?: string; presentation?: "admin" }) {
   const { user } = useAuth();
   return <UsageDashboardContent key={`${user?.id ?? "anonymous"}:${props.audience}:${props.fixedUserId ?? ""}`} {...props} />;
 }
-function UsageDashboardContent({ audience, fixedUserId }: { audience: Audience; fixedUserId?: string }) {
+function UsageDashboardContent({ audience, fixedUserId, presentation }: { audience: Audience; fixedUserId?: string; presentation?: "admin" }) {
   const { user } = useAuth();
   const [params, setParams] = useSearchParams();
   const [refresh, setRefresh] = useState(0);
@@ -23,7 +24,7 @@ function UsageDashboardContent({ audience, fixedUserId }: { audience: Audience; 
   const [error, setError] = useState<string>();
   const [tableError, setTableError] = useState<string>();
   const [modelsError, setModelsError] = useState<string>();
-  const [technicalColumns, setTechnicalColumns] = useState(audience === "admin");
+  const [technicalColumns, setTechnicalColumns] = useState(audience === "admin" && presentation !== "admin");
   const [loadedFor, setLoadedFor] = useState<string>();
   const [loading, setLoading] = useState(false);
   const canIdentify = audience !== "admin" || hasEffectiveScope(user, Scope.VIEW_USERS);
@@ -78,6 +79,14 @@ function UsageDashboardContent({ audience, fixedUserId }: { audience: Audience; 
     else if (table === "users") change({ userId: row.id, groupId: undefined });
     else if (table === "assignments" && audience === "owner") change({ assignmentId: row.id });
   }
+  if (presentation === "admin" && audience === "admin") return <AdminAiUsageDashboard
+    params={params} onChange={change} onRefresh={() => setRefresh(v => v + 1)}
+    summary={currentData ? summary : null} breakdown={currentData ? breakdown : null} models={currentData ? models : null}
+    loading={loading} error={error} tableError={tableError} modelsError={modelsError}
+    allowed={allowed} dateValid={dateValid} canIdentify={canIdentify} table={table}
+    selectedUser={selectedUser} groupId={groupId} page={page} onOpen={open}
+    technicalColumns={technicalColumns} onTechnicalColumns={setTechnicalColumns}
+  />;
   return <div className="space-y-5">
     <div className={`${usagePanel} flex flex-wrap items-end gap-3`}>
       {audience === "owner" && <label className="grid gap-1 text-xs">Owned group<select className={usageInput} value={groupId} onChange={e => change({ groupId: e.target.value, assignmentId: undefined })}><option value="">Choose a group</option>{groups.map(g => <option key={g.id} value={g.id}>{g.label} ({g.lifecycle})</option>)}</select></label>}

@@ -1,6 +1,5 @@
-import { UsageDashboard } from "~/features/assistant-usage/UsageDashboard";
 import { useEffect, useMemo, useState } from "react";
-import { Link, useSearchParams } from "react-router";
+import { useSearchParams } from "react-router";
 
 import { listTeacherGroups } from "../api/group.api";
 import {
@@ -29,6 +28,7 @@ import {
   groupLifecycle,
   type AnalyticsHealth,
 } from "../components/TeacherAnalyticsOverview";
+import { TeacherStudentAnalyticsDrawer } from "../components/TeacherStudentAnalyticsDrawer";
 import { TeacherShell } from "../components/TeacherShell";
 import {
   TeacherEmpty,
@@ -36,6 +36,7 @@ import {
   TeacherLoading,
   TeacherPageHeader,
 } from "../components/TeacherUI";
+import { TeacherGroupAiUsage, useTeacherAiUsage } from "../components/TeacherAiUsage";
 import type { TeacherGroup } from "../types/group.types";
 import type {
   AssignmentMetrics,
@@ -45,17 +46,6 @@ import type {
 } from "../types/metrics.types";
 
 export function TeacherAnalyticsPage() {
-  const [params] = useSearchParams();
-  if (params.get("section") !== "ai") return <AcademicTeacherAnalyticsPage />;
-  const academic = new URLSearchParams(params); academic.delete("section");
-  return <TeacherShell active="analytics" breadcrumbs={[{ label: "Teacher", to: "/teacher" }, { label: "AI usage" }]} contentClassName="max-w-7xl">
-    <TeacherPageHeader eyebrow="Assistant" title="AI usage" description="Answers used, questions and measured provider work across current and historical classes." />
-    <Link className="inline-block mb-5 underline text-sm" to={`/teacher/analytics?${academic}`}>Academic analytics</Link>
-    <UsageDashboard audience="owner" />
-  </TeacherShell>;
-}
-
-function AcademicTeacherAnalyticsPage() {
   const [params, setParams] = useSearchParams();
   const [groups, setGroups] = useState<TeacherGroup[]>([]);
   const [overview, setOverview] = useState<GroupMetricsOverview | null>(null);
@@ -84,6 +74,13 @@ function AcademicTeacherAnalyticsPage() {
 
   const groupId = params.get("groupId") ?? "";
   const assignmentId = params.get("assignmentId") ?? "";
+  const studentId = params.get("studentId") ?? "";
+  const aiUsage = useTeacherAiUsage(groupId, refreshVersion);
+
+  useEffect(() => {
+    if (!params.has("section")) return;
+    setParams(current => { const next = new URLSearchParams(current); next.delete("section"); return next; }, { replace: true });
+  }, [params, setParams]);
   const tab: AnalyticsTab = params.get("view") === "students" ? "students" : "assignments";
 
   function updateParams(changes: Record<string, string | undefined>, replace = true) {
@@ -113,6 +110,7 @@ function AcademicTeacherAnalyticsPage() {
           if (preferred) next.set("groupId", preferred.id);
           else next.delete("groupId");
           next.delete("assignmentId");
+          next.delete("studentId");
           return next;
         }, { replace: true });
       })
@@ -195,6 +193,7 @@ function AcademicTeacherAnalyticsPage() {
   }, [assignmentId, detailRefreshVersion]);
 
   const selectedGroup = groups.find((group) => group.id === groupId);
+  const selectedStudent = students.find(student => student.studentId === studentId);
   const selectedAssignment = assignments.find((item) => item.assignmentId === assignmentId);
   const assignmentTitles = useMemo(
     () => new Map(assignments.map((item) => [item.assignmentId, item.title])),
@@ -239,7 +238,7 @@ function AcademicTeacherAnalyticsPage() {
   function selectGroup(nextGroupId: string) {
     setAssignmentQuery("");
     setStudentQuery("");
-    updateParams({ groupId: nextGroupId, assignmentId: undefined });
+    updateParams({ groupId: nextGroupId, assignmentId: undefined, studentId: undefined });
   }
 
   return (
@@ -251,10 +250,9 @@ function AcademicTeacherAnalyticsPage() {
       <TeacherPageHeader
         eyebrow="Performance"
         title="Analytics"
-        description="Spot delivery risk, grading work, and student progress across current and historical classes."
+        description="Review delivery risk, grading work, student progress, and AI usage across current and historical classes."
       />
 
-      <Link className="inline-block mb-5 underline text-sm" to={`/teacher/analytics?${new URLSearchParams({ section: "ai", ...(groupId ? { groupId } : {}) })}`}>AI usage</Link>
       {groupsLoading ? (
         <TeacherLoading rows={6} />
       ) : groupsError ? (
@@ -271,6 +269,8 @@ function AcademicTeacherAnalyticsPage() {
             onSelect={selectGroup}
             onRefresh={() => setRefreshVersion((value) => value + 1)}
           />
+
+          {groupId && <TeacherGroupAiUsage usage={aiUsage} />}
 
           {metricsLoading && !overview && !assignments.length && !students.length ? (
             <TeacherLoading rows={6} />
@@ -299,17 +299,16 @@ function AcademicTeacherAnalyticsPage() {
                     onQuery={setAssignmentQuery}
                     onFilter={setAssignmentFilter}
                     onSort={setAssignmentSort}
-                    onOpen={(id) => updateParams({ assignmentId: id }, false)}
+                    onOpen={(id) => updateParams({ assignmentId: id, studentId: undefined }, false)}
                     onRetry={() => setRefreshVersion((value) => value + 1)}
                   />
                 ) : (
                   <StudentExplorer
                     students={visibleStudents}
+                    onOpen={(id) => updateParams({ studentId: id, assignmentId: undefined }, false)}
                     query={studentQuery}
                     filter={studentFilter}
                     sort={studentSort}
-                    groupId={groupId}
-                    assignmentTitles={assignmentTitles}
                     error={studentsError}
                     onQuery={setStudentQuery}
                     onFilter={setStudentFilter}
@@ -323,10 +322,26 @@ function AcademicTeacherAnalyticsPage() {
         </>
       )}
 
-      {assignmentId && (
+      {selectedStudent && (
+        <TeacherStudentAnalyticsDrawer
+          key={`${groupId}:${studentId}`}
+          student={selectedStudent}
+          groupId={groupId}
+          assignmentTitles={assignmentTitles}
+          refreshVersion={refreshVersion}
+          onClose={() => updateParams({ studentId: undefined })}
+        />
+      )}
+
+      {assignmentId && !studentId && (
         <AssignmentAnalyticsDrawer
           assignment={selectedAssignment}
-          detail={detail}
+          aiUsage={aiUsage.assignments?.get(assignmentId)}
+          aiUsageLoading={!aiUsage.assignments && !aiUsage.assignmentsError}
+          aiUsageUnavailable={Boolean(aiUsage.assignmentsError)}
+          onRetryAiUsage={aiUsage.refresh}
+          onOpenStudent={(id) => updateParams({ studentId: id, assignmentId: undefined }, false)}
+          detail={detail?.assignmentId === assignmentId ? detail : null}
           groupId={groupId}
           loading={detailLoading}
           error={detailError}

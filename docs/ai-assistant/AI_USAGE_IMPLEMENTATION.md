@@ -78,11 +78,18 @@ no demuestra cobertura retroactiva ni consumo anterior nulo.
 
 ## Frontend
 
-- `/teacher/analytics?section=ai`: selector histórico propio, rango, resumen, tendencia,
-  asignaciones/alumnos y detalle de asignación con cuota de por vida. Analytics académico sigue
-  disponible. Grupo y edición de asignación incluyen enlaces contextuales.
-- `/ai-usage`: total personal, grupos, desglose por asignación y enlace a conversación propia.
-  Sidebar, panel del asistente y métricas personales incluyen acceso contextual.
+- `/teacher/analytics`: resumen de IA integrado con el selector histórico de grupos y las
+  métricas académicas. La pestaña AI Usage del drawer de cada asignación muestra preguntas, respuestas consumidas
+  y preguntas sin respuesta de los últimos 30 días. Las tarjetas académicas no incluyen IA. Resumen y asignaciones comparten rango;
+  desglose paginado por grupo evita requests por asignación. Carga/reintento independientes de
+  métricas académicas. Enlaces contextuales apuntan a Analytics; `section=ai` se elimina de
+  enlaces antiguos sin abrir una vista separada.
+- `/groups/:groupId/metrics#ai-usage`: sección compacta con preguntas, respuestas consumidas,
+  preguntas sin respuesta y pendientes de los últimos 30 días. Carga, errores, reintento y
+  actualización independientes de las métricas académicas; conserva acceso a conteos históricos
+  propios aunque ya no exista matrícula activa. El panel del asistente enlaza al grupo.
+  `/ai-usage?groupId=...` redirige a esta sección; sin grupo redirige a `/groups`.
+  Se elimina la vista separada y su entrada en el sidebar.
 - `/admin/ai-usage`: resumen global, tabla por usuario con VIEW_USERS y sección por modelo/etapa.
   Detalle de usuario incorpora pestaña AI usage, con grupos/asignaciones.
 
@@ -111,3 +118,19 @@ Verificación automática con datos sintéticos; no se realizaron llamadas a pro
 no se reinició base existente y no se modificó worker. Backend aislado también se comprobó mediante login real y GET con cuentas sintéticas de
 los tres roles. Revisión visual no pudo completarse: herramienta de navegador devuelve
 lista vacía de navegadores disponibles. Queda pendiente revisión visual en entorno con navegador.
+
+## Drawer de alumno en Analytics
+
+El docente abre el drawer desde Students o el desglose de alumnos de una tarea. Overview conserva
+el resumen académico; Grades incluye borradores/notas devueltas y respuestas de IA consumidas
+**de por vida** por tarea; AI Usage muestra actividad propia del alumno en ese grupo en los últimos
+30 días. Fallos de IA no ocultan las calificaciones. Conteos desconocidos se muestran no disponibles.
+
+APIs nuevas, todas limitadas al propietario del grupo:
+- `/api/groups/{groupId}/metrics/students/{studentId}/assignments` (matrícula activa).
+- `/api/groups/{groupId}/assistant-usage/students/{studentId}`.
+- `/api/groups/{groupId}/assistant-usage/students/{studentId}/assignments` (paginada, cuotas de por vida).
+
+Identidad del alumno desde ruta; la API personal sigue ocultando borradores. El drawer usa
+`studentId` en URL, aborta peticiones obsoletas y carga las páginas del grupo/alumno sin consultas
+HTTP por tarea.

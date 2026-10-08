@@ -24,8 +24,8 @@ const LEVEL_LABELS = {
   EXPLANATIONS_GUIDING_AND_SNIPPETS: "Explanations, guidance, and short snippets",
 } as const;
 
-export function AssistantPanel({ assignmentId, userId, language, code, onClose }: {
-  assignmentId: string; userId: string; language: Language; code: string; onClose: () => void;
+export function AssistantPanel({ assignmentId, groupId, userId, language, code, onClose }: {
+  assignmentId: string; groupId: string; userId: string; language: Language; code: string; onClose: () => void;
 }) {
   const assistant = useAssignmentAssistant(assignmentId);
   const reason = availabilityText(assistant.availability?.reason ?? null);
@@ -61,7 +61,7 @@ export function AssistantPanel({ assignmentId, userId, language, code, onClose }
   return <aside role="dialog" aria-modal="false" aria-label="AI educational assistant"
     className="fixed inset-x-2 bottom-2 top-2 z-50 flex flex-col rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-dark-card sm:inset-x-auto sm:bottom-6 sm:right-6 sm:top-auto sm:h-[min(860px,calc(100vh-3rem))] sm:w-[min(760px,calc(100vw-3rem))]">
     <header className="flex shrink-0 items-center justify-between border-b border-gray-200 dark:border-gray-700 p-4">
-      <div><h2 className="text-sm font-bold">AI educational assistant</h2><Link to={`/assignment/${assignmentId}/assistant-history`} className="text-[11px] text-azure">Full history</Link><Link to="/ai-usage" className="ml-3 text-[11px] text-azure">My AI usage</Link></div>
+      <div><h2 className="text-sm font-bold">AI educational assistant</h2><Link to={`/assignment/${assignmentId}/assistant-history`} className="text-[11px] text-azure">Full history</Link><Link to={`/groups/${encodeURIComponent(groupId)}/metrics#ai-usage`} className="ml-3 text-[11px] text-azure">My AI usage</Link></div>
       <button type="button" onClick={onClose} aria-label="Close assistant" className="rounded-lg p-1 hover:bg-gray-100 dark:hover:bg-gray-800"><X size={18} /></button>
     </header>
     {assistant.availability && <div className="border-b border-gray-200 dark:border-gray-700 px-4 py-2">

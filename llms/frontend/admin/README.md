@@ -69,7 +69,7 @@ Type dependency:
 
 Shared module: `app/features/assistant-usage`. Personal route `/ai-usage` reads own historical
 usage independently of academic active-enrollment metrics. Teacher route
-`/teacher/analytics?section=ai` uses owned historical group selector and assignment/student tables.
+`/teacher/analytics` embeds group AI summary and per-assignment counts in the drawer's AI Usage tab. Legacy `section=ai` URLs open that integrated view.
 Admin route `/admin/ai-usage` requires CHECK_ANALYTICS; user rows/details require VIEW_USERS too.
 Admin user detail includes an AI usage tab. Role clients reuse existing authenticated helpers.
 Filters, search, sort and pagination stay in URL; requests abort/ignore stale results on scope
@@ -77,3 +77,20 @@ changes and session identity remounts state. No statistics polling. Technical co
 explicit; nullable tokens are not zero. Lifetime quota is per assignment and independent of dates.
 Recharts has a UTC daily table alternative. See
 [implementation contract](../../../docs/ai-assistant/AI_USAGE_IMPLEMENTATION.md).
+
+### Admin AI usage dashboard layout
+
+`AdminAiUsagePage` opts into the admin presentation of `UsageDashboard`; shared request logic,
+permission gates, session remounting, and cancellation remain centralized. Admin user-detail
+and other audiences keep their existing presentation.
+
+- Reporting-window toolbar offers 7/30/90 UTC-day presets, custom exclusive-end dates, all history,
+  refresh, and reset. Provider/model filters are expandable and apply only to technical work.
+- Five metric cards summarize questions, answers used, unanswered questions, pending questions,
+  and active students. Overview separates daily trend, question outcomes, provider consumption,
+  and expandable educational details; chart has a daily-table alternative.
+- User activity supports user -> group -> assignment drill-down, URL search/sort/pagination,
+  optional technical columns, and lifetime assignment quotas. VIEW_USERS gates identities.
+- Providers & models expands per-stage calls, tokens, latency, and measurement coverage.
+  Unknown token values remain Not measured; partial coverage stays explicit.
+- View selection uses aiView; existing aiFrom/aiTo/aiLifetime and scope/filter parameters persist.

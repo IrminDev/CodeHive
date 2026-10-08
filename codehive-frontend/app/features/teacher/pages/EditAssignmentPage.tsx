@@ -590,7 +590,7 @@ export function EditAssignmentPage({
       navLinks={TEACHER_NAV}
       sidebarItems={TEACHER_SIDEBAR_ITEMS}
     >
-      <Link className="inline-block mb-4 underline text-sm" to={`/teacher/analytics?section=ai&groupId=${assignment.groupId}&assignmentId=${assignmentId}`}>AI usage for this assignment</Link>
+      <Link className="inline-block mb-4 underline text-sm" to={`/teacher/analytics?groupId=${assignment.groupId}&assignmentId=${assignmentId}`}>AI usage for this assignment</Link>
       <form onSubmit={submit} className="max-w-5xl mx-auto space-y-6 pb-8">
         <div className="flex items-start gap-4">
           <button

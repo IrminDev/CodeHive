@@ -508,7 +508,7 @@ export function AssignmentPage() {
       />
 
       {!assistantOpen && <button type="button" onClick={() => setAssistantOpen(true)} title="AI educational assistant" aria-label="Open AI educational assistant" className="fixed bottom-6 right-6 z-50 inline-flex items-center gap-2 rounded-xl border border-gray-200 dark:border-gray-700/60 bg-white/95 dark:bg-dark-card/95 px-3 py-2 text-xs font-medium text-gray-700 dark:text-gray-200 shadow-lg hover:border-azure"><Sparkles size={14} /> AI help</button>}
-      {assistantOpen && user && <AssistantPanel key={assignment.id} assignmentId={assignment.id} userId={user.id} language={selectedLanguage} code={code} onClose={() => setAssistantOpen(false)} />}
+      {assistantOpen && user && <AssistantPanel key={assignment.id} assignmentId={assignment.id} groupId={assignment.groupId} userId={user.id} language={selectedLanguage} code={code} onClose={() => setAssistantOpen(false)} />}
 
       {showWithdrawConfirm && currentSubmission && (
         <div className="fixed inset-0 z-[60] grid place-items-center bg-dark-bg/50 backdrop-blur-sm p-4" role="dialog" aria-modal="true" aria-labelledby="withdraw-submission-title">

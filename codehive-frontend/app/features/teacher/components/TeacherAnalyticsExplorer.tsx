@@ -5,11 +5,9 @@ import {
   CheckCircle2,
   CircleAlert,
   Clock3,
-  GraduationCap,
   Search,
   Users,
 } from "lucide-react";
-import { Link } from "react-router";
 import { Dropdown } from "~/shared/components/ui/Dropdown";
 
 import type {
@@ -131,11 +129,10 @@ export function AssignmentExplorer({
 
 export function StudentExplorer({
   students,
+  onOpen,
   query,
   filter,
   sort,
-  groupId,
-  assignmentTitles,
   error,
   onQuery,
   onFilter,
@@ -143,11 +140,10 @@ export function StudentExplorer({
   onRetry,
 }: {
   students: StudentMetrics[];
+  onOpen: (studentId: string) => void;
   query: string;
   filter: StudentAnalyticsFilter;
   sort: StudentAnalyticsSort;
-  groupId: string;
-  assignmentTitles: Map<string, string>;
   error?: string;
   onQuery: (value: string) => void;
   onFilter: (value: StudentAnalyticsFilter) => void;
@@ -193,8 +189,7 @@ export function StudentExplorer({
             <StudentAnalyticsRow
               key={student.studentId}
               student={student}
-              groupId={groupId}
-              assignmentTitles={assignmentTitles}
+              onOpen={() => onOpen(student.studentId)}
             />
           ))}
         </div>
@@ -254,15 +249,15 @@ function AssignmentAnalyticsRow({ item, onOpen }: { item: AssignmentMetrics; onO
   );
 }
 
-function StudentAnalyticsRow({ student, groupId, assignmentTitles }: { student: StudentMetrics; groupId: string; assignmentTitles: Map<string, string> }) {
-  const missing = student.missingAssignmentIds.map((id) => ({ id, title: assignmentTitles.get(id) ?? "Assignment" }));
-  const firstMissing = missing[0];
-  const gradeLink = firstMissing
-    ? `/teacher/grades?groupId=${encodeURIComponent(groupId)}&assignmentId=${encodeURIComponent(firstMissing.id)}&studentId=${encodeURIComponent(student.studentId)}`
-    : `/teacher/grades?groupId=${encodeURIComponent(groupId)}`;
-  const risk = missing.length > 0 || student.lateCount > 0;
+function StudentAnalyticsRow({ student, onOpen }: { student: StudentMetrics; onOpen: () => void }) {
+  const risk = student.missingAssignmentIds.length > 0 || student.lateCount > 0;
   return (
-    <article className="p-4 sm:p-5">
+    <button
+      type="button"
+      onClick={onOpen}
+      aria-label={`View details for ${student.fullName}`}
+      className="group w-full p-4 text-left transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-azure dark:hover:bg-dark-card/40 dark:focus:ring-yellow sm:p-5"
+    >
       <div className="flex flex-col gap-4 xl:flex-row xl:items-center">
         <div className="min-w-0 xl:w-[28%]">
           <div className="flex items-center gap-2">
@@ -271,7 +266,7 @@ function StudentAnalyticsRow({ student, groupId, assignmentTitles }: { student: 
             </span>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <h3 className="truncate text-sm font-semibold">{student.fullName}</h3>
+                <h3 className="truncate text-sm font-semibold group-hover:text-azure dark:group-hover:text-yellow">{student.fullName}</h3>
                 <StatusPill label={risk ? "attention" : "on track"} tone={risk ? "warning" : "success"} />
               </div>
               <p className="text-[10px] font-mono text-gray-500">{student.enrollmentNumber}</p>
@@ -284,21 +279,11 @@ function StudentAnalyticsRow({ student, groupId, assignmentTitles }: { student: 
           <SmallMetric icon={<Clock3 size={12} />} label="Late" value={String(student.lateCount)} />
           <SmallMetric icon={<CheckCircle2 size={12} />} label="Attempts" value={String(student.totalAttempts)} />
         </div>
-        <div className="xl:w-64">
-          {missing.length ? (
-            <div className="rounded-xl border border-orange-500/20 bg-orange-500/5 px-3 py-2">
-              <p className="text-[10px] font-semibold text-orange-500">{missing.length} missing</p>
-              <p className="mt-0.5 truncate text-[10px] text-gray-500" title={missing.map((item) => item.title).join(", ")}>{missing.slice(0, 2).map((item) => item.title).join(" · ")}{missing.length > 2 ? ` +${missing.length - 2}` : ""}</p>
-            </div>
-          ) : (
-            <p className="text-xs text-green-600 dark:text-green-400">No missing assignments</p>
-          )}
-          <Link to={gradeLink} className="mt-2 inline-flex items-center gap-1 text-[10px] font-medium text-azure hover:text-french dark:text-yellow">
-            <GraduationCap size={12} /> Review grades
-          </Link>
-        </div>
+        <span className="flex items-center justify-end gap-1 text-[10px] font-medium text-gray-400 group-hover:text-azure dark:group-hover:text-yellow xl:w-48">
+          View details <ArrowRight size={12} />
+        </span>
       </div>
-    </article>
+    </button>
   );
 }
 

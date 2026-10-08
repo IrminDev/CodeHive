@@ -33,6 +33,11 @@ confirmation, field, and panel patterns live in `components/TeacherUI.tsx`.
   restored; each assignment exposes preview, edit, revalidate, clone, grade, and management status.
 - Management status combines latest validation failure, update history, and latest reevaluation batch.
 - Grade review drawer exposes every attempt, retained source, execution evidence, and grade audit history.
+- Gradebook student workspace includes an AI Usage tab scoped to selected student and assignment.
+  Loads full-history question/answer counts, unanswered questions, regenerations, lifetime quota,
+  and last activity only while tab is open, including students without submissions.
+  Uses owner student-assignment usage API with assignmentId and lifetime=true; supports refresh,
+  retry, and cancellation on student/assignment/session changes. Missing records remain unavailable.
 - Teacher dashboard aggregates owned active groups, students, assignments, grading queue, validation
   problems, upcoming lifecycle dates, and recent submissions server-side.
 
@@ -103,9 +108,11 @@ Typed contracts live under `app/features/teacher/types/` and mirror backend DTOs
 
 ## AI usage statistics
 
-Shared module: `app/features/assistant-usage`. Personal route `/ai-usage` reads own historical
-usage independently of academic active-enrollment metrics. Teacher route
-`/teacher/analytics?section=ai` uses owned historical group selector and assignment/student tables.
+Shared module: `app/features/assistant-usage`. Student class progress embeds own historical usage independently of academic enrollment metrics. Teacher route
+`/teacher/analytics` embeds a group summary plus per-assignment counts in the assignment drawer's AI Usage tab. Group and assignment counts share the last-30-days window; a paginated
+group request loads assignment usage without per-assignment requests. AI failures and retries
+are independent of academic metrics. Archived/deleted owned groups remain selectable. Legacy
+`section=ai` URLs open the integrated page and discard that parameter.
 Admin route `/admin/ai-usage` requires CHECK_ANALYTICS; user rows/details require VIEW_USERS too.
 Admin user detail includes an AI usage tab. Role clients reuse existing authenticated helpers.
 Filters, search, sort and pagination stay in URL; requests abort/ignore stale results on scope
@@ -113,3 +120,20 @@ changes and session identity remounts state. No statistics polling. Technical co
 explicit; nullable tokens are not zero. Lifetime quota is per assignment and independent of dates.
 Recharts has a UTC daily table alternative. See
 [implementation contract](../../../docs/ai-assistant/AI_USAGE_IMPLEMENTATION.md).
+
+## Student analytics drawer
+
+Student rows in Analytics > Students use one full-row View details button, matching assignment
+rows; missing-work messages and grade shortcuts live in the drawer. Student names in an
+assignment's student breakdown also open the drawer.
+URL `studentId` identifies it; switching groups clears it. Overview shows academic summary and
+missing assignments. Grades shows drafts/returned grades and **lifetime** AI answers used for
+that student on each assignment, using assignment breakdown cards with verdicts, attempts,
+status pills, and Review work links. Drawer tabs reuse assignment drawer metric cards and
+section titles. AI Usage shows the student's questions, delivered answers,
+unanswered questions and pending questions for the last 30 days in this group.
+
+`TeacherStudentAnalyticsDrawer` loads grades plus owner-scoped AI summary and paginated assignment
+usage independently, cancels stale student/group/session requests, and supports retries/Escape.
+Missing usage is unavailable, never zero. Lifetime counts come from `quota.usedLifetime`, not
+period responses. Data is loaded only while the student drawer is open.

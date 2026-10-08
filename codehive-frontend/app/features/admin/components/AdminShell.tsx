@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { Activity, ChevronRight, Gauge, LogOut, Moon, ShieldCheck, Sun, Users } from "lucide-react";
+import { Activity, ChevronRight, Gauge, LogOut, Moon, ShieldCheck, Sun, Users, Sparkles } from "lucide-react";
 import { Link } from "react-router";
 import { useAuth } from "~/core/providers/AuthProvider";
 import { useTheme } from "~/core/providers/ThemeProvider";
@@ -63,11 +63,11 @@ function AdminSidebar({ active }: { active: AdminNavigation }) {
   const { user } = useAuth();
   const showUsers = hasAnyEffectiveScope(user, [Scope.VIEW_USERS, Scope.CREATE_USERS, Scope.CREATE_ADMINS]);
   const links = [
-    { key: "ai-usage" as const, label: "AI usage", to: "/admin/ai-usage", icon: <Activity size={20} />, show: hasEffectiveScope(user, Scope.CHECK_ANALYTICS) },
     { key: "overview" as const, label: "Overview", to: "/admin", icon: <Gauge size={20} />, show: true },
     { key: "users" as const, label: "Users", to: "/admin/users", icon: <Users size={20} />, show: showUsers },
     { key: "incidents" as const, label: "Rate-limit incidents", to: "/admin/incidents", icon: <Activity size={20} />, show: hasEffectiveScope(user, Scope.VIEW_USERS) },
     { key: "audit" as const, label: "Audit history", to: "/admin/audit", icon: <ShieldCheck size={20} />, show: hasEffectiveScope(user, Scope.VIEW_AUDIT_LOG) },
+    { key: "ai-usage" as const, label: "AI usage", to: "/admin/ai-usage", icon: <Sparkles size={20} />, show: hasEffectiveScope(user, Scope.CHECK_ANALYTICS) },
   ];
   return (
     <aside className="w-14 flex-shrink-0 flex flex-col items-center py-4 gap-1 bg-gray-50 dark:bg-dark-surface border-r border-gray-200 dark:border-gray-800/60">

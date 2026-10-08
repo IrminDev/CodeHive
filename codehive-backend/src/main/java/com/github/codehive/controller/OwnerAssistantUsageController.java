@@ -38,6 +38,20 @@ public class OwnerAssistantUsageController {
         var access=usage.authorize(Audience.OWNER,auth.getName(),null,groupId,null,query,false);
         return new SuccessResponse<>("Assistant usage retrieved",usage.rows(access,Dimension.STUDENTS,query));
     }
+    @GetMapping("/api/groups/{groupId}/assistant-usage/students/{studentId}")
+    @io.swagger.v3.oas.annotations.Operation(summary = "Get one student's AI usage in an owned group")
+    public SuccessResponse<Summary> studentSummary(@PathVariable UUID groupId, @PathVariable UUID studentId,
+            @org.springdoc.core.annotations.ParameterObject @ModelAttribute AssistantUsageQuery query, Authentication auth) {
+        var access=usage.authorize(Audience.OWNER,auth.getName(),studentId,groupId,null,query,false);
+        return new SuccessResponse<>("Assistant usage retrieved",usage.summary(access));
+    }
+    @GetMapping("/api/groups/{groupId}/assistant-usage/students/{studentId}/assignments")
+    @io.swagger.v3.oas.annotations.Operation(summary = "List one student's assignment AI usage and lifetime quotas in an owned group")
+    public SuccessResponse<Breakdown> studentAssignments(@PathVariable UUID groupId, @PathVariable UUID studentId,
+            @org.springdoc.core.annotations.ParameterObject @ModelAttribute AssistantUsageQuery query, Authentication auth) {
+        var access=usage.authorize(Audience.OWNER,auth.getName(),studentId,groupId,null,query,false);
+        return new SuccessResponse<>("Assistant usage retrieved",usage.rows(access,Dimension.ASSIGNMENTS,query));
+    }
     @GetMapping("/api/assignments/{assignmentId}/assistant-usage")
     @io.swagger.v3.oas.annotations.Operation(summary = "Get owned assignment AI usage")
     public SuccessResponse<Summary> assignmentSummary(@PathVariable UUID assignmentId, @org.springdoc.core.annotations.ParameterObject @ModelAttribute AssistantUsageQuery query, Authentication auth) {

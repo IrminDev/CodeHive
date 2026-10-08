@@ -76,3 +76,13 @@ export interface AssignmentMetricsDetail extends AssignmentMetrics {
     grade?: { value: number; maxPoints: number; status: GradeStatus };
   }>;
 }
+
+export interface StudentAssignmentAnalytics {
+  assignmentId: string;
+  title: string;
+  maxPoints: number;
+  workStatus: "NOT_SUBMITTED" | "SUBMITTED" | "WITHDRAWN" | "RETURNED";
+  attempts: number;
+  verdict: ExecutionStatus | null;
+  grade: { value: number; maxPoints: number; status: "DRAFT" | "RETURNED" } | null;
+}
