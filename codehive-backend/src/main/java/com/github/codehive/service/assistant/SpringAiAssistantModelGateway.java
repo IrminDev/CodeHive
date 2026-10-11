@@ -14,6 +14,7 @@ import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.metadata.Usage;
 import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.ai.google.genai.GoogleGenAiChatOptions;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -73,7 +74,7 @@ public class SpringAiAssistantModelGateway implements AssistantModelGateway {
             future = executor.submit(() -> {
                 if (Thread.currentThread().isInterrupted() || timedOut.get()) throw new AssistantStateException("MODEL_INTERRUPTED");
                 if (!providerBudget.tryConsume(1)) throw new AssistantStateException("MODEL_RATE_LIMITED");
-                if (context != null) {
+                if (context != null && context.interactionId() != null) {
                     try { callId.set(recorder.start(context, providerId, modelId)); }
                     catch (AssistantStateException exception) { throw exception; }
                     catch (RuntimeException exception) { throw new AssistantStateException("MODEL_RECORDING_FAILED"); }
@@ -83,8 +84,17 @@ public class SpringAiAssistantModelGateway implements AssistantModelGateway {
                 AssistantModelResult result = null;
                 String failure = null;
                 try {
-                    ChatResponse response = model.call(new Prompt(List.of(
-                            new SystemMessage(systemInstruction), new UserMessage(userPayload))));
+                    var messages = List.<org.springframework.ai.chat.messages.Message>of(
+                            new SystemMessage(systemInstruction), new UserMessage(userPayload));
+                    Prompt prompt = context == null ? new Prompt(messages) : new Prompt(messages,
+                            GoogleGenAiChatOptions.builder()
+                                    .responseMimeType("application/json")
+                                    .responseSchema(AssistantResponseSchemas.forStage(context.stage()))
+                                    .candidateCount(1)
+                                    .googleSearchRetrieval(false)
+                                    .internalToolExecutionEnabled(false)
+                                    .build());
+                    ChatResponse response = model.call(prompt);
                     Usage usage = response == null || response.getMetadata() == null ? null : response.getMetadata().getUsage();
                     String text = response == null || response.getResult() == null || response.getResult().getOutput() == null
                             ? null : response.getResult().getOutput().getText();

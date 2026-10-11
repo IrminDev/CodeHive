@@ -419,38 +419,7 @@ export function TeacherGradesPage() {
               <Send size={14} /> Publish all drafts ({detail.draftGrades})
             </button>
           </header>
-          <div className="mb-5 grid grid-cols-2 lg:grid-cols-5 gap-3">
-            <Metric
-              label="Students"
-              value={detail.activeStudents}
-              icon={<Users size={14} />}
-              tone="neutral"
-            />
-            <Metric
-              label="Delivered"
-              value={detail.submittedCount}
-              icon={<FileCheck2 size={14} />}
-              tone="info"
-            />
-            <Metric
-              label="Missing"
-              value={detail.missingCount}
-              icon={<Inbox size={14} />}
-              tone={detail.missingCount ? "error" : "success"}
-            />
-            <Metric
-              label="Drafts"
-              value={detail.draftGrades}
-              icon={<Clock3 size={14} />}
-              tone={detail.draftGrades ? "warning" : "neutral"}
-            />
-            <Metric
-              label="Published"
-              value={detail.returnedGrades}
-              icon={<GraduationCap size={14} />}
-              tone="success"
-            />
-          </div>
+
           <div className="grid gap-5 lg:grid-cols-[290px_minmax(0,1fr)]">
             <StudentRail
               students={shownStudents}

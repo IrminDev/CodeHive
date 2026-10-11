@@ -47,6 +47,7 @@ public class GlobalExceptionHandler {
             case "QUOTA_EXHAUSTED" -> HttpStatus.TOO_MANY_REQUESTS;
             case "OUTPUT_REJECTED", "INPUT_REVIEW_INVALID", "REVIEW_INVALID", "REVIEW_BUDGET_EXCEEDED" -> HttpStatus.BAD_GATEWAY;
             case "MODEL_TIMEOUT", "MODEL_INTERRUPTED" -> HttpStatus.GATEWAY_TIMEOUT;
+            case "MODEL_CALL_BUDGET_EXCEEDED" -> HttpStatus.SERVICE_UNAVAILABLE;
             default -> HttpStatus.SERVICE_UNAVAILABLE;
         };
         return ResponseEntity.status(status).body(new ErrorResponse("Assistant request unavailable", ex.getCode()));

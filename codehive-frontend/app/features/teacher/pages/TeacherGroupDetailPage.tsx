@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import type { FormEvent } from "react";
-import { ArrowLeft, CircleAlert } from "lucide-react";
+import { ArrowLeft, BookOpen, CircleAlert, Users } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router";
 import { sileo } from "sileo";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/shared/components/ui/Tabs";
 
 import { getTeacherAssignments } from "../api/assignment.api";
 import {
@@ -230,7 +231,6 @@ export function TeacherGroupDetailPage() {
         <ArrowLeft size={14} /> All groups
       </Link>
 
-      <Link className="inline-block mb-4 text-sm underline" to={`/teacher/analytics?groupId=${group.id}#ai-usage`}>AI usage for this group</Link>
       <div className="space-y-5">
         <GroupHero
           group={group}
@@ -305,36 +305,40 @@ export function TeacherGroupDetailPage() {
           </div>
         )}
 
-        <GroupMetrics
-          metrics={metrics}
-          studentCount={
-            secondaryErrors.includes("roster") ? null : students.length
-          }
-          assignmentCount={
-            secondaryErrors.includes("assignments") ? null : assignments.length
-          }
-        />
-
-        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)] gap-5 items-start">
-          <RosterPanel
-            group={group}
-            students={students}
-            busy={busy}
-            onRemove={(enrollment) =>
-              requestConfirmation({
-                title: `Remove ${enrollment.student.fullName}?`,
-                description:
-                  "Student loses class access. Enrollment history remains stored and returns if student rejoins.",
-                confirmLabel: "Remove student",
-                successMessage: "Student removed.",
-                action: () =>
-                  removeGroupStudent(group.id, enrollment.student.id),
-                danger: true,
-              })
-            }
-          />
-          <AssignmentsPanel group={group} assignments={assignments} />
-        </div>
+        <Tabs key={group.id} defaultValue="assignments">
+          <TabsList aria-label="Group content" className="flex h-auto justify-start gap-1 rounded-xl border border-gray-200 bg-gray-50 p-1 dark:border-gray-700/60 dark:bg-dark-surface">
+            <TabsTrigger value="assignments" className="flex-1 gap-2 rounded-lg px-4 py-2.5 text-xs text-gray-500 data-[state=active]:bg-azure/10 data-[state=active]:text-azure data-[state=active]:shadow-none dark:text-gray-400 dark:data-[state=active]:bg-yellow/10 dark:data-[state=active]:text-yellow sm:flex-none">
+              <BookOpen size={14} aria-hidden="true" /> Assignments
+              <span className="rounded-md bg-gray-100 px-1.5 py-0.5 font-mono text-[10px] dark:bg-dark-card">{secondaryErrors.includes("assignments") ? "—" : assignments.length}</span>
+            </TabsTrigger>
+            <TabsTrigger value="students" className="flex-1 gap-2 rounded-lg px-4 py-2.5 text-xs text-gray-500 data-[state=active]:bg-azure/10 data-[state=active]:text-azure data-[state=active]:shadow-none dark:text-gray-400 dark:data-[state=active]:bg-yellow/10 dark:data-[state=active]:text-yellow sm:flex-none">
+              <Users size={14} aria-hidden="true" /> Students
+              <span className="rounded-md bg-gray-100 px-1.5 py-0.5 font-mono text-[10px] dark:bg-dark-card">{secondaryErrors.includes("roster") ? "—" : students.length}</span>
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="assignments" className="mt-4">
+            <AssignmentsPanel group={group} assignments={assignments} />
+          </TabsContent>
+          <TabsContent value="students" className="mt-4">
+            <RosterPanel
+              group={group}
+              students={students}
+              busy={busy}
+              onRemove={(enrollment) =>
+                requestConfirmation({
+                  title: `Remove ${enrollment.student.fullName}?`,
+                  description:
+                    "Student loses class access. Enrollment history remains stored and returns if student rejoins.",
+                  confirmLabel: "Remove student",
+                  successMessage: "Student removed.",
+                  action: () =>
+                    removeGroupStudent(group.id, enrollment.student.id),
+                  danger: true,
+                })
+              }
+            />
+          </TabsContent>
+        </Tabs>
       </div>
 
       <EditGroupDialog

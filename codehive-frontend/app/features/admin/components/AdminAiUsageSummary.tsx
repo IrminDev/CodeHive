@@ -1,9 +1,15 @@
 import type { ReactNode } from "react";
 import { Activity, BarChart3, CheckCircle2, ChevronDown, CircleAlert, Clock3, Cpu, MessageSquare, Sparkles, Users } from "lucide-react";
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import type { Summary, Technical } from "~/features/assistant-usage/types";
+import type { Filters, Summary, Technical } from "~/features/assistant-usage/types";
 import { measured } from "~/features/assistant-usage/UsageSummary";
 import { panelClass, StatusPill } from "./AdminUI";
+
+function reportingWindow(filters: Filters) {
+  if (!filters.from && !filters.to) return "All recorded history";
+  const format = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" });
+  return `${filters.from ? format.format(new Date(filters.from)) : "Beginning of history"} – ${filters.to ? format.format(new Date(filters.to)) : "Now"} · UTC, end exclusive`;
+}
 
 export function AdminAiUsageMetrics({ value }: { value: Summary }) {
   const e = value.educational;
@@ -34,16 +40,17 @@ export function AdminAiUsageOverview({ value }: { value: Summary }) {
       </div> : <div className="p-10 text-center"><BarChart3 size={26} className="mx-auto text-gray-300 dark:text-gray-600" /><p className="mt-3 text-sm font-medium">{value.filters.from ? "No activity in this date range" : "Daily trend needs a date range"}</p><p className="mt-1 text-xs text-gray-500">{value.filters.from ? "Try a broader reporting window." : "Choose 7, 30, or 90 days to see activity over time."}</p></div>}
     </section>
 
-    <div className="grid items-start gap-5 xl:grid-cols-2">
       <section className={`${panelClass} overflow-hidden`}>
         <PanelHeading icon={<CheckCircle2 size={16} />} title="Question outcomes" description="Current outcomes of questions started in this reporting window." />
-        <div className="space-y-3 p-5">{[["Educational answers", e.completed, "bg-green-500"], ["Educational redirections", e.redirected, "bg-azure dark:bg-yellow"], ["Blocked", e.blocked, "bg-orange-500"], ["Failed", e.failed, "bg-red-500"], ["Cancelled", e.cancelled, "bg-gray-400"], ["Pending", e.pending, "bg-purple-500"]].map(([label, count, color]) => <div key={label} className="flex items-center gap-2 text-xs"><span className={`h-2 w-2 rounded-full ${color}`} /><span className="flex-1 text-gray-600 dark:text-gray-300">{label}</span><strong className="font-mono">{Number(count).toLocaleString()}</strong></div>)}<p className="border-t border-gray-100 pt-3 text-[10px] leading-relaxed text-gray-500 dark:border-gray-800">Educational redirections consume one answer. Questions without a delivered answer do not consume quota, even when provider work occurred.</p></div>
+        <div className="p-5"><div className="grid gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">{[["Educational answers", e.completed, "bg-green-500"], ["Educational redirections", e.redirected, "bg-azure dark:bg-yellow"], ["Blocked", e.blocked, "bg-orange-500"], ["Failed", e.failed, "bg-red-500"], ["Cancelled", e.cancelled, "bg-gray-400"], ["Pending", e.pending, "bg-purple-500"]].map(([label, count, color]) => <div key={label} className="flex items-center gap-2 text-xs"><span className={`h-2 w-2 rounded-full ${color}`} /><span className="flex-1 text-gray-600 dark:text-gray-300">{label}</span><strong className="font-mono">{Number(count).toLocaleString()}</strong></div>)}</div><p className="mt-4 border-t border-gray-100 pt-3 text-[10px] leading-relaxed text-gray-500 dark:border-gray-800">Educational redirections consume one answer. Questions without a delivered answer do not consume quota, even when provider work occurred.</p></div>
       </section>
-      <section className={`${panelClass} overflow-hidden`}>
-        <PanelHeading icon={<Cpu size={16} />} title="Provider consumption" description="Measured technical work, separate from student answer quota." />
-        <div className="p-5"><AdminTechnicalUsage value={value.technical} startedAt={value.instrumentationStartedAt} /></div>
+      <section className={`${panelClass} overflow-hidden`} aria-label="Provider consumption">
+        <PanelHeading icon={<Cpu size={16} />} title="Provider consumption" description="Calls and known tokens in the selected reporting window, counted by call start time. Separate from student answer quota." />
+        <div className="space-y-4 p-5">
+          <p className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs leading-relaxed text-gray-600 dark:border-gray-700 dark:bg-dark-card dark:text-gray-300"><span className="font-semibold">Reporting window:</span> {reportingWindow(value.filters)}</p>
+          <AdminTechnicalUsage value={value.technical} startedAt={value.instrumentationStartedAt} />
+        </div>
       </section>
-    </div>
 
     <details className={`${panelClass} group overflow-hidden`}>
       <summary className="flex cursor-pointer items-center justify-between gap-3 px-5 py-4"><span className="flex items-center gap-2 text-sm font-semibold"><Activity size={16} className="text-azure dark:text-yellow" /> Educational details</span><ChevronDown size={16} className="text-gray-400 transition-transform group-open:rotate-180" /></summary>
@@ -61,10 +68,12 @@ export function AdminAiUsageOverview({ value }: { value: Summary }) {
 export function AdminTechnicalUsage({ value, startedAt }: { value: Technical; startedAt: string | null }) {
   const coverage = value.coveragePercent;
   return <div className="space-y-4">
-    <dl className="grid grid-cols-2 gap-3"><Fact label="Provider calls" value={value.calls.toLocaleString()} /><Fact label="Known total tokens" value={measured(value.knownTotalTokens)} /><Fact label="Known input tokens" value={measured(value.knownInputTokens)} /><Fact label="Known output tokens" value={measured(value.knownOutputTokens)} /></dl>
+    <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4"><Fact label="Provider calls" value={value.calls.toLocaleString()} /><Fact label="Known total tokens" value={measured(value.knownTotalTokens)} /><Fact label="Known input tokens" value={measured(value.knownInputTokens)} /><Fact label="Known output tokens" value={measured(value.knownOutputTokens)} /></dl>
+    <div className="grid items-start gap-4 lg:grid-cols-3">
     <div className="rounded-xl border border-gray-200 p-3 dark:border-gray-700"><div className="flex flex-wrap items-center justify-between gap-2"><span className="text-xs font-medium">Measurement coverage</span><StatusPill label={coverage == null ? "Not measured" : `${coverage}%`} tone={coverage === 100 ? "success" : "warning"} /></div><div className="mt-3 h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-dark-card"><div className="h-full rounded-full bg-azure dark:bg-yellow" style={{ width: `${Math.max(0, Math.min(100, coverage ?? 0))}%` }} /></div><p className="mt-2 text-[10px] text-gray-500">{value.measuredCalls.toLocaleString()} measured / {value.calls.toLocaleString()} calls · {value.unknownCalls.toLocaleString()} with unknown tokens</p>{value.unknownCalls > 0 && <p className="mt-1 text-[10px] text-orange-600 dark:text-orange-400">Actual consumption may be higher.</p>}</div>
-    <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3"><Fact label="Succeeded" value={value.succeeded.toLocaleString()} /><Fact label="Failed calls" value={value.failed.toLocaleString()} /><Fact label="Uncertain results" value={value.uncertain.toLocaleString()} /><Fact label="Caller timeouts" value={value.callerTimeouts.toLocaleString()} /><Fact label="Provider latency" value={value.averageLatencyMs == null ? "Not measured" : `${value.averageLatencyMs.toLocaleString()} ms`} /><Fact label="Latency samples" value={value.latencySamples.toLocaleString()} /></dl>
-    <p className="text-[10px] text-gray-500">First recorded call: {startedAt ? new Date(startedAt).toLocaleString() : "No recorded calls yet"}</p>
+    <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:col-span-2"><Fact label="Succeeded" value={value.succeeded.toLocaleString()} /><Fact label="Failed calls" value={value.failed.toLocaleString()} /><Fact label="Uncertain results" value={value.uncertain.toLocaleString()} /><Fact label="Caller timeouts" value={value.callerTimeouts.toLocaleString()} /><Fact label="Provider latency" value={value.averageLatencyMs == null ? "Not measured" : `${value.averageLatencyMs.toLocaleString()} ms`} /><Fact label="Latency samples" value={value.latencySamples.toLocaleString()} /></dl>
+    </div>
+    <p className="text-[11px] leading-relaxed text-gray-500 dark:text-gray-400">Platform recording began: {startedAt ? new Date(startedAt).toLocaleString() : "No recorded calls yet"}. This historical reference is unaffected by date, provider, or model filters.</p>
     <p className="text-[10px] leading-relaxed text-gray-500">Tokens include reviews and failed questions. They are not money or answer quota. Provider totals may differ from input plus output.</p>
   </div>;
 }

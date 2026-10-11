@@ -425,12 +425,17 @@
   "423": "OwnerStudentUsageControllerTest.java",
   "424": "AssistantTextPurgeService",
   "425": ".create",
-  "426": "EmailTemplateConfigTest.java",
-  "427": "AssistantModelGateway",
-  "428": "OwnerStudentMetricsServiceTest",
+  "426": ".error",
+  "427": ".handleRateLimitExceeded",
+  "428": "Test",
   "429": "monaco-editor",
-  "430": ".handleRateLimitExceeded",
+  "430": "TestAsyncConfig.java",
   "431": "GlobalExceptionHandlerTest.java",
-  "435": ".setUp",
-  "439": "framer-motion"
+  "432": "AuthControllerRateLimitTest.java",
+  "433": ".findByIdForUpdate",
+  "434": "2. Inventario real: qué aprovechar y qué falta",
+  "435": ".build",
+  "436": "isbot",
+  "437": "react",
+  "438": "AssignmentMapper"
 }

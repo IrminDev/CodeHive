@@ -35,6 +35,11 @@ withdrawn submission history is not treated as a delivery.
 functionally aligned. Group navigation points to `/groups`; `/groups/join` is used
 only for explicit join actions.
 
+Student profile lives in the header as an accessible avatar button, matching the teacher
+layout. It opens the shared Profile settings modal; Security updates the password through
+the existing authenticated password API. Closing the student modal clears its form state.
+The sidebar contains navigation only.
+
 Students can leave a group from its detail page after confirmation. The page posts to
 `POST /api/groups/{id}/leave`, returns to My groups on success, and explains that a
 future join with the code restores historical enrollment.

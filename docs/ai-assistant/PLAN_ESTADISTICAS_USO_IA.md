@@ -26,7 +26,7 @@ Una respuesta que consume una unidad de cuota puede necesitar varias llamadas al
 | `AssistantInteractionRepository` | Conteo de cuota, idempotencia y purga que conserva filas | Añadir consultas agregadas mediante proyecciones |
 | `AssignmentAiPolicy` | Política vigente, cuota por alumno y nivel | Leer para indicadores actuales; nunca reconstruir política histórica con su valor actual |
 | `AssistantService`, `AssistantTransactionService` | Reserva, autorización, finalización y cancelación | Propagar identidad de interacción a llamadas; conservar separación entre transacciones cortas y proveedor |
-| `AssistantGuardrailService` | Identifica revisión de entrada, generación, revisión de salida y revalidación | Etiquetar cada llamada y registrar intentos incluso si la interacción falla |
+| `AssistantGuardrailService` | Identifica revisión de entrada, generación y revisión de salida; conserva etiquetas históricas de revalidación | Etiquetar cada llamada y registrar intentos incluso si la interacción falla |
 | `AssistantModelGateway`, `SpringAiAssistantModelGateway` | Frontera única al proveedor; respuesta Spring AI incluye `Usage` | Capturar metadatos y persistir registro por llamada; hoy gateway devuelve solo `String` |
 | `GroupMetricsService`, controladores de métricas | Autorización por propiedad, DTOs, convenciones y proyecciones sobre repositorios | No reutilizar sus filtros académicos como filtros de consumo histórico |
 | Administración de usuarios | Consulta paginada por usuario, `ADMIN` y scopes | Definir autorización de estadísticas globales y por usuario |
@@ -35,7 +35,7 @@ Hallazgos importantes:
 
 1. `AssistantInteraction` ya declara `providerId`, `modelId`, `inputTokens` y `outputTokens`, pero el flujo inspeccionado no los asigna. Los tokens se escriben en logs del gateway. No hay medición persistida completa.
 2. `generationAttempts` se guarda al entregar una respuesta. Un fallo después de dos generaciones puede conservar cero: no sirve hoy como contador fiable de regeneraciones fallidas.
-3. Una revisión de entrada bloqueada ya implica una llamada al proveedor. También puede haber revalidaciones por cambio de política.
+3. Una revisión de entrada bloqueada ya implica una llamada al proveedor. Desde la optimización del 10 de octubre de 2026, los cambios de política cancelan sin revalidar; cada interacción admite como máximo cinco llamadas, con reintentos de Spring, SDK y transporte deshabilitados. Las revalidaciones históricas permanecen consultables.
 4. La purga de grupo conserva interacciones y sus asociaciones; permite estadísticas sin conservar texto.
 5. Métricas académicas existentes excluyen ciertas tareas y alumnos según su estado actual. Copiar esos filtros haría desaparecer consumo real al salir un alumno o eliminar una tarea.
 6. En el árbol revisado, servicios y repositorio usan `AssistantInteractionStatus.CANCELLED`, pero el enum actual no lo declara. Resolver esta inconsistencia antes de instrumentar o verificar el backend; no se modificó en esta planificación.
@@ -317,7 +317,7 @@ No modificar ejecución sandbox, calificaciones ni reglas de cuota para habilita
 - Autorización: propietario/no propietario, estudiante propio/ajeno, administrador con/sin scope; IDs cruzados y filtros no amplían alcance.
 - Conteos: una interacción con varias llamadas sigue siendo una solicitud; replay del mismo `clientRequestId` y polling no duplican uso.
 - Cuota: completada/redirección cobran; bloqueada/fallida/cancelada no; rango temporal no cambia remanente de por vida.
-- Instrumentación: revisión, primera/segunda generación, salida rechazada, revalidación de política, bloqueo de entrada, vacío, 429, fallo local antes de llamada y timeout.
+- Instrumentación: revisión, primera/segunda generación, salida rechazada, registros históricos de revalidación de política, bloqueo de entrada, vacío, 429, fallo local antes de llamada y timeout.
 - Carrera timeout/respuesta tardía: ledger técnico puede completarse; interacción cancelada no se entrega ni se cobra.
 - Persistencia: fallo al iniciar impide llamada; fallo al finalizar conserva registro incierto; reintento de escritura no duplica tokens.
 - Tokens ausentes, cero reportado, total distinto de suma, modelo ausente y valores mayores que entero de 32 bits.

@@ -49,11 +49,13 @@ export function ProfileSettingsModal({ isOpen, onClose }: ProfileSettingsModalPr
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+    <div role="dialog" aria-modal="true" aria-labelledby="profile-settings-title" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
       <div className="bg-white dark:bg-dark-card border border-gray-200 dark:border-gray-700/50 rounded-xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col">
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700/50">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white">Settings</h2>
+          <h2 id="profile-settings-title" className="text-lg font-bold text-gray-900 dark:text-white">Settings</h2>
           <button
+            type="button"
+            aria-label="Close profile settings"
             onClick={onClose}
             className="p-1 text-gray-400 hover:text-gray-900 dark:hover:text-white rounded-md hover:bg-gray-100 dark:hover:bg-dark-surface transition-colors"
           >
@@ -116,10 +118,12 @@ export function ProfileSettingsModal({ isOpen, onClose }: ProfileSettingsModalPr
           {activeTab === "security" && (
             <form onSubmit={handleUpdatePassword} className="flex flex-col gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label htmlFor="profile-current-password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Current Password
                 </label>
                 <input
+                  id="profile-current-password"
+                  autoComplete="current-password"
                   type="password"
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
@@ -129,10 +133,12 @@ export function ProfileSettingsModal({ isOpen, onClose }: ProfileSettingsModalPr
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label htmlFor="profile-new-password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   New Password
                 </label>
                 <input
+                  id="profile-new-password"
+                  autoComplete="new-password"
                   type="password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}

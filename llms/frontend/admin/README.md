@@ -89,6 +89,10 @@ and other audiences keep their existing presentation.
 - Five metric cards summarize questions, answers used, unanswered questions, pending questions,
   and active students. Overview separates daily trend, question outcomes, provider consumption,
   and expandable educational details; chart has a daily-table alternative.
+- Provider consumption occupies a full layout row and displays the effective UTC window from
+  the summary response. Calls and tokens use call start time; platform recording start is a
+  global historical reference unaffected by dates or provider/model filters. Assignment quotas
+  remain lifetime totals.
 - User activity supports user -> group -> assignment drill-down, URL search/sort/pagination,
   optional technical columns, and lifetime assignment quotas. VIEW_USERS gates identities.
 - Providers & models expands per-stage calls, tokens, latency, and measurement coverage.

@@ -147,7 +147,7 @@ class AssistantTransactionServiceIntegrationTest {
     }
 
     @Test
-    void changedPolicyRequiresNewValidationBeforeDelivery() {
+    void changedPolicyIsReportedBeforeDeliveryWithoutCharging() {
         var reserved = transactions.reserve(request(REQUEST_ONE, "Explain conditionals"));
         AssignmentAiPolicy policy = policies.findById(assignment.getId()).orElseThrow();
         policy.setMaxAiRequests(2);

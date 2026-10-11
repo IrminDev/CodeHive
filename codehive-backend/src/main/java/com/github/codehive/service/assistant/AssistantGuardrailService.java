@@ -75,31 +75,8 @@ public class AssistantGuardrailService {
         throw new AssistantStateException("OUTPUT_REJECTED");
     }
 
-    /** Recheck an approved candidate against a newer policy without another answer generation. */
-    public boolean revalidate(AssistantContextService.Context context, String studentMessage,
-                              AiAssistanceLevel newLevel, String validatedResponseJson) {
-        return revalidate(context, studentMessage, newLevel, validatedResponseJson, () -> {});
-    }
-
-    public boolean revalidate(AssistantContextService.Context context, String studentMessage,
-                              AiAssistanceLevel newLevel, String validatedResponseJson,
-                              Runnable beforeModelCall) {
-        return revalidate(context, studentMessage, newLevel, validatedResponseJson, beforeModelCall, null);
-    }
-
-    public boolean revalidate(AssistantContextService.Context context, String studentMessage,
-            AiAssistanceLevel newLevel, String validatedResponseJson, Runnable beforeModelCall, java.util.UUID interactionId) {
-        AssistantAnswer answer = parseAnswer(validatedResponseJson);
-        if (context == null || newLevel == null || studentMessage == null || answer == null
-                || deterministicIssue(answer, newLevel) != null) return false;
-        beforeModelCall.run();
-        return outputReviewIssue(complete(interactionId, com.github.codehive.model.enums.AssistantModelCallStage.POLICY_REVALIDATION, null, reviewSystem(),
-                reviewPayload(context, studentMessage, newLevel, answer))) == null;
-    }
-
     private String complete(java.util.UUID interactionId, com.github.codehive.model.enums.AssistantModelCallStage stage,
             Integer attempt, String system, String payload) {
-        if (interactionId == null) return model.complete(system, payload);
         return model.complete(new AssistantModelCallContext(interactionId, stage, attempt, PROMPT_VERSION), system, payload).text();
     }
 

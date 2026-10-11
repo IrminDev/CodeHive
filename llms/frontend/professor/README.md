@@ -40,6 +40,16 @@ confirmation, field, and panel patterns live in `components/TeacherUI.tsx`.
   retry, and cancellation on student/assignment/session changes. Missing records remain unavailable.
 - Teacher dashboard aggregates owned active groups, students, assignments, grading queue, validation
   problems, upcoming lifecycle dates, and recent submissions server-side.
+- Group detail separates Assignments (default) and Students into keyboard-accessible tabs.
+  Group hero's More menu links to Analytics scoped to that group, including archived groups;
+  there is no standalone AI usage link on the detail page.
+- Group hero actions use matching compact heights. Share opens a centered native modal with
+  join code and copy action; the code is not displayed inline. The active-group join notice
+  is omitted, while archived/deleted lifecycle notes remain.
+- Detail hero shows creation date only. Join-code rotation lives in Share for writable groups
+  and closes Share before the existing confirmation. My groups exposes an Archived groups
+  button beside Create group; archived view offers Active groups to return and retains search
+  only when it matches the next lifecycle view.
 
 ## Clone Flow
 

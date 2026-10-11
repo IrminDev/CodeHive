@@ -61,7 +61,9 @@ public class AssistantService {
         AssistantContextService.Context context = null;
         try {
             var policy = transactions.policySnapshot(assignmentId);
-            if (!policy.enabled()) throw new AssistantStateException("POLICY_CHANGED");
+            if (!policy.enabled() || policy.version() != reservation.policyVersion()) {
+                throw new AssistantStateException("POLICY_CHANGED");
+            }
             context = contexts.build(assignmentId, student.getId(), reservation.conversationId(),
                     request.includeEditorCode(), request.editorCode(), request.includeExecutionContext(),
                     policy.level());
@@ -71,9 +73,14 @@ public class AssistantService {
                         "REQUEST_CANCELLED");
                 throw new AssistantStateException("REQUEST_CANCELLED");
             }
-            Runnable beforeModelCall = () -> ensureBeforeModel(reservation.interactionId());
+            var callBudget = new AssistantModelCallBudget();
+            Runnable beforeModelCall = () -> {
+                ensureBeforeModel(reservation.interactionId(), reservation.policyVersion());
+                callBudget.run();
+            };
             var decision = guardrails.generate(context, request.message(), policy.level(), beforeModelCall, reservation.interactionId());
             if (decision.status() == AssistantInteractionStatus.BLOCKED) {
+                ensureBeforeModel(reservation.interactionId(), reservation.policyVersion());
                 transactions.stop(reservation.interactionId(), AssistantInteractionStatus.BLOCKED,
                         "INPUT_BLOCKED");
                 if (history.get(assignmentId, reservation.interactionId(), email).status()
@@ -85,38 +92,23 @@ public class AssistantService {
                         0, startedNanos, "INPUT_BLOCKED");
                 return response;
             }
-            for (int check = 0; check < 2; check++) {
-                var completion = transactions.deliver(reservation.interactionId(), policy.version(),
-                        decision.status(), decision.validatedResponseJson(), decision.generationAttempts());
-                if (completion == AssistantTransactionService.Completion.DELIVERED
-                        || completion == AssistantTransactionService.Completion.ALREADY_FINISHED) {
-                    var persisted = history.get(assignmentId, reservation.interactionId(), email);
-                    if (persisted.status() != AssistantInteractionStatus.COMPLETED
-                            && persisted.status() != AssistantInteractionStatus.REDIRECTED) {
-                        throw new AssistantStateException("REQUEST_CANCELLED");
-                    }
-                    var response = result(assignmentId, reservation.interactionId(), email, context, request);
-                    logOutcome(assignmentId, reservation.interactionId(), response.interaction().status(),
-                            decision.generationAttempts(), startedNanos, "NONE");
-                    return response;
-                }
-                if (completion == AssistantTransactionService.Completion.CANCELLED) {
-                    throw new AssistantStateException("REQUEST_CANCELLED");
-                }
-                policy = transactions.policySnapshot(assignmentId);
-                context = contexts.build(assignmentId, student.getId(), reservation.conversationId(),
-                        request.includeEditorCode(), request.editorCode(),
-                        request.includeExecutionContext(), policy.level());
-                if (!policy.enabled() || !guardrails.revalidate(context, request.message(),
-                        policy.level(), decision.validatedResponseJson(), beforeModelCall, reservation.interactionId())) {
-                    transactions.stop(reservation.interactionId(), AssistantInteractionStatus.CANCELLED,
-                            "POLICY_CHANGED");
-                    throw new AssistantStateException("POLICY_CHANGED");
-                }
+            var completion = transactions.deliver(reservation.interactionId(), policy.version(),
+                    decision.status(), decision.validatedResponseJson(), decision.generationAttempts());
+            if (completion == AssistantTransactionService.Completion.POLICY_CHANGED) {
+                throw new AssistantStateException("POLICY_CHANGED");
             }
-            transactions.stop(reservation.interactionId(), AssistantInteractionStatus.CANCELLED,
-                    "POLICY_CHANGED");
-            throw new AssistantStateException("POLICY_CHANGED");
+            if (completion == AssistantTransactionService.Completion.CANCELLED) {
+                throw new AssistantStateException("REQUEST_CANCELLED");
+            }
+            var persisted = history.get(assignmentId, reservation.interactionId(), email);
+            if (persisted.status() != AssistantInteractionStatus.COMPLETED
+                    && persisted.status() != AssistantInteractionStatus.REDIRECTED) {
+                throw new AssistantStateException("REQUEST_CANCELLED");
+            }
+            var response = result(assignmentId, reservation.interactionId(), email, context, request);
+            logOutcome(assignmentId, reservation.interactionId(), response.interaction().status(),
+                    decision.generationAttempts(), startedNanos, "NONE");
+            return response;
         } catch (AssistantStateException exception) {
             if (!exception.getCode().equals("REQUEST_CANCELLED")) {
                 AssistantInteractionStatus status = exception.getCode().equals("POLICY_CHANGED")
@@ -155,8 +147,8 @@ public class AssistantService {
                 context != null && context.historyTruncated());
     }
 
-    private void ensureBeforeModel(UUID interactionId) {
-        if (!transactions.eligibleForModel(interactionId)) {
+    private void ensureBeforeModel(UUID interactionId, long policyVersion) {
+        if (!transactions.eligibleForModel(interactionId, policyVersion)) {
             transactions.stop(interactionId, AssistantInteractionStatus.CANCELLED, "REQUEST_CANCELLED");
             throw new AssistantStateException("REQUEST_CANCELLED");
         }

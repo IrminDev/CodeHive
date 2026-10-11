@@ -12,6 +12,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -171,9 +174,6 @@ class AssistantControllerIntegrationTest {
             return new AssistantGuardrailService.Decision(AssistantInteractionStatus.COMPLETED,
                     "{\"explanation\":\"hint\",\"snippets\":[],\"followUpQuestion\":\"Why?\"}", 1, "v1");
         });
-        when(guardrails.revalidate(any(), any(), eq(AiAssistanceLevel.CONCEPTUAL_ONLY), any(),
-                any(Runnable.class), any(java.util.UUID.class)))
-                .thenReturn(false);
         mvc.perform(post(path() + "/interactions").header("Authorization", "Bearer " + studentToken)
                 .contentType(MediaType.APPLICATION_JSON).content(request("Explain this loop")))
                 .andExpect(status().isConflict()).andExpect(jsonPath("$.error").value("POLICY_CHANGED"));
@@ -220,6 +220,106 @@ class AssistantControllerIntegrationTest {
             assertThat(item.getStatus()).isEqualTo(AssistantInteractionStatus.FAILED);
             assertThat(item.isQuotaCharged()).isFalse();
             assertThat(item.getAssistantResponse()).isNull();
+        });
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {1, 2, 3})
+    void policyChangeDuringAnyModelStageStopsFurtherCalls(int changeAfterCall) throws Exception {
+        AtomicInteger calls = new AtomicInteger();
+        com.github.codehive.service.assistant.AssistantModelGateway model = (system, payload) -> {
+            int call = calls.incrementAndGet();
+            if (call == changeAfterCall) {
+                policyService.update(assignment.getId(), new UpdateAiPolicyRequest(true, 1,
+                        AiAssistanceLevel.CONCEPTUAL_ONLY), teacher.getEmail());
+            }
+            return switch (call) {
+                case 1 -> "{\"decision\":\"ALLOW\"}";
+                case 2 -> "{\"explanation\":\"A loop repeats an operation.\",\"snippets\":[],\"followUpQuestion\":\"Why?\"}";
+                default -> "{\"approved\":true}";
+            };
+        };
+        useModel(model);
+        mvc.perform(post(path() + "/interactions").header("Authorization", "Bearer " + studentToken)
+                .contentType(MediaType.APPLICATION_JSON).content(request("Explain this loop")))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.error").value("POLICY_CHANGED"));
+        assertThat(calls).hasValue(changeAfterCall);
+        assertThat(interactions.findAll()).singleElement().satisfies(item -> {
+            assertThat(item.getStatus()).isEqualTo(AssistantInteractionStatus.CANCELLED);
+            assertThat(item.getAssistantResponse()).isNull();
+            assertThat(item.isQuotaCharged()).isFalse();
+        });
+    }
+
+    @Test
+    void quotaOnlyChangeAlsoCancelsWithoutGeneratingMoreWork() throws Exception {
+        when(guardrails.generate(any(), any(), any(), any(Runnable.class), any(UUID.class)))
+                .thenAnswer(invocation -> {
+                    Runnable beforeCall = invocation.getArgument(3);
+                    beforeCall.run();
+                    policyService.update(assignment.getId(), new UpdateAiPolicyRequest(true, 2,
+                            AiAssistanceLevel.EXPLANATIONS_AND_GUIDING), teacher.getEmail());
+                    beforeCall.run();
+                    throw new AssertionError("No call may follow the policy change");
+                });
+        mvc.perform(post(path() + "/interactions").header("Authorization", "Bearer " + studentToken)
+                .contentType(MediaType.APPLICATION_JSON).content(request("Explain this loop")))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.error").value("POLICY_CHANGED"));
+        assertThat(interactions.findAll()).singleElement().satisfies(item -> {
+            assertThat(item.getStatus()).isEqualTo(AssistantInteractionStatus.CANCELLED);
+            assertThat(item.isQuotaCharged()).isFalse();
+        });
+    }
+
+    @Test
+    void sixthCallFailsUnchargedAndReplayDoesNotRestartBudget() throws Exception {
+        AtomicInteger transmissions = new AtomicInteger();
+        when(guardrails.generate(any(), any(), any(), any(Runnable.class), any(UUID.class)))
+                .thenAnswer(invocation -> {
+                    Runnable beforeCall = invocation.getArgument(3);
+                    for (int i = 0; i < 6; i++) {
+                        beforeCall.run();
+                        transmissions.incrementAndGet();
+                    }
+                    throw new AssertionError("Sixth transmission must be prevented");
+                });
+        mvc.perform(post(path() + "/interactions").header("Authorization", "Bearer " + studentToken)
+                .contentType(MediaType.APPLICATION_JSON).content(request("Explain this loop")))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.error").value("MODEL_CALL_BUDGET_EXCEEDED"));
+        mvc.perform(post(path() + "/interactions").header("Authorization", "Bearer " + studentToken)
+                .contentType(MediaType.APPLICATION_JSON).content(request("Explain this loop")))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.interaction.status").value("FAILED"));
+        assertThat(transmissions).hasValue(5);
+        assertThat(interactions.findAll()).singleElement().satisfies(item -> {
+            assertThat(item.getStatus()).isEqualTo(AssistantInteractionStatus.FAILED);
+            assertThat(item.getAssistantResponse()).isNull();
+            assertThat(item.isQuotaCharged()).isFalse();
+        });
+        org.mockito.Mockito.verify(guardrails, org.mockito.Mockito.times(1))
+                .generate(any(), any(), any(), any(Runnable.class), any(UUID.class));
+    }
+
+    private void useModel(com.github.codehive.service.assistant.AssistantModelGateway model) {
+        var realGuardrails = new AssistantGuardrailService(model, new com.fasterxml.jackson.databind.ObjectMapper());
+        when(guardrails.generate(any(), any(), any(), any(Runnable.class), any(UUID.class)))
+                .thenAnswer(invocation -> realGuardrails.generate(invocation.getArgument(0), invocation.getArgument(1),
+                        invocation.getArgument(2), invocation.getArgument(3), invocation.getArgument(4)));
+    }
+
+    @Test
+    void policyChangeDuringBlockedInputReviewAlsoCancelsWithoutCharge() throws Exception {
+        useModel((system, payload) -> {
+            policyService.update(assignment.getId(), new UpdateAiPolicyRequest(true, 2,
+                    AiAssistanceLevel.EXPLANATIONS_AND_GUIDING), teacher.getEmail());
+            return "{\"decision\":\"BLOCK\"}";
+        });
+        mvc.perform(post(path() + "/interactions").header("Authorization", "Bearer " + studentToken)
+                .contentType(MediaType.APPLICATION_JSON).content(request("Explain this loop")))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.error").value("POLICY_CHANGED"));
+        assertThat(interactions.findAll()).singleElement().satisfies(item -> {
+            assertThat(item.getStatus()).isEqualTo(AssistantInteractionStatus.CANCELLED);
+            assertThat(item.isQuotaCharged()).isFalse();
         });
     }
 

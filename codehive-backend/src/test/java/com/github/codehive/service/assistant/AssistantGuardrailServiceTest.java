@@ -116,6 +116,7 @@ class AssistantGuardrailServiceTest {
                 .generate(context(), "I am stuck", AiAssistanceLevel.EXPLANATIONS_GUIDING_AND_SNIPPETS);
         assertThat(decision.generationAttempts()).isEqualTo(2);
         assertThat(decision.validatedResponseJson()).doesNotContain("System.out.println");
+        assertThat(model.calls).hasSize(5);
     }
 
     @Test
@@ -128,15 +129,6 @@ class AssistantGuardrailServiceTest {
                 .generate(context(), "Help", AiAssistanceLevel.EXPLANATIONS_GUIDING_AND_SNIPPETS))
                 .isInstanceOf(AssistantStateException.class).hasMessage("OUTPUT_REJECTED");
         assertThat(model.calls).hasSize(3);
-    }
-
-    @Test
-    void policyDowngradeRejectsPreviouslyAllowedSnippetWithoutAnotherGeneration() {
-        FakeModel model = new FakeModel();
-        String approved = answer("Consider this fragment", "[{\"language\":\"JAVA\",\"code\":\"i++;\"}]");
-        assertThat(new AssistantGuardrailService(model, new ObjectMapper())
-                .revalidate(context(), "Help", AiAssistanceLevel.CONCEPTUAL_ONLY, approved)).isFalse();
-        assertThat(model.calls).isEmpty();
     }
 
     private AssistantContextService.Context context() {

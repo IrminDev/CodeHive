@@ -95,11 +95,15 @@ public class AssistantTransactionService {
     }
 
     @Transactional
-    public boolean eligibleForModel(UUID interactionId) {
-        return activeInteraction(interactionId) != null;
+    public boolean eligibleForModel(UUID interactionId, long expectedPolicyVersion) {
+        return activeInteraction(interactionId, expectedPolicyVersion) != null;
     }
 
     private AssistantInteraction activeInteraction(UUID interactionId) {
+        return activeInteraction(interactionId, null);
+    }
+
+    private AssistantInteraction activeInteraction(UUID interactionId, Long expectedPolicyVersion) {
         AssistantInteraction interaction = interactionRepository.findById(interactionId)
                 .orElseThrow(() -> new EntityNotFoundException("Assistant interaction not found"));
         Assignment assignment = interaction.getConversation().getAssignment();
@@ -116,6 +120,9 @@ public class AssistantTransactionService {
         AssignmentAiPolicy policy = policyRepository.findByIdForUpdate(assignment.getId()).orElse(null);
         if (policy == null) return null;
         entityManager.refresh(policy);
+        if (expectedPolicyVersion != null && policy.getVersion() != expectedPolicyVersion) {
+            throw new AssistantStateException("POLICY_CHANGED");
+        }
         return policy.isEnabled() && interactionRepository.countByConversationIdAndQuotaChargedTrue(
                 interaction.getConversation().getId()) < policy.getMaxAiRequests() ? interaction : null;
     }
@@ -253,11 +260,11 @@ public class AssistantTransactionService {
         }
         AssignmentAiPolicy policy = policyRepository.findByIdForUpdate(assignment.getId()).orElse(null);
         if (policy != null) entityManager.refresh(policy);
+        if (policy != null && policy.getVersion() != checkedPolicyVersion) return Completion.POLICY_CHANGED;
         if (policy == null || !policy.isEnabled()) {
             failPending(interaction, "POLICY_CHANGED");
             return Completion.CANCELLED;
         }
-        if (policy.getVersion() != checkedPolicyVersion) return Completion.POLICY_CHANGED;
         long used = interactionRepository.countByConversationIdAndQuotaChargedTrue(conversation.getId());
         if (used >= policy.getMaxAiRequests()) {
             failPending(interaction, "QUOTA_EXHAUSTED");

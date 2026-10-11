@@ -1,6 +1,6 @@
 # Asistente educativo de IA: reglas de negocio y restricciones
 
-Documento basado en la implementación revisada el 4 de octubre de 2026. Las reglas definen condiciones del dominio y límites obligatorios; los recorridos de pantalla están en [requerimientos funcionales](REQUERIMIENTOS_FUNCIONALES.md).
+Documento basado en la implementación revisada el 10 de octubre de 2026. Las reglas definen condiciones del dominio y límites obligatorios; los recorridos de pantalla están en [requerimientos funcionales](REQUERIMIENTOS_FUNCIONALES.md).
 
 ## Reglas de negocio
 
@@ -18,7 +18,7 @@ Documento basado en la implementación revisada el 4 de octubre de 2026. Las reg
 | RN-10 | Conversación única | Existe una sola conversación continua para cada pareja estudiante/asignación. Las preguntas forman parte de esa misma conversación. |
 | RN-11 | Una solicitud en curso | La conversación puede tener como máximo una solicitud pendiente. Una segunda solicitud distinta espera hasta que la anterior termine o deje de estar pendiente. |
 | RN-12 | Elegibilidad académica | Para nueva ayuda se requiere estudiante habilitado para participar, matrícula activa, grupo activo y no archivado, asignación activa, publicada y lista, y fecha de cierre todavía no alcanzada. El lenguaje elegido debe estar permitido. La fecha de entrega por sí sola no equivale al cierre. |
-| RN-13 | Cambios durante la respuesta | La elegibilidad se revisa antes de las llamadas al modelo y antes de entregar. Un cambio de política exige comprobar la respuesta con la política vigente. Si ya no cumple o se pierde el acceso, no se entrega ni se cobra. |
+| RN-13 | Cambios durante la respuesta | La elegibilidad se revisa antes de las llamadas al modelo y antes de entregar. Cualquier cambio de versión de política reservada (habilitación, cuota o nivel) cancela la solicitud al detectarse, sin revalidación ni otra entrega. Si se pierde el acceso, tampoco se entrega ni se cobra. |
 | RN-14 | Código mediante elección explícita | Solo se incorpora el código actual del editor cuando el estudiante selecciona compartirlo para esa pregunta. Las selecciones se desmarcan después del envío. |
 | RN-15 | Ejecución mediante elección explícita | Solo se incorpora ejecución si el estudiante lo solicita. Se elige la más reciente no pendiente, iniciada por ese estudiante en esa asignación; las reevaluaciones automáticas quedan excluidas. El estudiante no puede seleccionar una ejecución ajena. |
 | RN-16 | Contexto público | La IA recibe una proyección de información pública de la asignación y contexto permitido. No se incorporan pruebas privadas ni código de referencia. Los resultados definitivos no aportan diagnósticos por prueba privada. |
@@ -42,7 +42,7 @@ Documento basado en la implementación revisada el 4 de octubre de 2026. Las reg
 | RT-04 | Respuesta estructurada | Se revisan explicación, fragmentos y pregunta de seguimiento. Se aplican límites de tamaño y se rechazan estructuras incorrectas, código no permitido y contenido inseguro. |
 | RT-05 | Contexto acotado | La preparación limita datos de asignación, historial y diagnósticos. Si falta o expiró un reporte, la ayuda puede continuar con el resumen disponible. |
 | RT-06 | Protección de solicitudes | El envío del asistente admite hasta 10 solicitudes por 60 segundos por sujeto autenticado en cada proceso backend. Esta protección es independiente de la cuota de respuestas. |
-| RT-07 | Protección del proveedor | Las llamadas al proveedor tienen presupuesto por minuto, concurrencia y tiempo de espera acotados. Los valores operativos pueden configurarse. |
+| RT-07 | Protección del proveedor | Cada interacción admite como máximo cinco llamadas al modelo: una revisión de entrada y hasta dos generaciones con sus revisiones de salida. Spring AI, SDK Google y transporte HTTP usan un solo intento por llamada; no hay reintentos automáticos ante fallos. Las llamadas también tienen presupuesto por minuto, concurrencia y tiempo de espera acotados. |
 | RT-08 | Solicitudes abandonadas | Una solicitud pendiente tiene una reserva temporal de tres minutos. Las reservas vencidas se recuperan para impedir bloqueos permanentes y entregas tardías. |
 | RT-09 | Aceptación del aviso | La interfaz requiere aceptar el aviso de envío de datos a Gemini antes de preguntar. La aceptación se recuerda por usuario y versión en ese navegador; actualmente no constituye un registro de consentimiento almacenado en el servidor. |
 | RT-10 | Presentación de código | Los fragmentos se muestran como texto con resaltado, sin ejecutarse ni insertarse automáticamente en el editor. |
