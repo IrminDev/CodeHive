@@ -1,105 +1,120 @@
-import { ChevronDown, LoaderCircle, Send, ShieldCheck } from "lucide-react";
-import { useEffect, useId, useState } from "react";
+import { Check, FileCode2, LoaderCircle, Send, ShieldCheck, Terminal } from "lucide-react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import type { Language } from "../types/assignment.types";
 
 const DISCLAIMER_VERSION = "v1";
+const MAX_MESSAGE = 2000;
+const MAX_CODE = 32768;
+
+export const AI_SHARING_NOTICE = "Asking sends your question, public assignment details, and relevant earlier assistant messages to Google Gemini to generate help. Your current editor code and latest finished execution result are sent only when you turn on Code or Last run for that question. Avoid including personal or sensitive information in your question or code.";
 
 function consentKey(userId: string) {
   return `codehive:assistant-disclaimer:${DISCLAIMER_VERSION}:${userId}`;
 }
 
-export function AssistantComposer({ userId, disabled, sending, language, code, onSend }: {
-  userId: string; disabled: boolean; sending: boolean; language: Language; code: string;
-  onSend: (message: string, language: Language, code: string, includeCode: boolean, includeExecution: boolean) => Promise<void>;
-}) {
-  const [message, setMessage] = useState("");
-  const [includeCode, setIncludeCode] = useState(false);
-  const [includeExecution, setIncludeExecution] = useState(false);
+/** Acceptance is remembered per user and notice version in this browser. */
+export function useAssistantConsent(userId: string) {
   const [accepted, setAccepted] = useState(false);
-  const [showDisclaimer, setShowDisclaimer] = useState(false);
-  const id = useId();
-  const codeInvalid = includeCode && (!code.trim() || code.length > 32768);
-  const controlsDisabled = disabled || sending;
 
   useEffect(() => {
     try { setAccepted(window.localStorage.getItem(consentKey(userId)) === "accepted"); }
     catch { setAccepted(false); }
-    setShowDisclaimer(false);
   }, [userId]);
 
-  function acceptDisclaimer() {
+  function accept() {
     try { window.localStorage.setItem(consentKey(userId), "accepted"); }
     catch { /* Consent remains valid for this open session. */ }
     setAccepted(true);
-    setShowDisclaimer(false);
   }
+
+  return { accepted, accept };
+}
+
+export function AssistantComposer({ accepted, onAccept, disabled, sending, language, code, message, onMessageChange, quotaLabel, focusSignal, onSend }: {
+  accepted: boolean; onAccept: () => void; disabled: boolean; sending: boolean; language: Language; code: string;
+  message: string; onMessageChange: (value: string) => void; quotaLabel: string | null; focusSignal: number;
+  onSend: (message: string, language: Language, code: string, includeCode: boolean, includeExecution: boolean) => Promise<void>;
+}) {
+  const [includeCode, setIncludeCode] = useState(false);
+  const [includeExecution, setIncludeExecution] = useState(false);
+  const id = useId();
+  const input = useRef<HTMLTextAreaElement>(null);
+  const acceptButton = useRef<HTMLButtonElement>(null);
+  const codeInvalid = includeCode && (!code.trim() || code.length > MAX_CODE);
+  const locked = disabled || sending;
+  const canSend = !locked && message.trim().length > 0 && !codeInvalid;
+
+  useEffect(() => {
+    const element = input.current;
+    if (!element) return;
+    element.style.height = "auto";
+    element.style.height = `${Math.min(element.scrollHeight, 168)}px`;
+  }, [message, accepted]);
+
+  useEffect(() => {
+    if (focusSignal === 0) return;
+    (accepted ? input.current : acceptButton.current)?.focus({ preventScroll: true });
+  }, [focusSignal, accepted]);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
-    if (disabled || sending || !accepted || !message.trim() || codeInvalid) return;
-    const snapshot = { message, language, code, includeCode, includeExecution };
-    setMessage("");
+    if (!canSend) return;
+    const snapshot = { message, includeCode, includeExecution };
+    onMessageChange("");
     setIncludeCode(false);
     setIncludeExecution(false);
-    await onSend(snapshot.message, snapshot.language, snapshot.code, snapshot.includeCode, snapshot.includeExecution);
+    await onSend(snapshot.message, language, code, snapshot.includeCode, snapshot.includeExecution);
   }
 
-  return <form onSubmit={(event) => void submit(event)} className="max-h-[48%] shrink-0 space-y-3 overflow-y-auto border-t border-gray-200 bg-gray-50 p-4 text-gray-900 dark:border-gray-700/60 dark:bg-dark-surface dark:text-gray-100">
-    <div>
-      <div className="mb-2 flex items-center justify-between gap-3">
-        <label htmlFor={`${id}-question`} className="text-xs font-semibold">Ask for help with this assignment</label>
-        <span id={`${id}-count`} className="shrink-0 text-[11px] tabular-nums text-gray-500 dark:text-gray-400">{message.length}/2,000</span>
+  if (!accepted) return <div className="shrink-0 border-t border-gray-200 p-3 dark:border-gray-800/60">
+    <section aria-labelledby={`${id}-consent`} className="rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-700/60 dark:bg-dark-surface">
+      <h3 id={`${id}-consent`} className="flex items-center gap-2 text-xs font-semibold text-gray-900 dark:text-gray-100"><ShieldCheck size={15} aria-hidden="true" className="shrink-0 text-azure dark:text-yellow" />Before your first question</h3>
+      <p className="mt-2 text-xs leading-relaxed text-gray-600 dark:text-gray-300">{AI_SHARING_NOTICE}</p>
+      <button ref={acceptButton} type="button" onClick={onAccept} className="mt-3 inline-flex min-h-9 items-center rounded-lg bg-azure px-3 text-xs font-semibold text-white transition-colors hover:bg-french focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-azure focus-visible:ring-offset-2 dark:focus-visible:ring-yellow dark:focus-visible:ring-offset-dark-surface">I understand and accept</button>
+    </section>
+  </div>;
+
+  return <form onSubmit={(event) => void submit(event)} className="shrink-0 border-t border-gray-200 p-3 dark:border-gray-800/60">
+    <div className={`rounded-xl border bg-white transition-shadow focus-within:ring-2 focus-within:ring-azure dark:bg-dark-surface dark:focus-within:ring-yellow ${locked ? "border-gray-200 opacity-70 dark:border-gray-800" : "border-gray-300 dark:border-gray-700"}`}>
+      <label htmlFor={`${id}-question`} className="sr-only">Ask for help with this assignment</label>
+      <textarea ref={input} id={`${id}-question`} value={message} rows={1} maxLength={MAX_MESSAGE} disabled={locked}
+        onChange={(event) => onMessageChange(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) return;
+          event.preventDefault();
+          event.currentTarget.form?.requestSubmit();
+        }}
+        placeholder="Ask about a concept or the step you’re stuck on…" aria-describedby={`${id}-meta`}
+        className="block max-h-[168px] min-h-[44px] w-full resize-none bg-transparent px-3 pt-3 pb-1 text-sm leading-relaxed text-gray-900 placeholder:text-gray-400 focus:outline-none disabled:cursor-not-allowed dark:text-gray-100 dark:placeholder:text-gray-500" />
+      <div className="flex flex-wrap items-center gap-1.5 p-2">
+        <ContextToggle checked={includeCode} disabled={locked} onChange={setIncludeCode} invalid={codeInvalid}
+          icon={<FileCode2 size={13} aria-hidden="true" />} label="Code" description="Share your current editor code with this question only." />
+        <ContextToggle checked={includeExecution} disabled={locked} onChange={setIncludeExecution}
+          icon={<Terminal size={13} aria-hidden="true" />} label="Last run" description="Share your latest finished run for this assignment with this question only." />
+        <button type="submit" disabled={!canSend}
+          className="ml-auto inline-flex min-h-8 items-center justify-center gap-1.5 rounded-lg bg-azure px-3 text-xs font-semibold text-white transition-colors hover:bg-french focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-azure focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-45 dark:focus-visible:ring-yellow dark:focus-visible:ring-offset-dark-surface">
+          {sending ? <LoaderCircle size={13} aria-hidden="true" className="motion-safe:animate-spin" /> : <Send size={13} aria-hidden="true" />}
+          {sending ? "Sending" : "Ask"}
+        </button>
       </div>
-      <textarea id={`${id}-question`} value={message} onChange={(event) => setMessage(event.target.value)} maxLength={2000}
-        aria-describedby={`${id}-count`} disabled={controlsDisabled} rows={3} placeholder="What concept or step is confusing?"
-        className="block w-full resize-y rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm leading-relaxed text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-azure disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-dark-card dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:ring-yellow" />
     </div>
-    <fieldset disabled={controlsDisabled} aria-describedby={`${id}-context-note`}>
-      <legend className="mb-2 flex items-center gap-2 text-xs font-semibold">
-        Context to share <span className="font-normal text-gray-500 dark:text-gray-400">Optional</span>
-      </legend>
-      <div className="grid gap-2 sm:grid-cols-2">
-        <label className={`flex items-start gap-3 rounded-xl border p-3 transition-colors ${controlsDisabled ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:border-gray-400 dark:hover:border-gray-500"} ${includeCode ? "border-azure/40 bg-azure/5 dark:border-yellow/40 dark:bg-yellow/5" : "border-gray-200 bg-white dark:border-gray-700 dark:bg-dark-card"}`}>
-          <input type="checkbox" checked={includeCode} onChange={(event) => setIncludeCode(event.target.checked)}
-            aria-describedby={`${id}-code-description${codeInvalid ? ` ${id}-code-error` : ""}`} aria-invalid={codeInvalid || undefined}
-            className="mt-0.5 h-4 w-4 shrink-0 cursor-[inherit] rounded accent-azure focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-azure focus-visible:ring-offset-2 dark:accent-yellow dark:focus-visible:ring-yellow dark:focus-visible:ring-offset-dark-card" />
-          <span className="min-w-0">
-            <span className="block text-xs font-medium">Current editor code</span>
-            <span id={`${id}-code-description`} className="mt-0.5 block text-[11px] leading-relaxed text-gray-500 dark:text-gray-400">Share your code with AI for this question.</span>
-          </span>
-        </label>
-        <label className={`flex items-start gap-3 rounded-xl border p-3 transition-colors ${controlsDisabled ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:border-gray-400 dark:hover:border-gray-500"} ${includeExecution ? "border-azure/40 bg-azure/5 dark:border-yellow/40 dark:bg-yellow/5" : "border-gray-200 bg-white dark:border-gray-700 dark:bg-dark-card"}`}>
-          <input type="checkbox" checked={includeExecution} onChange={(event) => setIncludeExecution(event.target.checked)}
-            aria-describedby={`${id}-execution-description`}
-            className="mt-0.5 h-4 w-4 shrink-0 cursor-[inherit] rounded accent-azure focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-azure focus-visible:ring-offset-2 dark:accent-yellow dark:focus-visible:ring-yellow dark:focus-visible:ring-offset-dark-card" />
-          <span className="min-w-0">
-            <span className="block text-xs font-medium">Latest execution result</span>
-            <span id={`${id}-execution-description`} className="mt-0.5 block text-[11px] leading-relaxed text-gray-500 dark:text-gray-400">Share your latest finished run for this assignment.</span>
-          </span>
-        </label>
-      </div>
-      {codeInvalid && <p id={`${id}-code-error`} role="alert" className="mt-2 text-xs text-red-600 dark:text-red-400">Editor code must be nonempty and at most 32,768 characters.</p>}
-      <p id={`${id}-context-note`} className="mt-2 text-[11px] leading-relaxed text-gray-500 dark:text-gray-400">Sharing applies only to this question. Both choices reset after sending.</p>
-    </fieldset>
-    {!accepted && <div className="rounded-xl border border-gray-200 bg-white text-xs dark:border-gray-700 dark:bg-dark-card">
-      <button type="button" onClick={() => setShowDisclaimer((open) => !open)} aria-expanded={showDisclaimer} aria-controls={`${id}-disclaimer`}
-        className="flex w-full items-center gap-2 rounded-xl p-3 text-left font-medium text-gray-700 transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-azure dark:text-gray-200 dark:hover:bg-gray-800 dark:focus-visible:ring-yellow">
-        <ShieldCheck size={16} aria-hidden="true" className="shrink-0 text-azure dark:text-yellow" />
-        <span className="flex-1">Review AI data sharing before asking</span>
-        <ChevronDown size={14} aria-hidden="true" className={`shrink-0 transition-transform motion-reduce:transition-none ${showDisclaimer ? "rotate-180" : ""}`} />
-      </button>
-      {showDisclaimer && <div id={`${id}-disclaimer`} className="border-t border-gray-200 p-3 leading-relaxed text-gray-600 dark:border-gray-700 dark:text-gray-300">
-        <p>Asking sends your question, public assignment details, and relevant earlier assistant messages to Google Gemini to generate help. Your current editor code and latest finished execution result are sent only if you select their sharing checkboxes above. Avoid including personal or sensitive information in your question or code.</p>
-        <button type="button" onClick={acceptDisclaimer} className="mt-3 rounded-lg bg-azure px-3 py-2 font-semibold text-white transition-colors hover:bg-french focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-azure focus-visible:ring-offset-2 dark:focus-visible:ring-yellow dark:focus-visible:ring-offset-dark-card">I understand and accept</button>
-      </div>}
-    </div>}
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <p className="max-w-64 text-[11px] leading-relaxed text-gray-500 dark:text-gray-400">Answers are checked before display and never inserted into your editor.</p>
-      <button type="submit" disabled={controlsDisabled || !accepted || !message.trim() || codeInvalid}
-        className="ml-auto inline-flex min-h-9 shrink-0 items-center justify-center gap-2 rounded-lg bg-azure px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-french focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-azure focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:ring-yellow dark:focus-visible:ring-offset-dark-surface">
-        {sending ? <LoaderCircle size={14} aria-hidden="true" className="motion-safe:animate-spin" /> : <Send size={14} aria-hidden="true" />}
-        {sending ? "Thinking…" : "Ask assistant"}
-      </button>
-    </div>
+    {codeInvalid && <p role="alert" className="mt-1.5 text-xs text-red-600 dark:text-red-400">Editor code must be nonempty and at most 32,768 characters to be shared.</p>}
+    <p id={`${id}-meta`} className="mt-1.5 flex items-center justify-between gap-3 text-[11px] text-gray-500 dark:text-gray-400">
+      <span>{quotaLabel ?? "Enter to send · Shift+Enter for a new line"}</span>
+      <span className={`shrink-0 tabular-nums ${message.length >= MAX_MESSAGE ? "font-medium text-orange-600 dark:text-orange-400" : ""}`}>{message.length.toLocaleString()}/{MAX_MESSAGE.toLocaleString()}</span>
+    </p>
   </form>;
+}
+
+function ContextToggle({ checked, disabled, invalid = false, icon, label, description, onChange }: {
+  checked: boolean; disabled: boolean; invalid?: boolean; icon: ReactNode; label: string; description: string;
+  onChange: (value: boolean) => void;
+}) {
+  return <button type="button" role="switch" aria-checked={checked} aria-invalid={invalid || undefined} disabled={disabled}
+    title={description} aria-label={`${label}: ${description}`} onClick={() => onChange(!checked)}
+    className={`inline-flex min-h-8 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-azure disabled:cursor-not-allowed dark:focus-visible:ring-yellow ${checked
+      ? "border-azure/40 bg-azure/10 text-azure dark:border-yellow/40 dark:bg-yellow/10 dark:text-yellow"
+      : "border-gray-200 text-gray-600 hover:border-gray-300 hover:text-gray-900 dark:border-gray-700 dark:text-gray-300 dark:hover:border-gray-500 dark:hover:text-gray-100"}`}>
+    {checked ? <Check size={13} aria-hidden="true" /> : icon}{label}
+  </button>;
 }

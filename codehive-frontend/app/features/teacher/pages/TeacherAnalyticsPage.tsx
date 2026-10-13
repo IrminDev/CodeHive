@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useLocation, useSearchParams } from "react-router";
 
 import { listTeacherGroups } from "../api/group.api";
 import {
@@ -14,17 +14,25 @@ import {
 import {
   AnalyticsTabs,
   AssignmentExplorer,
+  PRIORITY_SORT,
   StudentExplorer,
   assignmentNeedsAttention,
+  sortAssignments,
+  sortStudents,
+  ungradedCount,
   type AnalyticsTab,
   type AssignmentAnalyticsFilter,
-  type AssignmentAnalyticsSort,
+  type AssignmentSortKey,
+  type SortState,
   type StudentAnalyticsFilter,
-  type StudentAnalyticsSort,
+  type StudentSortKey,
 } from "../components/TeacherAnalyticsExplorer";
+import { AttentionSection, StrugglePanel } from "../components/TeacherAnalyticsAttention";
 import {
-  AnalyticsGroupContext,
+  AnalyticsContextLine,
+  AnalyticsGroupControls,
   AnalyticsOverview,
+  VerdictBreakdown,
   groupLifecycle,
   type AnalyticsHealth,
 } from "../components/TeacherAnalyticsOverview";
@@ -67,10 +75,13 @@ export function TeacherAnalyticsPage() {
 
   const [assignmentQuery, setAssignmentQuery] = useState("");
   const [assignmentFilter, setAssignmentFilter] = useState<AssignmentAnalyticsFilter>("all");
-  const [assignmentSort, setAssignmentSort] = useState<AssignmentAnalyticsSort>("attention");
+  const [assignmentSort, setAssignmentSort] = useState<SortState<AssignmentSortKey>>(PRIORITY_SORT);
   const [studentQuery, setStudentQuery] = useState("");
   const [studentFilter, setStudentFilter] = useState<StudentAnalyticsFilter>("all");
-  const [studentSort, setStudentSort] = useState<StudentAnalyticsSort>("risk");
+  const [studentSort, setStudentSort] = useState<SortState<StudentSortKey>>(PRIORITY_SORT);
+  const explorer = useRef<HTMLDivElement>(null);
+  const loadedGroup = useRef("");
+  const { hash } = useLocation();
 
   const groupId = params.get("groupId") ?? "";
   const assignmentId = params.get("assignmentId") ?? "";
@@ -81,7 +92,13 @@ export function TeacherAnalyticsPage() {
     if (!params.has("section")) return;
     setParams(current => { const next = new URLSearchParams(current); next.delete("section"); return next; }, { replace: true });
   }, [params, setParams]);
-  const tab: AnalyticsTab = params.get("view") === "students" ? "students" : "assignments";
+  // Older links point at the AI section by anchor; it now lives in its own tab.
+  useEffect(() => {
+    if (hash !== "#ai-usage" || params.get("view") === "ai") return;
+    setParams(current => { const next = new URLSearchParams(current); next.set("view", "ai"); return next; }, { replace: true });
+  }, [hash, params, setParams]);
+  const view = params.get("view");
+  const tab: AnalyticsTab = view === "students" || view === "ai" ? view : "assignments";
 
   function updateParams(changes: Record<string, string | undefined>, replace = true) {
     setParams((current) => {
@@ -132,13 +149,16 @@ export function TeacherAnalyticsPage() {
     }
     let cancelled = false;
     setMetricsLoading(true);
-    setOverview(null);
-    setAssignments([]);
-    setStudents([]);
+    // A refresh of the same group keeps the previous numbers on screen until new ones arrive.
+    if (loadedGroup.current !== groupId) {
+      setOverview(null);
+      setAssignments([]);
+      setStudents([]);
+      setDetail(null);
+    }
     setOverviewError(undefined);
     setAssignmentsError(undefined);
     setStudentsError(undefined);
-    setDetail(null);
 
     void Promise.allSettled([
       getGroupMetricsOverview(groupId),
@@ -162,7 +182,9 @@ export function TeacherAnalyticsPage() {
         setStudentsError(errorMessage(studentResult.reason, "Could not load student metrics."));
       }
     }).finally(() => {
-      if (!cancelled) setMetricsLoading(false);
+      if (cancelled) return;
+      loadedGroup.current = groupId;
+      setMetricsLoading(false);
     });
     return () => { cancelled = true; };
   }, [groupId, refreshVersion]);
@@ -205,25 +227,30 @@ export function TeacherAnalyticsPage() {
     missingSubmissions: assignments.reduce((total, item) => total + item.missingCount, 0),
     processingAssignments: overview?.assignments.processing ?? assignments.filter((item) => item.validationStatus === "PROCESSING").length,
     failedAssignments: overview?.assignments.failed ?? assignments.filter((item) => item.validationStatus === "FAILED").length,
-    pendingGrades: assignments.reduce((total, item) => total + Math.max(0, item.submittedCount - item.draftGrades - item.returnedGrades), 0),
+    pendingGrades: assignments.reduce((total, item) => total + ungradedCount(item), 0),
   }), [assignments, overview]);
+
+  const totals = useMemo(() => ({
+    expected: assignments.reduce((total, item) => total + item.submittedCount + item.missingCount, 0),
+    submitted: assignments.reduce((total, item) => total + item.submittedCount, 0),
+    late: assignments.reduce((total, item) => total + item.lateCount, 0),
+  }), [assignments]);
 
   const visibleAssignments = useMemo(() => {
     const query = assignmentQuery.trim().toLowerCase();
-    return assignments
+    return sortAssignments(assignments
       .filter((item) => !query || item.title.toLowerCase().includes(query))
       .filter((item) => {
         if (assignmentFilter === "attention") return assignmentNeedsAttention(item);
         if (assignmentFilter === "overdue") return item.overdue && item.missingCount > 0;
-        if (assignmentFilter === "grading") return item.submittedCount > item.draftGrades + item.returnedGrades;
+        if (assignmentFilter === "grading") return ungradedCount(item) > 0;
         return true;
-      })
-      .sort((left, right) => compareAssignments(left, right, assignmentSort));
+      }), assignmentSort);
   }, [assignments, assignmentFilter, assignmentQuery, assignmentSort]);
 
   const visibleStudents = useMemo(() => {
     const query = studentQuery.trim().toLowerCase();
-    return students
+    return sortStudents(students
       .filter((student) => !query || student.fullName.toLowerCase().includes(query) || student.enrollmentNumber.toLowerCase().includes(query))
       .filter((student) => {
         if (studentFilter === "missing") return student.missingAssignmentIds.length > 0;
@@ -231,15 +258,39 @@ export function TeacherAnalyticsPage() {
         if (studentFilter === "ungraded") return student.gradedAssignments < student.submittedCount;
         if (studentFilter === "complete") return student.completionRate === 100;
         return true;
-      })
-      .sort((left, right) => compareStudents(left, right, studentSort));
+      }), studentSort);
   }, [studentFilter, studentQuery, studentSort, students]);
 
   function selectGroup(nextGroupId: string) {
     setAssignmentQuery("");
     setStudentQuery("");
+    setAssignmentFilter("all");
+    setStudentFilter("all");
     updateParams({ groupId: nextGroupId, assignmentId: undefined, studentId: undefined });
   }
+
+  function scrollToExplorer() {
+    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    requestAnimationFrame(() => explorer.current?.scrollIntoView({ block: "start", behavior: reduceMotion ? "auto" : "smooth" }));
+  }
+
+  function showAssignments(filter: AssignmentAnalyticsFilter) {
+    setAssignmentQuery("");
+    setAssignmentFilter(filter);
+    setAssignmentSort(PRIORITY_SORT);
+    updateParams({ view: undefined });
+    scrollToExplorer();
+  }
+
+  function showStudents(filter: StudentAnalyticsFilter) {
+    setStudentQuery("");
+    setStudentFilter(filter);
+    setStudentSort(PRIORITY_SORT);
+    updateParams({ view: "students" });
+    scrollToExplorer();
+  }
+
+  const hasData = Boolean(overview || assignments.length || students.length);
 
   return (
     <TeacherShell
@@ -250,7 +301,16 @@ export function TeacherAnalyticsPage() {
       <TeacherPageHeader
         eyebrow="Performance"
         title="Analytics"
-        description="Review delivery risk, grading work, student progress, and AI usage across current and historical classes."
+        description="Delivery, grading, and AI usage for one class at a time."
+        actions={groups.length > 0 ? (
+          <AnalyticsGroupControls
+            groups={groups}
+            selected={selectedGroup}
+            refreshing={metricsLoading}
+            onSelect={selectGroup}
+            onRefresh={() => setRefreshVersion((value) => value + 1)}
+          />
+        ) : undefined}
       />
 
       {groupsLoading ? (
@@ -261,37 +321,47 @@ export function TeacherAnalyticsPage() {
         <TeacherEmpty title="No owned groups" description="Create a group before reviewing analytics." />
       ) : (
         <>
-          <AnalyticsGroupContext
-            groups={groups}
-            selected={selectedGroup}
-            generatedAt={overview?.generatedAt}
-            refreshing={metricsLoading}
-            onSelect={selectGroup}
-            onRefresh={() => setRefreshVersion((value) => value + 1)}
-          />
+          <AnalyticsContextLine selected={selectedGroup} overview={overview} />
 
-          {groupId && <TeacherGroupAiUsage usage={aiUsage} />}
-
-          {metricsLoading && !overview && !assignments.length && !students.length ? (
+          {metricsLoading && !hasData ? (
             <TeacherLoading rows={6} />
           ) : (
-            <div className="space-y-5">
+            <div aria-busy={metricsLoading} className={`space-y-5 transition-opacity ${metricsLoading ? "opacity-60" : ""}`}>
               {overview ? (
-                <AnalyticsOverview overview={overview} health={health} />
+                <AnalyticsOverview overview={overview} health={health} totals={totals} />
               ) : overviewError ? (
                 <TeacherError message={overviewError} onRetry={() => setRefreshVersion((value) => value + 1)} />
               ) : null}
 
-              <div>
+              <AttentionSection
+                assignments={assignments}
+                students={students}
+                groupId={groupId}
+                onOpenAssignment={(id) => updateParams({ assignmentId: id, studentId: undefined }, false)}
+                onOpenStudent={(id) => updateParams({ studentId: id, assignmentId: undefined }, false)}
+                onShowAssignments={showAssignments}
+                onShowStudents={showStudents}
+              />
+
+              <div className="grid gap-5 lg:grid-cols-2">
+                <StrugglePanel
+                  assignments={assignments}
+                  onOpenAssignment={(id) => updateParams({ assignmentId: id, studentId: undefined }, false)}
+                />
+                <VerdictBreakdown assignments={assignments} />
+              </div>
+
+              <div ref={explorer} className="scroll-mt-4 space-y-4">
                 <AnalyticsTabs
                   value={tab}
                   assignments={assignments.length}
                   students={students.length}
-                  onChange={(value) => updateParams({ view: value })}
+                  onChange={(value) => updateParams({ view: value === "assignments" ? undefined : value })}
                 />
                 {tab === "assignments" ? (
                   <AssignmentExplorer
                     assignments={visibleAssignments}
+                    total={assignments.length}
                     query={assignmentQuery}
                     filter={assignmentFilter}
                     sort={assignmentSort}
@@ -302,9 +372,10 @@ export function TeacherAnalyticsPage() {
                     onOpen={(id) => updateParams({ assignmentId: id, studentId: undefined }, false)}
                     onRetry={() => setRefreshVersion((value) => value + 1)}
                   />
-                ) : (
+                ) : tab === "students" ? (
                   <StudentExplorer
                     students={visibleStudents}
+                    total={students.length}
                     onOpen={(id) => updateParams({ studentId: id, assignmentId: undefined }, false)}
                     query={studentQuery}
                     filter={studentFilter}
@@ -314,6 +385,11 @@ export function TeacherAnalyticsPage() {
                     onFilter={setStudentFilter}
                     onSort={setStudentSort}
                     onRetry={() => setRefreshVersion((value) => value + 1)}
+                  />
+                ) : (
+                  <TeacherGroupAiUsage
+                    usage={aiUsage}
+                    onOpenAssignment={(id) => updateParams({ assignmentId: id, studentId: undefined }, false)}
                   />
                 )}
               </div>
@@ -357,32 +433,6 @@ function compareGroupPriority(left: TeacherGroup, right: TeacherGroup): number {
   const priority = { active: 0, archived: 1, deleted: 2 };
   const lifecycleDifference = priority[groupLifecycle(left)] - priority[groupLifecycle(right)];
   return lifecycleDifference || Date.parse(right.updatedAt) - Date.parse(left.updatedAt);
-}
-
-function compareAssignments(left: AssignmentMetrics, right: AssignmentMetrics, sort: AssignmentAnalyticsSort): number {
-  if (sort === "title") return left.title.localeCompare(right.title);
-  if (sort === "completion") return nullableDescending(left.submissionRate, right.submissionRate);
-  if (sort === "missing") return right.missingCount - left.missingCount || left.title.localeCompare(right.title);
-  return Number(assignmentNeedsAttention(right)) - Number(assignmentNeedsAttention(left))
-    || Number(right.overdue) - Number(left.overdue)
-    || right.missingCount - left.missingCount
-    || left.title.localeCompare(right.title);
-}
-
-function compareStudents(left: StudentMetrics, right: StudentMetrics, sort: StudentAnalyticsSort): number {
-  if (sort === "name") return left.fullName.localeCompare(right.fullName);
-  if (sort === "completion") return nullableDescending(left.completionRate, right.completionRate);
-  if (sort === "score") return nullableDescending(left.averageScore, right.averageScore);
-  const leftRisk = left.missingAssignmentIds.length * 3 + left.lateCount + Math.max(0, left.submittedCount - left.gradedAssignments);
-  const rightRisk = right.missingAssignmentIds.length * 3 + right.lateCount + Math.max(0, right.submittedCount - right.gradedAssignments);
-  return rightRisk - leftRisk || left.fullName.localeCompare(right.fullName);
-}
-
-function nullableDescending(left: number | null, right: number | null): number {
-  if (left == null && right == null) return 0;
-  if (left == null) return 1;
-  if (right == null) return -1;
-  return right - left;
 }
 
 function errorMessage(cause: unknown, fallback: string): string {

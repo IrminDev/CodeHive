@@ -22,7 +22,12 @@ function describeError(error: unknown): string {
   }
 }
 
-export function useAssignmentAssistant(assignmentId: string) {
+/**
+ * Owns one assignment's assistant conversation. Lives in the page, not the panel, so the
+ * conversation and the unsent question survive collapsing the panel or switching panes.
+ * Nothing is requested until `enabled` turns true.
+ */
+export function useAssignmentAssistant(assignmentId: string, enabled = true) {
   const [availability, setAvailability] = useState<AssistantAvailability | null>(null);
   const [interactions, setInteractions] = useState<AssistantInteraction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,6 +37,7 @@ export function useAssignmentAssistant(assignmentId: string) {
   const [nextPage, setNextPage] = useState<number | null>(null);
   const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
   const [revealInteractionId, setRevealInteractionId] = useState<string | null>(null);
+  const [draft, setDraft] = useState("");
   const pendingRequest = useRef<AssistantMessageRequest | null>(null);
   const sendingRef = useRef(false);
 
@@ -56,11 +62,17 @@ export function useAssignmentAssistant(assignmentId: string) {
     setAvailability(null);
     setInteractions([]);
     setError(null);
+    setLastResult(null);
+    setNextPage(null);
     setPendingQuestion(null);
     setRevealInteractionId(null);
+    setDraft("");
     pendingRequest.current = null;
-    void refresh();
-  }, [refresh]);
+  }, [assignmentId]);
+
+  useEffect(() => {
+    if (enabled) void refresh();
+  }, [enabled, refresh]);
 
   useEffect(() => {
     const id = availability?.pendingInteractionId;
@@ -131,6 +143,6 @@ export function useAssignmentAssistant(assignmentId: string) {
   }
 
   return { availability, interactions, loading, sending, error, lastResult, nextPage, pendingQuestion, revealInteractionId,
-    refresh, loadOlder, submit, retry: () => pendingRequest.current ? send(pendingRequest.current) : refresh(),
+    draft, setDraft, refresh, loadOlder, submit, retry: () => pendingRequest.current ? send(pendingRequest.current) : refresh(),
     hasRetry: pendingRequest.current !== null };
 }

@@ -2,15 +2,10 @@ import type { UsageRow } from "~/features/assistant-usage/types";
 import { AssignmentAiUsage } from "./TeacherAiUsage";
 import { useEffect, useState, type ReactNode } from "react";
 import {
-  BarChart3,
+  ArrowRight,
   CircleAlert,
-  Clock3,
-  Cpu,
   GraduationCap,
-  Languages,
   RefreshCw,
-  Sparkles,
-  Users,
   X,
 } from "lucide-react";
 import { Link } from "react-router";
@@ -22,21 +17,14 @@ import type {
 } from "../types/metrics.types";
 import {
   compactButtonClass,
-  panelClass,
   StatusPill,
   TeacherLoading,
 } from "./TeacherUI";
-import { formatPercentage } from "./TeacherAnalyticsOverview";
-import { VerdictBar } from "./TeacherAnalyticsExplorer";
+import { formatPercentage, VerdictList } from "./TeacherAnalyticsOverview";
 
 type DrawerTab = "overview" | "students" | "ai";
 
-const LANGUAGE_COLOR: Record<Language, string> = {
-  PYTHON: "bg-blue-500",
-  JAVA: "bg-orange-500",
-  CPP: "bg-purple-500",
-  C: "bg-gray-500",
-};
+const LANGUAGE_LABEL: Record<Language, string> = { PYTHON: "Python", JAVA: "Java", CPP: "C++", C: "C" };
 
 export function AssignmentAnalyticsDrawer({
   assignment,
@@ -92,9 +80,9 @@ export function AssignmentAnalyticsDrawer({
         <header className="flex-shrink-0 border-b border-gray-200 px-5 py-4 dark:border-gray-700">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-azure dark:text-yellow">Assignment analytics</p>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-azure dark:text-yellow">Assignment analytics</p>
               <h2 id="assignment-analytics-title" tabIndex={-1} autoFocus className="mt-1 truncate text-xl font-semibold outline-none">{current?.title ?? "Loading assignment…"}</h2>
-              {current && <div className="mt-2 flex flex-wrap items-center gap-2"><StatusPill label={current.validationStatus} tone={current.validationStatus === "READY" ? "success" : current.validationStatus === "FAILED" ? "error" : "warning"} />{current.overdue && <StatusPill label="overdue" tone="error" />}<span className="text-[10px] font-mono text-gray-500">{current.maxPoints} pts</span></div>}
+              {current && <div className="mt-2 flex flex-wrap items-center gap-2"><StatusPill label={current.validationStatus} tone={current.validationStatus === "READY" ? "success" : current.validationStatus === "FAILED" ? "error" : "warning"} />{current.overdue && <StatusPill label="overdue" tone="error" />}<span className="text-xs text-gray-500 dark:text-gray-400">{current.maxPoints} pts</span></div>}
             </div>
             <button type="button" onClick={onClose} className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-dark-surface dark:hover:text-gray-200" aria-label="Close"><X size={17} /></button>
           </div>
@@ -106,10 +94,10 @@ export function AssignmentAnalyticsDrawer({
           )}
         </header>
 
-        <nav className="flex flex-shrink-0 border-b border-gray-200 px-4 dark:border-gray-700" role="tablist">
-          <DrawerTabButton active={tab === "overview"} label="Overview" icon={<BarChart3 size={14} />} onClick={() => setTab("overview")} />
-          <DrawerTabButton active={tab === "students"} label="Students" icon={<Users size={14} />} onClick={() => setTab("students")} />
-          <DrawerTabButton active={tab === "ai"} label="AI Usage" icon={<Sparkles size={14} />} onClick={() => setTab("ai")} />
+        <nav className="flex flex-shrink-0 gap-1 border-b border-gray-200 px-4 dark:border-gray-700" role="tablist" aria-label="Assignment analytics sections">
+          <DrawerTabButton active={tab === "overview"} label="Overview" onClick={() => setTab("overview")} />
+          <DrawerTabButton active={tab === "students"} label="Students" onClick={() => setTab("students")} />
+          <DrawerTabButton active={tab === "ai"} label="AI usage" onClick={() => setTab("ai")} />
         </nav>
 
         <div className="flex-1 overflow-y-auto p-4 sm:p-5">
@@ -130,122 +118,154 @@ export function AssignmentAnalyticsDrawer({
 
 function AssignmentOverview({ detail }: { detail: AssignmentMetricsDetail }) {
   const accepted = detail.acceptedPerformance;
-  const timeRatio = accepted.averageTimeMs == null || !accepted.timeLimitMs ? null : accepted.averageTimeMs / accepted.timeLimitMs * 100;
-  const memoryRatio = accepted.averageMemoryMb == null || !accepted.memoryLimitMb ? null : accepted.averageMemoryMb / accepted.memoryLimitMb * 100;
+  const margin = detail.averageDeliveryMarginHours;
   return (
-    <div className="space-y-5">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <DrawerMetric label="Submission" value={formatPercentage(detail.submissionRate)} detail={`${detail.submittedCount}/${detail.activeStudents}`} />
-        <DrawerMetric label="On time" value={formatPercentage(detail.onTimeRate)} detail={`${detail.lateCount} late`} />
-        <DrawerMetric label="Average" value={formatPercentage(detail.averageScore)} detail={detail.averagePoints == null ? "No grades" : `${detail.averagePoints.toFixed(1)} pts`} />
-        <DrawerMetric label="Attempts" value={detail.averageAttempts == null ? "No data" : detail.averageAttempts.toFixed(2)} detail="Average per student" />
+    <div className="divide-y divide-gray-200 dark:divide-gray-700/60">
+      <div className="pb-5">
+        <DrawerStatGrid>
+          <DrawerMetric label="Submitted" value={formatPercentage(detail.submissionRate)} detail={`${detail.submittedCount} of ${detail.activeStudents} students`} />
+          <DrawerMetric label="On time" value={formatPercentage(detail.onTimeRate)} detail={`${detail.lateCount} late`} />
+          <DrawerMetric label="Average score" value={formatPercentage(detail.averageScore)} detail={detail.averagePoints == null ? "No grades" : `${Number(detail.averagePoints.toFixed(1))} of ${detail.maxPoints} pts`} />
+          <DrawerMetric label="Attempts" value={detail.averageAttempts == null ? "No data" : String(Number(detail.averageAttempts.toFixed(1)))} detail="Average per student" />
+        </DrawerStatGrid>
       </div>
 
-      <section className={`${panelClass} p-4`}>
-        <SectionTitle icon={<GraduationCap size={14} />} title="Grading and delivery" />
-        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <DrawerSection title="Grading and delivery">
+        <dl className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
           <CountCard label="Missing" value={detail.missingCount} tone="error" />
           <CountCard label="Late" value={detail.lateCount} tone="warning" />
           <CountCard label="Draft grades" value={detail.draftGrades} tone="info" />
           <CountCard label="Returned" value={detail.returnedGrades} tone="success" />
-        </div>
-        <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
-          Average delivery margin: <strong className={detail.averageDeliveryMarginHours != null && detail.averageDeliveryMarginHours < 0 ? "text-red-500" : "text-gray-800 dark:text-gray-200"}>{detail.averageDeliveryMarginHours == null ? "No data" : `${detail.averageDeliveryMarginHours.toFixed(1)} hours ${detail.averageDeliveryMarginHours >= 0 ? "early" : "late"}`}</strong>
+        </dl>
+        <p className="mt-4 text-xs text-gray-500 dark:text-gray-400">
+          Average delivery margin: <strong className="font-semibold text-gray-900 dark:text-gray-100">{margin == null ? "No data" : `${Math.abs(margin).toFixed(1)} hours ${margin >= 0 ? "before" : "after"} the due date`}</strong>
         </p>
-      </section>
+      </DrawerSection>
 
-      <section className={`${panelClass} p-4`}>
-        <SectionTitle icon={<BarChart3 size={14} />} title="Verdict distribution" />
-        <div className="mt-4"><VerdictBar distribution={detail.verdictDistribution} /></div>
-      </section>
+      <DrawerSection title="Verdicts of current submissions">
+        <VerdictList distribution={detail.verdictDistribution} />
+      </DrawerSection>
 
-      <section className={`${panelClass} p-4`}>
-        <SectionTitle icon={<Languages size={14} />} title="Language distribution" />
-        <div className="mt-4 space-y-3"><DistributionRows values={detail.languageDistribution} colors={LANGUAGE_COLOR} /></div>
-      </section>
+      <DrawerSection title="Languages used">
+        <LanguageRows values={detail.languageDistribution} />
+      </DrawerSection>
 
-      <section className={`${panelClass} p-4`}>
-        <SectionTitle icon={<Cpu size={14} />} title="Accepted solution performance" />
-        <div className="mt-4 space-y-4">
-          <ResourceBar icon={<Clock3 size={13} />} label="Execution time" value={accepted.averageTimeMs} limit={accepted.timeLimitMs} unit="ms" ratio={timeRatio} />
-          <ResourceBar icon={<Cpu size={13} />} label="Memory" value={accepted.averageMemoryMb} limit={accepted.memoryLimitMb} unit="MB" ratio={memoryRatio} />
+      <DrawerSection title="Accepted solutions against the limits">
+        <div className="space-y-4">
+          <ResourceBar label="Execution time" value={accepted.averageTimeMs} limit={accepted.timeLimitMs} unit="ms" />
+          <ResourceBar label="Memory" value={accepted.averageMemoryMb} limit={accepted.memoryLimitMb} unit="MB" />
         </div>
-      </section>
+      </DrawerSection>
 
-      <section className={`${panelClass} overflow-hidden`}>
-        <div className="border-b border-gray-100 px-4 py-3 dark:border-gray-800/60"><SectionTitle icon={<Users size={14} />} title={`Missing students (${detail.missingStudents.length})`} /></div>
-        {detail.missingStudents.length === 0 ? <p className="p-5 text-center text-xs text-green-600 dark:text-green-400">Every active student has submitted.</p> : <div className="divide-y divide-gray-100 dark:divide-gray-800/60">{detail.missingStudents.map((student) => <div key={student.studentId} className="flex items-center justify-between gap-3 px-4 py-3"><div className="min-w-0"><p className="truncate text-xs font-medium">{student.fullName}</p><p className="text-[10px] font-mono text-gray-500">{student.enrollmentNumber}</p></div><StatusPill label="missing" tone="error" /></div>)}</div>}
-      </section>
+      <DrawerSection title={`Missing students (${detail.missingStudents.length})`}>
+        {detail.missingStudents.length === 0
+          ? <p className="text-sm text-gray-600 dark:text-gray-300">Every active student has submitted.</p>
+          : <ul className="divide-y divide-gray-100 dark:divide-gray-800/60">{detail.missingStudents.map((student) => <li key={student.studentId} className="flex items-baseline justify-between gap-3 py-2"><span className="min-w-0 truncate text-sm">{student.fullName}</span><span className="shrink-0 font-mono text-xs text-gray-500 dark:text-gray-400">{student.enrollmentNumber}</span></li>)}</ul>}
+      </DrawerSection>
     </div>
   );
 }
 
 function AssignmentStudents({ detail, groupId, onOpenStudent }: { detail: AssignmentMetricsDetail; groupId: string; onOpenStudent: (studentId: string) => void }) {
-  if (!detail.perStudent.length) return <p className="py-12 text-center text-sm text-gray-500">No active students.</p>;
+  if (!detail.perStudent.length) return <p className="py-12 text-center text-sm text-gray-500 dark:text-gray-400">No active students.</p>;
   return (
-    <section className={`${panelClass} overflow-hidden`}>
-      <div className="border-b border-gray-100 px-4 py-3 dark:border-gray-800/60"><h3 className="text-sm font-semibold">Student breakdown</h3><p className="mt-1 text-xs text-gray-500">Current delivery, verdict, attempts, performance, and grade.</p></div>
-      <div className="divide-y divide-gray-100 dark:divide-gray-800/60">
-        {detail.perStudent.map((student) => {
-          const url = `/teacher/grades?groupId=${encodeURIComponent(groupId)}&assignmentId=${encodeURIComponent(detail.assignmentId)}&studentId=${encodeURIComponent(student.studentId)}`;
-          return (
-            <article key={student.studentId} className="p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0"><p className="truncate text-sm font-medium"><button type="button" onClick={() => onOpenStudent(student.studentId)} className="text-azure dark:text-yellow hover:underline">{student.fullName}</button></p><p className="text-[10px] font-mono text-gray-500">{student.enrollmentNumber}</p></div>
+    <ul aria-label="Student breakdown" className="divide-y divide-gray-200 dark:divide-gray-700/60">
+      {detail.perStudent.map((student) => {
+        const url = `/teacher/grades?groupId=${encodeURIComponent(groupId)}&assignmentId=${encodeURIComponent(detail.assignmentId)}&studentId=${encodeURIComponent(student.studentId)}`;
+        return (
+          <li key={student.studentId} className="py-4 first:pt-0">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <button type="button" onClick={() => onOpenStudent(student.studentId)} className="max-w-full truncate rounded text-left text-sm font-medium text-gray-900 hover:text-azure focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-azure dark:text-gray-100 dark:hover:text-yellow dark:focus-visible:ring-yellow">{student.fullName}</button>
+                <p className="font-mono text-xs text-gray-500 dark:text-gray-400">{student.enrollmentNumber}</p>
+              </div>
+              <div className="flex shrink-0 flex-wrap justify-end gap-1.5">
+                {student.deliveredLate && <StatusPill label="late" tone="warning" />}
                 <StatusPill label={student.workStatus.replaceAll("_", " ")} tone={workTone(student.workStatus)} />
               </div>
-              <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                <TinyMetric label="Verdict" value={student.verdict ?? "—"} />
-                <TinyMetric label="Attempts" value={String(student.attempts)} />
-                <TinyMetric label="Time" value={student.timeMs == null ? "—" : `${student.timeMs} ms`} />
-                <TinyMetric label="Memory" value={student.memoryMb == null ? "—" : `${student.memoryMb.toFixed(1)} MB`} />
-              </div>
-              <div className="mt-3 flex items-center justify-between gap-3">
-                <div className="flex flex-wrap gap-2">{student.deliveredLate && <StatusPill label="late" tone="warning" />}{student.grade ? <StatusPill label={`${student.grade.value}/${student.grade.maxPoints} · ${student.grade.status}`} tone={student.grade.status === "RETURNED" ? "success" : "warning"} /> : <StatusPill label="ungraded" tone="neutral" />}</div>
-                <Link to={url} className="text-[10px] font-medium text-azure hover:text-french dark:text-yellow">Review work →</Link>
-              </div>
-            </article>
-          );
-        })}
-      </div>
-    </section>
+            </div>
+            <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-5">
+              <TinyMetric label="Verdict" value={student.verdict ?? "—"} />
+              <TinyMetric label="Attempts" value={String(student.attempts)} />
+              <TinyMetric label="Time" value={student.timeMs == null ? "—" : `${student.timeMs} ms`} />
+              <TinyMetric label="Memory" value={student.memoryMb == null ? "—" : `${student.memoryMb.toFixed(1)} MB`} />
+              <TinyMetric label="Grade" value={student.grade ? `${student.grade.value}/${student.grade.maxPoints}${student.grade.status === "DRAFT" ? " (draft)" : ""}` : "Not graded"} />
+            </dl>
+            <Link to={url} className="mt-3 inline-flex items-center gap-1 rounded text-xs font-medium text-azure underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-azure dark:text-yellow dark:focus-visible:ring-yellow">Review work<ArrowRight size={12} aria-hidden="true" /></Link>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
-function DistributionRows<T extends string>({ values, colors }: { values: Partial<Record<T, number>>; colors: Record<T, string> }) {
-  const rows = Object.entries(values) as Array<[T, number]>;
+function LanguageRows({ values }: { values: Partial<Record<Language, number>> }) {
+  const rows = (Object.entries(values) as Array<[Language, number]>).filter(([, value]) => value > 0).sort((left, right) => right[1] - left[1]);
   const total = rows.reduce((sum, [, value]) => sum + value, 0);
-  if (!total) return <p className="text-xs text-gray-500">No distribution data.</p>;
-  return <>{rows.sort((left, right) => right[1] - left[1]).map(([label, value]) => <div key={label}><div className="mb-1 flex justify-between text-[10px]"><span className="font-mono">{label}</span><span className="text-gray-500">{value} · {((value / total) * 100).toFixed(1)}%</span></div><div className="h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-dark-surface"><div className={`h-full rounded-full ${colors[label]}`} style={{ width: `${(value / total) * 100}%` }} /></div></div>)}</>;
+  if (!total) return <p className="text-sm text-gray-500 dark:text-gray-400">No submissions yet.</p>;
+  return (
+    <ul className="space-y-2.5">
+      {rows.map(([language, value]) => {
+        const share = value / total * 100;
+        return (
+          <li key={language} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 text-xs sm:grid-cols-[minmax(0,10rem)_minmax(0,1fr)_auto]">
+            <span className="truncate text-gray-700 dark:text-gray-300">{LANGUAGE_LABEL[language] ?? language}</span>
+            <span aria-hidden="true" className="order-last col-span-2 h-2 overflow-hidden rounded-full bg-azure/15 dark:bg-yellow/15 sm:order-none sm:col-span-1"><span className="block h-full rounded-full bg-azure dark:bg-yellow" style={{ width: `${share}%` }} /></span>
+            <span className="text-right tabular-nums text-gray-500 dark:text-gray-400"><strong className="font-semibold text-gray-900 dark:text-gray-100">{value}</strong> · {share.toFixed(0)}%</span>
+          </li>
+        );
+      })}
+    </ul>
+  );
 }
 
-function ResourceBar({ icon, label, value, limit, unit, ratio }: { icon: ReactNode; label: string; value: number | null; limit: number; unit: string; ratio: number | null }) {
-  return <div><div className="flex items-center justify-between gap-3 text-xs"><span className="flex items-center gap-1.5 text-gray-500">{icon}{label}</span><span className="font-mono">{value == null ? "No accepted data" : `${value.toFixed(1)} ${unit} / ${limit} ${unit}`}</span></div><div className="mt-2 h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-dark-surface"><div className={`h-full rounded-full ${ratio != null && ratio > 80 ? "bg-orange-500" : "bg-green-500"}`} style={{ width: `${Math.min(100, Math.max(0, ratio ?? 0))}%` }} /></div></div>;
+/** The fill turns orange once the average uses more than 80% of the limit. */
+function ResourceBar({ label, value, limit, unit }: { label: string; value: number | null; limit: number; unit: string }) {
+  const ratio = value == null || !limit ? null : Math.min(100, Math.max(0, value / limit * 100));
+  const close = ratio != null && ratio > 80;
+  return (
+    <div>
+      <div className="flex items-baseline justify-between gap-3 text-xs">
+        <span className="text-gray-700 dark:text-gray-300">{label}</span>
+        <span className="tabular-nums text-gray-500 dark:text-gray-400">{value == null ? "No accepted solutions yet" : <><strong className="font-semibold text-gray-900 dark:text-gray-100">{Number(value.toFixed(1))} {unit}</strong> of {limit} {unit}{close && " · close to the limit"}</>}</span>
+      </div>
+      <div role="progressbar" aria-label={`${label} used by accepted solutions`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={ratio == null ? undefined : Math.round(ratio)}
+        className={`mt-2 h-2 overflow-hidden rounded-full ${close ? "bg-orange-500/20" : "bg-azure/15 dark:bg-yellow/15"}`}>
+        <div className={`h-full rounded-full ${close ? "bg-orange-500" : "bg-azure dark:bg-yellow"}`} style={{ width: `${ratio ?? 0}%` }} />
+      </div>
+    </div>
+  );
+}
+
+export function DrawerSection({ title, children }: { title: string; children: ReactNode }) {
+  return <section className="py-5 last:pb-0"><h3 className="mb-3 text-sm font-semibold text-gray-900 dark:text-white">{title}</h3>{children}</section>;
+}
+
+/** Hairline-separated stat band; fill it with DrawerMetric cells. */
+export function DrawerStatGrid({ children }: { children: ReactNode }) {
+  return <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-gray-200 bg-gray-200 dark:border-gray-700 dark:bg-gray-700 sm:grid-cols-4">{children}</dl>;
 }
 
 export function DrawerMetric({ label, value, detail }: { label: string; value: string; detail: string }) {
-  return <div className="rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-dark-surface"><p className="text-[10px] text-gray-500">{label}</p><p className="mt-1 text-lg font-bold">{value}</p><p className="mt-1 text-[10px] text-gray-400">{detail}</p></div>;
+  return <div className="bg-white p-3.5 dark:bg-dark-card"><dt className="text-xs text-gray-500 dark:text-gray-400">{label}</dt><dd className="mt-1 text-xl font-semibold text-gray-900 dark:text-white">{value}</dd><dd className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{detail}</dd></div>;
 }
 
+/** A plain count; the dot carries the tone and the label always names it. */
 export function CountCard({ label, value, tone }: { label: string; value: number; tone: "error" | "warning" | "info" | "success" }) {
-  const style = { error: "text-red-500 bg-red-500/5", warning: "text-orange-500 bg-orange-500/5", info: "text-azure dark:text-yellow bg-azure/5 dark:bg-yellow/5", success: "text-green-600 dark:text-green-400 bg-green-500/5" }[tone];
-  return <div className={`rounded-xl p-3 ${style}`}><p className="text-[10px]">{label}</p><p className="mt-1 text-lg font-bold font-mono">{value}</p></div>;
+  const dot = { error: "bg-red-500", warning: "bg-orange-500", info: "bg-azure dark:bg-yellow", success: "bg-green-500" }[tone];
+  return <div><dt className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400"><span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${value > 0 ? dot : "bg-gray-300 dark:bg-gray-600"}`} />{label}</dt><dd className="mt-1 text-xl font-semibold text-gray-900 dark:text-white">{value.toLocaleString()}</dd></div>;
 }
 
 export function TinyMetric({ label, value }: { label: string; value: string }) {
-  return <div className="rounded-lg bg-gray-50 px-3 py-2 dark:bg-dark-surface"><p className="text-[9px] uppercase tracking-wide text-gray-400">{label}</p><p className="mt-1 truncate text-[10px] font-mono font-medium">{value}</p></div>;
+  return <div className="min-w-0"><dt className="text-[11px] text-gray-500 dark:text-gray-400">{label}</dt><dd className="mt-0.5 truncate text-xs font-medium tabular-nums text-gray-900 dark:text-gray-100">{value}</dd></div>;
 }
 
-export function SectionTitle({ icon, title }: { icon: ReactNode; title: string }) {
-  return <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300"><span className="text-azure dark:text-yellow">{icon}</span>{title}</h3>;
-}
-
-export function DrawerTabButton({ active, label, icon, onClick }: { active: boolean; label: string; icon: ReactNode; onClick: () => void }) {
-  return <button type="button" role="tab" aria-selected={active} onClick={onClick} className={`flex items-center gap-1.5 border-b-2 px-4 py-3 text-xs font-medium ${active ? "border-azure text-azure dark:border-yellow dark:text-yellow" : "border-transparent text-gray-500"}`}>{icon}{label}</button>;
+export function DrawerTabButton({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
+  return <button type="button" role="tab" aria-selected={active} onClick={onClick} className={`-mb-px border-b-2 px-3 py-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-azure dark:focus-visible:ring-yellow ${active ? "border-azure text-azure dark:border-yellow dark:text-yellow" : "border-transparent text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"}`}>{label}</button>;
 }
 
 function DrawerError({ message, onRetry }: { message: string; onRetry: () => void }) {
-  return <div className="rounded-2xl border border-red-500/20 bg-red-500/5 p-8 text-center"><CircleAlert size={26} className="mx-auto text-red-500" /><h3 className="mt-3 font-semibold">Could not load assignment analytics</h3><p className="mt-1 text-sm text-gray-500">{message}</p><button onClick={onRetry} className={compactButtonClass + " mt-5"}><RefreshCw size={13} /> Retry</button></div>;
+  return <div role="alert" className="rounded-2xl border border-red-500/20 bg-red-500/5 p-8 text-center"><CircleAlert size={26} aria-hidden="true" className="mx-auto text-red-500" /><h3 className="mt-3 font-semibold">Could not load assignment analytics</h3><p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{message}</p><button type="button" onClick={onRetry} className={compactButtonClass + " mt-5"}><RefreshCw size={13} aria-hidden="true" /> Retry</button></div>;
 }
 
 function workTone(value: string): "success" | "warning" | "error" | "neutral" {

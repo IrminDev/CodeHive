@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router";
 import { CheckCircle2, Clock, Cpu, History, RotateCcw, Scale, Sparkles } from "lucide-react";
 import { CodeEditor } from "~/shared/components/CodeEditor";
@@ -13,6 +13,9 @@ import {
 } from "~/shared/components/AssignmentWorkspace";
 import { useAuth } from "~/core/providers/AuthProvider";
 import { AssistantPanel } from "../components/AssistantPanel";
+import { useAssignmentAssistant } from "../hooks/useAssignmentAssistant";
+import { useCodeDraft, type DraftStatus } from "../hooks/useCodeDraft";
+import { readCodeDraft } from "../utils/code-drafts";
 import { getAssignment, listMyAssignmentOverviews } from "../api/assignment.api";
 import { withdrawSubmission } from "../api/submission.api";
 import type { Assignment, AssignmentGrade, Language } from "../types/assignment.types";
@@ -88,6 +91,13 @@ const VERDICT_STYLES: Record<string, string> = {
 
 type TestTab = "testcases" | "verdict";
 
+const ASSISTANT_OPEN_KEY = "codehive:assistant-open:v1";
+
+function readAssistantOpen(): boolean {
+  try { return window.localStorage.getItem(ASSISTANT_OPEN_KEY) === "true"; }
+  catch { return false; }
+}
+
 function practiceInputs(assignment: Assignment): string[] {
   const samples = [...(assignment.sampleTestCases ?? [])]
     .sort((left, right) => left.order - right.order)
@@ -115,7 +125,9 @@ export function AssignmentPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [selectedLanguage, setSelectedLanguage] = useState<Language>("PYTHON");
-  const [code, setCode] = useState(LANGUAGE_TEMPLATES["PYTHON"]);
+  // One buffer per language, so switching languages never discards work.
+  const [codes, setCodes] = useState<Partial<Record<Language, string>>>({});
+  const [hasStoredDraft, setHasStoredDraft] = useState(false);
   const [testCases, setTestCases] = useState<string[]>([""]);
 
   const [isRunning, setIsRunning] = useState(false);
@@ -135,9 +147,25 @@ export function AssignmentPage() {
   const [testTab, setTestTab] = useState<TestTab>("testcases");
   const [selectedCase, setSelectedCase] = useState(0);
   const [mobilePane, setMobilePane] = useState<AssignmentWorkspacePane>("editor");
-  const [assistantOpen, setAssistantOpen] = useState(false);
+  const [assistantOpen, setAssistantOpen] = useState(readAssistantOpen);
+  // The conversation loads on first use and then stays mounted while the panel is collapsed.
+  const [assistantActivated, setAssistantActivated] = useState(assistantOpen);
+  const [assistantFocus, setAssistantFocus] = useState(0);
+  const assistantToggle = useRef<HTMLButtonElement>(null);
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const userId = user?.id;
+  const assistantEnabled = assistantActivated && !!assignment && assignment.id === id;
+  const assistant = useAssignmentAssistant(id ?? "", assistantEnabled);
+  const draft = useCodeDraft(userId && assignment ? { userId, assignmentId: assignment.id } : null, hasStoredDraft);
+  const code = codes[selectedLanguage] ?? LANGUAGE_TEMPLATES[selectedLanguage] ?? "";
+
+  const changeAssistantOpen = useCallback((open: boolean) => {
+    setAssistantOpen(open);
+    if (open) setAssistantActivated(true);
+    try { window.localStorage.setItem(ASSISTANT_OPEN_KEY, String(open)); }
+    catch { /* The panel simply starts collapsed next time. */ }
+  }, []);
 
   useEffect(() => {
     if (!id) return;
@@ -155,10 +183,12 @@ export function AssignmentPage() {
         }
         setTestCases(practiceInputs(a));
         setSelectedCase(0);
-        if (a.allowedLanguages?.length > 0) {
-          setSelectedLanguage(a.allowedLanguages[0]);
-          setCode(LANGUAGE_TEMPLATES[a.allowedLanguages[0]] ?? "");
-        }
+        const allowed = a.allowedLanguages ?? [];
+        const stored = userId ? readCodeDraft(userId, a.id) : null;
+        setHasStoredDraft(stored !== null);
+        setCodes(stored?.code ?? {});
+        if (stored && allowed.includes(stored.language)) setSelectedLanguage(stored.language);
+        else if (allowed.length > 0) setSelectedLanguage(allowed[0]);
       })
       .catch(() => {
         if (import.meta.env.DEV) {
@@ -201,14 +231,15 @@ export function AssignmentPage() {
           setAssignment(mock);
           setTestCases(practiceInputs(mock));
           setSelectedCase(0);
+          setHasStoredDraft(false);
+          setCodes({});
           setSelectedLanguage(mock.allowedLanguages[0]);
-          setCode(LANGUAGE_TEMPLATES[mock.allowedLanguages[0]] ?? "");
         } else {
           setError("Assignment not found.");
         }
       })
       .finally(() => setLoading(false));
-  }, [id]);
+  }, [id, userId]);
 
   useEffect(() => {
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
@@ -216,7 +247,29 @@ export function AssignmentPage() {
 
   function handleLanguageChange(lang: Language) {
     setSelectedLanguage(lang);
-    setCode(LANGUAGE_TEMPLATES[lang] ?? "");
+    draft.schedule({ language: lang, code: codes });
+  }
+
+  function handleCodeChange(value: string) {
+    const next = { ...codes, [selectedLanguage]: value };
+    setCodes(next);
+    draft.schedule({ language: selectedLanguage, code: next });
+  }
+
+  function toggleAssistant() {
+    const open = !assistantOpen;
+    changeAssistantOpen(open);
+    if (open) setAssistantFocus((value) => value + 1);
+  }
+
+  function collapseAssistant() {
+    changeAssistantOpen(false);
+    assistantToggle.current?.focus();
+  }
+
+  function changeMobilePane(pane: AssignmentWorkspacePane) {
+    if (pane === "side") setAssistantActivated(true);
+    setMobilePane(pane);
   }
 
   async function runExecution(type: ExecutionType) {
@@ -362,7 +415,7 @@ export function AssignmentPage() {
         </div>
 
         {/* Center: metrics */}
-        <div className="hidden md:flex flex-1 items-center justify-center gap-4">
+        <div className="hidden md:flex lg:hidden xl:flex flex-1 items-center justify-center gap-4">
           <MetricChip icon={<Clock className="w-3 h-3" />} label={`${assignment.timeLimitMs}ms`} />
           <MetricChip icon={<Cpu className="w-3 h-3" />} label={`${assignment.memoryLimitMb}MB`} />
           <MetricChip icon={<Scale className="w-3 h-3" />} label={comparatorLabel} />
@@ -396,6 +449,22 @@ export function AssignmentPage() {
             >
               <RotateCcw size={14} />
               <span className="hidden lg:inline">Withdraw to update</span>
+            </button>
+          )}
+          {user && (
+            <button
+              ref={assistantToggle}
+              type="button"
+              onClick={toggleAssistant}
+              aria-pressed={assistantOpen}
+              aria-controls="assignment-assistant"
+              title={assistantOpen ? "Collapse AI assistant" : "Open AI assistant"}
+              className={`hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium border transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-azure dark:focus-visible:ring-yellow ${assistantOpen
+                ? "border-azure/40 bg-azure/10 text-azure dark:border-yellow/40 dark:bg-yellow/10 dark:text-yellow"
+                : "border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-azure hover:text-azure dark:hover:border-yellow dark:hover:text-yellow"}`}
+            >
+              <Sparkles size={14} aria-hidden="true" />
+              <span>Assistant</span>
             </button>
           )}
           <Dropdown value={selectedLanguage} onChange={(value) => handleLanguageChange(value as Language)} size="compact" className="w-28 font-mono" ariaLabel="Programming language" options={allowedLangs.map((language) => ({ value: language, label: LANGUAGE_LABELS[language] }))} />
@@ -464,7 +533,26 @@ export function AssignmentPage() {
       <AssignmentWorkspace
         persistenceKey="codehive-student-assignment"
         mobilePane={mobilePane}
-        onMobilePaneChange={setMobilePane}
+        onMobilePaneChange={changeMobilePane}
+        sideLabel="Assistant"
+        sideOpen={assistantOpen}
+        onSideOpenChange={changeAssistantOpen}
+        sidePane={user ? (
+          <div id="assignment-assistant" className="h-full min-h-0">
+            {assistantActivated && (
+              <AssistantPanel
+                assistant={assistant}
+                assignmentId={assignment.id}
+                groupId={assignment.groupId}
+                userId={user.id}
+                language={selectedLanguage}
+                code={code}
+                focusSignal={assistantFocus}
+                onCollapse={collapseAssistant}
+              />
+            )}
+          </div>
+        ) : undefined}
         assignmentPane={(
           <AssignmentDetailsPanel
             assignment={assignment}
@@ -486,7 +574,8 @@ export function AssignmentPage() {
             language={MONACO_LANG_MAP[selectedLanguage]}
             languageVersion={langVersion}
             value={code}
-            onChange={setCode}
+            onChange={handleCodeChange}
+            draftStatus={draft.status}
           />
         )}
         testsPane={(
@@ -506,9 +595,6 @@ export function AssignmentPage() {
           />
         )}
       />
-
-      {!assistantOpen && <button type="button" onClick={() => setAssistantOpen(true)} title="AI educational assistant" aria-label="Open AI educational assistant" className="fixed bottom-6 right-6 z-50 inline-flex items-center gap-2 rounded-xl border border-gray-200 dark:border-gray-700/60 bg-white/95 dark:bg-dark-card/95 px-3 py-2 text-xs font-medium text-gray-700 dark:text-gray-200 shadow-lg hover:border-azure"><Sparkles size={14} /> AI help</button>}
-      {assistantOpen && user && <AssistantPanel key={assignment.id} assignmentId={assignment.id} groupId={assignment.groupId} userId={user.id} language={selectedLanguage} code={code} onClose={() => setAssistantOpen(false)} />}
 
       {showWithdrawConfirm && currentSubmission && (
         <div className="fixed inset-0 z-[60] grid place-items-center bg-dark-bg/50 backdrop-blur-sm p-4" role="dialog" aria-modal="true" aria-labelledby="withdraw-submission-title">
@@ -676,12 +762,14 @@ function StudentEditorPane({
   languageVersion,
   value,
   onChange,
+  draftStatus,
 }: {
   filename: string;
   language: string;
   languageVersion: string;
   value: string;
   onChange: (value: string) => void;
+  draftStatus: DraftStatus;
 }) {
   return (
     <section className="h-full min-h-0 flex flex-col overflow-hidden bg-white dark:bg-dark-card">
@@ -698,11 +786,19 @@ function StudentEditorPane({
         <CodeEditor language={language} value={value} onChange={onChange} />
       </div>
       <div className="h-6 flex-shrink-0 flex items-center justify-between px-3 bg-gray-50 dark:bg-dark-surface border-t border-gray-200 dark:border-gray-800/60 text-[10px] text-gray-400 dark:text-gray-600 font-mono">
-        <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-green-500" />Saved</span>
+        <DraftIndicator status={draftStatus} />
         <div className="flex items-center gap-4"><span>{languageVersion}</span><span>{value.split("\n").length} lines</span></div>
       </div>
     </section>
   );
+}
+
+function DraftIndicator({ status }: { status: DraftStatus }) {
+  if (status === "error") {
+    return <span role="alert" className="flex items-center gap-1 text-orange-600 dark:text-orange-400" title="This browser blocked or filled its storage. Keep this tab open and copy your code before leaving."><span className="w-1.5 h-1.5 rounded-full bg-orange-500" />Not saved in this browser</span>;
+  }
+  const label = status === "saving" ? "Saving…" : status === "saved" ? "Draft saved in this browser" : "Draft autosaves in this browser";
+  return <span className="flex items-center gap-1" title="Your draft is kept in this browser for this assignment. Submit to store it on CodeHive."><span className={`w-1.5 h-1.5 rounded-full ${status === "saved" ? "bg-green-500" : "bg-gray-400"}`} />{label}</span>;
 }
 
 function StudentTestsPane({
