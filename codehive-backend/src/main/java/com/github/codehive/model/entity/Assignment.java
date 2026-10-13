@@ -1,33 +1,37 @@
 package com.github.codehive.model.entity;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
-import com.github.codehive.model.enums.ComparatorType;
 import com.github.codehive.model.enums.AssignmentValidationStatus;
+import com.github.codehive.model.enums.ComparatorType;
 import com.github.codehive.model.enums.Language;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
-import jakarta.persistence.CascadeType;
-import jakarta.persistence.FetchType;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
-import jakarta.persistence.OneToOne;
 
 @Entity
 @Table(name = "assignments")
@@ -155,10 +159,22 @@ public class Assignment {
     public void setValidationStatus(AssignmentValidationStatus validationStatus) { this.validationStatus = validationStatus; }
     public List<AssignmentExample> getExamples() { return examples; }
     public void setExamples(List<AssignmentExample> examples) {
-        this.examples.clear();
-        if (examples != null) {
-            examples.forEach(this::addExample);
+        List<AssignmentExample> replacements = examples == null ? List.of() : examples;
+        Map<Integer, AssignmentExample> current = new HashMap<>();
+        this.examples.forEach(example -> current.put(example.getOrder(), example));
+        Set<Integer> keptOrders = new HashSet<>();
+        for (AssignmentExample replacement : replacements) {
+            keptOrders.add(replacement.getOrder());
+            AssignmentExample existing = current.get(replacement.getOrder());
+            if (existing == null) {
+                addExample(replacement);
+            } else {
+                existing.setInput(replacement.getInput());
+                existing.setOutput(replacement.getOutput());
+                existing.setExplanation(replacement.getExplanation());
+            }
         }
+        this.examples.removeIf(example -> !keptOrders.contains(example.getOrder()));
     }
     public void addExample(AssignmentExample example) {
         example.setAssignment(this);

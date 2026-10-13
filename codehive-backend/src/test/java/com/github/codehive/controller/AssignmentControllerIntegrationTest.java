@@ -406,6 +406,29 @@ class AssignmentControllerIntegrationTest {
     }
 
     @Test
+    @DisplayName("replaces examples that reuse an existing order")
+    void replaceExamplesReusingOrder() {
+        Assignment assignment = saveAssignment("Replace examples");
+        assignment.addExample(new AssignmentExample(assignment, 1, "1 2", "3", "Original"));
+        assignment.addExample(new AssignmentExample(assignment, 2, "2 2", "4", "Dropped"));
+        assignmentRepository.saveAndFlush(assignment);
+        entityManager.clear();
+
+        Assignment stored = assignmentRepository.findById(assignment.getId()).orElseThrow();
+        stored.setExamples(List.of(new AssignmentExample(stored, 1, "4 5", "9", "Replaced")));
+        assignmentRepository.saveAndFlush(stored);
+        entityManager.clear();
+
+        assertThat(assignmentRepository.findById(assignment.getId()).orElseThrow().getExamples())
+                .singleElement()
+                .satisfies(example -> {
+                    assertThat(example.getOrder()).isEqualTo(1);
+                    assertThat(example.getOutput()).isEqualTo("9");
+                    assertThat(example.getExplanation()).isEqualTo("Replaced");
+                });
+    }
+
+    @Test
     @DisplayName("returns owner-only preview with reference source and generated outputs")
     void getTeacherPreview() throws Exception {
         Assignment assignment = saveAssignment("Preview me");
