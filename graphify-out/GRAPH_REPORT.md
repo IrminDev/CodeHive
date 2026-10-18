@@ -1,16 +1,16 @@
-# Graph Report - CodeHive  (2026-10-10)
+# Graph Report - CodeHive  (2026-10-17)
 
 ## Corpus Check
-- 853 files · ~293,189 words
+- 871 files · ~308,682 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 7209 nodes · 18626 edges · 439 communities (326 shown, 113 thin omitted)
-- Extraction: 89% EXTRACTED · 11% INFERRED · 0% AMBIGUOUS · INFERRED: 2034 edges (avg confidence: 0.8)
+- 7453 nodes · 19313 edges · 436 communities (330 shown, 106 thin omitted)
+- Extraction: 89% EXTRACTED · 11% INFERRED · 0% AMBIGUOUS · INFERRED: 2122 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `f184b001`
+- Built from commit: `8a734a2f`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -366,21 +366,18 @@
 - monaco-editor
 - TestAsyncConfig.java
 - GlobalExceptionHandlerTest.java
-- AuthControllerRateLimitTest.java
-- .findByIdForUpdate
 - 2. Inventario real: qué aprovechar y qué falta
 - .build
 - isbot
 - react
-- AssignmentMapper
 
 ## God Nodes (most connected - your core abstractions)
-1. `User` - 293 edges
+1. `User` - 295 edges
 2. `Assignment` - 227 edges
-3. `UserRepository` - 172 edges
-4. `AssignmentRepository` - 129 edges
-5. `SuccessResponse` - 124 edges
-6. `EntityNotFoundException` - 108 edges
+3. `UserRepository` - 175 edges
+4. `AssignmentRepository` - 130 edges
+5. `SuccessResponse` - 125 edges
+6. `EntityNotFoundException` - 111 edges
 7. `Execution` - 100 edges
 8. `Language` - 95 edges
 9. `ExecutionRepository` - 90 edges
@@ -406,10 +403,10 @@
 - **Controllers unified under group-owner authorization (rule 11)** — llms_backend_groups_readme_groupcontroller, llms_backend_groups_readme_groupmetricscontroller, llms_backend_groups_readme_assignmentcontroller, llms_backend_groups_readme_assignmentstudentworkcontroller [EXTRACTED 1.00]
 - **Metrics composing the group overview endpoint response** — llms_backend_metrics_readme_m1_submissionrate, llms_backend_metrics_readme_m4_ontimerate, llms_backend_metrics_readme_m11_gradingprogress, llms_backend_metrics_readme_m12_enrollment [EXTRACTED 1.00]
 
-## Communities (439 total, 113 thin omitted)
+## Communities (436 total, 106 thin omitted)
 
 ### Community 0 - "Assignment Update Requests"
-Cohesion: 0.08
+Cohesion: 0.07
 Nodes (14): AssignmentGradeHistoryDTO, AssignmentGradeHistory, Entity, Table, GradeChangeReason, CLEARED_MAX_POINTS_CHANGED, CLEARED_RESUBMISSION, CLEARED_TEST_SUITE_CHANGED (+6 more)
 
 ### Community 1 - "JWT Authentication Filter"
@@ -417,44 +414,44 @@ Cohesion: 0.13
 Nodes (12): ClaimExtractionTests, EdgeCaseTests, BeforeEach, DisplayName, Nested, Test, JwtUtilTest, SecretValidationTests (+4 more)
 
 ### Community 2 - "Sign-Up Request DTO"
-Cohesion: 0.09
-Nodes (40): ActivityTable(), AdminAiUsageDashboard(), Props, initialFilters, summary(), AdminAiUsageMetrics(), AdminAiUsageOverview(), AdminTechnicalUsage() (+32 more)
+Cohesion: 0.08
+Nodes (45): ActivityTable(), AdminAiUsageDashboard(), Props, AdminAiUsageMetrics(), AdminAiUsageOverview(), AdminTechnicalUsage(), PanelHeading(), reportingWindow() (+37 more)
 
 ### Community 3 - "Domain Exceptions"
 Cohesion: 0.07
-Nodes (15): AssignmentPreviewTestCaseDTO, CloneAssignmentTestCaseDTO, AssignmentService, Logger, MultipartFile, Page, Service, Transactional (+7 more)
+Nodes (10): ReevaluationJobsCreatedEvent, ExecutionJob, ExecutionTestCaseInfo, ExecutionJob, ExecutionTestCaseInfo, Transactional, TransactionalEventListener, ObjectKeyBuilder (+2 more)
 
 ### Community 4 - "Assignment Feedback & Student Work"
-Cohesion: 0.08
-Nodes (22): AccessDeniedException, AssignmentFeedbackDTO, EntityNotFoundException, AssignmentGradeHistoryRepository, AssignmentFeedbackService, AssignmentFeedback, Service, Transactional (+14 more)
+Cohesion: 0.10
+Nodes (13): AccessDeniedException, EntityNotFoundException, AssignmentFeedbackService, AssignmentFeedback, Service, Transactional, GroupService, SecureRandom (+5 more)
 
 ### Community 5 - "Execution Job Queue Model"
-Cohesion: 0.20
-Nodes (3): Entity, Table, RateLimitIncident
+Cohesion: 0.05
+Nodes (37): AssistantToggleButton(), DraftContent, DraftStatus, Scope, scopeA, useCodeDraft(), AssignmentPage(), currentFromHistory() (+29 more)
 
 ### Community 6 - "Frontend Assignment API Client"
-Cohesion: 0.12
-Nodes (20): AssignmentControllerIntegrationTest, CreateAssignment, GetAssignmentById, ActiveProfiles, Assignment, AutoConfigureMockMvc, BeforeEach, ClassGroup (+12 more)
+Cohesion: 0.14
+Nodes (17): AssignmentControllerIntegrationTest, CreateAssignment, GetAssignmentById, ActiveProfiles, Assignment, AutoConfigureMockMvc, DisplayName, EntityManager (+9 more)
 
 ### Community 7 - "User Notification Settings"
-Cohesion: 0.12
-Nodes (12): NotificationEmailContent, Component, NotificationFormatService, AssignmentNotificationStrategy, Component, Override, GroupNotificationStrategy, Component (+4 more)
+Cohesion: 0.08
+Nodes (14): Component, NotificationFormatService, AssignmentNotificationStrategy, Component, Override, GroupNotificationStrategy, Component, Override (+6 more)
 
 ### Community 8 - "User DTO"
-Cohesion: 0.06
-Nodes (75): AuditParams, getAdminStatistics(), getAdminUser(), IncidentParams, listAdminAuditEvents(), listAdminUserAssignments(), listAdminUserExecutions(), listAdminUserGroups() (+67 more)
+Cohesion: 0.10
+Nodes (32): listAdminUsers(), AdminShell(), AdminEmpty(), AdminError(), AdminLoading(), AdminPageHeader(), Pagination(), StatusPill() (+24 more)
 
 ### Community 9 - "CSV Bulk Register Response"
-Cohesion: 0.21
-Nodes (15): GroupController, ApiResponses, Authentication, DeleteMapping, GetMapping, Operation, PatchMapping, PostMapping (+7 more)
+Cohesion: 0.22
+Nodes (14): GroupController, ApiResponses, Authentication, DeleteMapping, GetMapping, Operation, PostMapping, PreAuthorize (+6 more)
 
 ### Community 10 - "Execution Report Model"
-Cohesion: 0.06
-Nodes (16): AssignmentUpdateDTO, fromValue(), TestSuiteUpdateMode, APPEND, REPLACE_ALL, UpdateAssignmentRequest, AssignmentUpdateService, AssignmentUpdate (+8 more)
+Cohesion: 0.07
+Nodes (9): fromValue(), TestSuiteUpdateMode, APPEND, REPLACE_ALL, UpdateAssignmentRequest, AssignmentUpdate, MultipartFile, Transactional (+1 more)
 
 ### Community 11 - "Execution Report (Queue)"
 Cohesion: 0.04
-Nodes (13): ExecutionReport, TestCaseResult, RecentSubmissionDTO, StudentGroupSubmissionDTO, ExecutionStatus, AC, CE, MLE (+5 more)
+Nodes (13): ExecutionReport, TestCaseResult, RecentSubmissionDTO, StudentSubmissionHistoryDTO, ExecutionStatus, AC, CE, MLE (+5 more)
 
 ### Community 12 - "Caveman-Compress Benchmark Tooling"
 Cohesion: 0.08
@@ -469,16 +466,16 @@ Cohesion: 0.18
 Nodes (6): CExecutor, Component, DockerClient, Override, CExecutorTest, Test
 
 ### Community 15 - "Async Config & Ownership Permission Tests"
-Cohesion: 0.05
-Nodes (8): TestCaseInfo, TestGenerationJob, ComparatorType, EXACT_MATCH, FLOATING_POINT, TestGenerationMode, REFERENCE_COMPATIBILITY, TEST_SUITE_GENERATION
+Cohesion: 0.03
+Nodes (18): AssignmentPreviewDTO, AssignmentPreviewTestCaseDTO, CloneAssignmentFormDTO, CloneAssignmentTestCaseDTO, TestCaseInfo, TestGenerationJob, ComparatorType, EXACT_MATCH (+10 more)
 
 ### Community 16 - "Notification Preferences"
 Cohesion: 0.03
-Nodes (19): AssignmentGrade, Entity, Table, Entity, Table, StudentAssignmentWork, Entity, Table (+11 more)
+Nodes (26): StudentGroupSubmissionDTO, AssignmentGrade, Entity, Table, Entity, Table, StudentAssignmentWork, Entity (+18 more)
 
 ### Community 17 - "Admin User Controller"
-Cohesion: 0.12
-Nodes (20): AuthController, ApiResponses, Authentication, GetMapping, MultipartFile, Operation, PostMapping, PreAuthorize (+12 more)
+Cohesion: 0.22
+Nodes (18): AuthController, ApiResponses, Authentication, GetMapping, MultipartFile, Operation, PostMapping, PreAuthorize (+10 more)
 
 ### Community 18 - "Group Metrics Overview"
 Cohesion: 0.11
@@ -486,19 +483,19 @@ Nodes (12): Override, ContainerSession, LanguageExecutor, ExecutionReport, Logge
 
 ### Community 19 - "Clone Assignment Request"
 Cohesion: 0.06
-Nodes (5): AssignmentExampleRequest, CloneAssignmentRequest, CloneTestCaseRequest, Assignment, TestCaseInfo
+Nodes (4): AssignmentExampleRequest, CloneAssignmentRequest, CloneTestCaseRequest, Assignment
 
 ### Community 20 - "Language Executor Factory"
 Cohesion: 0.30
 Nodes (10): CE, ExecutionResultTest, DisplayName, Nested, Test, MLE, OLE, RTE (+2 more)
 
 ### Community 21 - "Assignment Controller Integration Tests"
-Cohesion: 0.16
+Cohesion: 0.21
 Nodes (4): Scheduled, Transactional, BeforeEach, Test
 
 ### Community 22 - "Assignment Service & Clone DTOs"
-Cohesion: 0.08
-Nodes (16): AiPolicyDTO, AssignmentAiPolicy, Entity, Table, AiAssistanceLevel, CONCEPTUAL_ONLY, EXPLANATIONS_AND_GUIDING, EXPLANATIONS_GUIDING_AND_SNIPPETS (+8 more)
+Cohesion: 0.07
+Nodes (21): AiPolicyDTO, AssignmentAiPolicy, Entity, Table, AiAssistanceLevel, CONCEPTUAL_ONLY, EXPLANATIONS_AND_GUIDING, EXPLANATIONS_GUIDING_AND_SNIPPETS (+13 more)
 
 ### Community 23 - "Output Comparator Service"
 Cohesion: 0.21
@@ -509,40 +506,44 @@ Cohesion: 0.11
 Nodes (18): Component, Logger, RabbitListener, Transactional, NotificationEmailListener, Component, Logger, RabbitTemplate (+10 more)
 
 ### Community 25 - "Assignment Update Entity"
-Cohesion: 0.08
-Nodes (24): AssistantUsageRepository, Daily, Filters, GroupOption, ModelRow, Page, Models, AssistantUsagePostgresIntegrationTest (+16 more)
+Cohesion: 0.14
+Nodes (12): AssistantUsageRepository, Daily, Filters, GroupOption, ModelRow, Page, Filters, Test (+4 more)
 
 ### Community 26 - "Notification Dispatch Log"
 Cohesion: 0.06
 Nodes (5): TestCaseInfo, TestGenerationJob, TestGenerationMode, REFERENCE_COMPATIBILITY, TEST_SUITE_GENERATION
 
 ### Community 27 - "Execution Result Model"
-Cohesion: 0.06
-Nodes (12): AdminGroupResourceDTO, EnrollmentDTO, EnrollmentStudentDTO, GroupEnrollment, Entity, Table, EnrollmentStatus, ACTIVE (+4 more)
+Cohesion: 0.07
+Nodes (40): getAssignment(), listAssignmentSubmissions(), ATTEMPT_KINDS, AttemptBadge(), AttemptKind, VERDICT_LABELS, VERDICT_TONES, VerdictBadge() (+32 more)
 
 ### Community 28 - "Test Case Info (Queue)"
-Cohesion: 0.06
-Nodes (24): ArtifactExpiredException, AlreadyRegisteredEmailException, AlreadyRegisteredEnrollmentNumberException, BlockedUserException, ExpiredJWTException, IncorrectCredentialsException, InvalidJWTException, GlobalExceptionHandler (+16 more)
+Cohesion: 0.05
+Nodes (27): ArtifactExpiredException, AlreadyRegisteredEmailException, AlreadyRegisteredEnrollmentNumberException, BlockedUserException, InvalidJWTException, GlobalExceptionHandler, Logger, ResponseEntity (+19 more)
 
 ### Community 29 - "Assignment Entity"
 Cohesion: 0.03
-Nodes (11): Assignment, Entity, Table, AssignmentExample, Entity, Table, AssignmentExampleRepository, Page (+3 more)
+Nodes (14): Assignment, Entity, Table, AssignmentExample, Entity, Table, AssignmentValidationStatus, FAILED (+6 more)
 
 ### Community 30 - "Execution Entity"
-Cohesion: 0.10
-Nodes (10): Execution, Entity, Table, ExecutionMapper, ExecutionDTO, Transactional, ExecutionResultServiceTest, ExecutionReport (+2 more)
+Cohesion: 0.08
+Nodes (15): Execution, Entity, Table, ExecutionMapper, ExecutionDTO, Transactional, Transactional, Assignment (+7 more)
+
+### Community 31 - "Create Assignment Request"
+Cohesion: 0.08
+Nodes (3): CreateAssignmentRequest, MultipartFile, TestCaseInfo
 
 ### Community 32 - "Frontend Protected Route & Admin Pages"
-Cohesion: 0.03
-Nodes (21): ProtectedRoute(), ProtectedRouteProps, AuthContextType, AdminUserDialogs(), AdminAiUsagePage(), AdminUserDetailPage(), TABS, CreateUserPage() (+13 more)
+Cohesion: 0.04
+Nodes (6): ProtectedRoute(), ProtectedRouteProps, AuthContextType, TeacherDashboardPage(), Role, Scope
 
 ### Community 33 - "Group Service"
-Cohesion: 0.13
-Nodes (25): AssignmentStudentWorkController, Authentication, DeleteMapping, GetMapping, Operation, PostMapping, PreAuthorize, PutMapping (+17 more)
+Cohesion: 0.12
+Nodes (24): AssignmentStudentWorkController, Authentication, DeleteMapping, GetMapping, Operation, PostMapping, PreAuthorize, PutMapping (+16 more)
 
 ### Community 34 - "Submission DTO"
-Cohesion: 0.14
-Nodes (6): GroupService, SecureRandom, Service, Transactional, GroupServiceTest, Test
+Cohesion: 0.18
+Nodes (3): Transactional, GroupServiceTest, Test
 
 ### Community 35 - "Test Generation Listener"
 Cohesion: 0.06
@@ -553,44 +554,44 @@ Cohesion: 0.23
 Nodes (7): AssignmentsHonorOwnership, GroupsHonorOwnership, DisplayName, Nested, Test, MetricsHonorOwnership, StudentWorkAndGrading
 
 ### Community 37 - "Frontend Execution API Client"
-Cohesion: 0.06
-Nodes (26): getActiveTeacherGroups(), getCloneAssignmentForm(), AiPolicyFields(), LEVELS, normalizeAiPolicy(), validAiPolicy(), byteSize(), CloneAssignmentPage() (+18 more)
+Cohesion: 0.05
+Nodes (38): cloneAssignment(), getActiveTeacherGroups(), getCloneAssignmentForm(), updateAiPolicy(), AiPolicyFields(), LEVELS, normalizeAiPolicy(), validAiPolicy() (+30 more)
 
 ### Community 38 - "Group Controller"
-Cohesion: 0.12
-Nodes (20): AssistantController, ApiResponses, Authentication, GetMapping, Operation, PostMapping, PreAuthorize, RequestMapping (+12 more)
+Cohesion: 0.08
+Nodes (31): AssistantController, ApiResponses, Authentication, GetMapping, Operation, PostMapping, PreAuthorize, RequestMapping (+23 more)
 
 ### Community 39 - "Reevaluation Batch"
 Cohesion: 0.08
 Nodes (9): ReevaluationBatchDTO, Entity, Table, ReevaluationBatch, ReevaluationBatchStatus, COMPLETED, COMPLETED_WITH_FAILURES, DISPATCHING (+1 more)
 
 ### Community 40 - "User Entity"
-Cohesion: 0.13
-Nodes (13): GroupControllerIntegrationTest, ActiveProfiles, AutoConfigureMockMvc, BeforeEach, DisplayName, EntityManager, MockMvc, ObjectMapper (+5 more)
+Cohesion: 0.10
+Nodes (39): AuditParams, getAdminStatistics(), IncidentParams, listAdminAuditEvents(), listAdminUserAssignments(), listAdminUserExecutions(), listAdminUserGroups(), listAdminUserSubmissions() (+31 more)
 
 ### Community 41 - "Group Controller Integration Tests"
-Cohesion: 0.16
-Nodes (14): CapturedOutput, UpdateAiPolicyRequest, Transactional, AssistantControllerIntegrationTest, ActiveProfiles, AfterEach, AutoConfigureMockMvc, ExtendWith (+6 more)
+Cohesion: 0.15
+Nodes (13): CapturedOutput, UpdateAiPolicyRequest, AssistantControllerIntegrationTest, ActiveProfiles, AfterEach, AutoConfigureMockMvc, ExtendWith, Import (+5 more)
 
 ### Community 42 - "Execution Request Service"
 Cohesion: 0.20
 Nodes (9): GroupMetricsControllerIntegrationTest, ActiveProfiles, AutoConfigureMockMvc, DisplayName, MockMvc, PasswordEncoder, SpringBootTest, Test (+1 more)
 
 ### Community 43 - "Submission Entity"
-Cohesion: 0.09
-Nodes (27): AssignmentOverview(), AnalyticsGroupContext(), AnalyticsHealth, AnalyticsOverview(), clamp(), formatDateTime(), formatPercentage(), KpiCard() (+19 more)
+Cohesion: 0.05
+Nodes (65): AttentionSection(), dueTime(), gradingQueue(), hardestAssignments(), nameList(), openDeadlines(), relativeDue(), StrugglePanel() (+57 more)
 
 ### Community 44 - "Auth Response"
 Cohesion: 0.07
-Nodes (46): ExecutionReport, jsonRequest(), teacherRequest(), createGroup(), listTeacherGroups(), getAssignmentMetrics(), listAssignmentMetrics(), assignmentPath() (+38 more)
+Nodes (53): jsonRequest(), teacherRequest(), createGroup(), listTeacherGroups(), getAssignmentMetrics(), listAssignmentMetrics(), listStudentAssignmentMetrics(), listStudentMetrics() (+45 more)
 
 ### Community 45 - "StudentDashboardPage.tsx"
 Cohesion: 0.14
 Nodes (10): Adapter, CgroupSnapshot, ContainerMemoryTracker, DockerClient, Logger, Override, MemoryMeasurement, ContainerMemoryTrackerTest (+2 more)
 
 ### Community 46 - "Scope.java"
-Cohesion: 0.13
-Nodes (20): getTeacherDashboard(), DashboardSummary(), formatDateTime(), GradingQueue(), initials(), nearestEvent(), RecentSubmissionActivity(), relativeDate() (+12 more)
+Cohesion: 0.10
+Nodes (24): getTeacherDashboard(), ExplorerToolbar(), DashboardSummary(), formatDateTime(), GradingQueue(), initials(), nearestEvent(), RecentSubmissionActivity() (+16 more)
 
 ### Community 47 - "TestSuiteRevision"
 Cohesion: 0.04
@@ -601,76 +602,72 @@ Cohesion: 0.10
 Nodes (9): SignUpRequest, ContentTypeTests, CsvSignUpEndpointTests, DisplayName, Nested, Test, LoginEndpointTests, SecurityTests (+1 more)
 
 ### Community 49 - "AppHeader.tsx"
-Cohesion: 0.15
-Nodes (10): UpdateNotificationPreferenceRequest, UpdateNotificationSettingsRequest, UserNotificationPreferenceRepository, UserNotificationSettingsRepository, Service, BeforeEach, ExtendWith, Test (+2 more)
+Cohesion: 0.07
+Nodes (17): NotificationPreferenceDTO, NotificationSettingsDTO, Entity, Table, UserNotificationSettings, UpdateNotificationPreferenceRequest, UpdateNotificationSettingsRequest, UserNotificationPreferenceRepository (+9 more)
 
 ### Community 50 - "PasswordResetToken"
-Cohesion: 0.14
-Nodes (9): Entity, Table, PasswordResetToken, Repository, PasswordResetTokenRepository, PasswordEncoder, Service, Transactional (+1 more)
+Cohesion: 0.12
+Nodes (14): Entity, Table, PasswordResetToken, Repository, PasswordResetTokenRepository, PasswordEncoder, Service, Transactional (+6 more)
 
 ### Community 51 - "JwtUtil"
-Cohesion: 0.06
-Nodes (32): AsyncConfigurer, Autowired, Logger, RabbitTemplate, Service, TestGenerationRequestProducer, AssignmentAiPolicyRepository, AssistantConversationRepository (+24 more)
+Cohesion: 0.05
+Nodes (33): AsyncConfigurer, Autowired, AssignmentAiPolicyRepository, AssistantConversationRepository, AssistantInteractionRepository, AssignmentAiPolicyService, Service, ObjectMapper (+25 more)
 
 ### Community 52 - "ClassGroup"
-Cohesion: 0.06
-Nodes (13): AssignmentPreviewDTO, CloneAssignmentFormDTO, StudentSubmissionHistoryDTO, Language, C, CPP, JAVA, PYTHON (+5 more)
+Cohesion: 0.27
+Nodes (4): AssistantRequestFingerprint, AssistantRequestFingerprintTest, Test, MessageDigest
 
 ### Community 53 - ".error"
-Cohesion: 0.13
-Nodes (8): Entity, Table, NotificationDispatchLog, Service, Transactional, NotificationDispatchService, NotificationDispatchLogRepository, NotificationPreferenceService
+Cohesion: 0.14
+Nodes (7): Entity, Table, NotificationDispatchLog, Service, Transactional, NotificationDispatchService, NotificationDispatchLogRepository
 
 ### Community 54 - "teacher/api/assignment.api.ts"
 Cohesion: 0.10
-Nodes (19): Arguments, AssistantAnswer, Snippet, HistoryTurn, AssistantGuardrailService, Decision, GenerationInput, InputReview (+11 more)
+Nodes (18): AssistantAnswer, Snippet, AssistantGuardrailService, Decision, GenerationInput, InputReview, JsonNode, ObjectMapper (+10 more)
 
 ### Community 55 - "RabbitConfig"
-Cohesion: 0.10
-Nodes (8): JsonInclude, SubmissionDTO, SubmissionStatus, SUBMITTED, SUPERSEDED, WITHDRAWN, Submission, SubmissionMapper
+Cohesion: 0.09
+Nodes (9): AdminSubmissionResourceDTO, JsonInclude, SubmissionDTO, SubmissionStatus, SUBMITTED, SUPERSEDED, WITHDRAWN, Submission (+1 more)
 
 ### Community 56 - "AssignmentController.java"
-Cohesion: 0.08
-Nodes (28): NotificationPreferenceDTO, NotificationType, ASSIGNMENT_CLOSE_SOON, ASSIGNMENT_CLOSE_SOON_NO_SUBMISSION, ASSIGNMENT_DUE_SOON, ASSIGNMENT_DUE_SOON_NO_SUBMISSION, ASSIGNMENT_GRADES_CLEARED, ASSIGNMENT_PUBLISHED (+20 more)
+Cohesion: 0.05
+Nodes (25): Entity, Table, UserNotificationPreference, NotificationType, ASSIGNMENT_CLOSE_SOON, ASSIGNMENT_CLOSE_SOON_NO_SUBMISSION, ASSIGNMENT_DUE_SOON, ASSIGNMENT_DUE_SOON_NO_SUBMISSION (+17 more)
 
 ### Community 57 - "AssignmentFeedback"
-Cohesion: 0.11
-Nodes (33): base(), getAssistantAvailability(), getAssistantInteraction(), listAssistantHistory(), sendAssistantMessage(), AssistantComposer(), consentKey(), AssistantChatBubble() (+25 more)
+Cohesion: 0.08
+Nodes (31): AssistantComposer(), consentKey(), useAssistantConsent(), AssistantChatBubble(), AssistantMessage(), AssistantThinking(), formatMoment(), HighlightedCode() (+23 more)
 
 ### Community 58 - "UserDTO"
-Cohesion: 0.07
-Nodes (51): cloneAssignment(), createAssignment(), deleteAssignment(), getAssignmentManagementStatus(), getAssignmentUpdate(), getTeacherAssignment(), getTeacherAssignmentPage(), getTeacherAssignmentPreview() (+43 more)
+Cohesion: 0.06
+Nodes (49): createAssignment(), deleteAssignment(), getAssignmentManagementStatus(), getAssignmentUpdate(), getTeacherAssignment(), getTeacherAssignmentPage(), getTeacherAssignmentPreview(), multipartMetadata() (+41 more)
 
 ### Community 59 - "AssignmentGradeHistory"
-Cohesion: 0.07
-Nodes (25): ApiResponses, Authentication, Breakdown, GetMapping, GroupOption, Operation, RestController, SuccessResponse (+17 more)
+Cohesion: 0.09
+Nodes (6): AssistantUsageQuery, Breakdown, AssistantUsageServiceTest, Role, Test, User
 
 ### Community 60 - "auth.api.ts"
-Cohesion: 0.16
-Nodes (18): CsvTaskResponse, forgotPassword(), getMe(), login(), resetPassword(), signUp(), updatePassword(), uploadCsv() (+10 more)
+Cohesion: 0.12
+Nodes (25): getAuthToken(), AdminApiError, CsvTaskResponse, forgotPassword(), getMe(), login(), resetPassword(), signUp() (+17 more)
 
 ### Community 61 - "RecoveryPasswordController.java"
-Cohesion: 0.16
+Cohesion: 0.17
 Nodes (12): ApiResponses, Operation, PostMapping, RequestMapping, ResponseEntity, RestController, SecurityRequirements, SuccessResponse (+4 more)
 
 ### Community 62 - "ExecutionTestCaseInfo"
 Cohesion: 0.04
 Nodes (9): Check, AssistantModelCall, Entity, Table, AssistantModelCallStatus, FAILED, STARTED, SUCCEEDED (+1 more)
 
-### Community 63 - "RecoveryPasswordRequest"
-Cohesion: 0.34
-Nodes (3): RecoveryPasswordRequest, ResetPasswordEndpointTests, User
-
 ### Community 64 - "CsvProgressMessage"
 Cohesion: 0.09
 Nodes (6): CsvProgressMessage, Status, COMPLETED, PROCESSING, ROW_ERROR, ROW_SUCCESS
 
 ### Community 65 - "GroupMetricsControllerIntegrationTest.java"
-Cohesion: 0.18
+Cohesion: 0.19
 Nodes (12): AssistantHistoryController, Authentication, GetMapping, Operation, PageResponse, RequestMapping, ResponseEntity, RestController (+4 more)
 
 ### Community 66 - "Select.tsx"
 Cohesion: 0.07
-Nodes (37): listAssignments(), listAssignmentsForGroups(), getGroup(), leaveGroup(), listMyGroups(), getMyGroupMetrics(), listMyAssignmentMetrics(), listGroupSubmissions() (+29 more)
+Nodes (41): listAssignments(), listAssignmentsForGroups(), ErrorResponse, jsonBody(), studentAuthHeaders(), studentRequest(), SuccessResponse, submitExecution() (+33 more)
 
 ### Community 67 - "compilerOptions"
 Cohesion: 0.08
@@ -681,32 +678,36 @@ Cohesion: 0.22
 Nodes (7): AddTestCase, DetermineOverallStatus, ExecutionReportTest, DisplayName, Nested, Test, TestCaseResult
 
 ### Community 69 - "NotificationPreferenceController.java"
-Cohesion: 0.10
-Nodes (10): forRole(), getAudience(), Role, ADMIN, STUDENT, TEACHER, UpdateUserRoleRequest, Scope (+2 more)
+Cohesion: 0.09
+Nodes (15): forRole(), getAudience(), Role, ADMIN, STUDENT, TEACHER, UpdateUserRoleRequest, Scope (+7 more)
 
 ### Community 70 - ".buildExecutionJob"
-Cohesion: 0.07
-Nodes (11): AssignmentUpdate, Entity, Table, AssignmentUpdateKind, METADATA, REFERENCE_ONLY, TEST_SUITE, AssignmentUpdateStatus (+3 more)
+Cohesion: 0.06
+Nodes (13): AssignmentManagementStatusDTO, AssignmentUpdateDTO, AssignmentUpdate, Entity, Table, AssignmentUpdateKind, METADATA, REFERENCE_ONLY (+5 more)
 
 ### Community 71 - "ExecutionJob"
 Cohesion: 0.04
 Nodes (13): ExecutionJob, ExecutionTestCaseInfo, ComparatorType, EXACT_MATCH, FLOATING_POINT, ExecutionType, DEFINITIVE, PRACTICE (+5 more)
 
 ### Community 72 - ".getStatus"
-Cohesion: 0.20
-Nodes (12): ActiveProfiles, AutoConfigureMockMvc, BeforeEach, DisplayName, Import, MockMvc, PasswordEncoder, SpringBootTest (+4 more)
+Cohesion: 0.16
+Nodes (15): BeforeEach, ClassGroup, User, ActiveProfiles, AutoConfigureMockMvc, BeforeEach, DisplayName, Import (+7 more)
 
 ### Community 73 - "ReevaluationService.java"
 Cohesion: 0.09
 Nodes (21): Assertions, Before writing tests, Boundary cases, Dependency behavior, Determine test scenarios, Execution, Existing implementation vs expected behavior, Existing tests (+13 more)
 
+### Community 74 - "AssignmentDTO"
+Cohesion: 0.04
+Nodes (7): AssignmentDTO, JsonInclude, AssignmentExampleDTO, JsonInclude, SampleTestCaseDTO, AssignmentMapper, Assignment
+
 ### Community 75 - "GroupDTO"
-Cohesion: 0.11
-Nodes (9): JsonInclude, UserDTO, UserMapper, AuthResponse, AuthResponse, MultipartFile, Transactional, User (+1 more)
+Cohesion: 0.15
+Nodes (5): JsonInclude, UserDTO, UserMapper, AuthResponse, BeforeEach
 
 ### Community 76 - "useAuth"
-Cohesion: 0.03
-Nodes (82): getAssignment(), listMyAssignmentFeedback(), listMyAssignmentOverviews(), ApiError, ErrorResponse, jsonBody(), studentAuthHeaders(), studentRequest() (+74 more)
+Cohesion: 0.07
+Nodes (42): listMyAssignmentFeedback(), listMyAssignmentOverviews(), listRecentSubmissions(), withdrawSubmission(), formatDate(), GRADE_META, GradeCard(), GradeFilter (+34 more)
 
 ### Community 77 - "CheckExecutionControllerIntegrationTest.java"
 Cohesion: 0.29
@@ -717,28 +718,28 @@ Cohesion: 0.13
 Nodes (11): Component, Logger, LanguageExecutorFactory, BeforeEach, DisplayName, Test, LanguageExecutorFactoryTest, Test (+3 more)
 
 ### Community 79 - "DisplayName"
-Cohesion: 0.20
-Nodes (9): BeforeEach, DisplayName, ExtendWith, Nested, PasswordEncoder, Test, RecoveryPasswordServiceTest, ResetPasswordTests (+1 more)
+Cohesion: 0.19
+Nodes (5): DisplayName, Nested, Test, ResetPasswordTests, SendPasswordResetEmailTests
 
 ### Community 80 - "GroupServiceTest"
 Cohesion: 0.08
 Nodes (15): Scope, CHECK_ANALYTICS, CREATE_ADMINS, CREATE_GROUP, CREATE_USERS, MANAGE_ADMIN_STATUS, MANAGE_GROUPS, MANAGE_SCOPES (+7 more)
 
 ### Community 81 - "TestGenerationJob"
-Cohesion: 0.12
-Nodes (17): AdminInitializer, Component, Logger, Override, PasswordEncoder, AdminInitializerTest, BeforeEach, DisplayName (+9 more)
+Cohesion: 0.21
+Nodes (11): AdminInitializer, Component, Logger, Override, PasswordEncoder, AdminInitializerTest, BeforeEach, DisplayName (+3 more)
 
 ### Community 82 - "OutputComparatorService"
-Cohesion: 0.07
-Nodes (15): AssignmentFeedback, Entity, Table, FeedbackStatus, DELETED, PUBLISHED, AssignmentFeedbackRepository, AssignmentFeedbackServiceTest (+7 more)
+Cohesion: 0.06
+Nodes (13): AssignmentFeedback, Entity, Table, FeedbackStatus, DELETED, PUBLISHED, Assignment, AssignmentFeedback (+5 more)
 
 ### Community 83 - "TeacherGroupDetailPage.tsx"
-Cohesion: 0.10
-Nodes (15): AssignmentGradeService, Service, Transactional, StudentAssignmentWork, Transactional, AssignmentGradeServiceTest, Assignment, AssignmentGrade (+7 more)
+Cohesion: 0.15
+Nodes (10): AssignmentGradeDTO, AssignmentGradeService, Service, Transactional, AssignmentGradeServiceTest, Assignment, AssignmentGrade, BeforeEach (+2 more)
 
 ### Community 84 - "AdminUserController.java"
-Cohesion: 0.28
-Nodes (14): AdminUserController, Authentication, Direction, GetMapping, Operation, PageResponse, PatchMapping, PreAuthorize (+6 more)
+Cohesion: 0.23
+Nodes (17): AdminUserController, Authentication, Direction, GetMapping, Operation, PageResponse, PatchMapping, PreAuthorize (+9 more)
 
 ### Community 85 - "ObjectStorageService"
 Cohesion: 0.16
@@ -749,60 +750,60 @@ Cohesion: 0.10
 Nodes (5): ExecutionResult, AbstractLanguageExecutor, DockerClient, Logger, HostConfig
 
 ### Community 87 - "TeacherDashboardPage.tsx"
-Cohesion: 0.19
-Nodes (7): CsvBulkRegistrationTests, DisplayName, Test, User, LoginTests, RegistrationTests, MockMultipartFile
+Cohesion: 0.14
+Nodes (15): AuthServiceTest, CsvBulkRegistrationTests, BeforeEach, DisplayName, ExtendWith, LoginRequest, Nested, PasswordEncoder (+7 more)
 
 ### Community 88 - "Backend Controller Layer"
 Cohesion: 0.12
 Nodes (22): AdminUserController, AssignmentController, AuthController, CheckExecutionController, Backend Controller Layer, GlobalExceptionHandler, NotificationPreferenceController, RecoveryPasswordController (+14 more)
 
 ### Community 89 - "AuthController.java"
-Cohesion: 0.09
-Nodes (19): AdminAuditEventDTO, AdminAuditEvent, Entity, Table, AdminAuditAction, CSV_REGISTRATION_COMPLETED, CSV_REGISTRATION_SUBMITTED, USER_BLOCKED (+11 more)
+Cohesion: 0.08
+Nodes (22): AdminAuditEventDTO, AdminAuditEvent, Entity, Table, AdminAuditAction, CSV_REGISTRATION_COMPLETED, CSV_REGISTRATION_SUBMITTED, USER_BLOCKED (+14 more)
 
 ### Community 90 - "GroupMetricsController.java"
-Cohesion: 0.31
-Nodes (4): AssistantUsageServiceTest, Role, Test, User
+Cohesion: 0.20
+Nodes (14): ApiResponses, Authentication, Breakdown, GetMapping, GroupOption, Operation, RestController, SuccessResponse (+6 more)
 
 ### Community 91 - "ExecutionDTO"
 Cohesion: 0.05
-Nodes (38): AuthContext, AuthProvider(), useAuth(), getInitialTheme(), Theme, ThemeContext, ThemeContextType, ThemeProvider() (+30 more)
+Nodes (36): AuthContext, AuthProvider(), useAuth(), getInitialTheme(), Theme, ThemeContext, ThemeContextType, ThemeProvider() (+28 more)
 
 ### Community 92 - "CreateAssignmentPage.tsx"
-Cohesion: 0.13
-Nodes (14): STUDENT_NAV, STUDENT_SIDEBAR_ITEMS, STUDENT_STATS_ICONS, TeacherNavigation, TeacherShell(), TEACHER_CREATE_NAV, TEACHER_CREATE_SIDEBAR_ITEMS, TEACHER_NAV (+6 more)
+Cohesion: 0.14
+Nodes (13): STUDENT_NAV, STUDENT_SIDEBAR_ITEMS, STUDENT_STATS_ICONS, TeacherShell(), TEACHER_CREATE_NAV, TEACHER_CREATE_SIDEBAR_ITEMS, TEACHER_NAV, TEACHER_SIDEBAR_ITEMS (+5 more)
 
 ### Community 93 - "DisplayName"
-Cohesion: 0.22
+Cohesion: 0.19
 Nodes (6): GetExecution, GetReport, DisplayName, Nested, Test, SubmitExecution
 
 ### Community 94 - "RateLimitAspect"
-Cohesion: 0.18
-Nodes (13): Authentication, GetMapping, Operation, PostMapping, PutMapping, RequestMapping, ResponseEntity, RestController (+5 more)
+Cohesion: 0.28
+Nodes (11): Authentication, GetMapping, Operation, PostMapping, PutMapping, RequestMapping, ResponseEntity, RestController (+3 more)
 
 ### Community 95 - "DisplayName"
-Cohesion: 0.16
+Cohesion: 0.17
 Nodes (10): User, DTOToEntityTests, EntityToDTOTests, DisplayName, Nested, Test, User, ListMappingTests (+2 more)
 
 ### Community 96 - "dependencies"
 Cohesion: 0.09
-Nodes (23): class-variance-authority, clsx, dependencies, class-variance-authority, clsx, lucide-react, @radix-ui/react-select, @radix-ui/react-slot (+15 more)
+Nodes (23): class-variance-authority, dependencies, class-variance-authority, framer-motion, lucide-react, @radix-ui/react-select, @radix-ui/react-slot, @radix-ui/react-tabs (+15 more)
 
 ### Community 97 - "ExecutionTestCaseInfo"
-Cohesion: 0.24
-Nodes (6): AssignmentServiceTest, Assignment, BeforeEach, ClassGroup, Test, User
+Cohesion: 0.11
+Nodes (12): AssignmentService, Logger, Page, Service, Transactional, TestCaseInfo, AssignmentServiceTest, Assignment (+4 more)
 
 ### Community 98 - "DisplayName"
-Cohesion: 0.18
-Nodes (11): 10. Archivos y responsabilidades previstas, 13. Fuentes revisadas, 1. Objetivo y alcance, 2. Inventario real: qué aprovechar y qué falta, 3. Decisiones aprobadas, 5. Arquitectura recomendada, 8. API propuesta, Autorización (+3 more)
+Cohesion: 0.25
+Nodes (8): 10. Archivos y responsabilidades previstas, 13. Fuentes revisadas, 1. Objetivo y alcance, 3. Decisiones aprobadas, 5. Arquitectura recomendada, 8. API propuesta, Autorización, Plan de implementación — Estadísticas de uso del asistente de IA
 
 ### Community 99 - "devDependencies"
 Cohesion: 0.07
 Nodes (29): devDependencies, jsdom, @react-router/dev, tailwindcss, @tailwindcss/vite, @testing-library/jest-dom, @testing-library/react, @types/node (+21 more)
 
 ### Community 100 - "ExecutionTestCaseInfo"
-Cohesion: 0.15
-Nodes (8): CurrentSubmissionRow, StudentAssignmentMetricsDTO, StudentWorkStatus, NOT_SUBMITTED, RETURNED, SUBMITTED, WITHDRAWN, Query
+Cohesion: 0.20
+Nodes (6): StudentAssignmentMetricsDTO, StudentWorkStatus, NOT_SUBMITTED, RETURNED, SUBMITTED, WITHDRAWN
 
 ### Community 101 - "Sequence Diagram Specifications: Groups, Assignments, Submissions, Grades, Feedback"
 Cohesion: 0.11
@@ -813,12 +814,12 @@ Cohesion: 0.11
 Nodes (18): cavecrew, cavecrew delegation matrix, cavecrew-builder, cavecrew-investigator, cavecrew-reviewer, caveman-commit, Conventional Commits, caveman-compress (+10 more)
 
 ### Community 103 - "clsx"
-Cohesion: 0.11
-Nodes (33): getTeacherAssignments(), archiveGroup(), deleteGroup(), getTeacherGroup(), groupPath(), listGroupStudents(), removeGroupStudent(), restoreGroup() (+25 more)
+Cohesion: 0.13
+Nodes (29): getTeacherAssignments(), archiveGroup(), deleteGroup(), getTeacherGroup(), groupPath(), listGroupStudents(), removeGroupStudent(), restoreGroup() (+21 more)
 
 ### Community 104 - "AdminUserControllerIntegrationTest"
-Cohesion: 0.33
-Nodes (4): AssistantGuardrailServiceTest, FakeModel, Override, Test
+Cohesion: 0.27
+Nodes (6): AssistantGuardrailServiceTest, FakeModel, Override, ParameterizedTest, Test, ValueSource
 
 ### Community 105 - "TestGenerationResult"
 Cohesion: 0.22
@@ -826,19 +827,19 @@ Nodes (6): Binding, Bean, Configuration, MessageConverter, RabbitConfig, DirectE
 
 ### Community 106 - "AuthControllerIntegrationTest.java"
 Cohesion: 0.05
-Nodes (11): AdminExecutionResourceDTO, ExecutionDTO, JsonInclude, ExecutionTrigger, ASSIGNMENT_UPDATE, INITIAL_SUBMISSION, MANUAL_RETRY, PRACTICE (+3 more)
+Nodes (12): AdminExecutionResourceDTO, ExecutionDTO, JsonInclude, ExecutionTrigger, ASSIGNMENT_UPDATE, INITIAL_SUBMISSION, MANUAL_RETRY, PRACTICE (+4 more)
 
 ### Community 107 - "MockMultipartFile"
-Cohesion: 0.06
-Nodes (50): listStudentAssignmentMetrics(), listStudentMetrics(), AssignmentAnalyticsDrawer(), AssignmentStudents(), CountCard(), DrawerMetric(), DrawerTab, DrawerTabButton() (+42 more)
+Cohesion: 0.14
+Nodes (15): UsageRow, AssignmentAnalyticsDrawer(), AssignmentStudents(), CountCard(), DrawerMetric(), DrawerSection(), DrawerStatGrid(), DrawerTab (+7 more)
 
 ### Community 108 - "CsvProgressWebSocketHandler"
-Cohesion: 0.22
+Cohesion: 0.21
 Nodes (7): ForgotPasswordRequest, ContentTypeTests, ForgotPasswordEndpointTests, DisplayName, Nested, Test, SecurityTests
 
 ### Community 109 - "CheckExecutionController.java"
-Cohesion: 0.09
-Nodes (25): ApplicationEvents, ExecutionRequestProducer, Logger, RabbitTemplate, Service, AssignmentLimits, TestCaseRepository, ReevaluationRequestedEvent (+17 more)
+Cohesion: 0.10
+Nodes (10): AdminStatisticsDTO, ResourceStatistics, UserStatistics, AdminAuditEventRepository, Query, Page, Pageable, RateLimitIncidentRepository (+2 more)
 
 ### Community 110 - "SubmissionController.java"
 Cohesion: 0.31
@@ -856,9 +857,13 @@ Nodes (3): BufferedInputStream, FastScanner, Main
 Cohesion: 0.15
 Nodes (16): M6 verdictDistribution, Assignment entity, AssignmentUpdate entity, ClassGroup entity, CreateAssignmentRequest, Backend Model Implementation, Execution entity, ExecutionJob (queue DTO) (+8 more)
 
+### Community 114 - "PythonExecutor"
+Cohesion: 0.21
+Nodes (19): base(), getAssistantAvailability(), getAssistantInteraction(), listAssistantHistory(), sendAssistantMessage(), ApiError, AssistantQuota(), describeError() (+11 more)
+
 ### Community 115 - "CsvRegistrationService"
-Cohesion: 0.08
-Nodes (24): EmailTemplateRenderer, Component, TemplateEngine, RenderedEmail, Async, JavaMailSender, Logger, Service (+16 more)
+Cohesion: 0.11
+Nodes (19): EmailTemplateRenderer, Component, TemplateEngine, RenderedEmail, NotificationEmailContent, Async, JavaMailSender, Logger (+11 more)
 
 ### Community 116 - "AssignmentRepository"
 Cohesion: 0.18
@@ -873,16 +878,16 @@ Cohesion: 0.25
 Nodes (11): assignment.api.ts (teacher feature API module), /teacher/assignments/:assignmentId/clone route, Clone flow never inherits source scheduling dates, /teacher/create-assignment route, Teacher Frontend, /teacher/assignments route, /teacher dashboard route, Frontend Routes Implementation (+3 more)
 
 ### Community 119 - "UpdatePasswordRequest"
-Cohesion: 0.15
-Nodes (11): ApiException, Bucket, ChatModel, Component, Logger, ObjectProvider, Override, SpringAiAssistantModelGateway (+3 more)
+Cohesion: 0.28
+Nodes (5): ApiException, AssistantModelCallContext, Override, Test, SpringAiAssistantModelGatewayTest
 
 ### Community 120 - ".fixture"
 Cohesion: 0.11
-Nodes (19): Authentication, GetMapping, Operation, RequestMapping, ResponseEntity, RestController, SuccessResponse, Tag (+11 more)
+Nodes (14): DeadlineItem, GradingItem, RecentSubmission, Summary, TeacherDashboardDTO, ValidationItem, Modifying, Page (+6 more)
 
 ### Community 122 - "TestCaseInfo"
-Cohesion: 0.33
-Nodes (6): Configuration, Override, Profile, RateLimitWebConfig, InterceptorRegistry, WebMvcConfigurer
+Cohesion: 0.12
+Nodes (19): getExecution(), getExecutionReport(), ExecutionReportPage(), reportedMemory(), TERMINAL, testDiagnostic(), TestResultRow(), VERDICTS (+11 more)
 
 ### Community 123 - "Rule 11: group-owner authorization parity across controllers"
 Cohesion: 0.17
@@ -893,7 +898,7 @@ Cohesion: 0.18
 Nodes (12): codehive-backend (Spring Boot REST API, Java 21), codehive-frontend (React Router v7 SPA, TypeScript), codehive_queue (backend to worker execution jobs), codehive_result_queue (worker to backend execution results), codehive_test_generation_queue (backend to worker), codehive-worker (Spring Boot sandbox executor, Java 21), utils/ObjectKeyBuilder, AGENTS.md - CodeHive Root Instructions (+4 more)
 
 ### Community 125 - "SubmissionController.java"
-Cohesion: 0.13
+Cohesion: 0.12
 Nodes (12): Lock, AssistantModelCallRepository, Lock, Modifying, Query, AssistantModelCallRecorder, Scheduled, Service (+4 more)
 
 ### Community 127 - "NotificationDomainEventRouter"
@@ -917,12 +922,12 @@ Cohesion: 0.18
 Nodes (11): Role-specific notification catalog, Notification retry policy, NotificationDomainEvent, NotificationMessage, NotificationStrategyRegistry, Future notification requirements, Notification delivery workflow, Transactional email (+3 more)
 
 ### Community 132 - "LanguageExecutorFactoryTest"
-Cohesion: 0.14
+Cohesion: 0.12
 Nodes (12): AdminUserControllerIntegrationTest, ActiveProfiles, AutoConfigureMockMvc, BeforeEach, EntityManager, MockMvc, PasswordEncoder, SpringBootTest (+4 more)
 
 ### Community 133 - "NotificationReminderScheduler.java"
-Cohesion: 0.27
-Nodes (13): AdminMonitoringController, GetMapping, Operation, PageResponse, PreAuthorize, RequestMapping, ResponseEntity, RestController (+5 more)
+Cohesion: 0.15
+Nodes (12): AdminMonitoringController, GetMapping, Operation, PageResponse, PreAuthorize, RequestMapping, ResponseEntity, RestController (+4 more)
 
 ### Community 134 - "ExecutionStatus"
 Cohesion: 0.40
@@ -941,24 +946,24 @@ Cohesion: 0.20
 Nodes (10): Backend queue topology, OutputComparatorService, Compilation gate, TestExecutionService, Worker ExecutionRequestListener, Worker messaging, Sandboxed execution worker, Container security hardening (+2 more)
 
 ### Community 139 - "PermissionMatrixIntegrationTest.java"
-Cohesion: 0.06
-Nodes (32): AdminStatisticsDTO, ResourceStatistics, UserStatistics, ValidationException, AssignmentGradeRepository, AssignmentRepository, ClassGroupRepository, ExecutionRepository (+24 more)
+Cohesion: 0.08
+Nodes (31): ValidationException, ApplicationEventPublisher, Component, NotificationDomainEventPublisher, AssignmentFeedbackRepository, AssignmentGradeHistoryRepository, AssignmentGradeRepository, AssignmentRepository (+23 more)
 
 ### Community 140 - "package.json"
 Cohesion: 0.20
 Nodes (9): name, private, scripts, build, dev, start, test, typecheck (+1 more)
 
 ### Community 141 - "TestCaseResult"
-Cohesion: 0.24
-Nodes (5): Claims, Component, JwtUtil, PostConstruct, SecretKey
+Cohesion: 0.09
+Nodes (17): Dimension, ASSIGNMENTS, GROUPS, STUDENTS, USERS, Access, AssistantUsageService, Audience (+9 more)
 
 ### Community 142 - "Grupos, tareas y entregas"
 Cohesion: 0.21
 Nodes (12): CloneAssignmentRequest, Query: expected frontend behavior when an assignment is cloned, Finding: clone requires group+dates only; graph lacked frontend clone node at the time, Assignment (groups doc), AssignmentFeedback (groups doc), AssignmentGrade (groups doc), ClassGroup, Grupos, tareas y entregas (+4 more)
 
 ### Community 143 - "ExecutionTestCaseInfo"
-Cohesion: 0.13
-Nodes (15): RateLimitIncidentDTO, Authentication, Component, HttpServletRequest, HttpServletResponse, Override, Profile, RateLimitInterceptor (+7 more)
+Cohesion: 0.05
+Nodes (30): Configuration, Override, Profile, RateLimitWebConfig, RateLimitIncidentDTO, Entity, Table, RateLimitIncident (+22 more)
 
 ### Community 144 - "isbot"
 Cohesion: 0.29
@@ -1001,8 +1006,8 @@ Cohesion: 0.29
 Nodes (10): AuthenticationManager, AuthenticationProvider, Bean, Configuration, PasswordEncoder, SecurityConfig, EnableMethodSecurity, EnableWebSecurity (+2 more)
 
 ### Community 156 - "@monaco-editor/react"
-Cohesion: 0.07
-Nodes (22): AssistantConversation, Entity, Table, Query, AssistantTransactionService, Completion, ALREADY_FINISHED, CANCELLED (+14 more)
+Cohesion: 0.06
+Nodes (25): AssistantConversation, Entity, Table, Query, AssistantLeaseRecoveryJob, Component, Scheduled, AssistantTransactionService (+17 more)
 
 ### Community 157 - "Programming identity"
 Cohesion: 0.40
@@ -1014,7 +1019,7 @@ Nodes (6): Sliding-window test fixture guide, Sliding-window sample input, Slidi
 
 ### Community 159 - "DockerClientConfig.java"
 Cohesion: 0.15
-Nodes (13): AdminAssignmentResourceDTO, AdminSubmissionResourceDTO, AdminResourceService, AssignmentRelationship, AUTHORED, PARTICIPATED, GroupRelationship, ENROLLED (+5 more)
+Nodes (15): getGroup(), getMyGroupMetrics(), listMyAssignmentMetrics(), AssignmentMetricCard(), formatDate(), formatPercent(), MetricState, StudentMetricsPage() (+7 more)
 
 ### Community 160 - "worker/config/MinioConfig.java"
 Cohesion: 0.53
@@ -1029,12 +1034,16 @@ Cohesion: 0.40
 Nodes (5): Dependabot updates, Backend CI, CI/CD Pipeline, Worker CI, pull request template
 
 ### Community 164 - ".setUp"
+Cohesion: 0.16
+Nodes (7): AssignmentDetailsData, AssignmentDetailsPanel(), AssignmentDetailsTab, AssignmentSummary(), DateRow(), formatComparator(), formatDate()
+
+### Community 167 - "ExecutionReport"
 Cohesion: 0.08
-Nodes (15): LANGUAGE_FILE, LANGUAGE_VERSION, MONACO_LANGUAGE, AssignmentDetailsData, AssignmentDetailsPanel(), AssignmentDetailsTab, AssignmentSummary(), DateRow() (+7 more)
+Nodes (5): EnrollmentDTO, EnrollmentStudentDTO, GroupDTO, JsonInclude, GroupMapper
 
 ### Community 168 - "studentRequest"
-Cohesion: 0.25
-Nodes (6): BucketEntry, Decision, Bucket, Scheduled, Service, RateLimitService
+Cohesion: 0.24
+Nodes (16): getAdminUser(), AdminDialog(), AdminUserDialogs(), dialogConfig(), UserAction, UserResourceTab, AdminUserDetailPage(), TABS (+8 more)
 
 ### Community 169 - "local infrastructure services"
 Cohesion: 0.50
@@ -1057,8 +1066,8 @@ Cohesion: 0.83
 Nodes (3): Configuration, SchedulingConfig, EnableScheduling
 
 ### Community 175 - "NotificationEmailContent"
-Cohesion: 0.36
-Nodes (7): CsvProgressWebSocketHandlerTest, BeforeEach, DisplayName, SuppressWarnings, Test, WebSocketSession, TextMessage
+Cohesion: 0.16
+Nodes (18): CloseStatus, CsvProgressWebSocketHandler, Component, Logger, ObjectMapper, Override, PreDestroy, WebSocketSession (+10 more)
 
 ### Community 180 - "codehive-worker/gradlew"
 Cohesion: 0.83
@@ -1073,7 +1082,7 @@ Cohesion: 0.15
 Nodes (13): Asistente educativo de IA: requerimientos funcionales, Referencias de interfaz, RF-01. Configurar la ayuda al crear una asignación, RF-02. Ajustar la ayuda de una asignación existente, RF-03. Configurar la ayuda al clonar una asignación, RF-04. Abrir el asistente y consultar disponibilidad, RF-05. Leer y aceptar el aviso de envío de datos, RF-06. Solicitar orientación educativa (+5 more)
 
 ### Community 202 - ".update"
-Cohesion: 0.13
+Cohesion: 0.12
 Nodes (5): AdminUserDetailDTO, ResourceCounts, AdminUserService, Service, Transactional
 
 ### Community 207 - "ObjectStorageService"
@@ -1085,48 +1094,48 @@ Cohesion: 0.25
 Nodes (12): AdminAssistantUsageController, ApiResponses, Authentication, Breakdown, GetMapping, Models, Operation, PreAuthorize (+4 more)
 
 ### Community 209 - "UpdateUserRequest"
-Cohesion: 0.08
-Nodes (31): getNotificationSettings(), NotificationPreference, NotificationSettings, resetNotificationSettings(), sendNotificationTestEmail(), updateNotificationSettings, NotificationSettingsPage(), preferenceDescription() (+23 more)
+Cohesion: 0.11
+Nodes (16): CreateUserPage(), emptyForm, Badge(), BadgeProps, badgeVariants, Button, ButtonProps, buttonVariants (+8 more)
 
 ### Community 210 - "ExecutionResultService"
-Cohesion: 0.07
-Nodes (6): Entity, Table, UserNotificationPreference, Entity, Table, UserNotificationSettings
+Cohesion: 0.25
+Nodes (8): Query, Transactional, AssignmentAiPolicyServiceTest, Assignment, BeforeEach, ExtendWith, Test, User
 
 ### Community 211 - "StudentMetricsPage.tsx"
-Cohesion: 0.38
-Nodes (9): GroupMetricsController, ApiResponses, Authentication, GetMapping, Operation, ResponseEntity, RestController, SuccessResponse (+1 more)
+Cohesion: 0.35
+Nodes (10): GroupMetricsController, ApiResponses, Authentication, GetMapping, Operation, ResponseEntity, RestController, SuccessResponse (+2 more)
 
 ### Community 212 - "JWTAuthenticationFilter"
 Cohesion: 0.26
 Nodes (11): ApiResponses, Authentication, GetMapping, Operation, PreAuthorize, ResponseEntity, RestController, SuccessResponse (+3 more)
 
 ### Community 213 - "react-dom"
-Cohesion: 0.16
-Nodes (3): ReevaluationJobsCreatedEvent, Transactional, TransactionalEventListener
+Cohesion: 0.15
+Nodes (11): AssistantUsagePostgresIntegrationTest, ActiveProfiles, AutoConfigureMockMvc, BeforeEach, EntityManager, JdbcTemplate, MockMvc, SpringBootTest (+3 more)
 
 ### Community 214 - "AiAssistanceLevel"
-Cohesion: 0.21
-Nodes (18): AssignmentController, ApiResponses, Authentication, DeleteMapping, GetMapping, Logger, MultipartFile, Operation (+10 more)
+Cohesion: 0.23
+Nodes (17): AssignmentController, ApiResponses, Authentication, DeleteMapping, GetMapping, Logger, MultipartFile, Operation (+9 more)
 
 ### Community 216 - "zustand"
 Cohesion: 0.23
 Nodes (7): AfterAll, DisplayName, DockerClient, Tag, Test, SandboxSecurityTest, TestMethodOrder
 
 ### Community 244 - "WebSocketConfig"
-Cohesion: 0.33
-Nodes (6): Configuration, Override, WebSocketConfig, EnableWebSocket, WebSocketConfigurer, WebSocketHandlerRegistry
+Cohesion: 0.19
+Nodes (13): Configuration, Override, WebSocketConfig, Component, Override, WebSocketTicketHandshakeInterceptor, EnableWebSocket, HandshakeInterceptor (+5 more)
 
 ### Community 245 - "AssistantControllerIntegrationTest"
-Cohesion: 0.13
-Nodes (19): ApiResponses, Authentication, Breakdown, GetMapping, HttpServletRequest, Operation, PreAuthorize, RestController (+11 more)
+Cohesion: 0.18
+Nodes (14): ApiResponses, Authentication, Breakdown, GetMapping, HttpServletRequest, Operation, PreAuthorize, RestController (+6 more)
 
 ### Community 246 - "AdminInitializer.java"
 Cohesion: 0.24
 Nodes (4): CPPExecutor, Component, DockerClient, Override
 
 ### Community 248 - "GroupMetricsService"
-Cohesion: 0.19
-Nodes (7): StudentGradeRow, SubmissionResultRow, GroupMetricsService, GroupSnapshot, Service, Transactional, StudentContext
+Cohesion: 0.22
+Nodes (5): StudentGradeRow, GroupMetricsService, GroupSnapshot, Transactional, StudentContext
 
 ### Community 249 - ".toEntity"
 Cohesion: 0.19
@@ -1137,8 +1146,8 @@ Cohesion: 0.50
 Nodes (3): Create, Shortest Path with One Discount, Structure
 
 ### Community 340 - "RateLimitService"
-Cohesion: 0.15
-Nodes (5): AssignmentMetricsDTO, AssignmentValidationStatus, FAILED, PROCESSING, READY
+Cohesion: 0.12
+Nodes (15): AI assistant automated tests, AiPolicyRulesTest, AssignmentAiPolicyServiceTest, AssistantContextServiceTest additions, AssistantControllerIntegrationTest additions, AssistantGuardrailServiceTest additions, AssistantServiceTest, AssistantTransactionServiceIntegrationTest additions (+7 more)
 
 ### Community 341 - "AssignmentExampleDTO"
 Cohesion: 0.31
@@ -1147,10 +1156,6 @@ Nodes (7): ExecutionResultListener, Component, Logger, RabbitListener, Execution
 ### Community 342 - ".create"
 Cohesion: 0.35
 Nodes (5): NotificationDomainEvent, Component, Transactional, TransactionalEventListener, NotificationDomainEventRouter
-
-### Community 343 - "ExecutionStatus"
-Cohesion: 0.14
-Nodes (10): CsvBulkRegisterResponse, JsonInclude, AuthServiceTest, BeforeEach, ExtendWith, LoginRequest, Nested, PasswordEncoder (+2 more)
 
 ### Community 344 - ".assignmentDetail"
 Cohesion: 0.29
@@ -1169,8 +1174,8 @@ Cohesion: 0.29
 Nodes (6): Files to upload, Folder structure, Hidden-test failure scenario, Input and output, Manual assignment fields, N-Queens
 
 ### Community 349 - "UserNotificationPreference"
-Cohesion: 0.27
-Nodes (3): AdminAuditService, AdminAuditEvent, Service
+Cohesion: 0.23
+Nodes (6): Scheduled, Service, Ticket, WebSocketTicketService, Test, WebSocketTicketServiceTest
 
 ### Community 350 - "ComparatorType"
 Cohesion: 0.40
@@ -1185,8 +1190,8 @@ Cohesion: 0.29
 Nodes (3): localStorageMock, ResizeObserverMock, storage
 
 ### Community 356 - "TeacherStudentReviewServiceTest.java"
-Cohesion: 0.05
-Nodes (36): Component, Logger, TestGenerationResultListener, ApplicationEventPublisher, Component, NotificationDomainEventPublisher, AdminAuditEventRepository, AssignmentUpdateRepository (+28 more)
+Cohesion: 0.04
+Nodes (60): ApplicationEvents, Component, Logger, TestGenerationResultListener, ExecutionRequestProducer, Logger, RabbitTemplate, Service (+52 more)
 
 ### Community 357 - "GroupRelationship"
 Cohesion: 0.40
@@ -1201,20 +1206,20 @@ Cohesion: 0.19
 Nodes (8): AdminUserSummaryDTO, AdminUserStatus, ACTIVE, BLOCKED, DELETED, UpdateUserStatusRequest, Direction, Page
 
 ### Community 362 - "StudentMetricsControllerIntegrationTest.java"
-Cohesion: 0.21
-Nodes (9): ActiveProfiles, AutoConfigureMockMvc, DisplayName, MockMvc, PasswordEncoder, SpringBootTest, Test, Transactional (+1 more)
+Cohesion: 0.12
+Nodes (14): ActiveProfiles, AutoConfigureMockMvc, DisplayName, MockMvc, PasswordEncoder, SpringBootTest, Test, Transactional (+6 more)
 
 ### Community 367 - "LiveAssistantQualificationTest"
-Cohesion: 0.33
-Nodes (11): Authentication, GetMapping, Operation, PostMapping, PreAuthorize, RequestMapping, ResponseEntity, RestController (+3 more)
+Cohesion: 0.26
+Nodes (13): Authentication, GetMapping, Operation, PostMapping, PreAuthorize, RequestMapping, ResponseEntity, RestController (+5 more)
 
 ### Community 368 - "Asistente educativo de IA: requerimientos no funcionales"
 Cohesion: 0.14
 Nodes (13): Asistente educativo de IA: requerimientos no funcionales, RNF-01. Control de acceso y aislamiento, RNF-02. Minimización de datos enviados, RNF-03. Conservación limitada y borrado coherente, RNF-04. Integridad de cuota y concurrencia, RNF-05. Resiliencia ante fallos externos, RNF-06. Uso acotado de recursos, RNF-07. Seguridad del contenido mostrado (+5 more)
 
 ### Community 369 - ".error"
-Cohesion: 0.04
-Nodes (16): ClassGroup, Entity, Table, GroupDeletionReason, ACCOUNT_DELETED, OWNER_REQUEST, ROLE_CHANGED_TO_ADMIN, SCOPE_REVOKED (+8 more)
+Cohesion: 0.03
+Nodes (38): AdminAssignmentResourceDTO, AdminGroupResourceDTO, EnrollmentStatusCount, ClassGroup, Entity, Table, GroupEnrollment, Entity (+30 more)
 
 ### Community 370 - "ExecutionResultProducer"
 Cohesion: 0.22
@@ -1222,15 +1227,15 @@ Nodes (9): ExecutionRequestListener, Component, ExecutionReport, Logger, RabbitL
 
 ### Community 372 - "SampleTestCaseDTO"
 Cohesion: 0.04
-Nodes (9): Entity, Override, Table, User, Submission, User, GrantedAuthority, PrePersist (+1 more)
+Nodes (13): Entity, Override, Table, User, Lock, Modifying, Query, Submission (+5 more)
 
 ### Community 373 - "RateLimitIncident"
 Cohesion: 0.38
 Nodes (4): ComparisonResult, Logger, Service, OutputComparatorService
 
 ### Community 375 - "CsvProgressWebSocketHandler"
-Cohesion: 0.29
-Nodes (8): CloseStatus, CsvProgressWebSocketHandler, Component, Logger, ObjectMapper, Override, WebSocketSession, TextWebSocketHandler
+Cohesion: 0.24
+Nodes (5): Component, Logger, Scheduled, Transactional, NotificationReminderScheduler
 
 ### Community 376 - ".getOrCreate"
 Cohesion: 0.08
@@ -1241,20 +1246,24 @@ Cohesion: 0.29
 Nodes (4): AssistantModelCallBudget, Override, AssistantModelCallBudgetTest, Test
 
 ### Community 378 - "CsvRegistrationServiceTest"
-Cohesion: 0.33
+Cohesion: 0.29
 Nodes (7): CsvRegistrationServiceTest, BeforeEach, DisplayName, ObjectProvider, PasswordEncoder, SuppressWarnings, Test
 
 ### Community 379 - ".create"
-Cohesion: 0.18
-Nodes (7): EnrollmentStatusCount, Page, Pageable, Query, DataJpaTest, EntityManager, Test
+Cohesion: 0.30
+Nodes (6): StudentAssignmentWork, Transactional, Assignment, Test, User, StudentAssignmentWorkServiceTest
 
 ### Community 380 - "GroupDeletionReason"
-Cohesion: 0.21
-Nodes (3): Query, Assignment, Test
+Cohesion: 0.42
+Nodes (3): Assignment, Test, OwnerStudentMetricsServiceTest
+
+### Community 381 - "AssignmentExampleDTO"
+Cohesion: 0.27
+Nodes (5): TeacherStudentWorkReviewDTO, TeacherSubmissionEvidenceDTO, Service, Transactional, TeacherStudentReviewService
 
 ### Community 382 - "EmailTemplateConfigTest.java"
-Cohesion: 0.36
-Nodes (5): EnrollmentNumberRulesTest, ParameterizedTest, Test, ValueSource, EnumSource
+Cohesion: 0.27
+Nodes (9): Authentication, GetMapping, Operation, RequestMapping, ResponseEntity, RestController, SuccessResponse, Tag (+1 more)
 
 ### Community 387 - "SampleTestCaseDTO"
 Cohesion: 0.29
@@ -1273,11 +1282,11 @@ Cohesion: 0.33
 Nodes (4): Alcance actual, Asistente educativo de IA: reglas de negocio y restricciones, Reglas de negocio, Restricciones de entrada, contenido y operación
 
 ### Community 393 - "AssistantModelCallStage"
-Cohesion: 0.16
-Nodes (7): AssistantModelCallStage, ANSWER_GENERATION, INPUT_REVIEW, OUTPUT_REVIEW, POLICY_REVALIDATION, AssistantModelCallContext, AssistantResponseSchemas
+Cohesion: 0.17
+Nodes (6): AssistantModelCallStage, ANSWER_GENERATION, INPUT_REVIEW, OUTPUT_REVIEW, POLICY_REVALIDATION, AssistantResponseSchemas
 
 ### Community 394 - ".handleHttpMessageNotReadable"
-Cohesion: 0.15
+Cohesion: 0.18
 Nodes (4): Transactional, RecentSubmission, Test, StudentSubmissionQueryServiceTest
 
 ### Community 395 - "AssistantProviderDisabledIntegrationTest.java"
@@ -1285,16 +1294,24 @@ Cohesion: 0.43
 Nodes (6): AssistantProviderDisabledIntegrationTest, ActiveProfiles, ChatModel, ObjectProvider, SpringBootTest, Test
 
 ### Community 396 - ".fixture"
-Cohesion: 0.16
-Nodes (13): Component, HttpServletRequest, HttpServletResponse, Logger, Override, JWTAuthenticationFilter, Override, Service (+5 more)
+Cohesion: 0.10
+Nodes (18): Claims, Component, HttpServletRequest, HttpServletResponse, Logger, Override, JWTAuthenticationFilter, Override (+10 more)
 
 ### Community 397 - "AI_PROMPT.md"
-Cohesion: 0.39
-Nodes (6): AsyncConfig, Bean, Configuration, EnableAsync, ThreadPoolExecutor, ThreadPoolTaskExecutor
+Cohesion: 0.46
+Nodes (5): AsyncConfig, Bean, Configuration, EnableAsync, ThreadPoolTaskExecutor
+
+### Community 398 - ".handleRateLimitExceeded"
+Cohesion: 0.29
+Nodes (8): Bucket, ChatModel, Component, Logger, ObjectProvider, PreDestroy, SpringAiAssistantModelGateway, ThreadPoolExecutor
 
 ### Community 399 - "AssistantLeaseRecoveryJob"
-Cohesion: 0.16
-Nodes (9): Assignment, BeforeEach, ClassGroup, User, Assignment, AssignmentGrade, BeforeEach, ClassGroup (+1 more)
+Cohesion: 0.33
+Nodes (5): Assignment, AssignmentGrade, BeforeEach, ClassGroup, User
+
+### Community 400 - "recharts"
+Cohesion: 0.27
+Nodes (6): CompetingTemplateEngineConfig, EmailTemplateConfigTest, Bean, Configuration, TemplateEngine, Test
 
 ### Community 401 - "EmailTemplateConfigTest.java"
 Cohesion: 0.29
@@ -1313,7 +1330,7 @@ Cohesion: 0.33
 Nodes (6): DS-03. Recuperar una solicitud pendiente o interrumpida, Fase de consulta y recuperación de reserva, Fase de reenvío idempotente, Fragmentos requeridos, Objetivo y precondiciones, Participantes
 
 ### Community 405 - "AssistantControllerIntegrationTest"
-Cohesion: 0.29
+Cohesion: 0.26
 Nodes (8): AssistantModelGateway, GeminiConfigurationIntegrationTest, ActiveProfiles, ChatModel, RetryTemplate, SpringBootTest, Test, TestPropertySource
 
 ### Community 406 - "AuthServiceTest.java"
@@ -1321,8 +1338,8 @@ Cohesion: 0.33
 Nodes (6): DS-05. Archivar grupo y detener respuestas pendientes, Fase concurrente y consulta posterior, Fase de archivo y purga, Fragmentos requeridos, Objetivo y precondiciones, Participantes
 
 ### Community 407 - ".toEntity"
-Cohesion: 0.43
-Nodes (5): AcceptedPerformance, AssignmentMetricsDetailDTO, GradeSummary, StudentBreakdown, StudentRef
+Cohesion: 0.19
+Nodes (9): AcceptedPerformance, AssignmentMetricsDetailDTO, GradeSummary, StudentBreakdown, StudentRef, CurrentSubmissionRow, SubmissionResultRow, Query (+1 more)
 
 ### Community 408 - "Estado de implementación del consumo IA"
 Cohesion: 0.20
@@ -1348,17 +1365,13 @@ Nodes (4): 11. Pruebas y aceptación, Backend, Criterios de salida, Frontend
 Cohesion: 0.50
 Nodes (4): 6. Modelo y captura nuevos, `AssistantModelCall`, Cambios de gateway y guardrails, Snapshot mínimo en interacción
 
-### Community 419 - "clsx"
-Cohesion: 0.50
-Nodes (4): GlobalExceptionHandlerTest, DisplayName, Test, HttpMessageNotReadableException
-
 ### Community 420 - "isbot"
 Cohesion: 0.40
 Nodes (5): DS-02. Guardar la configuración del docente, Fragmentos requeridos, Objetivo y precondiciones, Participantes, Secuencia principal
 
 ### Community 421 - "AuthControllerIntegrationTest.java"
-Cohesion: 0.24
-Nodes (11): AuthControllerIntegrationTest, ActiveProfiles, AutoConfigureMockMvc, BeforeEach, Import, MockMvc, ObjectMapper, PasswordEncoder (+3 more)
+Cohesion: 0.16
+Nodes (14): AuthControllerIntegrationTest, ActiveProfiles, AutoConfigureMockMvc, BeforeEach, Import, MockMvc, ObjectMapper, PasswordEncoder (+6 more)
 
 ### Community 422 - "PersonalAssistantUsageControllerTest.java"
 Cohesion: 0.31
@@ -1376,22 +1389,22 @@ Nodes (4): AssignmentBreakdown, EnrollmentBreakdown, GradingProgress, GroupMetri
 Cohesion: 0.40
 Nodes (5): DS-04. Consultar historial propio, Fragmentos requeridos, Objetivo y precondiciones, Participantes, Secuencia principal
 
-### Community 426 - ".error"
-Cohesion: 0.47
-Nodes (3): AssistantLeaseRecoveryJob, Component, Scheduled
+### Community 427 - ".handleRateLimitExceeded"
+Cohesion: 0.67
+Nodes (3): 2. Inventario real: qué aprovechar y qué falta, Backend existente, Frontend existente
 
-### Community 432 - "AuthControllerRateLimitTest.java"
-Cohesion: 0.53
-Nodes (3): AuthControllerRateLimitTest, DisplayName, Test
+### Community 434 - "2. Inventario real: qué aprovechar y qué falta"
+Cohesion: 0.13
+Nodes (12): ExpiredJWTException, IncorrectCredentialsException, AuthService, AuthResponse, MultipartFile, PasswordEncoder, Pattern, Service (+4 more)
 
 ### Community 435 - ".build"
-Cohesion: 0.17
-Nodes (11): Page, Pageable, AssistantContextService, Context, ExecutionContext, Service, Transactional, PracticeDiagnostic (+3 more)
+Cohesion: 0.13
+Nodes (15): AssistantContextService, Context, ExecutionContext, HistoryTurn, Service, Transactional, PracticeDiagnostic, PublicAssignment (+7 more)
 
 ## Knowledge Gaps
-- **676 isolated node(s):** `Summary`, `GroupOption`, `USER_CREATED`, `USER_PROFILE_UPDATED`, `USER_ROLE_CHANGED` (+671 more)
+- **701 isolated node(s):** `Summary`, `GroupOption`, `USER_CREATED`, `USER_PROFILE_UPDATED`, `USER_ROLE_CHANGED` (+696 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **113 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **106 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Work-memory lessons
 
@@ -1403,17 +1416,17 @@ Nodes (11): Page, Pageable, AssistantContextService, Context, ExecutionContext, 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `User` connect `SampleTestCaseDTO` to `Assignment Update Requests`, `Domain Exceptions`, `Assignment Feedback & Student Work`, `Execution Job Queue Model`, `LanguageExecutorFactoryTest`, `User Notification Settings`, `Frontend Assignment API Client`, `.handleHttpMessageNotReadable`, `PermissionMatrixIntegrationTest.java`, `Execution Report Model`, `ExecutionTestCaseInfo`, `Notification Preferences`, `Admin User Controller`, `.toEntity`, `Notification Email Listener`, `Execution Result Model`, `@monaco-editor/react`, `Assignment Entity`, `Execution Entity`, `DockerClientConfig.java`, `Create Assignment Request`, `Submission DTO`, `AuthControllerIntegrationTest.java`, `Group Controller`, `User Entity`, `Group Controller Integration Tests`, `Execution Request Service`, `.findByIdForUpdate`, `PasswordResetToken`, `JwtUtil`, `AppHeader.tsx`, `.error`, `AssignmentController.java`, `AssignmentGradeHistory`, `RecoveryPasswordRequest`, `NotificationPreferenceController.java`, `.buildExecutionJob`, `.getStatus`, `.update`, `GroupDTO`, `DisplayName`, `GroupServiceTest`, `OutputComparatorService`, `ExecutionResultService`, `TeacherGroupDetailPage.tsx`, `.create`, `ExecutionStatus`, `AuthController.java`, `ComparatorType`, `.fixture`, `DisplayName`, `RateLimitAspect`, `DisplayName`, `UserNotificationPreference`, `ExecutionTestCaseInfo`, `TeacherStudentReviewServiceTest.java`, `NotificationDomainEventRouter`, `AuthControllerIntegrationTest.java`, `StudentMetricsControllerIntegrationTest.java`, `CheckExecutionController.java`, `.error`, `GroupMetricsService`, `.create`?**
-  _High betweenness centrality (0.132) - this node is a cross-community bridge._
-- **Why does `LoginPage()` connect `ExecutionDTO` to `GroupDTO`?**
-  _High betweenness centrality (0.116) - this node is a cross-community bridge._
-- **Why does `UserRepository` connect `PermissionMatrixIntegrationTest.java` to `Domain Exceptions`, `Assignment Feedback & Student Work`, `LanguageExecutorFactoryTest`, `Frontend Assignment API Client`, `User Notification Settings`, `OpenApiCoverageIntegrationTest.java`, `Execution Report Model`, `.fixture`, `ExecutionTestCaseInfo`, `Admin User Controller`, `Notification Email Listener`, `@monaco-editor/react`, `DockerClientConfig.java`, `Submission DTO`, `AuthControllerIntegrationTest.java`, `Group Controller`, `OwnerStudentUsageControllerTest.java`, `User Entity`, `Group Controller Integration Tests`, `Execution Request Service`, `PersonalAssistantUsageControllerTest.java`, `AppHeader.tsx`, `PasswordResetToken`, `JwtUtil`, `.error`, `AssignmentGradeHistory`, `NotificationPreferenceController.java`, `.getStatus`, `.update`, `GroupDTO`, `DisplayName`, `TestGenerationJob`, `OutputComparatorService`, `TeacherGroupDetailPage.tsx`, `.create`, `ExecutionStatus`, `ComparatorType`, `GroupMetricsController.java`, `ExecutionTestCaseInfo`, `TeacherStudentReviewServiceTest.java`, `StudentMetricsControllerIntegrationTest.java`, `CheckExecutionController.java`, `SubmissionController.java`, `SampleTestCaseDTO`, `GroupMetricsService`, `CsvRegistrationServiceTest`?**
-  _High betweenness centrality (0.115) - this node is a cross-community bridge._
+- **Why does `User` connect `SampleTestCaseDTO` to `Assignment Update Requests`, `Assignment Feedback & Student Work`, `LanguageExecutorFactoryTest`, `Frontend Assignment API Client`, `User Notification Settings`, `.handleHttpMessageNotReadable`, `PermissionMatrixIntegrationTest.java`, `Execution Report Model`, `TestCaseResult`, `ExecutionTestCaseInfo`, `Notification Preferences`, `.toEntity`, `Notification Email Listener`, `@monaco-editor/react`, `Assignment Entity`, `Execution Entity`, `Create Assignment Request`, `Group Service`, `Submission DTO`, `AuthControllerIntegrationTest.java`, `Group Controller`, `Group Controller Integration Tests`, `Execution Request Service`, `AppHeader.tsx`, `PasswordResetToken`, `2. Inventario real: qué aprovechar y qué falta`, `JwtUtil`, `.error`, `AssignmentController.java`, `RecoveryPasswordRequest`, `NotificationPreferenceController.java`, `.buildExecutionJob`, `.getStatus`, `.update`, `GroupDTO`, `DisplayName`, `GroupServiceTest`, `OutputComparatorService`, `TeacherGroupDetailPage.tsx`, `.create`, `TeacherDashboardPage.tsx`, `AuthController.java`, `ComparatorType`, `DisplayName`, `DisplayName`, `GroupMetricsService`, `ExecutionTestCaseInfo`, `TeacherStudentReviewServiceTest.java`, `NotificationDomainEventRouter`, `AuthControllerIntegrationTest.java`, `StudentMetricsControllerIntegrationTest.java`, `.error`, `CsvProgressWebSocketHandler`, `.fixture`, `.create`, `AssignmentExampleDTO`?**
+  _High betweenness centrality (0.139) - this node is a cross-community bridge._
+- **Why does `LoginPage()` connect `ExecutionDTO` to `2. Inventario real: qué aprovechar y qué falta`?**
+  _High betweenness centrality (0.135) - this node is a cross-community bridge._
+- **Why does `useAuth()` connect `ExecutionDTO` to `Frontend Protected Route & Admin Pages`, `Sign-Up Request DTO`, `Select.tsx`, `Execution Job Queue Model`, `User DTO`, `studentRequest`, `MockMultipartFile`, `useAuth`, `UpdateUserRequest`, `auth.api.ts`?**
+  _High betweenness centrality (0.120) - this node is a cross-community bridge._
 - **What connects `Summary`, `GroupOption`, `USER_CREATED` to the rest of the system?**
-  _676 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _701 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Assignment Update Requests` be split into smaller, more focused modules?**
-  _Cohesion score 0.0773109243697479 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.07207207207207207 - nodes in this community are weakly interconnected._
 - **Should `JWT Authentication Filter` be split into smaller, more focused modules?**
   _Cohesion score 0.13414634146341464 - nodes in this community are weakly interconnected._
 - **Should `Sign-Up Request DTO` be split into smaller, more focused modules?**
-  _Cohesion score 0.08686868686868687 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.07562008469449485 - nodes in this community are weakly interconnected._

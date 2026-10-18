@@ -82,7 +82,7 @@ public class AssistantGuardrailService {
 
     private record InputReview(String level, String assignmentTitle,
                                String assignmentDescription, String studentMessage) {}
-    private record GenerationInput(String safeContextJson, String studentMessage) {}
+        private record GenerationInput(String safeContextJson, String studentMessage) {}
 
     private String generationSystem(AiAssistanceLevel level, boolean redirect) {
         String capabilities = switch (level) {

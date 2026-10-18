@@ -1,6 +1,7 @@
 package com.github.codehive.service.assistant;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -18,6 +19,8 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.data.domain.Pageable;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -152,5 +155,69 @@ class AssistantContextServiceTest {
         execution.setMemoryMb(5L);
         execution.setArtifactsExpireAt(Instant.parse("2026-02-01T00:00:00Z"));
         return execution;
+    }
+
+    @Test
+    void executionOptInWithoutFinishedExecutionReportsUnavailable() {
+        var context = service.build(ASSIGNMENT_ID, STUDENT_ID, null, false, null, true,
+                AiAssistanceLevel.CONCEPTUAL_ONLY);
+        assertThat(context.execution()).isNull();
+        assertThat(context.executionUnavailable()).isTrue();
+        verifyNoInteractions(storage);
+    }
+
+    @Test
+    void codeAtMaximumLengthIsIncludedOnlyWithOptIn() {
+        String code = "x".repeat(32768);
+        var context = service.build(ASSIGNMENT_ID, STUDENT_ID, null, true, code, false,
+                AiAssistanceLevel.CONCEPTUAL_ONLY);
+        assertThat(context.editorCode()).isEqualTo(code);
+        verifyNoInteractions(executions, storage);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"", "   "})
+    void blankOptedInCodeIsRejectedBeforeStorageReads(String code) {
+        assertThatThrownBy(() -> service.build(ASSIGNMENT_ID, STUDENT_ID, null, true, code, false,
+                AiAssistanceLevel.CONCEPTUAL_ONLY))
+                .isInstanceOf(com.github.codehive.model.exception.ValidationException.class);
+        verifyNoInteractions(executions, storage);
+    }
+
+    @Test
+    void oversizedOrUnconsentedCodeIsRejected() {
+        assertThatThrownBy(() -> service.build(ASSIGNMENT_ID, STUDENT_ID, null, true, "x".repeat(32769), false,
+                AiAssistanceLevel.CONCEPTUAL_ONLY))
+                .isInstanceOf(com.github.codehive.model.exception.ValidationException.class);
+        assertThatThrownBy(() -> service.build(ASSIGNMENT_ID, STUDENT_ID, null, false, "unconsented", false,
+                AiAssistanceLevel.CONCEPTUAL_ONLY))
+                .isInstanceOf(com.github.codehive.model.exception.ValidationException.class);
+        verifyNoInteractions(executions, storage);
+    }
+
+    @Test
+    void wrongExecutionReportIdentityKeepsOnlySummary() throws Exception {
+        when(executions.findLatestStudentInitiated(eq(ASSIGNMENT_ID), eq(STUDENT_ID), any(Pageable.class)))
+                .thenReturn(List.of(execution(ExecutionType.PRACTICE)));
+        String report = "{\"executionId\":\"00000000-0000-0000-0000-000000000099\",\"compilationError\":\"OTHER STUDENT\"}";
+        when(storage.download(any())).thenReturn(new ByteArrayInputStream(report.getBytes(StandardCharsets.UTF_8)));
+        var context = service.build(ASSIGNMENT_ID, STUDENT_ID, null, false, null, true,
+                AiAssistanceLevel.CONCEPTUAL_ONLY);
+        assertThat(context.execution().reportState()).isEqualTo("UNAVAILABLE");
+        assertThat(context.execution().status()).isEqualTo(ExecutionStatus.WA);
+        assertThat(context.execution().compilationDiagnostic()).isNull();
+        assertThat(context.execution().practiceDiagnostics()).isEmpty();
+    }
+
+    @Test
+    void missingExecutionArtifactDoesNotFailEducationalContext() throws Exception {
+        when(executions.findLatestStudentInitiated(eq(ASSIGNMENT_ID), eq(STUDENT_ID), any(Pageable.class)))
+                .thenReturn(List.of(execution(ExecutionType.PRACTICE)));
+        when(storage.download(any())).thenThrow(new IllegalStateException("Artifact unavailable"));
+        var context = service.build(ASSIGNMENT_ID, STUDENT_ID, null, false, null, true,
+                AiAssistanceLevel.CONCEPTUAL_ONLY);
+        assertThat(context.execution().reportState()).isEqualTo("UNAVAILABLE");
+        assertThat(context.assignment().title()).isEqualTo("Public title");
+        assertThat(context.execution().practiceDiagnostics()).isEmpty();
     }
 }

@@ -60,6 +60,10 @@ class AssistantTransactionServiceIntegrationTest {
     @Autowired private GroupEnrollmentRepository enrollments;
     @Autowired private ExecutionRepository executions;
     @Autowired private UserRepository users;
+    @Autowired private AssistantLeaseRecoveryJob recoveryJob;
+    @Autowired private com.github.codehive.service.AssistantTextPurgeService purge;
+    @Autowired private com.github.codehive.service.AssistantHistoryService history;
+    @Autowired private org.springframework.transaction.PlatformTransactionManager transactionManager;
 
     private Assignment assignment;
     private User student;
@@ -251,5 +255,59 @@ class AssistantTransactionServiceIntegrationTest {
     private AssistantTransactionService.Request request(UUID id, String message) {
         return new AssistantTransactionService.Request(assignment.getId(), student.getId(), id,
                 message, Language.JAVA, false, null, false);
+    }
+
+    @Test
+    void scheduledRecoveryExpiresAbandonedRequestOnceAndFreesConversation() {
+        var reserved = transactions.reserve(request(REQUEST_ONE, "Abandoned question"));
+        var row = interactions.findById(reserved.interactionId()).orElseThrow();
+        row.setLeaseExpiresAt(java.time.Instant.parse("2000-01-01T00:00:00Z"));
+        interactions.saveAndFlush(row);
+        recoveryJob.recoverExpired();
+        recoveryJob.recoverExpired();
+        row = interactions.findById(reserved.interactionId()).orElseThrow();
+        assertThat(row.getStatus()).isEqualTo(AssistantInteractionStatus.FAILED);
+        assertThat(row.getFailureCode()).isEqualTo("LEASE_EXPIRED");
+        assertThat(row.isQuotaCharged()).isFalse();
+        assertThat(transactions.reserve(request(REQUEST_TWO, "New question")).replay()).isFalse();
+        assertThat(interactions.count()).isEqualTo(2);
+    }
+
+    @Test
+    void purgeRequiresAnExistingLifecycleTransaction() {
+        assertThatThrownBy(() -> purge.eraseGroup(assignment.getGroup().getId()))
+                .isInstanceOf(org.springframework.transaction.IllegalTransactionStateException.class);
+    }
+
+    @Test
+    void rollingBackArchiveAlsoRollsBackTextErasureAndCancellation() {
+        var reserved = transactions.reserve(request(REQUEST_ONE, "Question kept after rollback"));
+        new org.springframework.transaction.support.TransactionTemplate(transactionManager).executeWithoutResult(status -> {
+            groupService.setArchived(assignment.getGroup().getId(), true, teacher.getEmail());
+            status.setRollbackOnly();
+        });
+        assertThat(groups.findById(assignment.getGroup().getId()).orElseThrow().getArchived()).isFalse();
+        var row = interactions.findById(reserved.interactionId()).orElseThrow();
+        assertThat(row.getStatus()).isEqualTo(AssistantInteractionStatus.PENDING);
+        assertThat(row.getStudentMessage()).isEqualTo("Question kept after rollback");
+        assertThat(row.isContentErased()).isFalse();
+    }
+
+    @Test
+    void archiveAndUnarchiveKeepChargedMetadataWithoutRestoringText() {
+        var reserved = transactions.reserve(request(REQUEST_ONE, "Original question"));
+        transactions.deliver(reserved.interactionId(), reserved.policyVersion(),
+                AssistantInteractionStatus.COMPLETED, "{\"explanation\":\"Original answer\"}", 1);
+        groupService.setArchived(assignment.getGroup().getId(), true, teacher.getEmail());
+        groupService.setArchived(assignment.getGroup().getId(), false, teacher.getEmail());
+        var retained = history.get(assignment.getId(), reserved.interactionId(), student.getEmail());
+        assertThat(retained.contentErased()).isTrue();
+        assertThat(retained.studentMessage()).isNull();
+        assertThat(retained.assistantResponse()).isNull();
+        assertThat(retained.quotaCharged()).isTrue();
+        assertThat(retained.status()).isEqualTo(AssistantInteractionStatus.COMPLETED);
+        assertThat(transactions.availability(assignment.getId(), student.getId()).used()).isEqualTo(1);
+        assertThatThrownBy(() -> transactions.reserve(request(REQUEST_TWO, "After unarchive")))
+                .hasMessage("QUOTA_EXHAUSTED");
     }
 }

@@ -10,6 +10,8 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.codehive.model.enums.AiAssistanceLevel;
@@ -135,6 +137,49 @@ class AssistantGuardrailServiceTest {
         var assignment = new AssistantContextService.PublicAssignment(ASSIGNMENT, "Loops", "Explain loops",
                 List.of(), List.of(), List.of(), List.of(Language.JAVA), List.of());
         return new AssistantContextService.Context(assignment, null, null, false, List.of(), false);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"not-json", "[]", "{\"decision\":\"MAYBE\"}", "{\"approved\":true}"})
+    void malformedInputReviewNeverStartsAnswerGeneration(String review) {
+        FakeModel model = new FakeModel(review);
+        assertThatThrownBy(() -> new AssistantGuardrailService(model, new ObjectMapper())
+                .generate(context(), "Help", AiAssistanceLevel.CONCEPTUAL_ONLY))
+                .isInstanceOf(AssistantStateException.class);
+        assertThat(model.calls).hasSize(1);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"<script>alert(1)</script>", "https://example.com/answer", "```java code```", "javascript:alert(1)"})
+    void unsafeProseIsRejectedLocallyBeforeSemanticReview(String prose) {
+        FakeModel model = new FakeModel("{\"decision\":\"ALLOW\"}", answer(prose, "[]"), answer(prose, "[]"));
+        assertThatThrownBy(() -> new AssistantGuardrailService(model, new ObjectMapper())
+                .generate(context(), "Help", AiAssistanceLevel.CONCEPTUAL_ONLY))
+                .hasMessage("OUTPUT_REJECTED");
+        assertThat(model.calls).hasSize(3);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"not-json", "{}", "{\"explanation\":\"hint\",\"snippets\":[],\"followUpQuestion\":\"Why?\",\"extra\":\"ignored?\"}"})
+    void malformedCandidatesRegenerateOnceWithoutBeingReleased(String candidate) {
+        FakeModel model = new FakeModel("{\"decision\":\"ALLOW\"}", candidate,
+                answer("A loop repeats an operation.", "[]"), "{\"approved\":true}");
+        var result = new AssistantGuardrailService(model, new ObjectMapper())
+                .generate(context(), "Help", AiAssistanceLevel.CONCEPTUAL_ONLY);
+        assertThat(result.generationAttempts()).isEqualTo(2);
+        assertThat(result.validatedResponseJson()).contains("A loop repeats").doesNotContain("extra");
+        assertThat(model.calls).hasSize(4);
+    }
+
+    @Test
+    void nonBooleanOutputApprovalCannotAuthorizeCandidate() {
+        FakeModel model = new FakeModel("{\"decision\":\"ALLOW\"}", answer("First hint", "[]"),
+                "{\"approved\":\"true\"}", answer("Reviewed replacement", "[]"), "{\"approved\":true}");
+        var result = new AssistantGuardrailService(model, new ObjectMapper())
+                .generate(context(), "Help", AiAssistanceLevel.CONCEPTUAL_ONLY);
+        assertThat(result.generationAttempts()).isEqualTo(2);
+        assertThat(result.validatedResponseJson()).contains("Reviewed replacement").doesNotContain("First hint");
+        assertThat(model.calls).hasSize(5);
     }
 
     private String answer(String explanation, String snippets) {

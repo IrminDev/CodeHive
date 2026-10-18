@@ -325,6 +325,125 @@ class AssistantControllerIntegrationTest {
 
     private String path() { return "/api/assignments/" + assignment.getId() + "/assistant"; }
 
+    @Test
+    void historyPagesAreNewestFirstWithoutDuplicatingInteractions() throws Exception {
+        givenBlockedRequest();
+        mvc.perform(post(path() + "/interactions").header("Authorization", "Bearer " + studentToken)
+                .contentType(MediaType.APPLICATION_JSON).content(request("First question")))
+                .andExpect(status().isOk());
+        mvc.perform(post(path() + "/interactions").header("Authorization", "Bearer " + studentToken)
+                .contentType(MediaType.APPLICATION_JSON).content(request("Second question")
+                        .replace(REQUEST_ID.toString(), "00000000-0000-0000-0000-000000000002")))
+                .andExpect(status().isOk());
+        mvc.perform(get(path() + "/interactions?page=0&size=1")
+                .header("Authorization", "Bearer " + studentToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[0].studentMessage").value("Second question"))
+                .andExpect(jsonPath("$.data.totalElements").value(2))
+                .andExpect(jsonPath("$.data.last").value(false));
+        mvc.perform(get(path() + "/interactions?page=1&size=1")
+                .header("Authorization", "Bearer " + studentToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[0].studentMessage").value("First question"))
+                .andExpect(jsonPath("$.data.last").value(true));
+    }
+
+    @Test
+    void ownHistoryRemainsReadableAfterLeavingEnrollment() throws Exception {
+        givenBlockedRequest();
+        mvc.perform(post(path() + "/interactions").header("Authorization", "Bearer " + studentToken)
+                .contentType(MediaType.APPLICATION_JSON).content(request("Retained question")))
+                .andExpect(status().isOk());
+        UUID id = interactions.findAll().getFirst().getId();
+        groupService.leave(assignment.getGroup().getId(), student.getEmail());
+        mvc.perform(get(path()).header("Authorization", "Bearer " + studentToken))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.available").value(false));
+        mvc.perform(get(path() + "/interactions").header("Authorization", "Bearer " + studentToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[0].studentMessage").value("Retained question"));
+        mvc.perform(get(path() + "/interactions/" + id).header("Authorization", "Bearer " + studentToken))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.id").value(id.toString()));
+    }
+
+    @Test
+    void studentWithOwnConversationCannotReadAnotherStudentsInteraction() throws Exception {
+        givenBlockedRequest();
+        mvc.perform(post(path() + "/interactions").header("Authorization", "Bearer " + studentToken)
+                .contentType(MediaType.APPLICATION_JSON).content(request("Private question")))
+                .andExpect(status().isOk());
+        UUID privateId = interactions.findAll().getFirst().getId();
+        var other = users.save(new User("Other", "Student", "STU-AI-OTHER", "other-ai@example.com",
+                "password", Role.STUDENT));
+        enrollments.save(new GroupEnrollment(assignment.getGroup(), other));
+        String otherToken = jwt.generateToken(Map.of("role", "STUDENT"), other.getEmail());
+        mvc.perform(post(path() + "/interactions").header("Authorization", "Bearer " + otherToken)
+                .contentType(MediaType.APPLICATION_JSON).content(request("My own question")))
+                .andExpect(status().isOk());
+        mvc.perform(get(path() + "/interactions/" + privateId).header("Authorization", "Bearer " + otherToken))
+                .andExpect(status().isNotFound());
+        mvc.perform(get(path() + "/interactions").header("Authorization", "Bearer " + otherToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalElements").value(1))
+                .andExpect(jsonPath("$.data.content[0].studentMessage").value("My own question"));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"page=-1&size=20", "page=0&size=0", "page=0&size=51"})
+    void invalidHistoryPaginationIsRejected(String query) throws Exception {
+        mvc.perform(get(path() + "/interactions?" + query).header("Authorization", "Bearer " + studentToken))
+                .andExpect(status().isBadRequest());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"", "   "})
+    void blankQuestionsNeverReserveOrCallModel(String message) throws Exception {
+        mvc.perform(post(path() + "/interactions").header("Authorization", "Bearer " + studentToken)
+                .contentType(MediaType.APPLICATION_JSON).content(request(message)))
+                .andExpect(status().isBadRequest());
+        assertThat(interactions.count()).isZero();
+        org.mockito.Mockito.verifyNoInteractions(guardrails);
+    }
+
+    @Test
+    void oversizedQuestionNeverReservesOrCallsModel() throws Exception {
+        mvc.perform(post(path() + "/interactions").header("Authorization", "Bearer " + studentToken)
+                .contentType(MediaType.APPLICATION_JSON).content(request("x".repeat(2001))))
+                .andExpect(status().isBadRequest());
+        assertThat(interactions.count()).isZero();
+        org.mockito.Mockito.verifyNoInteractions(guardrails);
+    }
+
+    private void givenBlockedRequest() {
+        when(guardrails.generate(any(), any(), any(), any(Runnable.class), any(UUID.class)))
+                .thenReturn(new AssistantGuardrailService.Decision(AssistantInteractionStatus.BLOCKED, null, 0, "v1"));
+    }
+
+    @Test
+    void approvedRegenerationUsesFiveCallsAndChargesOnlyDeliveredReplacement() throws Exception {
+        var responses = new java.util.ArrayDeque<>(List.of("{\"decision\":\"ALLOW\"}",
+                "{\"explanation\":\"Rejected candidate\",\"snippets\":[],\"followUpQuestion\":\"Why?\"}",
+                "{\"approved\":false}",
+                "{\"explanation\":\"Approved replacement\",\"snippets\":[],\"followUpQuestion\":\"Why?\"}",
+                "{\"approved\":true}"));
+        AtomicInteger calls = new AtomicInteger();
+        useModel((system, payload) -> {
+            calls.incrementAndGet();
+            return responses.removeFirst();
+        });
+        mvc.perform(post(path() + "/interactions").header("Authorization", "Bearer " + studentToken)
+                .contentType(MediaType.APPLICATION_JSON).content(request("Explain this loop")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.interaction.status").value("COMPLETED"))
+                .andExpect(jsonPath("$.data.availability.used").value(1));
+        assertThat(calls).hasValue(5);
+        assertThat(responses).isEmpty();
+        assertThat(interactions.findAll()).singleElement().satisfies(row -> {
+            assertThat(row.getAssistantResponse()).contains("Approved replacement").doesNotContain("Rejected candidate");
+            assertThat(row.getGenerationAttempts()).isEqualTo(2);
+            assertThat(row.isQuotaCharged()).isTrue();
+        });
+    }
+
     private String request(String message) {
         return "{\"clientRequestId\":\"" + REQUEST_ID + "\",\"message\":\"" + message
                 + "\",\"language\":\"JAVA\",\"includeEditorCode\":false,"
