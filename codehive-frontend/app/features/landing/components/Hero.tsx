@@ -24,13 +24,6 @@ export function Hero() {
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
           {/* Content */}
           <div className={`space-y-8 text-center lg:text-left transition-all duration-1000 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}>
-            {/* Badge */}
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-azure/10 dark:bg-yellow/10 border border-azure/20 dark:border-yellow/20">
-              <span className="w-2 h-2 rounded-full bg-azure dark:bg-yellow animate-pulse" />
-              <span className="text-sm font-medium text-azure dark:text-yellow">
-                A platform built for eduators
-              </span>
-            </div>
 
             {/* Headline */}
             <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold leading-tight">
@@ -43,7 +36,7 @@ export function Hero() {
 
             {/* Subtitle */}
             <p className="text-lg lg:text-xl text-gray-600 dark:text-gray-400 max-w-xl mx-auto lg:mx-0">
-              Reduce your grading time with autograded assignments, designed to engage students and provide instant feedback.
+              Reduce your grading time, this plaform was designed to engage students and provide instant feedback.
             </p>
 
             {/* CTA Buttons */}
@@ -53,13 +46,6 @@ export function Hero() {
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                 </svg>
-              </a>
-              <a href="#features" className="btn-outline inline-flex items-center justify-center gap-2 text-lg">
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                See How It Works
               </a>
             </div>
           </div>
@@ -143,8 +129,8 @@ export function Hero() {
                     </svg>
                   </div>
                   <div>
-                    <div className="text-sm font-semibold text-gray-900 dark:text-white">Auto-Graded</div>
-                    <div className="text-xs text-gray-500">25 submissions</div>
+                    <div className="text-sm font-semibold text-gray-900 dark:text-white">Auto-check</div>
+                    <div className="text-xs text-gray-500">25 tests passed</div>
                   </div>
                 </div>
               </div>

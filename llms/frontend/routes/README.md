@@ -9,6 +9,9 @@ Central route declaration:
 
 Current route map:
 - / -> app/routes/home.tsx
+- `/privacy` and `/terms` -> public landing route modules and legal pages. Shared legal layout
+  provides section links, theme control, and working footer links. Login already links here;
+  viewing these notices does not introduce an acceptance gate or stored consent.
 - /login -> app/routes/login.tsx
 - /forgot-password -> app/routes/forgot-password.tsx
 - /reset-password -> app/routes/reset-password.tsx
@@ -39,6 +42,16 @@ Current route map:
 - /notifications -> features/student/routes/student.notifications.tsx
 
 ## Route Module Pattern
+
+Public legal notices live in `features/landing/pages/PrivacyPolicyPage.tsx` and
+`TermsOfServicePage.tsx`, with a shared `LegalPage` layout. Maintain their fixed revision date
+when changing content. They describe stored account/coursework data, AI opt-ins and provider
+terms, local drafts/session storage, email, externally hosted fonts/editor assets, and retention.
+Retention wording follows `ExecutionRequestService`, `ArtifactCleanupService`, and
+`AssistantTextPurgeService`. Contact currently means the institution/account administrator;
+no operator identity, jurisdiction, or dedicated privacy address has been supplied.
+These pages are informational notices, not new age gates, consent tracking, or erasure APIs.
+
 Each route module typically contains:
 1. meta export for SEO metadata.
 2. Default export component that renders page composition.

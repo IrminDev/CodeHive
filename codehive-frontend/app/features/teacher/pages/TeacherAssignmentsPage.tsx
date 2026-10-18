@@ -8,7 +8,6 @@ import {
   getAssignmentManagementStatus,
   getTeacherAssignment,
   getTeacherAssignmentPage,
-  restoreAssignment,
 } from "../api/assignment.api";
 import { listTeacherGroups } from "../api/group.api";
 import {
@@ -16,7 +15,6 @@ import {
   AssignmentList,
   AssignmentStatusDrawer,
   assignmentGroupLifecycle,
-  type AssignmentLifecycle,
 } from "../components/TeacherAssignmentsUI";
 import { TeacherShell } from "../components/TeacherShell";
 import {
@@ -47,7 +45,7 @@ export function TeacherAssignmentsPage() {
   const [listError, setListError] = useState<string | null>(null);
   const [refreshVersion, setRefreshVersion] = useState(0);
   const [queryInput, setQueryInput] = useState(params.get("query") ?? "");
-  const [action, setAction] = useState<{ kind: "delete" | "restore"; assignment: TeacherAssignment } | null>(null);
+  const [assignmentToDelete, setAssignmentToDelete] = useState<TeacherAssignment | null>(null);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<AssignmentManagementStatus | null>(null);
   const [statusAssignment, setStatusAssignment] = useState<TeacherAssignment | null>(null);
@@ -55,12 +53,12 @@ export function TeacherAssignmentsPage() {
   const loadedContext = useRef("");
 
   const groupId = params.get("groupId") ?? "";
-  const lifecycle: AssignmentLifecycle = params.get("lifecycle") === "deleted" ? "deleted" : "active";
   const rawValidation = params.get("validationStatus");
   const validationStatus: "" | AssignmentValidationStatus = isValidationStatus(rawValidation) ? rawValidation : "";
   const query = params.get("query") ?? "";
-  const page = parsePage(params.get("page"));
-  const statusId = params.get("statusId") ?? "";
+  const legacyDeletedView = params.get("lifecycle") === "deleted";
+  const page = legacyDeletedView ? 0 : parsePage(params.get("page"));
+  const statusId = legacyDeletedView ? "" : params.get("statusId") ?? "";
   const selectedGroup = groups.find((group) => group.id === groupId);
 
   function updateParams(changes: Record<string, string | undefined>, replace = true) {
@@ -73,6 +71,19 @@ export function TeacherAssignmentsPage() {
       return next;
     }, { replace });
   }
+
+  useEffect(() => {
+    if (!params.has("lifecycle")) return;
+    setParams((current) => {
+      const next = new URLSearchParams(current);
+      if (next.get("lifecycle") === "deleted") {
+        next.delete("page");
+        next.delete("statusId");
+      }
+      next.delete("lifecycle");
+      return next;
+    }, { replace: true });
+  }, [params, setParams]);
 
   const loadGroups = useCallback(async () => {
     setGroupsLoading(true);
@@ -106,7 +117,7 @@ export function TeacherAssignmentsPage() {
       setResult(null);
       return;
     }
-    const context = `${groupId}:${lifecycle}`;
+    const context = groupId;
     if (loadedContext.current !== context) {
       loadedContext.current = context;
       setResult(null);
@@ -117,7 +128,7 @@ export function TeacherAssignmentsPage() {
       const next = await getTeacherAssignmentPage(groupId, page, PAGE_SIZE, {
         query: query.trim() || undefined,
         validationStatus: validationStatus || undefined,
-        deletedOnly: lifecycle === "deleted",
+        deletedOnly: false,
       });
       setResult(next);
       if (page > 0 && page >= next.totalPages) {
@@ -128,7 +139,7 @@ export function TeacherAssignmentsPage() {
     } finally {
       setListLoading(false);
     }
-  }, [groupId, lifecycle, page, query, refreshVersion, validationStatus]);
+  }, [groupId, page, query, refreshVersion, validationStatus]);
 
   useEffect(() => { void loadAssignments(); }, [loadAssignments]);
 
@@ -179,13 +190,12 @@ export function TeacherAssignmentsPage() {
   }, [statusId]);
 
   async function runAction() {
-    if (!action) return;
+    if (!assignmentToDelete) return;
     setBusy(true);
     try {
-      if (action.kind === "delete") await deleteAssignment(action.assignment.id);
-      else await restoreAssignment(action.assignment.id);
-      sileo.success({ title: action.kind === "delete" ? "Assignment deleted." : "Assignment restored." });
-      setAction(null);
+      await deleteAssignment(assignmentToDelete.id);
+      sileo.success({ title: "Assignment deleted." });
+      setAssignmentToDelete(null);
       await loadAssignments();
     } catch (cause) {
       sileo.error({ title: errorMessage(cause, "Action failed.") });
@@ -198,52 +208,47 @@ export function TeacherAssignmentsPage() {
     updateParams({ groupId: nextGroupId, page: undefined, statusId: undefined }, false);
   }
 
-  function selectLifecycle(nextLifecycle: AssignmentLifecycle) {
-    updateParams({ lifecycle: nextLifecycle === "deleted" ? "deleted" : undefined, page: undefined, statusId: undefined }, false);
-  }
-
   function selectValidation(nextStatus: "" | AssignmentValidationStatus) {
     updateParams({ validationStatus: nextStatus || undefined, page: undefined, statusId: undefined }, false);
   }
 
   function clearFilters() {
     setQueryInput("");
-    updateParams({ lifecycle: undefined, validationStatus: undefined, query: undefined, page: undefined, statusId: undefined }, false);
+    updateParams({ validationStatus: undefined, query: undefined, page: undefined, statusId: undefined }, false);
   }
 
   const assignments = result?.content ?? [];
-  const canRestore = Boolean(selectedGroup?.isActive && !selectedGroup.archived);
   const createLink = selectedGroup?.isActive && !selectedGroup.archived
     ? `/teacher/create-assignment?groupId=${encodeURIComponent(selectedGroup.id)}`
     : "/teacher/create-assignment";
 
   return (
     <TeacherShell active="assignments" breadcrumbs={[{ label: "Teacher", to: "/teacher" }, { label: "Assignments" }]} contentClassName="max-w-7xl">
-      <TeacherPageHeader eyebrow="Assignment management" title="Assignments" description="Create, validate, publish, review, clone, and restore programming work." actions={<Link to={createLink} className="btn-primary inline-flex items-center gap-1.5"><Plus size={14} /> Create assignment</Link>} />
+      <TeacherPageHeader eyebrow="Assignment management" title="Assignments" description="Create, validate, publish, review, and clone programming work." actions={<Link to={createLink} className="btn-primary inline-flex items-center gap-1.5"><Plus size={14} /> Create assignment</Link>} />
 
       {groupsError && !groupsLoading ? <TeacherError message={groupsError} onRetry={() => void loadGroups()} /> : groupsLoading && groups.length === 0 ? <TeacherLoading rows={5} /> : groups.length === 0 ? (
         <TeacherEmpty title="Create a group first" description="Assignments must belong to an owned group." action={<Link to="/teacher/groups/create" className="btn-primary">Create group</Link>} />
       ) : (
         <>
-          <AssignmentContextBar groups={groups} selected={selectedGroup} lifecycle={lifecycle} query={queryInput} validationStatus={validationStatus} loading={listLoading} onGroupChange={selectGroup} onLifecycleChange={selectLifecycle} onQueryChange={setQueryInput} onValidationChange={selectValidation} onClear={clearFilters} onRefresh={() => setRefreshVersion((value) => value + 1)} />
+          <AssignmentContextBar groups={groups} selected={selectedGroup} query={queryInput} validationStatus={validationStatus} loading={listLoading} onGroupChange={selectGroup} onQueryChange={setQueryInput} onValidationChange={selectValidation} onClear={clearFilters} onRefresh={() => setRefreshVersion((value) => value + 1)} />
 
           {listError && !result ? <TeacherError message={listError} onRetry={() => setRefreshVersion((value) => value + 1)} /> : listLoading && !result ? <TeacherLoading rows={5} /> : assignments.length === 0 ? (
             <TeacherEmpty
-              title={lifecycle === "deleted" ? "No deleted assignments" : query || validationStatus ? "No matching assignments" : "No assignments yet"}
-              description={query || validationStatus ? "Change or clear filters to broaden results." : lifecycle === "deleted" ? "Deleted assignments for this group appear here." : "Create first assignment for selected group."}
-              action={query || validationStatus ? <button type="button" onClick={clearFilters} className="btn-outline">Clear filters</button> : lifecycle === "active" ? <Link to={createLink} className="btn-primary">Create assignment</Link> : undefined}
+              title={query || validationStatus ? "No matching assignments" : "No assignments yet"}
+              description={query || validationStatus ? "Change or clear filters to broaden results." : "Create first assignment for selected group."}
+              action={query || validationStatus ? <button type="button" onClick={clearFilters} className="btn-outline">Clear filters</button> : <Link to={createLink} className="btn-primary">Create assignment</Link>}
             />
           ) : (
             <>
               {listError && <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-500">{listError} <button type="button" onClick={() => setRefreshVersion((value) => value + 1)} className="ml-2 font-semibold underline">Retry</button></div>}
-              <AssignmentList assignments={assignments} deleted={lifecycle === "deleted"} canRestore={canRestore} loading={listLoading} page={page} pageSize={PAGE_SIZE} totalElements={result?.totalElements ?? 0} totalPages={result?.totalPages ?? 0} onPage={(nextPage) => updateParams({ page: nextPage > 0 ? String(nextPage + 1) : undefined }, false)} onStatus={(assignment) => { setStatusAssignment(assignment); updateParams({ statusId: assignment.id }, false); }} onDelete={(assignment) => setAction({ kind: "delete", assignment })} onRestore={(assignment) => setAction({ kind: "restore", assignment })} />
+              <AssignmentList assignments={assignments} loading={listLoading} page={page} pageSize={PAGE_SIZE} totalElements={result?.totalElements ?? 0} totalPages={result?.totalPages ?? 0} onPage={(nextPage) => updateParams({ page: nextPage > 0 ? String(nextPage + 1) : undefined }, false)} onStatus={(assignment) => { setStatusAssignment(assignment); updateParams({ statusId: assignment.id }, false); }} onDelete={setAssignmentToDelete} />
             </>
           )}
         </>
       )}
 
       {statusId && <AssignmentStatusDrawer assignment={statusAssignment} status={status} loading={statusLoading} onClose={() => updateParams({ statusId: undefined }, false)} />}
-      <ConfirmDialog open={Boolean(action)} title={action?.kind === "delete" ? `Delete ${action.assignment.title}?` : `Restore ${action?.assignment.title}?`} description={action?.kind === "delete" ? "Students lose access, but submissions and grading history remain stored." : "Assignment returns to its group with existing validation and scheduling state."} confirmLabel={busy ? "Working…" : action?.kind === "delete" ? "Delete assignment" : "Restore assignment"} danger={action?.kind === "delete"} busy={busy} onCancel={() => setAction(null)} onConfirm={() => void runAction()} />
+      <ConfirmDialog open={Boolean(assignmentToDelete)} title={`Delete ${assignmentToDelete?.title ?? "assignment"}?`} description="Students lose access, but submissions and grading history remain stored." confirmLabel={busy ? "Working…" : "Delete assignment"} danger busy={busy} onCancel={() => setAssignmentToDelete(null)} onConfirm={() => void runAction()} />
     </TeacherShell>
   );
 }

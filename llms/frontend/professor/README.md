@@ -29,8 +29,10 @@ confirmation, field, and panel patterns live in `components/TeacherUI.tsx`.
 
 - Create and clone assignment forms include AI enable, lifetime quota (1–10 when enabled, 0 when disabled), and three assistance levels. Edit page saves AI policy immediately through separate owner-authorized endpoint; assignment content Save changes remains separate.
 
-- Assignment list filters by group, lifecycle, validation status, and title. Deleted records can be
-  restored; each assignment exposes preview, edit, revalidate, clone, grade, and management status.
+- Assignment list shows non-deleted assignments, filtered by group, validation status, and title.
+  It has no deleted-assignment filter or restore action. Legacy `lifecycle=deleted` URLs reset
+  pagination and close the status drawer before showing the normal list. Each assignment exposes
+  preview, edit, revalidate, clone, grade, and management status.
 - Management status combines latest validation failure, update history, and latest reevaluation batch.
 - Grade review drawer exposes every attempt, retained source, execution evidence, and grade audit history.
 - Gradebook student workspace includes an AI Usage tab scoped to selected student and assignment.

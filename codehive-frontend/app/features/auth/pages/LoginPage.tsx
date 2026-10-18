@@ -213,16 +213,7 @@ export function LoginPage() {
               <h2 className="text-5xl font-bold text-gray-900 dark:text-white">
                 Sign in
               </h2>
-              <p className="text-base text-gray-500 dark:text-gray-400">
-                New here?{" "}
-                <a
-                  href="#"
-                  className="text-azure dark:text-[#6ba3f5] hover:underline font-medium"
-                >
-                  Create one
-                </a>{" "}
-                account.
-              </p>
+
             </header>
 
             {/* Form fields */}
@@ -399,12 +390,6 @@ export function LoginPage() {
                 className="text-sm text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
               >
                 Terms of Service
-              </a>
-              <a
-                href="#"
-                className="text-sm text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-              >
-                Cookie Settings
               </a>
             </div>
           </footer>
