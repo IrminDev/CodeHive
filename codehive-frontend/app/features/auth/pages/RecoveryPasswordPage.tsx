@@ -39,7 +39,7 @@ export function RecoveryPasswordPage() {
 
   const features = [
     "Secure password reset link",
-    "Link expires in 24 hours",
+    "Link expires in 15 minutes",
     "One-time use only",
   ];
 
@@ -92,8 +92,8 @@ export function RecoveryPasswordPage() {
                     </svg>
                   </div>
                   <div>
-                    <h4 className="text-white font-semibold text-base">Link expires in 24 hours</h4>
-                    <p className="text-white/50 text-sm mt-1">For security reasons, this link will self-destruct after one day.</p>
+                    <h4 className="text-white font-semibold text-base">Link expires in 15 minutes</h4>
+                    <p className="text-white/50 text-sm mt-1">For security reasons, the link stops working 15 minutes after it is sent.</p>
                   </div>
                 </div>
 
@@ -321,7 +321,7 @@ export function RecoveryPasswordPage() {
                     <p className="text-sm text-gray-600 dark:text-[#c8c5cd] leading-relaxed">
                       The reset link will be sent to your registered email address
                       and will expire in{" "}
-                      <span className="font-semibold text-gray-900 dark:text-white">24 hours</span> for security purposes.
+                      <span className="font-semibold text-gray-900 dark:text-white">15 minutes</span> for security purposes.
                     </p>
                   </div>
                 </div>
