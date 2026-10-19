@@ -27,7 +27,7 @@ confirmation, field, and panel patterns live in `components/TeacherUI.tsx`.
 
 ## Management Workflows
 
-- Create and clone assignment forms include AI enable, lifetime quota (1–10 when enabled, 0 when disabled), and three assistance levels. Edit page saves AI policy immediately through separate owner-authorized endpoint; assignment content Save changes remains separate.
+- Create and clone assignment forms include AI enable, lifetime quota (1–10 when enabled, 0 when disabled), and three assistance levels. Edit page saves AI policy immediately through a separate owner-authorized endpoint. Main save also persists pending AI changes before assignment content, stops on policy failure, and skips unchanged policy writes.
 
 - Assignment list shows non-deleted assignments, filtered by group, validation status, and title.
   It has no deleted-assignment filter or restore action. Legacy `lifecycle=deleted` URLs reset
@@ -78,6 +78,16 @@ so students can access the assignment as soon as asynchronous test generation ma
 launch date and keeps the assignment hidden until then.
 
 ## Assignment Editing
+
+Edit and validation pages use `TeacherShell`, shared page headings/panels, compact actions,
+and themed form controls. There is no assignment AI usage shortcut here. `AiPolicyFields`
+uses the shared Dropdown and can render an optional footer. Edit uses one Save changes/
+Validate and save action for assignment content and pending policy changes; there is
+no separate AI save button. The AI card shows whether policy edits are unsaved.
+AI policy applies on submission, regardless of subsequent assignment validation. Saved policy becomes the new baseline,
+so retrying failed assignment content does not write the same policy again. Controls
+lock while saving; unchanged policy does not trigger a version
+change that could cancel pending assistant work.
 
 `PATCH /api/assignments/{id}` always carries multipart `metadata`. Metadata, public examples,
 and schedule changes apply immediately. Empty schedule fields preserve their current value;

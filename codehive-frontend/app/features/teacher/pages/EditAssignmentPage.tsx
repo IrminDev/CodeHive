@@ -1,17 +1,21 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import {
   ArrowLeft,
+  BookOpen,
+  CalendarDays,
   FileCode2,
   FileInput,
   Info,
+  LoaderCircle,
   Plus,
+  Save,
+  Settings2,
   Upload,
   X,
 } from "lucide-react";
 import { sileo } from "sileo";
 
-import { DashboardLayout } from "~/shared/components/DashboardLayout";
 import { CodeEditor } from "~/shared/components/CodeEditor";
 import { CalendarInput } from "~/shared/components/ui/CalendarInput";
 import { Dropdown } from "~/shared/components/ui/Dropdown";
@@ -21,7 +25,6 @@ import {
   updateAssignment,
   updateAiPolicy,
 } from "../api/assignment.api";
-import { TEACHER_NAV, TEACHER_SIDEBAR_ITEMS } from "../config/dashboard.config";
 import type {
   AssignmentExample,
   ComparatorType,
@@ -32,7 +35,7 @@ import type {
   AiPolicySettings,
 } from "../types/assignment.types";
 import { TeacherShell } from "../components/TeacherShell";
-import { TeacherEmpty, TeacherLoading } from "../components/TeacherUI";
+import { compactButtonClass, inputClass as teacherInputClass, panelClass, TeacherEmpty, TeacherLoading, TeacherPageHeader } from "../components/TeacherUI";
 import { AiPolicyFields, normalizeAiPolicy, validAiPolicy } from "../components/AiPolicyFields";
 
 const LANGUAGES: Array<{
@@ -64,8 +67,25 @@ const MAX_TOTAL_TEST_INPUT_BYTES = 5 * 1024 * 1024;
 const MAX_EXAMPLES = 10;
 const MAX_EXAMPLE_INPUT_OUTPUT_CHARS = 10_000;
 const MAX_EXPLANATION_CHARS = 2_000;
-const inputClass =
-  "w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-dark-surface focus:outline-none focus:ring-2 focus:ring-azure/40";
+const inputClass = `${teacherInputClass} text-sm transition-colors`;
+const sectionClass = `${panelClass} grid gap-5 p-5 sm:p-6`;
+const primaryButtonClass = "inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg bg-azure px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-french focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-azure focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:ring-yellow dark:focus-visible:ring-offset-dark-surface";
+const secondaryButtonClass = `${compactButtonClass} min-h-9 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-azure dark:focus-visible:ring-yellow`;
+const checkboxClass = "h-4 w-4 shrink-0 rounded border-gray-300 accent-azure focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-azure focus-visible:ring-offset-2 disabled:opacity-50 dark:border-gray-600 dark:accent-yellow dark:focus-visible:ring-yellow dark:focus-visible:ring-offset-dark-surface";
+
+function EditSectionHeading({ icon, title, description, meta }: {
+  icon: ReactNode; title: string; description?: string; meta?: string;
+}) {
+  return <div className="flex flex-wrap items-start justify-between gap-3 border-b border-gray-100 pb-4 dark:border-gray-800/60">
+    <div className="flex min-w-0 items-start gap-3">
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-azure/10 text-azure dark:bg-yellow/10 dark:text-yellow" aria-hidden="true">{icon}</span>
+      <div className="min-w-0"><h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{title}</h2>
+        {description && <p className="mt-1 text-xs leading-relaxed text-gray-500 dark:text-gray-400">{description}</p>}
+      </div>
+    </div>
+    {meta && <span className="text-[10px] text-gray-500 dark:text-gray-400">{meta}</span>}
+  </div>;
+}
 
 function lines(value: string): string[] {
   return value
@@ -152,11 +172,16 @@ export function EditAssignmentPage({
   const [clearCloseDate, setClearCloseDate] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [savingAiPolicy, setSavingAiPolicy] = useState(false);
   const [aiPolicy, setAiPolicy] = useState<AiPolicySettings>({
     aiAssistanceEnabled: false, maxAiRequests: 0, aiAssistanceLevel: "CONCEPTUAL_ONLY",
   });
   const [minimumDate] = useState(currentMinimumDate);
+  const normalizedAiPolicy = normalizeAiPolicy(aiPolicy);
+  const aiPolicyDirty = assignment !== null && (
+    normalizedAiPolicy.aiAssistanceEnabled !== assignment.aiAssistanceEnabled
+    || normalizedAiPolicy.maxAiRequests !== assignment.maxAiRequests
+    || normalizedAiPolicy.aiAssistanceLevel !== assignment.aiAssistanceLevel
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -373,6 +398,7 @@ export function EditAssignmentPage({
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
+    if (saving) return;
     if (!title.trim() || !description.trim()) {
       sileo.error({ title: "Title and description are required." });
       return;
@@ -511,6 +537,7 @@ export function EditAssignmentPage({
     };
     setSaving(true);
     try {
+      if (aiPolicyDirty && !await saveAiPolicy()) return;
       const update = await updateAssignment(
         assignmentId,
         metadata,
@@ -542,21 +569,19 @@ export function EditAssignmentPage({
     }
   }
 
-  async function saveAiPolicy() {
+  async function saveAiPolicy(): Promise<boolean> {
     if (!validAiPolicy(aiPolicy)) {
       sileo.error({ title: "AI answer quota must be a whole number from 1 to 10." });
-      return;
+      return false;
     }
-    setSavingAiPolicy(true);
     try {
       const saved = await updateAiPolicy(assignmentId, normalizeAiPolicy(aiPolicy));
       setAiPolicy(saved);
       setAssignment((current) => current ? { ...current, ...saved } : current);
-      sileo.success({ title: "AI assistance policy updated immediately." });
+      return true;
     } catch (error) {
       sileo.error({ title: error instanceof Error ? error.message : "Failed to update AI policy." });
-    } finally {
-      setSavingAiPolicy(false);
+      return false;
     }
   }
 
@@ -585,47 +610,15 @@ export function EditAssignmentPage({
     "plaintext";
 
   return (
-    <DashboardLayout
-      logoLinkTo="/teacher"
-      navLinks={TEACHER_NAV}
-      sidebarItems={TEACHER_SIDEBAR_ITEMS}
-    >
-      <Link className="inline-block mb-4 underline text-sm" to={`/teacher/analytics?groupId=${assignment.groupId}&assignmentId=${assignmentId}`}>AI usage for this assignment</Link>
-      <form onSubmit={submit} className="max-w-5xl mx-auto space-y-6 pb-8">
-        <div className="flex items-start gap-4">
-          <button
-            type="button"
-            onClick={() => navigate("/teacher/assignments")}
-            className="btn-outline p-2.5"
-            aria-label="Back to assignments"
-          >
-            <ArrowLeft size={16} />
-          </button>
-          <div>
-            <p className="text-xs uppercase tracking-widest font-semibold text-azure dark:text-yellow">
-              Assignment management
-            </p>
-            <h1 className="text-3xl font-bold mt-1">
-              {validationMode
-                ? "Update and validate assignment"
-                : "Edit assignment"}
-            </h1>
-            <p className="text-gray-500 dark:text-gray-400 mt-1">
-              {validationMode
-                ? "Code, private tests, constraints, and execution settings are applied only after worker validation."
-                : "Edit student-facing details, examples, and schedule without changing the validation suite."}
-            </p>
-          </div>
-        </div>
+    <TeacherShell active="assignments" contentClassName="max-w-5xl" breadcrumbs={[{ label: "Teacher", to: "/teacher" }, { label: "Assignments", to: "/teacher/assignments" }, { label: assignment.title, to: `/teacher/assignments/${assignment.id}/preview` }, { label: validationMode ? "Update and validate" : "Edit" }]}>
+      <Link to="/teacher/assignments" className="mb-4 inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 transition-colors hover:text-azure dark:text-gray-400 dark:hover:text-yellow"><ArrowLeft size={14} aria-hidden="true" /> Back to assignments</Link>
+      <TeacherPageHeader eyebrow="Assignment management" title={validationMode ? "Update and validate assignment" : "Edit assignment"}
+        description={validationMode ? "Code, private tests, constraints, and execution settings are applied after validation." : "Update student-facing details, examples, schedule, and AI assistance settings."} />
+      <form onSubmit={submit} className="space-y-5 pb-8">
 
-        <section className="bg-white dark:bg-dark-card rounded-2xl border border-gray-200 dark:border-gray-700/40 p-6 grid gap-5">
-          <div className="flex items-center justify-between gap-4">
-            <h2 className="font-semibold text-lg">Assignment details</h2>
-            <span className="text-xs text-gray-500">
-              Changes shown to students when saved
-            </span>
-          </div>
-          <label className="grid gap-2 text-sm">
+        <section className={sectionClass}>
+          <EditSectionHeading icon={<BookOpen size={16} />} title="Assignment details" description="Title, description, and tags shown in student instructions." />
+          <label className="grid gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
             Title
             <input
               required
@@ -638,7 +631,7 @@ export function EditAssignmentPage({
               {title.length} / 200
             </span>
           </label>
-          <label className="grid gap-2 text-sm">
+          <label className="grid gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
             Description
             <textarea
               required
@@ -655,7 +648,7 @@ export function EditAssignmentPage({
           </label>
           {validationMode && (
             <div className="grid md:grid-cols-2 gap-4">
-              <label className="grid gap-2 text-sm">
+              <label className="grid gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                 Constraints <span className="text-gray-500">One per line</span>
                 <textarea
                   rows={4}
@@ -665,7 +658,7 @@ export function EditAssignmentPage({
                   className={`${inputClass} resize-y`}
                 />
               </label>
-              <label className="grid gap-2 text-sm">
+              <label className="grid gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                 Hints <span className="text-gray-500">One per line</span>
                 <textarea
                   rows={4}
@@ -677,13 +670,13 @@ export function EditAssignmentPage({
               </label>
             </div>
           )}
-          <div className="grid gap-2 text-sm">
+          <div className="grid gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
             <span>Tags</span>
             <div className="flex flex-wrap gap-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-dark-surface p-3">
               {tags.map((tag) => (
                 <span
                   key={tag}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-azure/10 text-azure text-xs font-semibold"
+                  className="inline-flex items-center gap-1 rounded-md bg-azure/10 px-2.5 py-1 text-xs font-medium text-azure dark:bg-yellow/10 dark:text-yellow"
                 >
                   {tag}
                   <button
@@ -698,6 +691,7 @@ export function EditAssignmentPage({
                 </span>
               ))}
               <input
+                aria-label="New tag"
                 value={tagInput}
                 maxLength={MAX_TAG_CHARS}
                 onChange={(event) =>
@@ -721,10 +715,10 @@ export function EditAssignmentPage({
         </section>
 
         {validationMode && (
-          <section className="bg-white dark:bg-dark-card rounded-2xl border border-gray-200 dark:border-gray-700/40 p-6 grid gap-5">
-            <h2 className="font-semibold text-lg">Configuration</h2>
+          <section className={sectionClass}>
+            <EditSectionHeading icon={<Settings2 size={16} />} title="Configuration" description="Set execution limits, grading points, and supported languages." />
             <div className="grid md:grid-cols-4 gap-4">
-              <label className="grid gap-2 text-sm">
+              <label className="grid gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                 Time limit (ms)
                 <input
                   required
@@ -738,7 +732,7 @@ export function EditAssignmentPage({
                   className={inputClass}
                 />
               </label>
-              <label className="grid gap-2 text-sm">
+              <label className="grid gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                 Memory limit (MB)
                 <input
                   required
@@ -752,7 +746,7 @@ export function EditAssignmentPage({
                   className={inputClass}
                 />
               </label>
-              <label className="grid gap-2 text-sm">
+              <label className="grid gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                 Max points
                 <input
                   required
@@ -764,9 +758,9 @@ export function EditAssignmentPage({
                   className={inputClass}
                 />
               </label>
-              <label className="grid gap-2 text-sm">
+              <label className="grid gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                 Comparator
-                <Dropdown value={comparatorType} onChange={(value) => setComparatorType(value as ComparatorType)} options={[{ value: "EXACT_MATCH", label: "Exact match" }, { value: "FLOATING_POINT", label: "Floating point" }]} />
+                <Dropdown ariaLabel="Output comparator" value={comparatorType} onChange={(value) => setComparatorType(value as ComparatorType)} options={[{ value: "EXACT_MATCH", label: "Exact match" }, { value: "FLOATING_POINT", label: "Floating point" }]} />
               </label>
             </div>
             <div>
@@ -780,7 +774,7 @@ export function EditAssignmentPage({
                       type="button"
                       aria-pressed={active}
                       onClick={() => toggleLanguage(language.value)}
-                      className={`px-4 py-2 rounded-xl border text-sm font-medium transition-colors ${active ? "border-azure bg-azure/10 text-azure" : "border-gray-200 dark:border-gray-700 text-gray-500 hover:border-azure/50"}`}
+                      className={`rounded-lg border px-3 py-2 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-azure dark:focus-visible:ring-yellow ${active ? "border-azure/30 bg-azure/10 text-azure dark:border-yellow/30 dark:bg-yellow/10 dark:text-yellow" : "border-gray-200 text-gray-500 hover:border-azure/50 dark:border-gray-700 dark:text-gray-400 dark:hover:border-yellow/40"}`}
                     >
                       {language.label}
                     </button>
@@ -792,25 +786,17 @@ export function EditAssignmentPage({
         )}
 
         {validationMode ? (
-          <section className="bg-white dark:bg-dark-card rounded-2xl border border-gray-200 dark:border-gray-700/40 p-6 grid gap-5">
-            <div>
-              <h2 className="font-semibold text-lg">
-                Reference solution and tests
-              </h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                Saving rebuilds expected outputs from this complete suite.
-                Worker must validate it before activation.
-              </p>
-            </div>
+          <section className={sectionClass}>
+            <EditSectionHeading icon={<FileCode2 size={16} />} title="Reference solution and tests" description="Saving rebuilds expected outputs from this complete suite. Validation must succeed before activation." />
             <div className="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
               <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-gray-50 dark:bg-dark-surface border-b border-gray-200 dark:border-gray-700">
                 <div className="flex items-center gap-2">
-                  <FileCode2 size={17} className="text-azure" />
+                  <FileCode2 size={17} className="text-azure dark:text-yellow" />
                   <h3 className="font-medium">Reference solution</h3>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Dropdown value={referenceLanguage} onChange={(value) => setReferenceLanguage(value as Language)} options={LANGUAGES.map((language) => ({ value: language.value, label: language.label, description: `Main.${language.ext}` }))} size="compact" className="w-36" />
-                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 hover:border-azure/60">
+                  <Dropdown ariaLabel="Reference language" value={referenceLanguage} onChange={(value) => setReferenceLanguage(value as Language)} options={LANGUAGES.map((language) => ({ value: language.value, label: language.label, description: `Main.${language.ext}` }))} size="compact" className="w-36" />
+                  <label className={`${secondaryButtonClass} cursor-pointer focus-within:ring-2 focus-within:ring-azure dark:focus-within:ring-yellow`}>
                     <Upload size={15} />
                     Import file
                     <input
@@ -854,7 +840,7 @@ export function EditAssignmentPage({
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <div className="flex items-center gap-2">
-                    <FileInput size={17} className="text-azure" />
+                    <FileInput size={17} className="text-azure dark:text-yellow" />
                     <h3 className="font-medium">Private test input editors</h3>
                   </div>
                   <p className="mt-1 text-sm text-gray-500">
@@ -863,7 +849,7 @@ export function EditAssignmentPage({
                   </p>
                 </div>
                 {testSuiteDirty && (
-                  <span className="rounded-full border border-azure/30 bg-azure/10 px-3 py-1.5 text-xs font-semibold text-azure">
+                  <span className="rounded-md border border-azure/30 bg-azure/10 px-2 py-1 text-[10px] font-semibold text-azure dark:border-yellow/30 dark:bg-yellow/10 dark:text-yellow">
                     {testSuiteUpdateMode === "APPEND"
                       ? "New inputs will be appended"
                       : "Edited suite will replace active tests"}
@@ -879,13 +865,14 @@ export function EditAssignmentPage({
                     <span className="text-sm font-medium">
                       Test input {index + 1}
                       {testCase.isNew && (
-                        <span className="ml-2 text-xs text-azure">New</span>
+                        <span className="ml-2 text-xs text-azure dark:text-yellow">New</span>
                       )}
                     </span>
                     <div className="flex items-center gap-3">
-                      <label className="inline-flex items-center gap-2 text-xs">
+                      <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-medium text-gray-600 dark:text-gray-400">
                         <input
                           type="checkbox"
+                          className={checkboxClass}
                           checked={testCase.sample}
                           onChange={(event) =>
                             updateTestCase(testCase.id, {
@@ -898,13 +885,14 @@ export function EditAssignmentPage({
                       <button
                         type="button"
                         onClick={() => removeTestCase(testCase.id)}
-                        className="text-sm text-red-500"
+                        className="rounded-lg px-2 py-1.5 text-xs font-medium text-red-500 transition-colors hover:bg-red-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 dark:text-red-400"
                       >
                         Remove
                       </button>
                     </div>
                   </div>
                   <textarea
+                    aria-label={`Test input ${index + 1}`}
                     required
                     rows={5}
                     maxLength={MAX_TEST_INPUT_BYTES}
@@ -925,15 +913,15 @@ export function EditAssignmentPage({
                 type="button"
                 disabled={testCases.length >= MAX_TEST_CASES}
                 onClick={addTestCase}
-                className="w-full rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700 py-3 text-sm font-medium text-gray-500 transition-colors hover:border-azure/60 hover:text-azure disabled:opacity-50"
+                className="w-full rounded-xl border border-dashed border-gray-300 py-3 text-xs font-medium text-gray-500 transition-colors hover:border-azure/60 hover:bg-azure/5 hover:text-azure focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-azure disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:text-gray-400 dark:hover:border-yellow/40 dark:hover:bg-yellow/5 dark:hover:text-yellow dark:focus-visible:ring-yellow"
               >
                 <Plus size={15} className="inline mr-2" />
                 Add test input ({testCases.length} / {MAX_TEST_CASES})
               </button>
             </div>
             {hasRevisionChanges && (
-              <div className="flex gap-3 rounded-xl border border-yellow/30 bg-yellow/5 p-4 text-sm text-gray-600 dark:text-gray-300">
-                <Info size={17} className="text-yellow flex-shrink-0 mt-0.5" />
+              <div className="flex gap-3 rounded-xl border border-orange-500/20 bg-orange-500/5 p-4 text-xs leading-relaxed text-gray-600 dark:text-gray-300">
+                <Info size={17} className="mt-0.5 shrink-0 text-orange-500" />
                 <p>
                   This revision remains pending until worker validation
                   succeeds. Existing reference solution and test suite stay
@@ -943,31 +931,25 @@ export function EditAssignmentPage({
             )}
           </section>
         ) : (
-          <section className="bg-white dark:bg-dark-card rounded-2xl border border-gray-200 dark:border-gray-700/40 p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <section className={`${panelClass} flex flex-col justify-between gap-4 p-5 sm:flex-row sm:items-center sm:p-6`}>
             <div>
-              <h2 className="font-semibold text-lg">Validation suite</h2>
-              <p className="text-sm text-gray-500 mt-1">
+              <h2 className="text-sm font-semibold">Validation suite</h2>
+              <p className="mt-1 text-xs leading-relaxed text-gray-500 dark:text-gray-400">
                 Update code, private test inputs, constraints, limits, or
                 allowed languages in dedicated validation flow.
               </p>
             </div>
             <Link
               to={`/teacher/assignments/${assignment.id}/revalidate`}
-              className="btn-primary whitespace-nowrap"
+              className={`${secondaryButtonClass} shrink-0 whitespace-nowrap`}
             >
               Update and validate
             </Link>
           </section>
         )}
 
-        <section className="bg-white dark:bg-dark-card rounded-2xl border border-gray-200 dark:border-gray-700/40 p-6 grid gap-5">
-          <div>
-            <h2 className="font-semibold text-lg">Public examples</h2>
-            <p className="text-sm text-gray-500 mt-1">
-              Shown in student instructions; separate from private evaluator
-              inputs.
-            </p>
-          </div>
+        <section className={sectionClass}>
+          <EditSectionHeading icon={<FileInput size={16} />} title="Public examples" description="Shown in student instructions; separate from private evaluator inputs." meta={`${examples.length} / ${MAX_EXAMPLES} examples`} />
           <div className="grid gap-4">
             {examples.map((example, index) => (
               <div
@@ -983,13 +965,13 @@ export function EditAssignmentPage({
                         items.filter((_, itemIndex) => itemIndex !== index),
                       )
                     }
-                    className="text-sm text-red-500"
+                    className="rounded-lg px-2 py-1.5 text-xs font-medium text-red-500 transition-colors hover:bg-red-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 dark:text-red-400"
                   >
                     Remove
                   </button>
                 </div>
                 <div className="grid md:grid-cols-2 gap-4">
-                  <label className="grid gap-2 text-sm">
+                  <label className="grid gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                     Input
                     <textarea
                       required
@@ -1002,7 +984,7 @@ export function EditAssignmentPage({
                       className={`${inputClass} font-mono resize-y`}
                     />
                   </label>
-                  <label className="grid gap-2 text-sm">
+                  <label className="grid gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                     Expected output
                     <textarea
                       required
@@ -1016,7 +998,7 @@ export function EditAssignmentPage({
                     />
                   </label>
                 </div>
-                <label className="grid gap-2 text-sm mt-4">
+                <label className="mt-4 grid gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                   Explanation
                   <textarea
                     required
@@ -1036,21 +1018,15 @@ export function EditAssignmentPage({
             type="button"
             disabled={examples.length >= MAX_EXAMPLES}
             onClick={addExample}
-            className="w-full py-3 rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700 text-gray-500 hover:border-azure/60 hover:text-azure disabled:opacity-50 transition-colors text-sm font-medium"
+            className="w-full rounded-xl border border-dashed border-gray-300 py-3 text-xs font-medium text-gray-500 transition-colors hover:border-azure/60 hover:bg-azure/5 hover:text-azure focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-azure disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:text-gray-400 dark:hover:border-yellow/40 dark:hover:bg-yellow/5 dark:hover:text-yellow dark:focus-visible:ring-yellow"
           >
             <Plus size={15} className="inline mr-2" />
             Add public example ({examples.length} / {MAX_EXAMPLES})
           </button>
         </section>
 
-        <section className="bg-white dark:bg-dark-card rounded-2xl border border-gray-200 dark:border-gray-700/40 p-6 grid gap-5">
-          <div>
-            <h2 className="font-semibold text-lg">Reschedule</h2>
-            <p className="text-sm text-gray-500 mt-1">
-              Leave empty to keep current date. Clearing due date marks existing
-              late submissions on time.
-            </p>
-          </div>
+        <section className={sectionClass}>
+          <EditSectionHeading icon={<CalendarDays size={16} />} title="Reschedule" description="Leave empty to keep the current date. Clearing the due date marks existing late submissions on time." />
           <div className="grid md:grid-cols-3 gap-4">
             {[
               [
@@ -1079,7 +1055,7 @@ export function EditAssignmentPage({
               ],
             ].map(([label, current, value, setValue, clear, setClear]) => (
               <div key={label as string} className="grid gap-2">
-                <label className="text-sm">
+                <label htmlFor={`assignment-${String(label).toLowerCase()}-date`} className="text-sm font-medium text-gray-700 dark:text-gray-300">
                   {label as string}
                   <span className="block text-xs text-gray-500 mt-1">
                     Current:{" "}
@@ -1089,15 +1065,18 @@ export function EditAssignmentPage({
                   </span>
                 </label>
                 <CalendarInput
+                  id={`assignment-${String(label).toLowerCase()}-date`}
                   type="datetime-local"
                   min={minimumDate}
                   disabled={clear as boolean}
                   value={value as string}
                   onChange={(next) => (setValue as React.Dispatch<React.SetStateAction<string>>)(next)}
                 />
-                <label className="inline-flex items-center gap-2 text-sm">
+                <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-medium text-gray-600 dark:text-gray-400">
                   <input
                     type="checkbox"
+                    aria-label={`Clear ${String(label).toLowerCase()} date`}
+                    className={checkboxClass}
                     checked={clear as boolean}
                     onChange={(event) =>
                       (
@@ -1114,34 +1093,35 @@ export function EditAssignmentPage({
           </div>
         </section>
 
-        <div>
-          <AiPolicyFields value={aiPolicy} onChange={setAiPolicy} />
-          <div className="mt-3 flex justify-end">
-            <button type="button" onClick={() => void saveAiPolicy()} disabled={savingAiPolicy}
-              className="btn-outline">
-              {savingAiPolicy ? "Saving AI policy…" : "Save AI policy now"}
+        <AiPolicyFields value={aiPolicy} onChange={setAiPolicy} disabled={saving} footer={
+          <p className="text-xs leading-relaxed text-gray-500 dark:text-gray-400">
+            {aiPolicyDirty ? "Unsaved AI changes. " : "AI settings are saved. "}
+            Use {validationMode ? "Validate and save" : "Save changes"} below to save all changes.
+            AI settings take effect when saved, even if assignment changes require further validation.
+          </p>
+        } />
+
+        <div className={`${panelClass} flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:px-5`}>
+          <p className="text-xs text-gray-500 dark:text-gray-400">{validationMode ? "Your updated suite becomes active after successful validation." : "Save assignment details, examples, schedule, and AI settings."}</p>
+          <div className="flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => navigate("/teacher/assignments")}
+              className={secondaryButtonClass}
+            >
+              Cancel
+            </button>
+            <button type="submit" disabled={saving} className={primaryButtonClass}>
+              {saving ? <LoaderCircle size={14} className="animate-spin" aria-hidden="true" /> : <Save size={14} aria-hidden="true" />}
+              {saving
+                ? "Saving…"
+                : validationMode || hasRevisionChanges
+                  ? "Validate and save"
+                  : "Save changes"}
             </button>
           </div>
-          <p className="mt-2 text-xs text-gray-500">AI policy saves separately and immediately; assignment content uses Save changes below.</p>
-        </div>
-
-        <div className="flex justify-end gap-3">
-          <button
-            type="button"
-            onClick={() => navigate("/teacher/assignments")}
-            className="btn-outline"
-          >
-            Cancel
-          </button>
-          <button disabled={saving} className="btn-primary">
-            {saving
-              ? "Saving…"
-              : validationMode || hasRevisionChanges
-                ? "Validate and save"
-                : "Save changes"}
-          </button>
         </div>
       </form>
-    </DashboardLayout>
+    </TeacherShell>
   );
 }

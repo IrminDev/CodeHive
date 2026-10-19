@@ -65,8 +65,8 @@ const MONACO_LANG_MAP: Record<Language, string> = {
 };
 
 const LANGUAGE_TEMPLATES: Record<Language, string> = {
-  PYTHON: "def solution():\n    pass\n",
-  JAVA: "class Solution {\n\n}\n",
+  PYTHON: "def main():\n    pass\n\n\nif __name__ == \"__main__\":\n    main()\n",
+  JAVA: "import java.util.Scanner;\n\npublic class Main {\n    public static void main(String[] args) {\n        Scanner scanner = new Scanner(System.in);\n\n        // Write your code here.\n\n        scanner.close();\n    }\n}\n",
   CPP: '#include <bits/stdc++.h>\nusing namespace std;\n\nint main() {\n  return 0;\n}\n',
   C: '#include <stdio.h>\n\nint main(void) {\n  return 0;\n}\n',
 };
