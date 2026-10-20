@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.util.Optional;
+import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -45,17 +46,26 @@ class CsvRegistrationServiceTest {
     }
 
     @Test
-    @DisplayName("runs the import immediately and does not gate it on the websocket")
-    void submitCsvJob_runsImportImmediatelyWithoutWebSocket() {
+    @DisplayName("queues the import for the owner and starts it only when the task runnable fires")
+    void submitCsvJob_queuesImportForOwner() {
+        UUID ownerId = UUID.fromString("00000000-0000-0000-0000-000000000009");
+        User requester = mock(User.class);
+        when(requester.canParticipate()).thenReturn(true);
+        when(requester.getId()).thenReturn(ownerId);
+        when(userRepository.findByEmail("admin@codehive.com")).thenReturn(Optional.of(requester));
         CsvRegistrationService self = mock(CsvRegistrationService.class);
         when(selfProvider.getObject()).thenReturn(self);
         byte[] csvData = "STUDENT,A,B,C,2020630001,a@b.com".getBytes();
 
-        String taskId = service.submitCsvJob(csvData);
+        String taskId = service.submitCsvJob(csvData, "admin@codehive.com");
 
         assertThat(taskId).isNotBlank();
+        ArgumentCaptor<Runnable> taskCaptor = ArgumentCaptor.forClass(Runnable.class);
+        verify(webSocketHandler).queueTask(eq(taskId), eq(ownerId), taskCaptor.capture());
+        verifyNoInteractions(selfProvider);
+
+        taskCaptor.getValue().run();
         verify(self).processAsync(csvData, taskId);
-        verifyNoInteractions(webSocketHandler);
     }
 
     @Test

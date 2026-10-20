@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CircleAlert, Plus } from "lucide-react";
+import { Archive, CircleAlert, Plus, Users } from "lucide-react";
 import { Link } from "react-router";
-import { useAuth } from "~/core/providers/AuthProvider";
 
 import { listTeacherGroups } from "../api/group.api";
 import { getGroupMetricsOverview } from "../api/metrics.api";
@@ -9,7 +8,6 @@ import {
   GroupCardSkeletons,
   GroupsEmptyState,
   GroupToolbar,
-  LifecycleSummary,
   lifecycle,
   TeacherGroupCard,
   type GroupCardData,
@@ -17,12 +15,11 @@ import {
   type GroupTab,
 } from "../components/TeacherGroupsUI";
 import { TeacherShell } from "../components/TeacherShell";
-import { TeacherError, TeacherPageHeader } from "../components/TeacherUI";
+import { compactButtonClass, TeacherError, TeacherPageHeader } from "../components/TeacherUI";
 
 const TABS: GroupTab[] = ["active", "archived"];
 
 export function TeacherGroupsPage() {
-  const ownerId = useAuth().user?.id ?? "";
   const [groups, setGroups] = useState<GroupCardData[]>([]);
   const [tab, setTab] = useState<GroupTab>("active");
   const [query, setQuery] = useState("");
@@ -34,7 +31,7 @@ export function TeacherGroupsPage() {
     setLoading(true);
     setError(null);
     try {
-      const items = (await listTeacherGroups(ownerId)).filter((group) => group.isActive);
+      const items = (await listTeacherGroups()).filter((group) => group.isActive);
       const metricResults = await Promise.allSettled(
         items.map((group) => getGroupMetricsOverview(group.id)),
       );
@@ -58,7 +55,7 @@ export function TeacherGroupsPage() {
     } finally {
       setLoading(false);
     }
-  }, [ownerId]);
+  }, []);
 
   useEffect(() => {
     void load();
@@ -110,15 +107,23 @@ export function TeacherGroupsPage() {
     >
       <TeacherPageHeader
         eyebrow="Group management"
-        title="My groups"
+        title={tab === "archived" ? "Archived groups" : "My groups"}
         description={`${groups.length} owned group${groups.length === 1 ? "" : "s"}. Organize rosters, assignments, and historical classes.`}
         actions={
-          <Link
-            to="/teacher/groups/create"
-            className="btn-primary inline-flex items-center gap-1.5"
-          >
-            <Plus size={14} /> Create group
-          </Link>
+          <>
+            <Link
+              to="/teacher/groups/create"
+              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-transparent bg-azure px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-french focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-azure focus-visible:ring-offset-2 dark:focus-visible:ring-yellow dark:focus-visible:ring-offset-dark-bg"
+            >
+              <Plus size={14} aria-hidden="true" /> Create group
+            </Link>
+            <button type="button" disabled={loading} onClick={() => selectTab(tab === "active" ? "archived" : "active")}
+              className={`${compactButtonClass} h-9 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-azure focus-visible:ring-offset-2 dark:focus-visible:ring-yellow dark:focus-visible:ring-offset-dark-bg`}>
+              {tab === "active" ? <Archive size={14} aria-hidden="true" /> : <Users size={14} aria-hidden="true" />}
+              {tab === "active" ? "Archived groups" : "Active groups"}
+              {!loading && <span className="rounded-md bg-gray-100 px-1.5 py-0.5 font-mono text-[10px] dark:bg-dark-card">{tab === "active" ? counts.archived : counts.active}</span>}
+            </button>
+          </>
         }
       />
 
@@ -126,11 +131,7 @@ export function TeacherGroupsPage() {
         <TeacherError message={error} onRetry={() => void load()} />
       ) : (
         <>
-          <LifecycleSummary
-            selected={tab}
-            counts={counts}
-            onSelect={selectTab}
-          />
+
           <GroupToolbar
             query={query}
             sort={sort}

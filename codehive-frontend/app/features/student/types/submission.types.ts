@@ -11,10 +11,3 @@ export interface RecentSubmission {
   timeMs?: number;
   createdAt: string;
 }
-
-export interface SubmissionSource {
-  submissionId: string;
-  assignmentId: string;
-  language: Language;
-  sourceCode: string;
-}

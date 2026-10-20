@@ -41,7 +41,7 @@ All containers (both compile and execute phases) apply these restrictions:
 | Network | `networkMode("none")` — no outbound access |
 | Memory | Hard limit + swap disabled (`memorySwap = memory`) |
 | CPU | 1 vCPU (`cpuQuota = 100000`) |
-| PIDs | 64 for Java/Python, 32 for C/C++ — prevents fork bombs |
+| PIDs | 16 for Java/Python, 8 for C/C++ — prevents fork bombs |
 | Capabilities | `withCapDrop(Capability.ALL)` — no Linux capabilities |
 | Root filesystem | `withReadonlyRootfs(true)` — no writes outside /workspace and /tmp |
 | tmpfs /tmp | 64 MB (compile), 32 MB (execute) — satisfies runtime scratch needs |
@@ -84,8 +84,21 @@ it is never replaced with a fabricated zero.
 
 ## Language-Specific Behavior
 Java:
-- compile: `javac Main.java` (512 MB memory, 64 PID limit)
-- execute: `java Main` or `java Main < input.txt`
+- compile: `javac Main.java` (512 MB memory, 16 PID limit)
+- execute: `java -Xrs Main` or `java -Xrs Main < input.txt`
+- `-Xrs` leaves SIGTERM handling to the operating system, so GNU timeout can
+  terminate Java even when the 16-PID sandbox has no slot for the JVM's
+  `SIGTERM handler` thread. Without it, thread creation can fail with EAGAIN,
+  timeout escalates to SIGKILL (137), and the existing verdict classifier reports
+  MLE instead of TLE. No PID or memory limit is increased.
+- Deadline termination does not run JVM shutdown hooks; this prevents user cleanup
+  from delaying timeout enforcement. Normal completion and explicit `System.exit`
+  retain their Java shutdown behavior. See [Java 21 -Xrs documentation](https://docs.oracle.com/en/java/javase/21/docs/specs/man/java.html).
+- Docker regression coverage: `javaInfiniteLoopTimesOutWithoutMemoryLimitError`
+  and `javaThreadPressureDoesNotPreventTimeoutTermination` require TLE with exit
+  124 for both a plain loop and a loop after filling available thread slots.
+  `javaOutOfMemoryErrorCausesMemoryLimitExceeded` checks real heap exhaustion
+  still returns MLE with its diagnostic.
 - managed heap exhaustion is MLE even when JVM exits with code 1 and container survives
 
 Python:

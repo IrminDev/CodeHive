@@ -7,19 +7,20 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 /**
- * Replacing an assignment's examples must reuse the rows already attached and only trim or append,
+ * Replacing an assignment's examples must reuse rows with matching explicit orders,
  * so Hibernate never inserts a new (assignment_id, order_index) before deleting the row that held it
  * — the cause of the "uk_assignment_example_order" unique-constraint violation.
  */
 class AssignmentExampleMergeTest {
 
-    private static AssignmentExample example(String tag) {
-        return new AssignmentExample(null, 0, tag + "-in", tag + "-out", tag + "-why");
+    private static AssignmentExample example(int order, String tag) {
+        return new AssignmentExample(null, order, tag + "-in", tag + "-out", tag + "-why");
     }
 
     private static Assignment assignmentWith(String... tags) {
         Assignment assignment = new Assignment();
-        assignment.setExamples(List.of(java.util.Arrays.stream(tags).map(AssignmentExampleMergeTest::example).toArray(AssignmentExample[]::new)));
+        assignment.setExamples(java.util.stream.IntStream.range(0, tags.length)
+                .mapToObj(index -> example(index + 1, tags[index])).toList());
         return assignment;
     }
 
@@ -28,7 +29,7 @@ class AssignmentExampleMergeTest {
         Assignment assignment = assignmentWith("a", "b", "c");
         List<AssignmentExample> original = List.copyOf(assignment.getExamples());
 
-        assignment.setExamples(List.of(example("x"), example("y"), example("z")));
+        assignment.setExamples(List.of(example(1, "x"), example(2, "y"), example(3, "z")));
 
         // Same three row instances are reused (updated in place), not deleted and re-created.
         assertThat(assignment.getExamples()).containsExactlyElementsOf(original);
@@ -42,7 +43,7 @@ class AssignmentExampleMergeTest {
         Assignment assignment = assignmentWith("a", "b", "c");
         AssignmentExample firstKept = assignment.getExamples().get(0);
 
-        assignment.setExamples(List.of(example("only")));
+        assignment.setExamples(List.of(example(1, "only")));
 
         assertThat(assignment.getExamples()).hasSize(1);
         assertThat(assignment.getExamples().get(0)).isSameAs(firstKept);
@@ -55,7 +56,7 @@ class AssignmentExampleMergeTest {
         Assignment assignment = assignmentWith("a");
         AssignmentExample kept = assignment.getExamples().get(0);
 
-        assignment.setExamples(List.of(example("a2"), example("b"), example("c")));
+        assignment.setExamples(List.of(example(1, "a2"), example(2, "b"), example(3, "c")));
 
         assertThat(assignment.getExamples()).hasSize(3);
         assertThat(assignment.getExamples().get(0)).isSameAs(kept);

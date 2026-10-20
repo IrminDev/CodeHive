@@ -9,6 +9,9 @@ Central route declaration:
 
 Current route map:
 - / -> app/routes/home.tsx
+- `/privacy` and `/terms` -> public landing route modules and legal pages. Shared legal layout
+  provides section links, theme control, and working footer links. Login already links here;
+  viewing these notices does not introduce an acceptance gate or stored consent.
 - /login -> app/routes/login.tsx
 - /forgot-password -> app/routes/forgot-password.tsx
 - /reset-password -> app/routes/reset-password.tsx
@@ -31,6 +34,7 @@ Current route map:
 - /groups/join -> features/student/routes/student.join-group.tsx
 - /groups/:groupId -> features/student/routes/student.group.tsx
 - /assignment/:id -> features/student/routes/student.assignment.tsx
+- /assignment/:id/assistant-history -> features/student/routes/student.assistant-history.tsx
 - /assignment/:id/submissions -> features/student/routes/student.submissions.tsx
 - /assignment/:id/report/:executionId -> features/student/routes/student.report.tsx
 - /assignments -> features/student/routes/student.assignments.tsx
@@ -38,6 +42,16 @@ Current route map:
 - /notifications -> features/student/routes/student.notifications.tsx
 
 ## Route Module Pattern
+
+Public legal notices live in `features/landing/pages/PrivacyPolicyPage.tsx` and
+`TermsOfServicePage.tsx`, with a shared `LegalPage` layout. Maintain their fixed revision date
+when changing content. They describe stored account/coursework data, AI opt-ins and provider
+terms, local drafts/session storage, email, externally hosted fonts/editor assets, and retention.
+Retention wording follows `ExecutionRequestService`, `ArtifactCleanupService`, and
+`AssistantTextPurgeService`. Contact currently means the institution/account administrator;
+no operator identity, jurisdiction, or dedicated privacy address has been supplied.
+These pages are informational notices, not new age gates, consent tracking, or erasure APIs.
+
 Each route module typically contains:
 1. meta export for SEO metadata.
 2. Default export component that renders page composition.
@@ -75,3 +89,24 @@ Role-sensitive routes rely on ProtectedRoute.
 - Keep route files thin and move UI into page components.
 - Apply ProtectedRoute in route composition for role/scoped pages.
 - Keep metadata maintained per route for SEO and social previews.
+
+## AI usage statistics
+
+Shared module: `app/features/assistant-usage`. Student class progress
+`/groups/:groupId/metrics#ai-usage` embeds `PersonalUsageBrief`: questions, answers used,
+unanswered questions and pending questions for the last 30 days. Loading, retry, empty state,
+manual refresh and local answer-completion refresh are independent of academic enrollment
+metrics, preserving access to own historical counts. No technical details or group-wide quota.
+Legacy `/ai-usage?groupId=...` redirects to class progress; without a group it redirects to
+`/groups`. Assistant panel links directly to its class; no separate sidebar entry. Teacher route
+`/teacher/analytics` embeds a group summary plus per-assignment counts in the assignment drawer's AI Usage tab. Group and assignment counts share the last-30-days window; a paginated
+group request loads assignment usage without per-assignment requests. AI failures and retries
+are independent of academic metrics. Archived/deleted owned groups remain selectable. Legacy
+`section=ai` URLs open the integrated page and discard that parameter.
+Admin route `/admin/ai-usage` requires CHECK_ANALYTICS; user rows/details require VIEW_USERS too.
+Admin user detail includes an AI usage tab. Role clients reuse existing authenticated helpers.
+Filters, search, sort and pagination stay in URL; requests abort/ignore stale results on scope
+changes and session identity remounts state. No statistics polling. Technical coverage remains
+explicit; nullable tokens are not zero. Lifetime quota is per assignment and independent of dates.
+Recharts has a UTC daily table alternative. See
+[implementation contract](../../../docs/ai-assistant/AI_USAGE_IMPLEMENTATION.md).

@@ -5,6 +5,8 @@ import java.util.List;
 import com.github.codehive.model.dto.AssignmentDTO;
 import com.github.codehive.model.entity.Assignment;
 import com.github.codehive.model.dto.AssignmentExampleDTO;
+import com.github.codehive.model.enums.AiAssistanceLevel;
+import com.github.codehive.model.entity.AssignmentAiPolicy;
 
 public class AssignmentMapper {
     public static AssignmentDTO toDTO(Assignment assignment) {
@@ -13,6 +15,11 @@ public class AssignmentMapper {
         }
         AssignmentDTO dto = new AssignmentDTO();
         dto.setId(assignment.getId());
+        AssignmentAiPolicy aiPolicy = assignment.getAiPolicy();
+        dto.setAiAssistanceEnabled(aiPolicy != null && aiPolicy.isEnabled());
+        dto.setMaxAiRequests(aiPolicy == null ? 0 : aiPolicy.getMaxAiRequests());
+        dto.setAiAssistanceLevel(aiPolicy == null ? AiAssistanceLevel.CONCEPTUAL_ONLY : aiPolicy.getLevel());
+        dto.setAiPolicyVersion(aiPolicy == null ? 0 : aiPolicy.getVersion());
         dto.setGroupId(assignment.getGroup() != null ? assignment.getGroup().getId() : null);
         dto.setAuthorId(assignment.getAuthor() != null ? assignment.getAuthor().getId() : null);
         dto.setTitle(assignment.getTitle());

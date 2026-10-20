@@ -73,6 +73,18 @@ public interface ExecutionRepository extends JpaRepository<Execution, UUID> {
 
     Optional<Execution> findTopBySubmissionIdOrderByCreatedAtDesc(UUID submissionId);
 
+    @Query("""
+            select e from Execution e left join e.submission sub
+            where e.user.id = :studentId
+              and (e.assignment.id = :assignmentId or sub.assignment.id = :assignmentId)
+              and e.status <> com.github.codehive.model.enums.ExecutionStatus.PENDING
+              and e.trigger in (com.github.codehive.model.enums.ExecutionTrigger.PRACTICE,
+                                com.github.codehive.model.enums.ExecutionTrigger.INITIAL_SUBMISSION)
+            order by e.createdAt desc, e.id desc
+            """)
+    List<Execution> findLatestStudentInitiated(@Param("assignmentId") UUID assignmentId,
+            @Param("studentId") UUID studentId, Pageable pageable);
+
     Optional<Execution> findTopBySubmissionIdAndCreatedAtBeforeOrderByCreatedAtDesc(
             UUID submissionId, LocalDateTime createdAt);
 

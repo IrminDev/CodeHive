@@ -1,6 +1,8 @@
 import { API_BASE_URL } from "~/core/config/env";
 import { teacherAuthHeaders, teacherRequest } from "./client";
 import type {
+  AiPolicySettings,
+  AiPolicyResponse,
   AssignmentPage,
   AssignmentManagementStatus,
   AssignmentPreview,
@@ -14,6 +16,8 @@ import type {
 import type { TeacherGroup } from "../types/group.types";
 
 export type {
+  AiPolicySettings,
+  AiPolicyResponse,
   AssignmentExample,
   AssignmentPage,
   AssignmentPreview,
@@ -103,6 +107,13 @@ export function getTeacherAssignment(assignmentId: string): Promise<TeacherAssig
   ).then(normalizeAssignment);
 }
 
+export function updateAiPolicy(assignmentId: string, policy: AiPolicySettings): Promise<AiPolicyResponse> {
+  return teacherRequest<AiPolicyResponse>(
+    `/api/assignments/${encodeURIComponent(assignmentId)}/ai-policy`,
+    { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(policy) },
+  );
+}
+
 export function getTeacherAssignmentPreview(assignmentId: string): Promise<AssignmentPreview> {
   return teacherRequest<AssignmentPreview>(
     `/api/assignments/${encodeURIComponent(assignmentId)}/preview`,
@@ -139,9 +150,9 @@ export async function getTeacherAssignments(groupId: string): Promise<TeacherAss
   return (await getTeacherAssignmentPage(groupId, 0, 100)).content;
 }
 
-export async function getActiveTeacherGroups(ownerId: string): Promise<TeacherGroup[]> {
+export async function getActiveTeacherGroups(): Promise<TeacherGroup[]> {
   const groups = await teacherRequest<TeacherGroup[]>("/api/groups");
-  return groups.filter((group) => group.ownerId === ownerId && group.isActive && !group.archived);
+  return groups.filter((group) => group.isActive && !group.archived);
 }
 
 export function getCloneAssignmentForm(assignmentId: string): Promise<CloneAssignmentForm> {

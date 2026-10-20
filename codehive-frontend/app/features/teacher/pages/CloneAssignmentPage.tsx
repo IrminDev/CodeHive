@@ -13,7 +13,6 @@ import {
   X,
 } from "lucide-react";
 import { sileo } from "sileo";
-import { useAuth } from "~/core/providers/AuthProvider";
 
 import { CodeEditor } from "~/shared/components/CodeEditor";
 import { CalendarInput } from "~/shared/components/ui/CalendarInput";
@@ -32,6 +31,7 @@ import type {
 import type { TeacherGroup } from "../types/group.types";
 import { TeacherShell } from "../components/TeacherShell";
 import { TeacherEmpty, TeacherLoading } from "../components/TeacherUI";
+import { AiPolicyFields, normalizeAiPolicy, validAiPolicy } from "../components/AiPolicyFields";
 
 const LANGUAGES: Language[] = ["PYTHON", "JAVA", "CPP", "C"];
 
@@ -97,7 +97,6 @@ function SectionHeading({ number, title, description, badge }: {
 }
 
 export function CloneAssignmentPage() {
-  const ownerId = useAuth().user?.id ?? "";
   const navigate = useNavigate();
   const { assignmentId = "" } = useParams<{ assignmentId: string }>();
   const [form, setForm] = useState<CloneAssignmentForm | null>(null);
@@ -118,7 +117,7 @@ export function CloneAssignmentPage() {
     let cancelled = false;
     void Promise.all([
       getCloneAssignmentForm(assignmentId),
-      getActiveTeacherGroups(ownerId),
+      getActiveTeacherGroups(),
     ])
       .then(([snapshot, activeGroups]) => {
         if (cancelled) return;
@@ -135,7 +134,7 @@ export function CloneAssignmentPage() {
         if (!cancelled) setLoading(false);
       });
     return () => { cancelled = true; };
-  }, [assignmentId, ownerId]);
+  }, [assignmentId]);
 
   function patch<K extends keyof CloneAssignmentForm>(key: K, value: CloneAssignmentForm[K]) {
     setForm((current) => current ? { ...current, [key]: value } : current);
@@ -189,6 +188,10 @@ export function CloneAssignmentPage() {
       sileo.error({ title: "Select a destination group." });
       return;
     }
+    if (!validAiPolicy(form)) {
+      sileo.error({ title: "AI answer quota must be a whole number from 1 to 10." });
+      return;
+    }
     if (!form.allowedLanguages.length) {
       sileo.error({ title: "Select at least one allowed language." });
       return;
@@ -234,6 +237,7 @@ export function CloneAssignmentPage() {
         testCases: form.testCases.map(({ input, sample }) => ({ input, sample })),
         examples: form.examples,
         maxPoints: form.maxPoints,
+        ...normalizeAiPolicy(form),
         launchDate: launch,
         dueDate: due,
         closeDate: close,
@@ -396,6 +400,8 @@ export function CloneAssignmentPage() {
             </div>
           ))}
         </section>
+
+        <AiPolicyFields value={form} onChange={(next) => setForm({ ...form, ...next })} />
 
         <div className="sticky bottom-3 z-10 flex flex-col gap-3 rounded-2xl border border-gray-200/80 bg-white/95 p-3 shadow-lg backdrop-blur dark:border-gray-700/70 dark:bg-dark-card/95 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0 px-1"><p className="truncate text-xs font-semibold text-gray-800 dark:text-gray-200">{selectedGroup ? `Clone to ${selectedGroup.name}` : "Choose destination group"}</p><p className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">{publishMode === "immediately" ? "Publishes after test generation" : launchDate ? `Scheduled for ${new Date(launchDate).toLocaleString()}` : "Launch date required"}</p></div>

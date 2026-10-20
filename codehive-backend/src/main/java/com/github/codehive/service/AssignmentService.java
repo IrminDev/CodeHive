@@ -66,7 +66,6 @@ public class AssignmentService {
     private final TestGenerationRequestProducer testGenerationRequestProducer;
     private final UserRepository userRepository;
     private final GroupEnrollmentRepository enrollmentRepository;
-    private final com.github.codehive.repository.AssignmentUpdateRepository updateRepository;
     private final GroupService groupService;
 
     public AssignmentService(AssignmentRepository assignmentRepository, TestCaseRepository testCaseRepository,
@@ -75,8 +74,7 @@ public class AssignmentService {
                              ObjectStorageService objectStorageService,
                              TestGenerationRequestProducer testGenerationRequestProducer,
                              UserRepository userRepository, GroupEnrollmentRepository enrollmentRepository,
-                             GroupService groupService,
-                             com.github.codehive.repository.AssignmentUpdateRepository updateRepository) {
+                             GroupService groupService) {
         this.assignmentRepository = assignmentRepository;
         this.testCaseRepository = testCaseRepository;
         this.referenceSolutionRevisionRepository = referenceSolutionRevisionRepository;
@@ -86,7 +84,6 @@ public class AssignmentService {
         this.userRepository = userRepository;
         this.enrollmentRepository = enrollmentRepository;
         this.groupService = groupService;
-        this.updateRepository = updateRepository;
     }
 
     @Transactional(readOnly = true)
@@ -105,11 +102,9 @@ public class AssignmentService {
             // Keep this parameter non-null. PostgreSQL otherwise infers a nullable value used by
             // lower(:query) as bytea and rejects it with "function lower(bytea) does not exist".
             String normalizedQuery = query == null || query.isBlank() ? "" : query.trim();
-            Page<AssignmentDTO> managed = assignmentRepository.findTeacherManaged(
+            return assignmentRepository.findTeacherManaged(
                     groupId, includeDeleted || deletedOnly, deletedOnly, normalizedQuery,
                     validationStatus, PageRequest.of(page, size)).map(AssignmentMapper::toDTO);
-            markPendingUpdates(managed.getContent());
-            return managed;
         }
         return assignmentRepository.findStudentVisible(groupId, AssignmentValidationStatus.READY,
                 Instant.now(), PageRequest.of(page, size)).map(AssignmentMapper::toDTO);
@@ -139,17 +134,7 @@ public class AssignmentService {
             }
         }
         dto.setSampleTestCases(sampleDTOs);
-        dto.setPendingUpdate(updateRepository.existsByAssignmentIdAndStatus(
-                id, com.github.codehive.model.enums.AssignmentUpdateStatus.VALIDATING));
         return dto;
-    }
-
-    private void markPendingUpdates(java.util.List<AssignmentDTO> assignments) {
-        java.util.List<UUID> ids = assignments.stream().map(AssignmentDTO::getId).toList();
-        if (ids.isEmpty()) return;
-        java.util.Set<UUID> pending = updateRepository.findAssignmentIdsByStatus(
-                ids, com.github.codehive.model.enums.AssignmentUpdateStatus.VALIDATING);
-        assignments.forEach(dto -> dto.setPendingUpdate(pending.contains(dto.getId())));
     }
 
     @Transactional
@@ -217,6 +202,8 @@ public class AssignmentService {
         clone.setCloseDate(request.getCloseDate());
         clone.setMaxPoints(request.getMaxPoints() != null
                 ? request.getMaxPoints() : new java.math.BigDecimal("100.00"));
+        clone.setAiPolicy(AiPolicyRules.create(request.getAiAssistanceEnabled(),
+                request.getMaxAiRequests(), request.getAiAssistanceLevel()));
         clone.setValidationStatus(AssignmentValidationStatus.PROCESSING);
         addExamples(clone, request.getExamples());
         clone = assignmentRepository.save(clone);
@@ -301,7 +288,12 @@ public class AssignmentService {
                 readTextObject(referencePath),
                 examples,
                 testCases,
-                source.getMaxPoints());
+                source.getMaxPoints(),
+                source.getAiPolicy() != null && source.getAiPolicy().isEnabled(),
+                source.getAiPolicy() == null ? 0 : source.getAiPolicy().getMaxAiRequests(),
+                source.getAiPolicy() == null
+                        ? com.github.codehive.model.enums.AiAssistanceLevel.CONCEPTUAL_ONLY
+                        : source.getAiPolicy().getLevel());
     }
 
     @Transactional(readOnly = true)
@@ -373,6 +365,8 @@ public class AssignmentService {
         assignment.setValidationStatus(AssignmentValidationStatus.PROCESSING);
         assignment.setMaxPoints(request.getMaxPoints() != null
                 ? request.getMaxPoints() : new java.math.BigDecimal("100.00"));
+        assignment.setAiPolicy(AiPolicyRules.create(request.getAiAssistanceEnabled(),
+                request.getMaxAiRequests(), request.getAiAssistanceLevel()));
         return assignment;
     }
 

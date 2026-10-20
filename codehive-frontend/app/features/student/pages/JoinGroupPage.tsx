@@ -1,12 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { DoorOpenIcon } from "lucide-react";
-import { useAuth } from "~/core/providers/AuthProvider";
 import { joinGroup, listMyGroups } from "../api/group.api";
 import { StudentHeader } from "../components/StudentHeader";
 import { StudentSidebar } from "../components/StudentSidebar";
 import type { ClassGroup } from "../types/group.types";
-import { splitGroupsByOwnership } from "../utils/group-membership";
 
 
 const BADGE_COLORS = [
@@ -21,7 +19,6 @@ const CODE_LENGTH = 8;
 
 export function JoinGroupPage() {
   const navigate = useNavigate();
-  const userId = useAuth().user?.id;
 
   const [chars, setChars] = useState<string[]>(Array(CODE_LENGTH).fill(""));
   const [joining, setJoining] = useState(false);
@@ -36,8 +33,8 @@ export function JoinGroupPage() {
   useEffect(() => {
     listMyGroups()
       .catch(() => [])
-      .then((items) => setGroups(splitGroupsByOwnership(items, userId).enrolled));
-  }, [userId]);
+      .then(setGroups);
+  }, []);
 
   function handleChange(i: number, val: string) {
     const ch = val.replace(/[^a-zA-Z0-9]/g, "").slice(-1).toUpperCase();

@@ -116,6 +116,54 @@ class SandboxSecurityTest {
     }
 
     @Test
+    @DisplayName("Java infinite loop → TLE rather than SIGTERM-thread MLE")
+    void javaInfiniteLoopTimesOutWithoutMemoryLimitError() throws Exception {
+        String code = """
+                public class Main {
+                    public static void main(String[] args) {
+                        while (true) { }
+                    }
+                }
+                """;
+
+        ExecutionResult result = runJava(code, 2000L, 128L);
+
+        assertThat(result.getStatus()).as("exit=%s stderr=%s", result.getExitCode(), result.getErrorOutput())
+                .isEqualTo(ExecutionStatus.TLE);
+        assertThat(result.getExitCode()).isEqualTo(124);
+    }
+
+    @Test
+    @DisplayName("Java timeout with exhausted thread slots → TLE")
+    void javaThreadPressureDoesNotPreventTimeoutTermination() throws Exception {
+        String code = """
+                public class Main {
+                    public static void main(String[] args) {
+                        for (int i = 0; i < 16; i++) {
+                            try {
+                                Thread sleeper = new Thread(() -> {
+                                    try { Thread.sleep(100000); }
+                                    catch (InterruptedException ignored) { }
+                                });
+                                sleeper.setDaemon(true);
+                                sleeper.start();
+                            } catch (OutOfMemoryError threadLimit) {
+                                break;
+                            }
+                        }
+                        while (true) { }
+                    }
+                }
+                """;
+
+        ExecutionResult result = runJava(code, 2000L, 128L);
+
+        assertThat(result.getStatus()).as("exit=%s stderr=%s", result.getExitCode(), result.getErrorOutput())
+                .isEqualTo(ExecutionStatus.TLE);
+        assertThat(result.getExitCode()).isEqualTo(124);
+    }
+
+    @Test
     @DisplayName("Java managed heap exhaustion → MLE with diagnostic")
     void javaOutOfMemoryErrorCausesMemoryLimitExceeded() throws Exception {
         String code = """

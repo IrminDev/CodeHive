@@ -22,6 +22,12 @@ import org.springframework.transaction.annotation.Transactional;
 import com.github.codehive.model.entity.User;
 import com.github.codehive.model.entity.ClassGroup;
 import com.github.codehive.model.entity.GroupEnrollment;
+import com.github.codehive.model.entity.Assignment;
+import com.github.codehive.model.entity.AssistantConversation;
+import com.github.codehive.model.entity.AssistantInteraction;
+import com.github.codehive.model.enums.AssistantInteractionStatus;
+import com.github.codehive.model.enums.ComparatorType;
+import com.github.codehive.model.enums.Language;
 import com.github.codehive.model.enums.Role;
 import com.github.codehive.model.enums.Scope;
 import com.github.codehive.model.enums.EnrollmentStatus;
@@ -29,7 +35,11 @@ import com.github.codehive.model.enums.GroupDeletionReason;
 import com.github.codehive.repository.UserRepository;
 import com.github.codehive.repository.ClassGroupRepository;
 import com.github.codehive.repository.GroupEnrollmentRepository;
+import com.github.codehive.repository.AssignmentRepository;
+import com.github.codehive.repository.AssistantConversationRepository;
+import com.github.codehive.repository.AssistantInteractionRepository;
 import com.github.codehive.utils.JwtUtil;
+import jakarta.persistence.EntityManager;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -40,6 +50,10 @@ class AdminUserControllerIntegrationTest {
     @Autowired private UserRepository userRepository;
     @Autowired private ClassGroupRepository groupRepository;
     @Autowired private GroupEnrollmentRepository enrollmentRepository;
+    @Autowired private AssignmentRepository assignmentRepository;
+    @Autowired private AssistantConversationRepository conversationRepository;
+    @Autowired private AssistantInteractionRepository interactionRepository;
+    @Autowired private EntityManager entityManager;
     @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private JwtUtil jwtUtil;
 
@@ -78,6 +92,43 @@ class AdminUserControllerIntegrationTest {
                 .andExpect(status().isOk());
 
         assertThatUserIsInactive();
+    }
+
+    @Test
+    void adminBlockingOwnerArchivesGroupAndErasesAssistantText() throws Exception {
+        User teacher = userRepository.save(new User("Group", "Owner", "TEA-AI-1", "group-ai@example.com",
+                passwordEncoder.encode("Pass123!"), Role.TEACHER));
+        ClassGroup group = groupRepository.save(new ClassGroup("AI", "", teacher, "ADMNAI12"));
+        Assignment assignment = new Assignment("Loops", "Description", 5000L, 256L, ComparatorType.EXACT_MATCH);
+        assignment.setGroup(group);
+        assignment.setAuthor(teacher);
+        assignment = assignmentRepository.saveAndFlush(assignment);
+        AssistantConversation conversation = new AssistantConversation();
+        conversation.setAssignment(assignment);
+        conversation.setStudent(student);
+        conversation = conversationRepository.saveAndFlush(conversation);
+        AssistantInteraction interaction = new AssistantInteraction();
+        interaction.setConversation(conversation);
+        interaction.setSequence(1);
+        interaction.setClientRequestId(UUID.fromString("00000000-0000-0000-0000-000000000001"));
+        interaction.setRequestFingerprint("first");
+        interaction.setStudentMessage("What is a loop?");
+        interaction.setAssistantResponse("A loop repeats work.");
+        interaction.setStatus(AssistantInteractionStatus.COMPLETED);
+        interaction.setQuotaCharged(true);
+        interaction.setLanguage(Language.JAVA);
+        interactionRepository.saveAndFlush(interaction);
+
+        mockMvc.perform(patch("/api/admin/users/{id}/status", teacher.getId())
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"BLOCKED\",\"reason\":\"Approved safety review\"}"))
+                .andExpect(status().isOk());
+        entityManager.clear();
+        AssistantInteraction erased = interactionRepository.findById(interaction.getId()).orElseThrow();
+        org.assertj.core.api.Assertions.assertThat(erased.getStudentMessage()).isNull();
+        org.assertj.core.api.Assertions.assertThat(erased.getAssistantResponse()).isNull();
+        org.assertj.core.api.Assertions.assertThat(erased.isQuotaCharged()).isTrue();
     }
 
     @Test
@@ -246,91 +297,6 @@ class AdminUserControllerIntegrationTest {
     }
 
     @Test
-    void regrantingCreateGroupRestoresOnlyGroupsDeletedByRevocation() throws Exception {
-        student.addScope(Scope.CREATE_GROUP);
-        userRepository.save(student);
-        ClassGroup revoked = groupRepository.save(new ClassGroup("Study circle", null, student, "JKLMNPQR"));
-        ClassGroup ownerDeleted = new ClassGroup("Old circle", null, student, "KLMNPQRS");
-        ownerDeleted.setIsActive(false);
-        ownerDeleted.setArchived(true);
-        ownerDeleted.setDeletedAt(java.time.Instant.now());
-        ownerDeleted = groupRepository.save(ownerDeleted);
-        User classmate = userRepository.save(new User("Class", "Mate", "2026630003", "classmate@example.com",
-                passwordEncoder.encode("Pass123!"), Role.STUDENT));
-        GroupEnrollment enrollment = enrollmentRepository.save(new GroupEnrollment(revoked, classmate));
-
-        updateScopes("{\"grant\":[],\"revoke\":[\"CREATE_GROUP\"],"
-                + "\"reason\":\"Approved capability revocation request\",\"confirmOwnedGroupDeletion\":true}");
-        org.assertj.core.api.Assertions.assertThat(groupRepository.findById(ownerDeleted.getId()).orElseThrow()
-                .getDeletionReason()).isNull();
-
-        updateScopes("{\"grant\":[\"CREATE_GROUP\"],\"revoke\":[],"
-                + "\"reason\":\"Approved capability restoration request\"}");
-
-        ClassGroup restored = groupRepository.findById(revoked.getId()).orElseThrow();
-        org.assertj.core.api.Assertions.assertThat(restored.getIsActive()).isTrue();
-        org.assertj.core.api.Assertions.assertThat(restored.getArchived()).isTrue();
-        org.assertj.core.api.Assertions.assertThat(restored.getDeletedAt()).isNull();
-        org.assertj.core.api.Assertions.assertThat(restored.getDeletionReason()).isNull();
-        org.assertj.core.api.Assertions.assertThat(groupRepository.findById(ownerDeleted.getId()).orElseThrow()
-                .getIsActive()).isFalse();
-        org.assertj.core.api.Assertions.assertThat(enrollmentRepository.findById(enrollment.getId()).orElseThrow()
-                .getStatus()).isEqualTo(EnrollmentStatus.ACTIVE);
-
-        String studentToken = jwtUtil.generateToken(Map.of("role", "STUDENT"), student.getEmail());
-        mockMvc.perform(get("/api/groups").header("Authorization", "Bearer " + studentToken))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.length()").value(1))
-                .andExpect(jsonPath("$.data[0].id").value(revoked.getId().toString()))
-                .andExpect(jsonPath("$.data[0].archived").value(true));
-    }
-
-    @Test
-    void studentPromotedToTeacherRecoversGroupsDeletedByRevocation() throws Exception {
-        ClassGroup revoked = new ClassGroup("Former circle", null, student, "LMNPQRST");
-        revoked.setIsActive(false);
-        revoked.setArchived(true);
-        revoked.setDeletedAt(java.time.Instant.now());
-        revoked.setDeletionReason(GroupDeletionReason.SCOPE_REVOKED);
-        revoked = groupRepository.save(revoked);
-
-        mockMvc.perform(patch("/api/admin/users/{id}/role", student.getId())
-                        .header("Authorization", "Bearer " + adminToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"role\":\"TEACHER\",\"enrollmentNumber\":\"TEA-006\","
-                                + "\"reason\":\"Approved institutional role correction\"}"))
-                .andExpect(status().isOk());
-
-        ClassGroup restored = groupRepository.findById(revoked.getId()).orElseThrow();
-        org.assertj.core.api.Assertions.assertThat(restored.getIsActive()).isTrue();
-        org.assertj.core.api.Assertions.assertThat(restored.getArchived()).isTrue();
-        org.assertj.core.api.Assertions.assertThat(restored.getDeletionReason()).isNull();
-    }
-
-    @Test
-    void promotionToAdminMakesRevocationDeletionTerminal() throws Exception {
-        admin.addScope(Scope.CREATE_ADMINS);
-        userRepository.save(admin);
-        ClassGroup revoked = new ClassGroup("Revoked circle", null, student, "MNPQRSTV");
-        revoked.setIsActive(false);
-        revoked.setArchived(true);
-        revoked.setDeletedAt(java.time.Instant.now());
-        revoked.setDeletionReason(GroupDeletionReason.SCOPE_REVOKED);
-        revoked = groupRepository.save(revoked);
-
-        mockMvc.perform(patch("/api/admin/users/{id}/role", student.getId())
-                        .header("Authorization", "Bearer " + adminToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"role\":\"ADMIN\",\"enrollmentNumber\":\"ADM-002\","
-                                + "\"reason\":\"Approved administrator appointment\","
-                                + "\"confirmOwnedGroupDeletion\":true}"))
-                .andExpect(status().isOk());
-
-        org.assertj.core.api.Assertions.assertThat(groupRepository.findById(revoked.getId()).orElseThrow()
-                .getDeletionReason()).isEqualTo(GroupDeletionReason.ROLE_CHANGED_TO_ADMIN);
-    }
-
-    @Test
     void teacherCreateGroupScopeCannotBeRevoked() throws Exception {
         User teacher = userRepository.save(new User("Required", "Scope", "TEA-005", "required-scope@example.com",
                 passwordEncoder.encode("Pass123!"), Role.TEACHER));
@@ -406,14 +372,6 @@ class AdminUserControllerIntegrationTest {
                 .header("Authorization", "Bearer " + adminToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"status\":\"" + status + "\",\"reason\":\"" + reason + "\"}"));
-    }
-
-    private void updateScopes(String body) throws Exception {
-        mockMvc.perform(patch("/api/admin/users/{id}/scopes", student.getId())
-                        .header("Authorization", "Bearer " + adminToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(body))
-                .andExpect(status().isOk());
     }
 
     private void assertThatUserIsInactive() {

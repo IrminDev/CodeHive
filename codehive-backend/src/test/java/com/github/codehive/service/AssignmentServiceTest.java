@@ -59,8 +59,7 @@ class AssignmentServiceTest {
         service = new AssignmentService(assignmentRepository, testCaseRepository,
                 mock(ReferenceSolutionRevisionRepository.class), mock(TestSuiteRevisionRepository.class),
                 mock(ObjectStorageService.class), generationProducer, userRepository,
-                enrollmentRepository, groupService,
-                mock(com.github.codehive.repository.AssignmentUpdateRepository.class));
+                enrollmentRepository, groupService);
         owner = user(OWNER_ID, "owner@example.com", Role.TEACHER);
         group = new ClassGroup("Algorithms", "", owner, "ABC12345");
         group.setId(GROUP_ID);

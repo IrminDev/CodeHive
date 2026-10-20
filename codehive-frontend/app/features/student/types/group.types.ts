@@ -2,7 +2,6 @@ export type ClassGroup = {
   id: string;
   name: string;
   description?: string;
-  ownerId?: string;
   ownerName?: string;
   createdAt?: string;
   updatedAt?: string;

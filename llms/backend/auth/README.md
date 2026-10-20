@@ -7,6 +7,7 @@ This document explains the authentication and user registration behavior impleme
 - POST /api/auth/login
 - POST /api/auth/signup
 - POST /api/auth/signup/csv
+- POST /api/auth/websocket-ticket
 - GET /api/auth/me
 - PUT /api/auth/me/password
 
@@ -33,10 +34,16 @@ Service implementation: codehive-backend/src/main/java/com/github/codehive/servi
 
 ## Bulk Registration Flow (CSV)
 1. Admin uploads CSV to /api/auth/signup/csv.
-2. Controller validates file and creates taskId.
-3. CsvRegistrationService.processAsync parses and validates rows.
-4. Progress is streamed through WebSocket channel /ws/csv-progress.
-5. Each valid row creates a user and queues its welcome email without waiting for SMTP.
+2. Controller validates the file; CsvRegistrationService resolves the requester and queues the
+   import under a new taskId, bound to that owner (it does not run yet).
+3. Admin requests a one-time ticket from POST /api/auth/websocket-ticket (60s, single-use, bound to
+   the issuing user) and opens /ws/csv-progress?ticket=... . The handshake interceptor consumes the
+   ticket and stores the authenticated user id on the session.
+4. The client sends the taskId on the open socket. The handler verifies the subscriber owns that
+   queued task, then starts CsvRegistrationService.processAsync; mismatched or unqueued task ids are
+   closed with POLICY_VIOLATION. Queued tasks that are never claimed expire after 5 minutes.
+5. Progress is streamed back over the same socket; each valid row creates a user and queues its
+   welcome email without waiting for SMTP.
 
 Welcome-email failures are logged with the recipient address and do not roll back
 account creation. A user who did not receive the temporary credentials can use the

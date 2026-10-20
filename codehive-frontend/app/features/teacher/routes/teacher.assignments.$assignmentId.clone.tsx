@@ -1,6 +1,7 @@
 import type { Route } from "./+types/teacher.assignments.$assignmentId.clone";
-import { GroupManagementRoute } from "../components/GroupManagementRoute";
+import { ProtectedRoute } from "~/core/components/ProtectedRoute";
 import { CloneAssignmentPage } from "../pages/CloneAssignmentPage";
+import { Role } from "~/shared/types/model/User";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -11,8 +12,8 @@ export function meta({}: Route.MetaArgs) {
 
 export default function TeacherCloneAssignment() {
   return (
-    <GroupManagementRoute>
+    <ProtectedRoute roles={[Role.TEACHER]}>
       <CloneAssignmentPage />
-    </GroupManagementRoute>
+    </ProtectedRoute>
   );
 }

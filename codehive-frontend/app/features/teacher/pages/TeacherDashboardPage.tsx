@@ -36,8 +36,7 @@ export function TeacherDashboardPage() {
   return (
     <TeacherShell active="dashboard" breadcrumbs={[{ label: "Teacher" }, { label: "Dashboard" }]} contentClassName="max-w-7xl">
       <TeacherPageHeader
-        eyebrow="Action center"
-        title="Teacher dashboard"
+        title="Overview"
         description="Resolve validation issues, grade submitted work, and keep upcoming assignment dates visible."
         actions={
           <>

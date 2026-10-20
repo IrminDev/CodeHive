@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router";
-import { CheckCircle2, Clock, Cpu, History, RotateCcw, Scale, Sparkles } from "lucide-react";
+import { CheckCircle2, Clock, Cpu, History, Scale } from "lucide-react";
 import { CodeEditor } from "~/shared/components/CodeEditor";
 import { Dropdown } from "~/shared/components/ui/Dropdown";
 import {
@@ -12,18 +12,24 @@ import {
   type AssignmentWorkspacePane,
 } from "~/shared/components/AssignmentWorkspace";
 import { useAuth } from "~/core/providers/AuthProvider";
+import { AssistantPanel } from "../components/AssistantPanel";
+import { AssistantToggleButton } from "../components/AssistantToggleButton";
+import { SubmissionDialog } from "../components/SubmissionDialog";
+import { SubmissionStatusButton } from "../components/SubmissionStatusButton";
+import { useAssignmentAssistant } from "../hooks/useAssignmentAssistant";
+import { useCodeDraft, type DraftStatus } from "../hooks/useCodeDraft";
+import { readCodeDraft } from "../utils/code-drafts";
+import { describeSubmission, type SubmissionAttempt, type SubmissionOperation, type Verdict } from "../utils/submission-state";
 import { getAssignment, listMyAssignmentOverviews } from "../api/assignment.api";
-import { getMySubmissionSource, withdrawSubmission } from "../api/submission.api";
+import { listAssignmentSubmissions, withdrawSubmission } from "../api/submission.api";
 import type { Assignment, AssignmentGrade, Language } from "../types/assignment.types";
 import type { GroupSubmission } from "../types/group-submission.types";
-import { codeAfterLanguageSwitch } from "../utils/language-switch";
-import { clearCodeDraft, loadCodeDraft, resolveInitialCode, saveCodeDraft } from "../utils/code-draft";
 import {
   submitExecution,
   getExecution,
   getExecutionReport,
 } from "../api/execution.api";
-import type { ExecutionReport, TestCaseResult } from "../types/execution.types";
+import type { ExecutionReport, StudentSubmissionHistory, TestCaseResult } from "../types/execution.types";
 import {
   ExecutionStatus,
   ExecutionType,
@@ -59,8 +65,8 @@ const MONACO_LANG_MAP: Record<Language, string> = {
 };
 
 const LANGUAGE_TEMPLATES: Record<Language, string> = {
-  PYTHON: "def solution():\n    pass\n",
-  JAVA: "class Solution {\n\n}\n",
+  PYTHON: "def main():\n    pass\n\n\nif __name__ == \"__main__\":\n    main()\n",
+  JAVA: "import java.util.Scanner;\n\npublic class Main {\n    public static void main(String[] args) {\n        Scanner scanner = new Scanner(System.in);\n\n        // Write your code here.\n\n        scanner.close();\n    }\n}\n",
   CPP: '#include <bits/stdc++.h>\nusing namespace std;\n\nint main() {\n  return 0;\n}\n',
   C: '#include <stdio.h>\n\nint main(void) {\n  return 0;\n}\n',
 };
@@ -89,6 +95,35 @@ const VERDICT_STYLES: Record<string, string> = {
 
 type TestTab = "testcases" | "verdict";
 
+const ASSISTANT_OPEN_KEY = "codehive:assistant-open:v1";
+
+function readAssistantOpen(): boolean {
+  try { return window.localStorage.getItem(ASSISTANT_OPEN_KEY) === "true"; }
+  catch { return false; }
+}
+
+type ExecutionOutcome =
+  | { ok: true; status: ExecutionStatus; report: ExecutionReport | null }
+  | { ok: false; step: "submit" | "evaluate"; error: string };
+
+type OperationBase = Pick<SubmissionOperation, "kind" | "previous" | "newNumber">;
+
+function formatDeadline(value: string): string {
+  return new Date(value).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+}
+
+/** Used when the overview request fails, so an attempt that counts is never mistaken for none. */
+function currentFromHistory(history: StudentSubmissionHistory[]): GroupSubmission | null {
+  const active = history.find((item) => item.submissionStatus === "SUBMITTED");
+  return active ? {
+    assignmentId: active.assignmentId,
+    submissionId: active.submissionId,
+    submittedAt: active.submittedAt,
+    deliveredLate: active.deliveredLate,
+    executionStatus: active.executionStatus as Verdict,
+  } : null;
+}
+
 function practiceInputs(assignment: Assignment): string[] {
   const samples = [...(assignment.sampleTestCases ?? [])]
     .sort((left, right) => left.order - right.order)
@@ -110,17 +145,16 @@ function executionDiagnostic(result?: TestCaseResult): string | null {
 export function AssignmentPage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
-  const userId = user?.id;
 
   const [assignment, setAssignment] = useState<Assignment | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const [selectedLanguage, setSelectedLanguage] = useState<Language>("PYTHON");
-  const [code, setCode] = useState(LANGUAGE_TEMPLATES["PYTHON"]);
+  // One buffer per language, so switching languages never discards work.
+  const [codes, setCodes] = useState<Partial<Record<Language, string>>>({});
+  const [hasStoredDraft, setHasStoredDraft] = useState(false);
   const [testCases, setTestCases] = useState<string[]>([""]);
-  // Drafts are written only after the initial code is restored, so the template never overwrites them.
-  const [draftReady, setDraftReady] = useState(false);
 
   const [isRunning, setIsRunning] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -128,10 +162,9 @@ export function AssignmentPage() {
   const [execError, setExecError] = useState<string | null>(null);
   const [lastExecutionType, setLastExecutionType] = useState<ExecutionType | null>(null);
   const [currentSubmission, setCurrentSubmission] = useState<GroupSubmission | null>(null);
-  const [showWithdrawConfirm, setShowWithdrawConfirm] = useState(false);
-  const [withdrawing, setWithdrawing] = useState(false);
-  const [withdrawError, setWithdrawError] = useState<string | null>(null);
-  const [submissionMessage, setSubmissionMessage] = useState<string | null>(null);
+  const [history, setHistory] = useState<StudentSubmissionHistory[]>([]);
+  const [submissionDialog, setSubmissionDialog] = useState<"overview" | "replace" | null>(null);
+  const [operation, setOperation] = useState<SubmissionOperation | null>(null);
   const [showAcceptedModal, setShowAcceptedModal] = useState(false);
   const [returnedGrade, setReturnedGrade] = useState<AssignmentGrade | null>(null);
 
@@ -139,44 +172,46 @@ export function AssignmentPage() {
   const [testTab, setTestTab] = useState<TestTab>("testcases");
   const [selectedCase, setSelectedCase] = useState(0);
   const [mobilePane, setMobilePane] = useState<AssignmentWorkspacePane>("editor");
+  const [assistantOpen, setAssistantOpen] = useState(readAssistantOpen);
+  // The conversation loads on first use and then stays mounted while the panel is collapsed.
+  const [assistantActivated, setAssistantActivated] = useState(assistantOpen);
+  const [assistantFocus, setAssistantFocus] = useState(0);
+  const assistantToggle = useRef<HTMLButtonElement>(null);
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const userId = user?.id;
+  const assistantEnabled = assistantActivated && !!assignment && assignment.id === id;
+  const assistant = useAssignmentAssistant(id ?? "", assistantEnabled);
+  const draft = useCodeDraft(userId && assignment ? { userId, assignmentId: assignment.id } : null, hasStoredDraft);
+  const code = codes[selectedLanguage] ?? LANGUAGE_TEMPLATES[selectedLanguage] ?? "";
+
+  const changeAssistantOpen = useCallback((open: boolean) => {
+    setAssistantOpen(open);
+    if (open) setAssistantActivated(true);
+    try { window.localStorage.setItem(ASSISTANT_OPEN_KEY, String(open)); }
+    catch { /* The panel simply starts collapsed next time. */ }
+  }, []);
 
   useEffect(() => {
     if (!id) return;
     setLoading(true);
-    setDraftReady(false);
     getAssignment(id)
       .then(async (a) => {
         setAssignment(a);
-        let delivered: GroupSubmission | null = null;
-        try {
-          const overview = (await listMyAssignmentOverviews()).find((item) => item.assignment.id === a.id);
-          delivered = overview?.currentSubmission ?? null;
-          setCurrentSubmission(delivered);
-          setReturnedGrade(overview?.grade ?? null);
-        } catch {
-          setCurrentSubmission(null);
-          setReturnedGrade(null);
-        }
+        const [overviews, attempts] = await Promise.allSettled([listMyAssignmentOverviews(), listAssignmentSubmissions(a.id)]);
+        const overview = overviews.status === "fulfilled" ? overviews.value.find((item) => item.assignment.id === a.id) : undefined;
+        const loaded = attempts.status === "fulfilled" ? attempts.value : [];
+        setHistory(loaded);
+        setCurrentSubmission(overview ? overview.currentSubmission ?? null : currentFromHistory(loaded));
+        setReturnedGrade(overview?.grade ?? null);
         setTestCases(practiceInputs(a));
         setSelectedCase(0);
-        if (a.allowedLanguages?.length > 0) {
-          const draft = userId ? loadCodeDraft(userId, a.id) : null;
-          let submitted: { language: Language; code: string } | null = null;
-          if (!draft && delivered) {
-            try {
-              const source = await getMySubmissionSource(delivered.submissionId);
-              submitted = { language: source.language, code: source.sourceCode };
-            } catch {
-              submitted = null;
-            }
-          }
-          const initial = resolveInitialCode({ allowedLanguages: a.allowedLanguages, templates: LANGUAGE_TEMPLATES, draft, submitted });
-          setSelectedLanguage(initial.language);
-          setCode(initial.code);
-        }
-        setDraftReady(true);
+        const allowed = a.allowedLanguages ?? [];
+        const stored = userId ? readCodeDraft(userId, a.id) : null;
+        setHasStoredDraft(stored !== null);
+        setCodes(stored?.code ?? {});
+        if (stored && allowed.includes(stored.language)) setSelectedLanguage(stored.language);
+        else if (allowed.length > 0) setSelectedLanguage(allowed[0]);
       })
       .catch(() => {
         if (import.meta.env.DEV) {
@@ -217,10 +252,14 @@ export function AssignmentPage() {
             isActive: true,
           };
           setAssignment(mock);
+          setHistory([]);
+          setCurrentSubmission(null);
+          setReturnedGrade(null);
           setTestCases(practiceInputs(mock));
           setSelectedCase(0);
+          setHasStoredDraft(false);
+          setCodes({});
           setSelectedLanguage(mock.allowedLanguages[0]);
-          setCode(LANGUAGE_TEMPLATES[mock.allowedLanguages[0]] ?? "");
         } else {
           setError("Assignment not found.");
         }
@@ -229,31 +268,50 @@ export function AssignmentPage() {
   }, [id, userId]);
 
   useEffect(() => {
-    if (!draftReady || !userId || !assignment) return;
-    // An untouched template is not work in progress; dropping it lets the delivered code show next time.
-    if (Object.values(LANGUAGE_TEMPLATES).includes(code)) clearCodeDraft(userId, assignment.id);
-    else saveCodeDraft(userId, assignment.id, selectedLanguage, code);
-  }, [draftReady, userId, assignment, selectedLanguage, code]);
-
-  useEffect(() => {
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, []);
 
   function handleLanguageChange(lang: Language) {
-    setCode((current) => codeAfterLanguageSwitch(current, selectedLanguage, lang, LANGUAGE_TEMPLATES));
     setSelectedLanguage(lang);
+    draft.schedule({ language: lang, code: codes });
   }
 
-  async function runExecution(type: ExecutionType) {
-    if (!assignment || !code.trim()) return;
+  function handleCodeChange(value: string) {
+    const next = { ...codes, [selectedLanguage]: value };
+    setCodes(next);
+    draft.schedule({ language: selectedLanguage, code: next });
+  }
+
+  function toggleAssistant() {
+    const open = !assistantOpen;
+    changeAssistantOpen(open);
+    if (open) setAssistantFocus((value) => value + 1);
+  }
+
+  function collapseAssistant() {
+    changeAssistantOpen(false);
+    assistantToggle.current?.focus();
+  }
+
+  function changeMobilePane(pane: AssignmentWorkspacePane) {
+    if (pane === "side") setAssistantActivated(true);
+    setMobilePane(pane);
+  }
+
+  async function runExecution(
+    type: ExecutionType,
+    // announce: false leaves the outcome to the caller instead of the accepted modal.
+    options: { announce?: boolean; onSubmitted?: () => void } = {},
+  ): Promise<ExecutionOutcome> {
+    if (!assignment || !code.trim()) return { ok: false, step: "submit", error: "Your editor is empty." };
     const isSub = type === ExecutionType.DEFINITIVE;
     setLastExecutionType(type);
     if (isSub) setIsSubmitting(true); else setIsRunning(true);
     setReport(null);
     setExecError(null);
-    setSubmissionMessage(null);
     setShowAcceptedModal(false);
 
+    let submitted = false;
     try {
       const dto = await submitExecution({
         code,
@@ -266,6 +324,7 @@ export function AssignmentPage() {
         executionType: type,
       });
 
+      submitted = true;
       if (isSub && dto.submissionId) {
         setCurrentSubmission({
           assignmentId: assignment.id,
@@ -274,10 +333,13 @@ export function AssignmentPage() {
           deliveredLate: !!assignment.dueDate && Date.now() > Date.parse(assignment.dueDate),
           executionStatus: "PENDING",
         });
+        // A new submission clears any returned grade on the server.
+        setReturnedGrade(null);
       }
+      options.onSubmitted?.();
 
       let attempts = 0;
-      await new Promise<void>((resolve, reject) => {
+      return await new Promise<ExecutionOutcome>((resolve, reject) => {
         pollRef.current = setInterval(async () => {
           attempts++;
           try {
@@ -289,9 +351,10 @@ export function AssignmentPage() {
                   ? { ...current, executionStatus: updated.status as GroupSubmission["executionStatus"] }
                   : current);
               }
-              try { setReport(await getExecutionReport(dto.id)); } catch { /* CE */ }
-              if (isSub && updated.status === ExecutionStatus.AC) setShowAcceptedModal(true);
-              resolve();
+              let finished: ExecutionReport | null = null;
+              try { finished = await getExecutionReport(dto.id); setReport(finished); } catch { /* CE */ }
+              if (isSub && updated.status === ExecutionStatus.AC && options.announce !== false) setShowAcceptedModal(true);
+              resolve({ ok: true, status: updated.status, report: finished });
             } else if (attempts >= 40) {
               clearInterval(pollRef.current!);
               reject(new Error("Execution timed out. Please try again."));
@@ -300,10 +363,13 @@ export function AssignmentPage() {
         }, 1500);
       });
     } catch (e: unknown) {
-      setExecError(e instanceof Error ? e.message : "Execution failed.");
+      const message = e instanceof Error ? e.message : "Execution failed.";
+      setExecError(message);
+      return { ok: false, step: submitted ? "evaluate" : "submit", error: message };
     } finally {
       if (isSub) setIsSubmitting(false); else setIsRunning(false);
       setTestTab("verdict");
+      if (isSub) void refreshHistory();
     }
   }
 
@@ -311,20 +377,47 @@ export function AssignmentPage() {
   function removeTestCase(i: number) { setTestCases((p) => p.filter((_, idx) => idx !== i)); }
   function updateTestCase(i: number, v: string) { setTestCases((p) => p.map((tc, idx) => idx === i ? v : tc)); }
 
-  async function withdrawCurrentSubmission() {
-    if (!currentSubmission) return;
-    setWithdrawing(true);
-    setWithdrawError(null);
+  async function refreshHistory() {
+    if (!id) return;
+    try { setHistory(await listAssignmentSubmissions(id)); }
+    catch { /* The attempts already loaded stay on screen. */ }
+  }
+
+  function closeSubmissionDialog() {
+    setSubmissionDialog(null);
+    setOperation(null);
+  }
+
+  async function withdrawAttempt(kind: SubmissionOperation["kind"], previous: SubmissionAttempt, newNumber: number) {
+    const base: OperationBase = { kind, previous, newNumber };
+    setOperation({ ...base, phase: "withdrawing" });
     try {
-      await withdrawSubmission(currentSubmission.submissionId);
-      setCurrentSubmission(null);
-      setShowWithdrawConfirm(false);
-      setSubmissionMessage("Current submission withdrawn. Review your code, then submit updated version.");
+      await withdrawSubmission(previous.submissionId);
     } catch (cause) {
-      setWithdrawError(cause instanceof Error ? cause.message : "Could not withdraw current submission.");
-    } finally {
-      setWithdrawing(false);
+      setOperation({ ...base, phase: "failed", failedStep: "withdraw", error: cause instanceof Error ? cause.message : "Could not withdraw the submission." });
+      return;
     }
+    const withdrawnAt = new Date().toISOString();
+    setHistory((items) => items.map((item) => item.submissionId === previous.submissionId ? { ...item, submissionStatus: "WITHDRAWN", withdrawnAt } : item));
+    setCurrentSubmission(null);
+    if (kind === "replace") {
+      await submitReplacement(base);
+    } else {
+      setOperation({ ...base, phase: "done" });
+      void refreshHistory();
+    }
+  }
+
+  async function submitReplacement(base: OperationBase) {
+    setOperation({ ...base, phase: "submitting" });
+    // The student may close the dialog while the evaluation runs; a closed dialog keeps no operation.
+    const outcome = await runExecution(ExecutionType.DEFINITIVE, {
+      announce: false,
+      onSubmitted: () => setOperation((active) => active && { ...base, phase: "evaluating" }),
+    });
+    setOperation((active) => active && (outcome.ok
+      ? { ...base, phase: "done", verdict: outcome.status as Verdict, passedTests: outcome.report?.passedTests, totalTests: outcome.report?.totalTests }
+      : { ...base, phase: "failed", failedStep: outcome.step, error: outcome.error }));
   }
 
   const allowedLangs = assignment?.allowedLanguages ?? (["PYTHON"] as Language[]);
@@ -340,20 +433,22 @@ export function AssignmentPage() {
   const isPastClose = !!assignment.closeDate && new Date(assignment.closeDate) < now;
   const isBeforeLaunch = !!assignment.launchDate && new Date(assignment.launchDate) > now;
   const isNotReady = !!assignment.validationStatus && assignment.validationStatus !== "READY";
-  const canSubmit = !isPastClose && !isBeforeLaunch && !isNotReady && !currentSubmission;
+  const submission = describeSubmission({ assignment, history, current: currentSubmission, grade: returnedGrade, now: now.getTime() });
+  const canSubmit = !isPastClose && !isBeforeLaunch && !isNotReady && submission.phase !== "evaluating";
   const canRun = !isBeforeLaunch && !isNotReady;
 
-  const submitBlockReason = isBeforeLaunch
+  // Reasons that depend on the assignment itself; they keep the banner below the header.
+  const assignmentNotice = isBeforeLaunch
     ? "This assignment hasn't opened yet."
     : isNotReady
     ? "Assignment is still being processed. Try again shortly."
     : isPastClose
     ? "This assignment is closed — no further submissions."
-    : currentSubmission?.executionStatus === "PENDING"
-    ? "Submission is being evaluated. Results will appear shortly."
-    : currentSubmission
-    ? "Withdraw current submission to submit updated code."
     : null;
+  const submitBlockReason = assignmentNotice
+    ?? (submission.phase === "evaluating" ? "Submission is being evaluated. Results will appear shortly." : null);
+  // Having withdrawn without resubmitting is the one submission state that risks delivering nothing.
+  const withdrawnAttempt = !assignmentNotice && submission.phase === "withdrawn" ? submission.previous[0] : null;
 
   return (
     <div className="h-screen flex flex-col bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100 font-sans overflow-hidden">
@@ -387,7 +482,7 @@ export function AssignmentPage() {
         </div>
 
         {/* Center: metrics */}
-        <div className="hidden md:flex flex-1 items-center justify-center gap-4">
+        <div className="hidden md:flex lg:hidden xl:flex flex-1 items-center justify-center gap-4">
           <MetricChip icon={<Clock className="w-3 h-3" />} label={`${assignment.timeLimitMs}ms`} />
           <MetricChip icon={<Cpu className="w-3 h-3" />} label={`${assignment.memoryLimitMb}MB`} />
           <MetricChip icon={<Scale className="w-3 h-3" />} label={comparatorLabel} />
@@ -412,17 +507,8 @@ export function AssignmentPage() {
             <Scale size={14} />
             <span className="hidden xl:inline">{returnedGrade ? `${returnedGrade.value}/${returnedGrade.maxPoints} pts` : `${assignment.maxPoints} pts`}</span>
           </Link>
-          {currentSubmission && currentSubmission.executionStatus !== "PENDING" && !isPastClose && (
-            <button
-              onClick={() => { setWithdrawError(null); setShowWithdrawConfirm(true); }}
-              disabled={isRunning || isSubmitting}
-              title="Withdraw current submission before submitting an updated version"
-              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium border border-orange-500/30 text-orange-600 dark:text-orange-400 hover:bg-orange-500/10 disabled:opacity-50 transition-all"
-            >
-              <RotateCcw size={14} />
-              <span className="hidden lg:inline">Withdraw to update</span>
-            </button>
-          )}
+          <SubmissionStatusButton state={submission} onOpen={() => setSubmissionDialog("overview")} />
+          {user && <AssistantToggleButton ref={assistantToggle} open={assistantOpen} busy={assistant.sending} onToggle={toggleAssistant} />}
           <Dropdown value={selectedLanguage} onChange={(value) => handleLanguageChange(value as Language)} size="compact" className="w-28 font-mono" ariaLabel="Programming language" options={allowedLangs.map((language) => ({ value: language, label: LANGUAGE_LABELS[language] }))} />
 
           <button
@@ -445,9 +531,11 @@ export function AssignmentPage() {
           </button>
 
           <button
-            onClick={() => runExecution(ExecutionType.DEFINITIVE)}
+            onClick={() => (submission.phase === "active" ? setSubmissionDialog("replace") : void runExecution(ExecutionType.DEFINITIVE))}
             disabled={isRunning || isSubmitting || !canSubmit}
-            title={!canSubmit ? (submitBlockReason ?? undefined) : undefined}
+            aria-haspopup={submission.phase === "active" ? "dialog" : undefined}
+            aria-label={submission.phase === "active" ? "Resubmit" : "Submit"}
+            title={!canSubmit ? (submitBlockReason ?? undefined) : submission.phase === "active" ? `Replace attempt #${submission.current?.number} with the code in your editor` : undefined}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-azure hover:bg-french disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-white"
           >
             {isSubmitting ? (
@@ -456,8 +544,14 @@ export function AssignmentPage() {
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
               </svg>
             ) : null}
-            <span className="hidden sm:inline">Submit</span>
-            <svg className="hidden sm:block w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <span className="hidden sm:inline">{submission.phase === "active" ? "Resubmit" : "Submit"}</span>
+            {/* Below sm the label is hidden, so the arrow is what identifies the button. */}
+            {!isSubmitting && (
+              <svg className="sm:hidden w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19V5m0 0l-6 6m6-6l6 6" />
+              </svg>
+            )}
+            <svg className="hidden sm:block w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </button>
@@ -465,7 +559,7 @@ export function AssignmentPage() {
       </header>
 
       {/* ── Status banner ── */}
-      {submitBlockReason && (
+      {assignmentNotice && (
         <div className={`flex-shrink-0 flex items-center gap-2 px-4 py-2 text-xs font-medium ${
           isPastClose
             ? "bg-red-500/10 text-red-400 border-b border-red-500/20"
@@ -476,20 +570,44 @@ export function AssignmentPage() {
           <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          {submitBlockReason}
+          {assignmentNotice}
         </div>
       )}
-      {submissionMessage && (
-        <div className="flex-shrink-0 flex items-center gap-2 px-4 py-2 text-xs font-medium bg-green-500/10 text-green-600 dark:text-green-400 border-b border-green-500/20">
-          <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="m5 13 4 4L19 7" /></svg>
-          {submissionMessage}
+      {withdrawnAttempt && (
+        <div className="flex-shrink-0 flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2 text-xs font-medium bg-orange-500/10 text-orange-700 dark:text-orange-400 border-b border-orange-500/20">
+          <span className="flex items-center gap-2">
+            <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            No attempt counts right now: attempt #{withdrawnAttempt.number} was withdrawn. Submit a new version{assignment.closeDate ? ` before ${formatDeadline(assignment.closeDate)}` : ""} to deliver this assignment.
+          </span>
+          <button type="button" onClick={() => setSubmissionDialog("overview")} className="rounded font-semibold underline underline-offset-2 hover:no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500">Details</button>
         </div>
       )}
 
       <AssignmentWorkspace
         persistenceKey="codehive-student-assignment"
         mobilePane={mobilePane}
-        onMobilePaneChange={setMobilePane}
+        onMobilePaneChange={changeMobilePane}
+        sideLabel="Assistant"
+        sideOpen={assistantOpen}
+        onSideOpenChange={changeAssistantOpen}
+        sidePane={user ? (
+          <div id="assignment-assistant" className="h-full min-h-0">
+            {assistantActivated && (
+              <AssistantPanel
+                assistant={assistant}
+                assignmentId={assignment.id}
+                groupId={assignment.groupId}
+                userId={user.id}
+                language={selectedLanguage}
+                code={code}
+                focusSignal={assistantFocus}
+                onCollapse={collapseAssistant}
+              />
+            )}
+          </div>
+        ) : undefined}
         assignmentPane={(
           <AssignmentDetailsPanel
             assignment={assignment}
@@ -511,7 +629,8 @@ export function AssignmentPage() {
             language={MONACO_LANG_MAP[selectedLanguage]}
             languageVersion={langVersion}
             value={code}
-            onChange={setCode}
+            onChange={handleCodeChange}
+            draftStatus={draft.status}
           />
         )}
         testsPane={(
@@ -532,18 +651,23 @@ export function AssignmentPage() {
         )}
       />
 
-      <button disabled title="AI Assistant — coming soon" aria-label="AI Assistant coming soon" className="fixed bottom-6 right-6 z-50 inline-flex items-center gap-2 rounded-xl border border-gray-200 dark:border-gray-700/60 bg-white/95 dark:bg-dark-card/95 px-3 py-2 text-xs font-medium text-gray-400 shadow-lg cursor-not-allowed"><Sparkles size={14} /> AI · Coming soon</button>
-
-      {showWithdrawConfirm && currentSubmission && (
-        <div className="fixed inset-0 z-[60] grid place-items-center bg-dark-bg/50 backdrop-blur-sm p-4" role="dialog" aria-modal="true" aria-labelledby="withdraw-submission-title">
-          <div className="w-full max-w-md rounded-2xl border border-gray-200 dark:border-gray-700/60 bg-white dark:bg-dark-card p-6 shadow-2xl">
-            <div className="w-10 h-10 rounded-xl bg-orange-500/10 text-orange-500 grid place-items-center"><RotateCcw size={19} /></div>
-            <h2 id="withdraw-submission-title" className="mt-4 text-lg font-semibold text-gray-900 dark:text-white">Withdraw current submission?</h2>
-            <p className="mt-2 text-sm leading-relaxed text-gray-500 dark:text-gray-400">Your submitted version and results stay in history, but it stops being active. You can then submit editor code as updated version.</p>
-            {withdrawError && <p className="mt-4 rounded-xl border border-red-500/20 bg-red-500/5 px-3 py-2 text-sm text-red-600 dark:text-red-400">{withdrawError}</p>}
-            <div className="mt-6 flex justify-end gap-3"><button onClick={() => setShowWithdrawConfirm(false)} disabled={withdrawing} className="btn-outline">Cancel</button><button onClick={() => void withdrawCurrentSubmission()} disabled={withdrawing} className="inline-flex items-center gap-2 rounded-xl bg-orange-500 px-5 py-3 text-sm font-semibold text-white hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60">{withdrawing ? "Withdrawing…" : "Withdraw submission"}</button></div>
-          </div>
-        </div>
+      {submissionDialog && (
+        <SubmissionDialog
+          assignmentId={assignment.id}
+          assignmentTitle={assignment.title}
+          state={submission}
+          initialView={submissionDialog}
+          operation={operation}
+          editor={{ language: LANGUAGE_LABELS[selectedLanguage], lines: code.split("\n").length, empty: !code.trim() }}
+          canSubmitNew={canSubmit && !isRunning && !isSubmitting}
+          submitBlockReason={submitBlockReason}
+          onClose={closeSubmissionDialog}
+          onReplace={() => { if (submission.current) void withdrawAttempt("replace", submission.current, submission.nextNumber); }}
+          onWithdraw={() => { if (submission.current) void withdrawAttempt("withdraw", submission.current, submission.nextNumber); }}
+          onRetrySubmit={() => { if (operation) void submitReplacement({ kind: operation.kind, previous: operation.previous, newNumber: operation.newNumber }); }}
+          onSubmitNew={() => { closeSubmissionDialog(); void runExecution(ExecutionType.DEFINITIVE); }}
+          onViewResults={() => { closeSubmissionDialog(); setTestTab("verdict"); setMobilePane("tests"); }}
+        />
       )}
 
       {showAcceptedModal && (
@@ -700,12 +824,14 @@ function StudentEditorPane({
   languageVersion,
   value,
   onChange,
+  draftStatus,
 }: {
   filename: string;
   language: string;
   languageVersion: string;
   value: string;
   onChange: (value: string) => void;
+  draftStatus: DraftStatus;
 }) {
   return (
     <section className="h-full min-h-0 flex flex-col overflow-hidden bg-white dark:bg-dark-card">
@@ -722,11 +848,19 @@ function StudentEditorPane({
         <CodeEditor language={language} value={value} onChange={onChange} />
       </div>
       <div className="h-6 flex-shrink-0 flex items-center justify-between px-3 bg-gray-50 dark:bg-dark-surface border-t border-gray-200 dark:border-gray-800/60 text-[10px] text-gray-400 dark:text-gray-600 font-mono">
-        <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-green-500" />Saved</span>
+        <DraftIndicator status={draftStatus} />
         <div className="flex items-center gap-4"><span>{languageVersion}</span><span>{value.split("\n").length} lines</span></div>
       </div>
     </section>
   );
+}
+
+function DraftIndicator({ status }: { status: DraftStatus }) {
+  if (status === "error") {
+    return <span role="alert" className="flex items-center gap-1 text-orange-600 dark:text-orange-400" title="This browser blocked or filled its storage. Keep this tab open and copy your code before leaving."><span className="w-1.5 h-1.5 rounded-full bg-orange-500" />Not saved in this browser</span>;
+  }
+  const label = status === "saving" ? "Saving…" : status === "saved" ? "Draft saved in this browser" : "Draft autosaves in this browser";
+  return <span className="flex items-center gap-1" title="Your draft is kept in this browser for this assignment. Submit to store it on CodeHive."><span className={`w-1.5 h-1.5 rounded-full ${status === "saved" ? "bg-green-500" : "bg-gray-400"}`} />{label}</span>;
 }
 
 function StudentTestsPane({

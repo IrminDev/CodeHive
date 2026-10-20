@@ -1,8 +1,8 @@
 const steps = [
   {
     number: "01",
-    title: "Create Your Classroom",
-    description: "Set up your virtual classroom in minutes. Invite students with a simple code or link.",
+    title: "Create a Group",
+    description: "Create a group and share its join code. Students sign in and use the code to enroll.",
     icon: (
       <svg className="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
@@ -11,8 +11,8 @@ const steps = [
   },
   {
     number: "02",
-    title: "Design Challenges",
-    description: "Create coding problems with test cases, time limits, and hints. Support for multiple programming languages.",
+    title: "Prepare an Assignment",
+    description: "Add a problem, reference solution, and test inputs. Set languages, limits, deadlines, and optional AI help levels and answer quotas.",
     icon: (
       <svg className="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z" />
@@ -21,8 +21,8 @@ const steps = [
   },
   {
     number: "03",
-    title: "Students Code & Submit",
-    description: "Students write and test code in our powerful online IDE, then submit for evaluation.",
+    title: "Code, Practice & Submit",
+    description: "Students code in the browser, run practice tests, and submit for evaluation. When enabled, the AI assistant offers guidance within teacher-set limits.",
     icon: (
       <svg className="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
@@ -31,8 +31,8 @@ const steps = [
   },
   {
     number: "04",
-    title: "Instant Auto-Grading",
-    description: "Our system runs submissions against your test cases and provides instant scores and feedback.",
+    title: "Evaluate, Grade & Guide",
+    description: "Submissions are evaluated against assignment tests. Teachers review results and code, return grades, and provide written feedback.",
     icon: (
       <svg className="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
@@ -79,16 +79,11 @@ export function HowItWorks() {
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center max-w-3xl mx-auto mb-16 lg:mb-24">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-azure/10 dark:bg-yellow/10 border border-azure/20 dark:border-yellow/20 mb-6">
-            <span className="text-sm font-medium text-azure dark:text-yellow">
-              Simple Process
-            </span>
-          </div>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white mb-6">
             How <span className="gradient-text-gold">CodeHive</span> Works
           </h2>
           <p className="text-lg text-gray-600 dark:text-gray-400">
-            Get started and change the way you create coding assignments.
+            Bring groups, coding practice, optional AI guidance, and teacher feedback into one assignment workflow.
           </p>
         </div>
 

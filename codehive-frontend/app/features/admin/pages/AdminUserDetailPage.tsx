@@ -1,3 +1,5 @@
+import { UsageDashboard } from "~/features/assistant-usage/UsageDashboard";
+import { Scope } from "~/shared/types/model/User";
 import { useCallback, useEffect, useState } from "react";
 import { Activity, Ban, KeyRound, Pencil, Shield, Trash2, UserRoundCog } from "lucide-react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
@@ -9,17 +11,17 @@ import { AdminUserResources, type UserResourceTab } from "../components/AdminUse
 import { AdminError, AdminLoading, AdminPageHeader, StatusPill, compactButtonClass, panelClass } from "../components/AdminUI";
 import type { AdminUserDetail } from "../types/admin.types";
 import { errorMessage, formatDate } from "../utils/format";
-import { availableRoleChanges, canChangeScopes, canChangeStatus, canEditProfile } from "../utils/permissions";
+import { hasEffectiveScope, availableRoleChanges, canChangeScopes, canChangeStatus, canEditProfile } from "../utils/permissions";
 
-const TABS: { key: UserResourceTab; label: string }[] = [{ key: "overview", label: "Overview" }, { key: "groups", label: "Groups" }, { key: "assignments", label: "Assignments" }, { key: "submissions", label: "Submissions" }, { key: "executions", label: "Executions" }];
+const TABS: { key: UserResourceTab | "ai-usage"; label: string }[] = [{ key: "ai-usage", label: "AI usage" }, { key: "overview", label: "Overview" }, { key: "groups", label: "Groups" }, { key: "assignments", label: "Assignments" }, { key: "submissions", label: "Submissions" }, { key: "executions", label: "Executions" }];
 
 export function AdminUserDetailPage() {
   const { userId = "" } = useParams(); const { user: actor } = useAuth(); const navigate = useNavigate(); const [params, setParams] = useSearchParams();
   const [detail, setDetail] = useState<AdminUserDetail | null>(null); const [loading, setLoading] = useState(true); const [error, setError] = useState<string>(); const [action, setAction] = useState<UserAction>(null); const [refresh, setRefresh] = useState(0);
-  const tabParam = params.get("tab"); const tab: UserResourceTab = TABS.some((item) => item.key === tabParam) ? tabParam as UserResourceTab : "overview";
+  const tabParam = params.get("tab"); const tab: UserResourceTab | "ai-usage" = TABS.some((item) => item.key === tabParam) && (tabParam !== "ai-usage" || hasEffectiveScope(actor, Scope.CHECK_ANALYTICS)) ? tabParam as UserResourceTab | "ai-usage" : "overview";
   const load = useCallback(() => { const controller = new AbortController(); setLoading(true); setError(undefined); void getAdminUser(userId, controller.signal).then(setDetail).catch((cause) => { if (cause instanceof DOMException && cause.name === "AbortError") return; setError(errorMessage(cause, "Could not load user.")); }).finally(() => { if (!controller.signal.aborted) setLoading(false); }); return () => controller.abort(); }, [refresh, userId]);
   useEffect(load, [load]);
-  function selectTab(nextTab: UserResourceTab) { const next = new URLSearchParams(); next.set("tab", nextTab); setParams(next); }
+  function selectTab(nextTab: UserResourceTab | "ai-usage") { const next = new URLSearchParams(); next.set("tab", nextTab); setParams(next); }
 
   if (loading) return <AdminShell active="users" breadcrumbs={[{ label: "Admin", to: "/admin" }, { label: "Users", to: "/admin/users" }, { label: "Loading" }]}><AdminLoading rows={7} /></AdminShell>;
   if (error || !detail) return <AdminShell active="users" breadcrumbs={[{ label: "Admin", to: "/admin" }, { label: "Users", to: "/admin/users" }, { label: "Unavailable" }]}><AdminError message={error ?? "User unavailable."} onRetry={() => setRefresh((value) => value + 1)} /></AdminShell>;
@@ -30,8 +32,8 @@ export function AdminUserDetailPage() {
   return <AdminShell active="users" breadcrumbs={[{ label: "Admin", to: "/admin" }, { label: "Users", to: "/admin/users" }, { label: `${target.name} ${target.lastName}` }]}>
     <AdminPageHeader eyebrow="User record" title={`${target.name} ${target.lastName}`} description={`${target.email} · ${target.enrollmentNumber}`} actions={actions} />
     <div className={`${panelClass} p-5 sm:p-6 mb-5`}><div className="flex flex-col lg:flex-row gap-5 lg:items-start justify-between"><div><div className="flex flex-wrap gap-2"><StatusPill label={target.role} tone="info" /><StatusPill label={target.status} tone={target.status === "ACTIVE" ? "success" : "error"} />{target.scopes.map((scope) => <StatusPill key={scope} label={scope.replaceAll("_", " ")} />)}</div><div className="mt-4 grid gap-1 text-xs text-gray-500 dark:text-gray-400"><span>Created {formatDate(target.createdAt)}</span>{target.blockedAt && <span>Blocked {formatDate(target.blockedAt)}</span>}<span className="font-mono">{target.id}</span></div></div><Link to={`/admin/incidents?userId=${target.id}`} className="rounded-xl border border-gray-200 dark:border-gray-700 p-4 min-w-52 hover:border-azure/30 dark:hover:border-yellow/30"><div className="flex items-center gap-2 text-xs font-semibold"><Activity size={15} className="text-azure dark:text-yellow" /> Rate-limit history</div><p className="mt-2 text-2xl font-bold font-mono">{detail.lifetimeRateLimitViolations}</p><p className="text-[10px] text-gray-500">Last: {formatDate(detail.lastRateLimitViolationAt)}</p></Link></div></div>
-    <nav className="flex gap-1 overflow-x-auto border-b border-gray-200 dark:border-gray-800 mb-5" aria-label="User detail sections">{TABS.map((item) => <button key={item.key} onClick={() => selectTab(item.key)} className={`px-4 py-3 text-xs font-medium whitespace-nowrap border-b-2 ${tab === item.key ? "border-azure text-azure dark:border-yellow dark:text-yellow" : "border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-200"}`} aria-current={tab === item.key ? "page" : undefined}>{item.label}</button>)}</nav>
-    {tab === "overview" ? <ResourceSummary detail={detail} /> : <AdminUserResources userId={target.id} tab={tab} />}
+    <nav className="flex gap-1 overflow-x-auto border-b border-gray-200 dark:border-gray-800 mb-5" aria-label="User detail sections">{TABS.filter(item => item.key !== "ai-usage" || hasEffectiveScope(actor, Scope.CHECK_ANALYTICS)).map((item) => <button key={item.key} onClick={() => selectTab(item.key)} className={`px-4 py-3 text-xs font-medium whitespace-nowrap border-b-2 ${tab === item.key ? "border-azure text-azure dark:border-yellow dark:text-yellow" : "border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-200"}`} aria-current={tab === item.key ? "page" : undefined}>{item.label}</button>)}</nav>
+    {tab === "ai-usage" ? <UsageDashboard audience="admin" fixedUserId={target.id} /> : tab === "overview" ? <ResourceSummary detail={detail} /> : <AdminUserResources userId={target.id} tab={tab} />}
     <AdminUserDialogs action={action} detail={detail} actor={actor} onClose={() => setAction(null)} onUpdated={setDetail} onDeleted={() => navigate("/admin/users", { replace: true })} />
   </AdminShell>;
 }

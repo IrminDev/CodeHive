@@ -51,6 +51,8 @@ Behavior details:
 
 ## Teacher Assignment API
 
+- Sends initial AI policy in create/clone payloads; `updateAiPolicy` calls immediate owner-authorized `PUT /api/assignments/{id}/ai-policy` separately from staged assignment edits.
+
 - Lists active teacher groups and paginated assignments per group.
 - Creates assignments with multipart metadata/reference/test files.
 - Retrieves and updates assignment metadata/schedules through multipart requests.
@@ -63,6 +65,10 @@ Behavior details:
 - Converts backend wrapper responses to typed feature data and surfaces API messages on failure.
 
 ## Student Assignment Data
+
+- Student assistant API loads availability, paginated own conversation history, single interactions,
+  and posts idempotent message requests under `/api/assignments/{id}/assistant`. Missing conversation
+  history (`404`) is an empty list; other errors retain HTTP status, stable code, and `Retry-After`.
 
 - Loads accessible groups from `GET /api/groups`.
 - Loads all student-visible assignments and progress in one request through `GET /api/assignments/mine`.
@@ -80,8 +86,7 @@ Behavior details:
 
 ## Teacher Group API
 
-- Creates, lists, retrieves, and updates owned groups. Group lists take the signed-in user id
-  and drop groups the user is only enrolled in.
+- Creates, lists, retrieves, and updates owned groups.
 - Lists active roster entries and removes active students.
 - Archives, unarchives, logically deletes, restores, and rotates join codes.
 
@@ -125,3 +130,24 @@ app/services/index.ts re-exports service singletons for concise imports:
 - Keep one service class per backend API domain.
 - Centralize token/header behavior in services, not components.
 - Preserve response wrappers to maintain consistency across pages.
+
+## AI usage statistics
+
+Shared module: `app/features/assistant-usage`. Student class progress
+`/groups/:groupId/metrics#ai-usage` embeds `PersonalUsageBrief`: questions, answers used,
+unanswered questions and pending questions for the last 30 days. Loading, retry, empty state,
+manual refresh and local answer-completion refresh are independent of academic enrollment
+metrics, preserving access to own historical counts. No technical details or group-wide quota.
+Legacy `/ai-usage?groupId=...` redirects to class progress; without a group it redirects to
+`/groups`. Assistant panel links directly to its class; no separate sidebar entry. Teacher route
+`/teacher/analytics` embeds a group summary plus per-assignment counts in the assignment drawer's AI Usage tab. Group and assignment counts share the last-30-days window; a paginated
+group request loads assignment usage without per-assignment requests. AI failures and retries
+are independent of academic metrics. Archived/deleted owned groups remain selectable. Legacy
+`section=ai` URLs open the integrated page and discard that parameter.
+Admin route `/admin/ai-usage` requires CHECK_ANALYTICS; user rows/details require VIEW_USERS too.
+Admin user detail includes an AI usage tab. Role clients reuse existing authenticated helpers.
+Filters, search, sort and pagination stay in URL; requests abort/ignore stale results on scope
+changes and session identity remounts state. No statistics polling. Technical coverage remains
+explicit; nullable tokens are not zero. Lifetime quota is per assignment and independent of dates.
+Recharts has a UTC daily table alternative. See
+[implementation contract](../../../docs/ai-assistant/AI_USAGE_IMPLEMENTATION.md).

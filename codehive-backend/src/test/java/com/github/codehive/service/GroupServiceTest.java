@@ -22,12 +22,8 @@ import com.github.codehive.model.entity.ClassGroup;
 import com.github.codehive.model.entity.GroupEnrollment;
 import com.github.codehive.model.entity.User;
 import com.github.codehive.model.enums.EnrollmentStatus;
-import com.github.codehive.model.enums.GroupDeletionReason;
 import com.github.codehive.model.enums.NotificationType;
 import com.github.codehive.model.enums.Role;
-import com.github.codehive.model.enums.Scope;
-import org.springframework.security.access.AccessDeniedException;
-
 import com.github.codehive.model.exception.EntityNotFoundException;
 import com.github.codehive.model.exception.ValidationException;
 import com.github.codehive.model.request.group.CreateGroupRequest;
@@ -48,6 +44,7 @@ class GroupServiceTest {
     private GroupEnrollmentRepository enrollmentRepository;
     private UserRepository userRepository;
     private NotificationDomainEventPublisher notificationPublisher;
+    private AssistantTextPurgeService assistantTextPurgeService;
     private GroupService service;
 
     private User owner;
@@ -60,12 +57,12 @@ class GroupServiceTest {
         enrollmentRepository = mock(GroupEnrollmentRepository.class);
         userRepository = mock(UserRepository.class);
         notificationPublisher = mock(NotificationDomainEventPublisher.class);
+        assistantTextPurgeService = mock(AssistantTextPurgeService.class);
         service = new GroupService(groupRepository, enrollmentRepository,
-                userRepository, notificationPublisher);
+                userRepository, notificationPublisher, assistantTextPurgeService);
 
         owner = new User("Grace", "Hopper", "TEA-001", OWNER_EMAIL, "encoded", Role.TEACHER);
         owner.setId(OWNER_ID);
-        owner.addScope(Scope.CREATE_GROUP);
         student = new User("Ada", "Lovelace", "STU-001", STUDENT_EMAIL, "encoded", Role.STUDENT);
         student.setId(STUDENT_ID);
         group = new ClassGroup("Algorithms", "", owner, "CODE1234");
@@ -74,6 +71,7 @@ class GroupServiceTest {
         when(userRepository.findByEmail(OWNER_EMAIL)).thenReturn(Optional.of(owner));
         when(userRepository.findByEmail(STUDENT_EMAIL)).thenReturn(Optional.of(student));
         when(groupRepository.findById(GROUP_ID)).thenReturn(Optional.of(group));
+        when(groupRepository.findByIdForUpdate(GROUP_ID)).thenReturn(Optional.of(group));
     }
 
     @Test
@@ -122,38 +120,12 @@ class GroupServiceTest {
     void restoreLeavesTheGroupArchived() {
         group.setIsActive(false);
         group.setArchived(true);
-        group.setDeletionReason(GroupDeletionReason.OWNER_REQUEST);
 
         GroupDTO restored = service.restore(GROUP_ID, OWNER_EMAIL);
 
         assertThat(restored.getIsActive()).isTrue();
         assertThat(restored.getArchived()).isTrue();
         assertThat(group.getDeletedAt()).isNull();
-        assertThat(group.getDeletionReason()).isNull();
-    }
-
-    @Test
-    void restoreRejectsGroupsDeletedByAnAdministrativeAction() {
-        group.setIsActive(false);
-        group.setArchived(true);
-        group.setDeletionReason(GroupDeletionReason.ROLE_CHANGED_TO_ADMIN);
-
-        assertThatThrownBy(() -> service.restore(GROUP_ID, OWNER_EMAIL))
-                .isInstanceOf(ValidationException.class)
-                .hasMessageContaining("administrative action");
-        assertThat(group.getIsActive()).isFalse();
-    }
-
-    @Test
-    void restoreRequiresTheGroupCreationPermission() {
-        owner.setScopes(java.util.List.of());
-        group.setIsActive(false);
-        group.setArchived(true);
-
-        assertThatThrownBy(() -> service.restore(GROUP_ID, OWNER_EMAIL))
-                .isInstanceOf(AccessDeniedException.class)
-                .hasMessageContaining("group creation permission");
-        assertThat(group.getIsActive()).isFalse();
     }
 
     @Test
@@ -163,7 +135,6 @@ class GroupServiceTest {
         assertThat(group.getIsActive()).isFalse();
         assertThat(group.getArchived()).isTrue();
         assertThat(group.getDeletedAt()).isNotNull();
-        assertThat(group.getDeletionReason()).isEqualTo(GroupDeletionReason.OWNER_REQUEST);
     }
 
     @Test

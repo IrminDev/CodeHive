@@ -1,5 +1,6 @@
 import type { Route } from "./+types/teacher.assignments.$assignmentId.revalidate";
-import { GroupManagementRoute } from "../components/GroupManagementRoute";
+import { ProtectedRoute } from "~/core/components/ProtectedRoute";
+import { Role } from "~/shared/types/model/User";
 import { EditAssignmentPage } from "../pages/EditAssignmentPage";
 
 export function meta({}: Route.MetaArgs) {
@@ -15,8 +16,8 @@ export function meta({}: Route.MetaArgs) {
 
 export default function TeacherRevalidateAssignment() {
   return (
-    <GroupManagementRoute>
+    <ProtectedRoute roles={[Role.TEACHER]}>
       <EditAssignmentPage validationMode />
-    </GroupManagementRoute>
+    </ProtectedRoute>
   );
 }

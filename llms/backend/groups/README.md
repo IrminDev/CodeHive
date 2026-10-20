@@ -36,15 +36,13 @@ Propietario (User autorizado con CREATE_GROUP)
 ### Ciclo de vida de grupos
 
 1. `isActive = true` significa que el grupo no está eliminado lógicamente.
-2. `isActive = false` significa eliminación lógica. El grupo desaparece para los estudiantes, incluso los inscritos, y permanece consultable para su propietario: `GET /api/groups?includeDeleted=true` lo incluye y `GET /api/groups/{id}` lo devuelve. Para cualquier otro solicitante responde como inexistente.
+2. `isActive = false` significa eliminación lógica. El grupo no se expone en listados ni detalle a ningún usuario.
 3. `archived = true` significa que el grupo es de solo lectura. No permite uniones, modificaciones, creación de tareas ni nuevas ejecuciones o entregas.
-4. Restaurar un grupo eliminado lo deja archivado; el propietario debe desarchivarlo explícitamente antes de modificarlo o recibir actividad. Restaurar exige el scope `CREATE_GROUP` y se rechaza cuando la eliminación fue terminal (`GroupDeletionReason.isTerminal()`: promoción a administrador o eliminación de la cuenta). Al restaurar se limpia el motivo de eliminación.
-5. La eliminación lógica también archiva el grupo y registra su motivo: `OWNER_REQUEST` cuando la pide el propietario.
+4. Restaurar un grupo eliminado lo deja archivado; el propietario debe desarchivarlo explícitamente antes de modificarlo o recibir actividad.
+5. La eliminación lógica también archiva el grupo.
 6. La eliminación lógica notifica a los estudiantes con inscripción activa (evento `GROUP_ARCHIVED`), igual que archivar el grupo explícitamente.
 7. Restaurar solo es válido sobre un grupo eliminado lógicamente (`isActive = false`). Intentar restaurar un grupo activo se rechaza.
 8. Un código de unión que pertenece a un grupo eliminado lógicamente se trata como si no existiera: el sistema no distingue "código inexistente" de "código de un grupo eliminado" para no revelar el historial del grupo a quien no es su propietario.
-9. Revocar `CREATE_GROUP` a un estudiante elimina lógicamente sus grupos vigentes con motivo `SCOPE_REVOKED`, sin borrar asignaciones, inscripciones, entregas ni calificaciones. Si el estudiante recupera el permiso, ya sea porque un administrador se lo otorga de nuevo o porque cambia su rol a docente, esos grupos se restauran automáticamente como vigentes y archivados; el propietario debe desarchivarlos para reanudar la actividad.
-10. La restauración automática no alcanza a los grupos que el propietario eliminó por su cuenta, que conservan su motivo original. Si un grupo eliminado por revocación vuelve a eliminarse por promoción a administrador o por eliminación de la cuenta, adopta ese motivo terminal y ya no se restaura.
 
 ### Tareas y ejemplos
 

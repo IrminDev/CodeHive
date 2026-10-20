@@ -1,5 +1,6 @@
 import type { Route } from "./+types/teacher.analytics";
-import { GroupManagementRoute } from "../components/GroupManagementRoute";
+import { ProtectedRoute } from "~/core/components/ProtectedRoute";
+import { Role } from "~/shared/types/model/User";
 import { TeacherAnalyticsPage } from "../pages/TeacherAnalyticsPage";
 
 export function meta({}: Route.MetaArgs) {
@@ -10,5 +11,5 @@ export function meta({}: Route.MetaArgs) {
 }
 
 export default function TeacherAnalytics() {
-  return <GroupManagementRoute><TeacherAnalyticsPage /></GroupManagementRoute>;
+  return <ProtectedRoute roles={[Role.TEACHER]}><TeacherAnalyticsPage /></ProtectedRoute>;
 }

@@ -14,7 +14,6 @@ import type { ClassGroup } from "../types/group.types";
 import type { GroupSubmission } from "../types/group-submission.types";
 import type { RecentSubmission, SubmissionResultStatus } from "../types/submission.types";
 import { assignmentProgress, type AssignmentProgress } from "../utils/assignment-progress";
-import { splitGroupsByOwnership } from "../utils/group-membership";
 
 const LANG_ABBR: Record<Language, string> = {
   PYTHON: "PY",
@@ -30,16 +29,6 @@ function getGreeting(): string {
   if (h < 12) return "Good morning";
   if (h < 18) return "Good afternoon";
   return "Good evening";
-}
-
-function getSemesterBadge(): string {
-  const now = new Date();
-  const month = now.getMonth();
-  const year = now.getFullYear();
-  const season = month < 5 ? "SPRING" : month < 8 ? "SUMMER" : "FALL";
-  const startOfYear = new Date(year, 0, 1);
-  const week = Math.ceil(((now.getTime() - startOfYear.getTime()) / 86400000 + 1) / 7);
-  return `${season} ${year} · WEEK ${week}`;
 }
 
 function formatDue(iso: string): string {
@@ -91,7 +80,7 @@ export function StudentDashboardPage() {
     setLoadingSubmissions(true);
     setAssignmentError(null);
     try {
-      const groupItems = splitGroupsByOwnership(await listMyGroups(), user?.id).enrolled.filter((group) => group.isActive && !group.archived);
+      const groupItems = (await listMyGroups()).filter((group) => group.isActive && !group.archived);
       setGroups(groupItems);
       const [assignmentResult, submissionResult] = await Promise.allSettled([
         listMyAssignmentOverviews(),
@@ -114,7 +103,7 @@ export function StudentDashboardPage() {
       setLoadingAssignments(false);
       setLoadingSubmissions(false);
     }
-  }, [user?.id]);
+  }, []);
 
   useEffect(() => { void loadDashboard(); }, [loadDashboard]);
 
@@ -151,10 +140,6 @@ export function StudentDashboardPage() {
             {/* Greeting */}
             <div className="flex items-start justify-between gap-4">
               <div>
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gray-100 dark:bg-dark-card border border-gray-200 dark:border-gray-700/60 text-xs font-medium text-gray-500 dark:text-gray-400 mb-3">
-                  <span className="w-1.5 h-1.5 rounded-full bg-yellow" />
-                  {getSemesterBadge()}
-                </div>
                 <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-1.5">
                   {getGreeting()},{" "}
                   <span className="text-azure dark:text-azure">{firstName}</span>.

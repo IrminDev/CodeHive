@@ -520,3 +520,26 @@ Lista ordenada por `createdAt` descendente, una fila por tarea publicada.
   persistir `passedTests`/`totalTests` al procesar el resultado del worker.
 - El uso del scope `CHECK_ANALYTICS` (hoy declarado y sin uso) para métricas administrativas
   transversales, cuando se definan los permisos de administración.
+
+## Assistant usage (separate domain)
+
+`AssistantUsageRepository` aggregates interaction and call ledgers independently, preserving
+historical groups/assignments and lifetime quota. It does not use academic active-assignment
+filters. Personal candidate rows require own conversation or current enrollment plus published
+assignment. Tokens are nullable and complete daily series use UTC; lifetime summaries omit series.
+
+`AssistantUsageService` enforces owner access, principal-only STUDENT identity, or ADMIN plus
+CHECK_ANALYTICS (VIEW_USERS additionally for identities). All planned GET routes are available
+through owner/personal/admin usage controllers. Dates default to 30 days, maximum 366 days;
+`lifetime=true` requests an aggregate. Tables paginate in SQL with size <=100 and stable UUID order.
+GET never writes metadata or recovers quota leases. No monetary estimates or conversation content.
+
+See [usage contract and verification](../../../docs/ai-assistant/AI_USAGE_IMPLEMENTATION.md).
+
+## Detalle académico por alumno para el propietario
+
+`GET /api/groups/{groupId}/metrics/students/{studentId}/assignments` devuelve
+`StudentAssignmentMetricsDTO[]` de las tareas lógicamente activas para un alumno de la matrícula
+activa. Incluye borradores y notas devueltas; el endpoint personal mantiene borradores ocultos y
+solo tareas publicadas. Se autoriza al propietario antes de cargar las proyecciones del grupo.
+Las consultas tienen cantidad fija; no se realiza una consulta por tarea.
