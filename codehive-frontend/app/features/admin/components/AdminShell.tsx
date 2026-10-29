@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { Activity, ChevronRight, Gauge, LogOut, Moon, ShieldCheck, Sun, Users } from "lucide-react";
+import { Activity, ChevronRight, Gauge, LogOut, Moon, ShieldCheck, Sun, Users, Sparkles } from "lucide-react";
 import { Link } from "react-router";
 import { useAuth } from "~/core/providers/AuthProvider";
 import { useTheme } from "~/core/providers/ThemeProvider";
@@ -7,7 +7,7 @@ import { ProfileSettingsModal } from "~/shared/components/ProfileSettingsModal";
 import { Scope } from "~/shared/types/model/User";
 import { hasAnyEffectiveScope, hasEffectiveScope } from "../utils/permissions";
 
-export type AdminNavigation = "overview" | "users" | "incidents" | "audit";
+export type AdminNavigation = "overview" | "users" | "incidents" | "audit" | "ai-usage";
 export interface AdminBreadcrumb { label: string; to?: string }
 
 export function AdminShell({ active, breadcrumbs, children, contentClassName = "max-w-7xl" }: {
@@ -67,6 +67,7 @@ function AdminSidebar({ active }: { active: AdminNavigation }) {
     { key: "users" as const, label: "Users", to: "/admin/users", icon: <Users size={20} />, show: showUsers },
     { key: "incidents" as const, label: "Rate-limit incidents", to: "/admin/incidents", icon: <Activity size={20} />, show: hasEffectiveScope(user, Scope.VIEW_USERS) },
     { key: "audit" as const, label: "Audit history", to: "/admin/audit", icon: <ShieldCheck size={20} />, show: hasEffectiveScope(user, Scope.VIEW_AUDIT_LOG) },
+    { key: "ai-usage" as const, label: "AI usage", to: "/admin/ai-usage", icon: <Sparkles size={20} />, show: hasEffectiveScope(user, Scope.CHECK_ANALYTICS) },
   ];
   return (
     <aside className="w-14 flex-shrink-0 flex flex-col items-center py-4 gap-1 bg-gray-50 dark:bg-dark-surface border-r border-gray-200 dark:border-gray-800/60">

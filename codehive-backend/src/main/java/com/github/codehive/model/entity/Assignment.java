@@ -1,31 +1,35 @@
 package com.github.codehive.model.entity;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
-import com.github.codehive.model.enums.ComparatorType;
 import com.github.codehive.model.enums.AssignmentValidationStatus;
+import com.github.codehive.model.enums.ComparatorType;
 import com.github.codehive.model.enums.Language;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
-import jakarta.persistence.OrderBy;
-import jakarta.persistence.CascadeType;
-import jakarta.persistence.FetchType;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 
@@ -117,8 +121,10 @@ public class Assignment {
     @Column(nullable = false)
     private Long version;
 
+    @OneToOne(mappedBy = "assignment", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private AssignmentAiPolicy aiPolicy;
+
     @OneToMany(mappedBy = "assignment", cascade = CascadeType.ALL, orphanRemoval = true)
-    @OrderBy("order ASC")
     private List<AssignmentExample> examples = new ArrayList<>();
 
     public Assignment() {
@@ -152,32 +158,26 @@ public class Assignment {
     public AssignmentValidationStatus getValidationStatus() { return validationStatus; }
     public void setValidationStatus(AssignmentValidationStatus validationStatus) { this.validationStatus = validationStatus; }
     public List<AssignmentExample> getExamples() { return examples; }
-    public void setExamples(List<AssignmentExample> desired) {
-        List<AssignmentExample> incoming = desired == null ? List.of() : desired;
-        // Update the rows already attached (ordered by order_index) in place so Hibernate never
-        // inserts a new (assignment_id, order_index) before deleting the old one that holds it.
-        for (int index = 0; index < incoming.size(); index++) {
-            AssignmentExample source = incoming.get(index);
-            if (index < this.examples.size()) {
-                AssignmentExample target = this.examples.get(index);
-                target.setOrder(index + 1);
-                target.setInput(source.getInput());
-                target.setOutput(source.getOutput());
-                target.setExplanation(source.getExplanation());
+    public void setExamples(List<AssignmentExample> examples) {
+        List<AssignmentExample> replacements = examples == null ? List.of() : examples;
+        Map<Integer, AssignmentExample> current = new HashMap<>();
+        this.examples.forEach(example -> current.put(example.getOrder(), example));
+        Set<Integer> keptOrders = new HashSet<>();
+        for (AssignmentExample replacement : replacements) {
+            keptOrders.add(replacement.getOrder());
+            AssignmentExample existing = current.get(replacement.getOrder());
+            if (existing == null) {
+                addExample(replacement);
             } else {
-                source.setAssignment(this);
-                source.setOrder(index + 1);
-                this.examples.add(source);
+                existing.setInput(replacement.getInput());
+                existing.setOutput(replacement.getOutput());
+                existing.setExplanation(replacement.getExplanation());
             }
         }
-        // Drop the surplus tail rows (highest order values, so no unique-key overlap on flush).
-        if (this.examples.size() > incoming.size()) {
-            this.examples.subList(incoming.size(), this.examples.size()).clear();
-        }
+        this.examples.removeIf(example -> !keptOrders.contains(example.getOrder()));
     }
     public void addExample(AssignmentExample example) {
         example.setAssignment(this);
-        example.setOrder(this.examples.size() + 1);
         this.examples.add(example);
     }
 
@@ -304,4 +304,9 @@ public class Assignment {
     public void setMaxPoints(BigDecimal maxPoints) { this.maxPoints = maxPoints; }
     public Long getVersion() { return version; }
     public void setVersion(Long version) { this.version = version; }
+    public AssignmentAiPolicy getAiPolicy() { return aiPolicy; }
+    public void setAiPolicy(AssignmentAiPolicy aiPolicy) {
+        this.aiPolicy = aiPolicy;
+        if (aiPolicy != null) aiPolicy.setAssignment(this);
+    }
 }

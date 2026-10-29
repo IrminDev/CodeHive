@@ -264,4 +264,24 @@ class GroupMetricsControllerIntegrationTest {
                 .andExpect(jsonPath("$.data.enrollment.active").value(0))
                 .andExpect(jsonPath("$.data.overallSubmissionRate").value(nullValue()));
     }
+    @Test
+    void ownerGetsOneStudentsGradesAndOthersCannot() throws Exception {
+        mockMvc.perform(get("/api/groups/{group}/metrics/students/{student}/assignments", group.getId(), ada.getId())
+                        .header("Authorization", "Bearer " + teacherToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data", hasSize(1)))
+                .andExpect(jsonPath("$.data[0].grade.value").value(95.0))
+                .andExpect(jsonPath("$.data[0].grade.status").value("RETURNED"));
+        mockMvc.perform(get("/api/groups/{group}/metrics/students/{student}/assignments", group.getId(), konrad.getId())
+                        .header("Authorization", "Bearer " + teacherToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].grade").value(nullValue()));
+        mockMvc.perform(get("/api/groups/{group}/metrics/students/{student}/assignments", group.getId(), ada.getId())
+                        .header("Authorization", "Bearer " + adaToken))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/groups/{group}/metrics/students/{student}/assignments", group.getId(), teacher.getId())
+                        .header("Authorization", "Bearer " + teacherToken))
+                .andExpect(status().isNotFound());
+    }
+
 }

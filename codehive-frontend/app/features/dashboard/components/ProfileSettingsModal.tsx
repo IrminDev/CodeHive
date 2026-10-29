@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { X, Lock, User, Loader2, LogOut } from "lucide-react";
 import { sileo } from "sileo";
-import { updatePassword } from "../api/dashboard.api";
 import { useAuth } from "~/core/providers/AuthProvider";
 
 interface ProfileSettingsModalProps {
@@ -10,7 +9,7 @@ interface ProfileSettingsModalProps {
 }
 
 export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ isOpen, onClose }) => {
-  const { user, logout } = useAuth();
+  const { user, logout, updatePassword } = useAuth();
   const [activeTab, setActiveTab] = useState<"profile" | "security">("profile");
 
   const [currentPassword, setCurrentPassword] = useState("");

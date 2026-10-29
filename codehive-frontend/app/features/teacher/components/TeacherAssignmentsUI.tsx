@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   AlertTriangle,
   CalendarClock,
@@ -10,6 +10,7 @@ import {
   Eye,
   FileCode2,
   LoaderCircle,
+  MoreHorizontal,
   Pencil,
   RefreshCw,
   Search,
@@ -28,7 +29,6 @@ import {
   SelectValue,
 } from "~/shared/components/ui/Select";
 import { Dropdown } from "~/shared/components/ui/Dropdown";
-import { ActionMenu } from "./TeacherActionMenu";
 import type {
   AssignmentManagementStatus,
   AssignmentValidationStatus,
@@ -42,8 +42,6 @@ import {
   StatusPill,
   TeacherLoading,
 } from "./TeacherUI";
-
-export type AssignmentLifecycle = "active" | "deleted";
 
 export function assignmentGroupLifecycle(group: TeacherGroup): "active" | "archived" | "deleted" {
   if (!group.isActive) return "deleted";
@@ -173,9 +171,9 @@ export function AssignmentList({
   const last = Math.min((page + 1) * pageSize, totalElements);
 
   return (
-    <section className={`${panelClass} relative overflow-hidden`} aria-busy={loading}>
+    <section className={`${panelClass} relative`} aria-busy={loading}>
       {loading && (
-        <div className="absolute inset-x-0 top-0 z-10 h-0.5 overflow-hidden bg-azure/10 dark:bg-yellow/10">
+        <div className="absolute inset-x-0 top-0 z-10 h-0.5 overflow-hidden rounded-t-2xl bg-azure/10 dark:bg-yellow/10">
           <div className="h-full w-1/3 animate-pulse bg-azure dark:bg-yellow" />
         </div>
       )}
@@ -198,7 +196,7 @@ export function AssignmentList({
         ))}
       </div>
 
-      <footer className="flex flex-col gap-3 border-t border-gray-100 bg-gray-50 px-5 py-3 dark:border-gray-800/60 dark:bg-dark-card sm:flex-row sm:items-center sm:justify-between">
+      <footer className="flex flex-col gap-3 rounded-b-2xl border-t border-gray-100 bg-gray-50 px-5 py-3 dark:border-gray-800/60 dark:bg-dark-card sm:flex-row sm:items-center sm:justify-between">
         <p className="text-xs text-gray-500">Showing <span className="font-mono font-medium text-gray-700 dark:text-gray-300">{first}–{last}</span> of <span className="font-mono font-medium text-gray-700 dark:text-gray-300">{totalElements}</span></p>
         <div className="flex items-center gap-2">
           <button type="button" className={compactButtonClass} disabled={page === 0 || loading} onClick={() => onPage(page - 1)} aria-label="Previous page"><ChevronLeft size={14} /><span className="hidden sm:inline">Previous</span></button>
@@ -218,18 +216,13 @@ function AssignmentRow({ assignment, onStatus, onDelete }: { assignment: Teacher
   return (
     <article className="group relative px-5 py-4 transition-colors hover:bg-gray-50/80 dark:hover:bg-dark-card/40">
       <span className={`absolute inset-y-3 left-0 w-1 rounded-r-full ${rail}`} aria-hidden="true" />
-      <button type="button" onClick={onStatus} aria-label={`Open ${assignment.title} status`} className="absolute inset-0 z-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-inset focus:ring-azure dark:focus:ring-yellow" />
-      <div className="pointer-events-none relative z-10 flex flex-col gap-4 lg:flex-row lg:items-center">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="truncate text-base font-semibold text-gray-900 dark:text-white group-hover:text-azure dark:group-hover:text-yellow">{assignment.title}</h3>
-            <StatusPill label={assignment.validationStatus} tone={tone} />
-            {assignment.pendingUpdate && (
-              <span className="inline-flex items-center gap-1.5">
-                <LoaderCircle size={12} className="animate-spin text-azure dark:text-yellow" />
-                <StatusPill label="updating" tone="info" />
-              </span>
-            )}
+            <h3 className="truncate text-base font-semibold text-gray-900 dark:text-white">{assignment.title}</h3>
+            <button type="button" onClick={onStatus} className="rounded-full focus:outline-none focus:ring-2 focus:ring-azure dark:focus:ring-yellow" aria-label={`View ${assignment.title} validation status`}>
+              <StatusPill label={assignment.validationStatus} tone={tone} />
+            </button>
             <StatusPill label={schedule.label} tone={schedule.tone} />
           </div>
 
@@ -246,7 +239,7 @@ function AssignmentRow({ assignment, onStatus, onDelete }: { assignment: Teacher
           )}
         </div>
 
-        <div className="pointer-events-auto flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {assignment.validationStatus === "READY" ? (
             <Link to={`/teacher/assignments/${assignment.id}/preview`} className="inline-flex items-center gap-1.5 rounded-lg bg-azure/10 px-3 py-2 text-xs font-semibold text-azure transition-colors hover:bg-azure hover:text-white dark:bg-yellow/10 dark:text-yellow dark:hover:bg-yellow dark:hover:text-imperial"><Eye size={14} /> Preview</Link>
           ) : (
@@ -264,22 +257,46 @@ function AssignmentRow({ assignment, onStatus, onDelete }: { assignment: Teacher
 }
 
 function AssignmentMenu({ assignment, onStatus, onDelete }: { assignment: TeacherAssignment; onStatus: () => void; onDelete: () => void }) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function closeOutside(event: MouseEvent) {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+    }
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setOpen(false);
+        triggerRef.current?.focus();
+      }
+    }
+    document.addEventListener("mousedown", closeOutside);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("mousedown", closeOutside);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [open]);
+
   return (
-    <ActionMenu label={`More actions for ${assignment.title}`}>
-      {(close) => (
-        <>
-          <MenuButton icon={<ClipboardCheck size={14} />} label="Validation status" onClick={() => { close(); onStatus(); }} />
-          <MenuLink to={`/teacher/assignments/${assignment.id}/revalidate`} icon={<RefreshCw size={14} />} label="Update tests/code" onClick={close} />
-          <MenuLink to={`/teacher/assignments/${assignment.id}/clone`} icon={<Copy size={14} />} label="Clone assignment" onClick={close} />
-          <button type="button" role="menuitem" onClick={() => { close(); onDelete(); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs text-red-500 hover:bg-red-500/10"><Trash2 size={14} /> Delete assignment</button>
-        </>
+    <div ref={rootRef} className="relative">
+      <button ref={triggerRef} type="button" onClick={() => setOpen((value) => !value)} className={compactButtonClass} aria-haspopup="menu" aria-expanded={open} aria-label={`More actions for ${assignment.title}`}><MoreHorizontal size={14} /></button>
+      {open && (
+        <div role="menu" className="absolute right-0 z-20 mt-1 w-48 rounded-xl border border-gray-200 bg-white p-1 shadow-xl dark:border-gray-700 dark:bg-dark-card">
+          <MenuButton icon={<ClipboardCheck size={14} />} label="Validation status" onClick={() => { setOpen(false); onStatus(); }} />
+          <MenuLink to={`/teacher/assignments/${assignment.id}/revalidate`} icon={<RefreshCw size={14} />} label="Update tests/code" />
+          <MenuLink to={`/teacher/assignments/${assignment.id}/clone`} icon={<Copy size={14} />} label="Clone assignment" />
+          <button type="button" role="menuitem" onClick={() => { setOpen(false); onDelete(); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs text-red-500 hover:bg-red-500/10"><Trash2 size={14} /> Delete assignment</button>
+        </div>
       )}
-    </ActionMenu>
+    </div>
   );
 }
 
-function MenuLink({ to, icon, label, onClick }: { to: string; icon: ReactNode; label: string; onClick?: () => void }) {
-  return <Link role="menuitem" to={to} onClick={onClick} className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-surface">{icon}{label}</Link>;
+function MenuLink({ to, icon, label }: { to: string; icon: ReactNode; label: string }) {
+  return <Link role="menuitem" to={to} className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-surface">{icon}{label}</Link>;
 }
 
 function MenuButton({ icon, label, onClick }: { icon: ReactNode; label: string; onClick: () => void }) {
@@ -290,7 +307,7 @@ export function AssignmentStatusDrawer({ assignment, status, loading, onClose }:
   const headingRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
-    headingRef.current?.focus({ preventScroll: true });
+    headingRef.current?.focus();
     function closeOnEscape(event: KeyboardEvent) {
       if (event.key === "Escape") onClose();
     }
@@ -384,10 +401,6 @@ function assignmentSchedule(assignment: TeacherAssignment): { label: string; det
   if (assignment.dueDate && Date.parse(assignment.dueDate) < now) return { label: "Overdue", detail: `Due ${formatDateTime(assignment.dueDate)}`, tone: "error" };
   if (assignment.dueDate) return { label: "Open", detail: `Due ${formatDateTime(assignment.dueDate)}`, tone: "success" };
   return { label: "Open", detail: "No due date", tone: "success" };
-}
-
-function formatDate(value: string): string {
-  return new Date(value).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" });
 }
 
 function formatDateTime(value: string): string {

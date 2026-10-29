@@ -58,6 +58,18 @@ Error handling is centralized in:
 - `POST /api/assignments/{id}/restore` restores a logically deleted assignment.
 - Teacher assignment listings accept lifecycle, validation-status, and title-query filters with pagination.
 - `GET /api/assignments/{id}/management-status` returns validation failure, update history, and latest reevaluation progress.
+- `PUT /api/assignments/{id}/ai-policy` updates owner-controlled AI enabled state, lifetime quota, and assistance level immediately.
+
+### AssistantController
+
+- `GET /api/assignments/{id}/assistant` returns student-only eligibility, current policy, quota, and pending interaction ID.
+- `POST /api/assignments/{id}/assistant/interactions` reserves a request, runs guarded model review, and returns only validated completed/redirection content or blocked status; global `ASSISTANT_ENABLED` defaults false.
+- Existing `AssistantHistoryController` serves student-owned history even after assistance eligibility ends.
+
+### PersonalAssistantUsageController
+
+- Personal statistics use the authenticated student and route group ID; query scope overrides are rejected.
+- The controller binder excludes `groupId` and `assignmentId` from `AssistantUsageQuery` because Spring also binds URI variables into `@ModelAttribute`. Explicit query scope parameters still return 400; date and pagination filters remain supported.
 
 ### GroupController
 - Any user with `CREATE_GROUP` can create a group; teachers receive the scope by default.
@@ -74,9 +86,6 @@ Error handling is centralized in:
 - `GET /api/submissions/mine/assignment/{assignmentId}` is student-only and returns every
   definitive attempt newest-first. Persisted verdict/time/memory summaries remain available
   after report artifacts expire; `reportAvailable` controls links to detailed reports.
-- `GET /api/submissions/mine/{submissionId}/source` is student-only and returns the language and
-  stored source of one of the caller's own submissions. Another student's submission answers 404,
-  the same as a missing one, so submission ids cannot be probed.
 
 ### AssignmentStudentWorkController
 
@@ -122,3 +131,9 @@ Error handling is centralized in:
 4. Add @RateLimit if endpoint can be abused.
 5. Add method security annotations when role-restricted.
 6. Document endpoint with OpenAPI annotations.
+
+### Owner student analytics
+
+- `GET /api/groups/{groupId}/metrics/students/{studentId}/assignments` returns one active student's assignment work and draft/returned grades to the group owner.
+- `GET /api/groups/{groupId}/assistant-usage/students/{studentId}` returns student-scoped group usage; `/assignments` returns paginated assignment usage and lifetime quota.
+- Student scope comes from the route. Client `userId` filters remain rejected. Ownership and the student's enrollment/history association are checked before aggregation.

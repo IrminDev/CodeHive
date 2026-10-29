@@ -7,10 +7,11 @@ import { CodeEditor } from "~/shared/components/CodeEditor";
 import { CalendarInput } from "~/shared/components/ui/CalendarInput";
 import { Dropdown } from "~/shared/components/ui/Dropdown";
 import { sileo } from "sileo";
-import { useAuth } from "~/core/providers/AuthProvider";
 import { createAssignment, getActiveTeacherGroups } from "../api/assignment.api";
 import type { AssignmentExample, Language, ComparatorType, TeacherGroup } from "../api/assignment.api";
 import { TeacherShell } from "../components/TeacherShell";
+import { AiPolicyFields, normalizeAiPolicy, validAiPolicy } from "../components/AiPolicyFields";
+import type { AiPolicySettings } from "../types/assignment.types";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -211,7 +212,6 @@ function UploadZone({ file, onFile, accept, hint }: {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export function CreateAssignmentPage() {
-  const ownerId = useAuth().user?.id ?? "";
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -231,6 +231,9 @@ export function CreateAssignmentPage() {
   const [timeLimitMs, setTimeLimitMs]             = useState(2000);
   const [memoryLimitMb, setMemoryLimitMb]         = useState(256);
   const [maxPoints, setMaxPoints]                 = useState(100);
+  const [aiPolicy, setAiPolicy] = useState<AiPolicySettings>({
+    aiAssistanceEnabled: false, maxAiRequests: 0, aiAssistanceLevel: "CONCEPTUAL_ONLY",
+  });
   const [comparatorType, setComparatorType]       = useState<ComparatorType>("EXACT_MATCH");
   const [publishMode, setPublishMode]             = useState<PublishMode>("immediately");
   const [launchDate, setLaunchDate]               = useState("");
@@ -255,7 +258,7 @@ export function CreateAssignmentPage() {
 
   useEffect(() => {
     let cancelled = false;
-    void getActiveTeacherGroups(ownerId)
+    void getActiveTeacherGroups()
       .then((items) => {
         if (cancelled) return;
         setGroups(items);
@@ -273,7 +276,7 @@ export function CreateAssignmentPage() {
         if (!cancelled) setGroupsLoading(false);
       });
     return () => { cancelled = true; };
-  }, [ownerId, searchParams]);
+  }, [searchParams]);
 
   // ── Tag helpers ──
   function addTag() {
@@ -399,6 +402,10 @@ export function CreateAssignmentPage() {
   // ── Submit ──
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!validAiPolicy(aiPolicy)) {
+      sileo.error({ title: "AI answer quota must be a whole number from 1 to 10." });
+      return;
+    }
     if (allowedLanguages.length === 0) {
       sileo.error({ title: "Select at least one allowed language." });
       return;
@@ -470,6 +477,7 @@ export function CreateAssignmentPage() {
           closeDate: close,
           examples: normalizedExamples,
           maxPoints,
+          ...normalizeAiPolicy(aiPolicy),
           sampleFlags: testCases.map((tc) => tc.isSample),
         },
         resolvedSolution,
@@ -851,6 +859,8 @@ export function CreateAssignmentPage() {
                   </button>
                 </div>
               </SectionCard>
+
+              <AiPolicyFields value={aiPolicy} onChange={setAiPolicy} />
 
               <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] rounded-2xl border border-gray-700/40 bg-dark-card p-5">
                 <div>

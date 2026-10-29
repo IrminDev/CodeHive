@@ -21,9 +21,11 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.github.codehive.model.dto.AssignmentDTO;
+import com.github.codehive.model.dto.AiPolicyDTO;
 import com.github.codehive.model.dto.AssignmentManagementStatusDTO;
 import com.github.codehive.model.dto.AssignmentUpdateDTO;
 import com.github.codehive.model.dto.CloneAssignmentFormDTO;
@@ -31,10 +33,12 @@ import com.github.codehive.model.dto.AssignmentPreviewDTO;
 import com.github.codehive.model.request.assignment.CreateAssignmentRequest;
 import com.github.codehive.model.request.assignment.CloneAssignmentRequest;
 import com.github.codehive.model.request.assignment.UpdateAssignmentRequest;
+import com.github.codehive.model.request.assignment.UpdateAiPolicyRequest;
 import com.github.codehive.model.response.ErrorResponse;
 import com.github.codehive.model.response.PageResponse;
 import com.github.codehive.model.response.SuccessResponse;
 import com.github.codehive.service.AssignmentService;
+import com.github.codehive.service.AssignmentAiPolicyService;
 import com.github.codehive.service.AssignmentUpdateService;
 import com.github.codehive.service.TeacherAssignmentStatusService;
 import com.github.codehive.model.enums.AssignmentValidationStatus;
@@ -57,13 +61,25 @@ public class AssignmentController {
     private final AssignmentService assignmentService;
     private final AssignmentUpdateService assignmentUpdateService;
     private final TeacherAssignmentStatusService teacherAssignmentStatusService;
+    private final AssignmentAiPolicyService assignmentAiPolicyService;
 
     public AssignmentController(AssignmentService assignmentService,
                                 AssignmentUpdateService assignmentUpdateService,
-                                TeacherAssignmentStatusService teacherAssignmentStatusService) {
+                                TeacherAssignmentStatusService teacherAssignmentStatusService,
+                                AssignmentAiPolicyService assignmentAiPolicyService) {
         this.assignmentService = assignmentService;
         this.assignmentUpdateService = assignmentUpdateService;
         this.teacherAssignmentStatusService = teacherAssignmentStatusService;
+        this.assignmentAiPolicyService = assignmentAiPolicyService;
+    }
+
+    @PutMapping("/{id}/ai-policy")
+    @Operation(summary = "Update assignment AI assistance policy immediately")
+    public ResponseEntity<SuccessResponse<AiPolicyDTO>> updateAiPolicy(
+            @PathVariable UUID id, @Valid @RequestBody UpdateAiPolicyRequest request,
+            Authentication authentication) {
+        return ResponseEntity.ok(new SuccessResponse<>("AI assistance policy updated.",
+                assignmentAiPolicyService.update(id, request, authentication.getName())));
     }
 
     @PatchMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

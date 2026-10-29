@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Plus } from "lucide-react";
 import { Link, useSearchParams } from "react-router";
 import { sileo } from "sileo";
-import { useAuth } from "~/core/providers/AuthProvider";
 
 import {
   deleteAssignment,
@@ -36,33 +35,7 @@ import type { TeacherGroup } from "../types/group.types";
 const PAGE_SIZE = 20;
 const VALIDATION_REFRESH_INTERVAL_MS = 5_000;
 
-// Remember the last browsed group and filters per tab, so returning to the bare
-// /teacher/assignments route (e.g. after visiting a detail page) restores that context
-// instead of snapping back to the first group.
-const LIST_CONTEXT_KEY = "teacher.assignments.context";
-type ListContext = { groupId: string; validationStatus?: string; query?: string; page?: string };
-
-function readListContext(): ListContext | null {
-  try {
-    const raw = sessionStorage.getItem(LIST_CONTEXT_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as ListContext;
-    return parsed && typeof parsed.groupId === "string" ? parsed : null;
-  } catch {
-    return null;
-  }
-}
-
-function writeListContext(context: ListContext): void {
-  try {
-    sessionStorage.setItem(LIST_CONTEXT_KEY, JSON.stringify(context));
-  } catch {
-    /* sessionStorage may be unavailable; navigation still works from the URL. */
-  }
-}
-
 export function TeacherAssignmentsPage() {
-  const ownerId = useAuth().user?.id ?? "";
   const [params, setParams] = useSearchParams();
   const [groups, setGroups] = useState<TeacherGroup[]>([]);
   const [result, setResult] = useState<AssignmentPage | null>(null);
@@ -72,7 +45,7 @@ export function TeacherAssignmentsPage() {
   const [listError, setListError] = useState<string | null>(null);
   const [refreshVersion, setRefreshVersion] = useState(0);
   const [queryInput, setQueryInput] = useState(params.get("query") ?? "");
-  const [action, setAction] = useState<{ assignment: TeacherAssignment } | null>(null);
+  const [assignmentToDelete, setAssignmentToDelete] = useState<TeacherAssignment | null>(null);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<AssignmentManagementStatus | null>(null);
   const [statusAssignment, setStatusAssignment] = useState<TeacherAssignment | null>(null);
@@ -83,8 +56,9 @@ export function TeacherAssignmentsPage() {
   const rawValidation = params.get("validationStatus");
   const validationStatus: "" | AssignmentValidationStatus = isValidationStatus(rawValidation) ? rawValidation : "";
   const query = params.get("query") ?? "";
-  const page = parsePage(params.get("page"));
-  const statusId = params.get("statusId") ?? "";
+  const legacyDeletedView = params.get("lifecycle") === "deleted";
+  const page = legacyDeletedView ? 0 : parsePage(params.get("page"));
+  const statusId = legacyDeletedView ? "" : params.get("statusId") ?? "";
   const selectedGroup = groups.find((group) => group.id === groupId);
 
   function updateParams(changes: Record<string, string | undefined>, replace = true) {
@@ -98,25 +72,30 @@ export function TeacherAssignmentsPage() {
     }, { replace });
   }
 
+  useEffect(() => {
+    if (!params.has("lifecycle")) return;
+    setParams((current) => {
+      const next = new URLSearchParams(current);
+      if (next.get("lifecycle") === "deleted") {
+        next.delete("page");
+        next.delete("statusId");
+      }
+      next.delete("lifecycle");
+      return next;
+    }, { replace: true });
+  }, [params, setParams]);
+
   const loadGroups = useCallback(async () => {
     setGroupsLoading(true);
     setGroupsError(null);
     try {
-      const items = await listTeacherGroups(ownerId, false);
+      const items = await listTeacherGroups(true);
       setGroups(items);
       setParams((current) => {
         const currentId = current.get("groupId");
         if (currentId && items.some((group) => group.id === currentId)) return current;
-        const next = new URLSearchParams(current);
-        const saved = readListContext();
-        if (saved && items.some((group) => group.id === saved.groupId)) {
-          next.set("groupId", saved.groupId);
-          setParam(next, "validationStatus", saved.validationStatus);
-          setParam(next, "query", saved.query);
-          setParam(next, "page", saved.page);
-          return next;
-        }
         const preferred = [...items].sort(compareGroupPriority)[0];
+        const next = new URLSearchParams(current);
         if (preferred) next.set("groupId", preferred.id);
         else next.delete("groupId");
         next.delete("page");
@@ -129,7 +108,7 @@ export function TeacherAssignmentsPage() {
     } finally {
       setGroupsLoading(false);
     }
-  }, [ownerId, setParams]);
+  }, [setParams]);
 
   useEffect(() => { void loadGroups(); }, [loadGroups]);
 
@@ -149,6 +128,7 @@ export function TeacherAssignmentsPage() {
       const next = await getTeacherAssignmentPage(groupId, page, PAGE_SIZE, {
         query: query.trim() || undefined,
         validationStatus: validationStatus || undefined,
+        deletedOnly: false,
       });
       setResult(next);
       if (page > 0 && page >= next.totalPages) {
@@ -170,16 +150,6 @@ export function TeacherAssignmentsPage() {
   }, [result]);
 
   useEffect(() => { setQueryInput(query); }, [query]);
-
-  useEffect(() => {
-    if (!groupId) return;
-    writeListContext({
-      groupId,
-      validationStatus: validationStatus || undefined,
-      query: query || undefined,
-      page: page > 0 ? String(page + 1) : undefined,
-    });
-  }, [groupId, validationStatus, query, page]);
 
   useEffect(() => {
     if (queryInput === query) return;
@@ -220,12 +190,12 @@ export function TeacherAssignmentsPage() {
   }, [statusId]);
 
   async function runAction() {
-    if (!action) return;
+    if (!assignmentToDelete) return;
     setBusy(true);
     try {
-      await deleteAssignment(action.assignment.id);
+      await deleteAssignment(assignmentToDelete.id);
       sileo.success({ title: "Assignment deleted." });
-      setAction(null);
+      setAssignmentToDelete(null);
       await loadAssignments();
     } catch (cause) {
       sileo.error({ title: errorMessage(cause, "Action failed.") });
@@ -271,21 +241,16 @@ export function TeacherAssignmentsPage() {
           ) : (
             <>
               {listError && <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-500">{listError} <button type="button" onClick={() => setRefreshVersion((value) => value + 1)} className="ml-2 font-semibold underline">Retry</button></div>}
-              <AssignmentList assignments={assignments} loading={listLoading} page={page} pageSize={PAGE_SIZE} totalElements={result?.totalElements ?? 0} totalPages={result?.totalPages ?? 0} onPage={(nextPage) => updateParams({ page: nextPage > 0 ? String(nextPage + 1) : undefined }, false)} onStatus={(assignment) => { setStatusAssignment(assignment); updateParams({ statusId: assignment.id }, false); }} onDelete={(assignment) => setAction({ assignment })} />
+              <AssignmentList assignments={assignments} loading={listLoading} page={page} pageSize={PAGE_SIZE} totalElements={result?.totalElements ?? 0} totalPages={result?.totalPages ?? 0} onPage={(nextPage) => updateParams({ page: nextPage > 0 ? String(nextPage + 1) : undefined }, false)} onStatus={(assignment) => { setStatusAssignment(assignment); updateParams({ statusId: assignment.id }, false); }} onDelete={setAssignmentToDelete} />
             </>
           )}
         </>
       )}
 
       {statusId && <AssignmentStatusDrawer assignment={statusAssignment} status={status} loading={statusLoading} onClose={() => updateParams({ statusId: undefined }, false)} />}
-      <ConfirmDialog open={Boolean(action)} title={action ? `Delete ${action.assignment.title}?` : "Delete assignment?"} description="Students lose access, but submissions and grading history remain stored." confirmLabel={busy ? "Working…" : "Delete assignment"} danger busy={busy} onCancel={() => setAction(null)} onConfirm={() => void runAction()} />
+      <ConfirmDialog open={Boolean(assignmentToDelete)} title={`Delete ${assignmentToDelete?.title ?? "assignment"}?`} description="Students lose access, but submissions and grading history remain stored." confirmLabel={busy ? "Working…" : "Delete assignment"} danger busy={busy} onCancel={() => setAssignmentToDelete(null)} onConfirm={() => void runAction()} />
     </TeacherShell>
   );
-}
-
-function setParam(params: URLSearchParams, key: string, value: string | undefined): void {
-  if (value) params.set(key, value);
-  else params.delete(key);
 }
 
 function isValidationStatus(value: string | null): value is AssignmentValidationStatus {
@@ -306,6 +271,6 @@ function errorMessage(cause: unknown, fallback: string): string {
   return cause instanceof Error ? cause.message : fallback;
 }
 
-export function shouldPollAssignmentValidation(assignments: readonly Pick<TeacherAssignment, "validationStatus" | "pendingUpdate">[]): boolean {
-  return assignments.some((assignment) => assignment.validationStatus === "PROCESSING" || assignment.pendingUpdate === true);
+export function shouldPollAssignmentValidation(assignments: readonly Pick<TeacherAssignment, "validationStatus">[]): boolean {
+  return assignments.some((assignment) => assignment.validationStatus === "PROCESSING");
 }

@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router";
-import { useAuth } from "~/core/providers/AuthProvider";
 import {
   ArrowLeft,
   CalendarClock,
@@ -46,7 +45,6 @@ import {
   TeacherPageHeader,
 } from "../components/TeacherUI";
 import type { TeacherGroup } from "../types/group.types";
-import { gradableGroups } from "../utils/gradebook-groups";
 import type {
   AssignmentMetrics,
   AssignmentMetricsDetail,
@@ -58,10 +56,9 @@ import type {
 } from "../types/student-work.types";
 
 type StudentFilter = "all" | "to-grade" | "draft" | "returned" | "missing";
-type ReviewTab = "code" | "tests" | "history";
+import type { ReviewTab } from "../components/TeacherGradebook";
 
 export function TeacherGradesPage() {
-  const ownerId = useAuth().user?.id ?? "";
   const [params, setParams] = useSearchParams();
   const [groups, setGroups] = useState<TeacherGroup[]>([]);
   const [assignments, setAssignments] = useState<AssignmentMetrics[]>([]);
@@ -131,13 +128,13 @@ export function TeacherGradesPage() {
 
   useEffect(() => {
     let cancelled = false;
-    void listTeacherGroups(ownerId, false)
+    void listTeacherGroups(false)
       .then((items) => {
-        const visible = gradableGroups(items);
+        const active = items.filter((item) => item.isActive && !item.archived);
         if (!cancelled) {
-          setGroups(visible);
-          if (!visible.some((item) => item.id === groupId))
-            navigate(visible[0]?.id);
+          setGroups(active);
+          if (!active.some((item) => item.id === groupId))
+            navigate(active[0]?.id);
         }
       })
       .catch((cause) =>
@@ -151,7 +148,7 @@ export function TeacherGradesPage() {
     return () => {
       cancelled = true;
     };
-  }, [ownerId]);
+  }, []);
   const loadAssignments = useCallback(async () => {
     if (!groupId) return setAssignments([]);
     setLoading(true);
@@ -422,38 +419,7 @@ export function TeacherGradesPage() {
               <Send size={14} /> Publish all drafts ({detail.draftGrades})
             </button>
           </header>
-          <div className="mb-5 grid grid-cols-2 lg:grid-cols-5 gap-3">
-            <Metric
-              label="Students"
-              value={detail.activeStudents}
-              icon={<Users size={14} />}
-              tone="neutral"
-            />
-            <Metric
-              label="Delivered"
-              value={detail.submittedCount}
-              icon={<FileCheck2 size={14} />}
-              tone="info"
-            />
-            <Metric
-              label="Missing"
-              value={detail.missingCount}
-              icon={<Inbox size={14} />}
-              tone={detail.missingCount ? "error" : "success"}
-            />
-            <Metric
-              label="Drafts"
-              value={detail.draftGrades}
-              icon={<Clock3 size={14} />}
-              tone={detail.draftGrades ? "warning" : "neutral"}
-            />
-            <Metric
-              label="Published"
-              value={detail.returnedGrades}
-              icon={<GraduationCap size={14} />}
-              tone="success"
-            />
-          </div>
+
           <div className="grid gap-5 lg:grid-cols-[290px_minmax(0,1fr)]">
             <StudentRail
               students={shownStudents}
@@ -469,6 +435,7 @@ export function TeacherGradesPage() {
             />
             {student ? (
               <Workspace
+                groupId={groupId}
                 student={student}
                 detail={detail}
                 review={review}

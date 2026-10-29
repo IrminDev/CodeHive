@@ -72,6 +72,7 @@ Responsibilities:
 - Upload reference solution and test case inputs to MinIO via ObjectStorageService.
 - Publish TestGenerationJob to `codehive_test_generation_queue`.
 - Assignment is logically active on creation and has validationStatus PROCESSING until the worker reports READY or FAILED.
+- Create/clone assignment AI policy as disabled/0/conceptual by default. `AssignmentAiPolicyService` applies owner-authorized immediate policy changes on a separate versioned row, without invoking worker validation.
 
 ## GroupService
 Responsibilities:
@@ -79,6 +80,18 @@ Responsibilities:
 - Enroll only STUDENT users while retaining leave/removal history.
 - Enforce owner-only roster, archive, logical-delete, restore, update, and join-code rotation operations regardless of owner role.
 - Treat archived groups as read-only and hide logically deleted groups from students.
+- Archive and logical deletion call `AssistantTextPurgeService` transactionally to erase assistant text and cancel pending responses while retaining charged usage records. Admin-owned group lifecycle changes use the same purge.
+
+## AssistantHistoryService
+- Lists and retrieves authenticated student's own interaction records; current enrollment and assignment openness are not prerequisites for history reads.
+- Only metadata remains after group archive/deletion.
+
+## Assistant stages 3–5
+- `AssistantTransactionService` serializes reservation and finalization with group/conversation locks, uses interaction rows as lifetime quota ledger, enforces idempotency and lease expiry, and never calls a model in a transaction. `AssistantLeaseRecoveryJob` expires abandoned requests.
+- `AssistantContextService` builds allowlisted public assignment data, current editor code only after explicit opt-in, and latest eligible student execution summary only after separate opt-in. It omits definitive hidden diagnostics and policy-incompatible or erased history.
+- `AssistantGuardrailService` classifies inputs, generates structured candidate answers, applies deterministic and semantic output checks, permits one regeneration, and retains separate input and output reviews. Each interaction has a shared maximum of five model invocations (normally three, or one for a blocked input); idempotent replay starts no new model work. `SpringAiAssistantModelGateway` adapts Spring AI `ChatModel`; the Google GenAI starter supplies Gemini when `ASSISTANT_MODEL_PROVIDER=google-genai` and `GEMINI_API_KEY` are set. `GEMINI_MODEL` defaults to `gemini-3.5-flash-lite`; provider defaults to `none`, so startup needs no key. Gateway supplies a native JSON schema per stage in Google runtime options and bounds output, concurrency, per-call timeout, and per-process provider calls per minute. `AssistantGoogleGenAiConfiguration` preserves API-key/Vertex authentication and supplies a fixed one-attempt Spring retry template plus one-attempt SDK options. Spring AI stays at 1.1.8; Google SDK is pinned to 1.76.0 for its public custom HTTP client API. HTTP connection recovery and redirects are disabled, and request bodies are marked one-shot to prevent automatic POST replay (including 503 with Retry-After: 0); optional `assistant.google-genai.base-url` supports a local fixture server or configured endpoint. Provider errors terminate without automatic retry; project-level Gemini RPM/TPM/RPD remain external limits.
+- Prompt version `educational-assistant-v4` shares explicit topic and active-level scope across input review, generation, and output review. Unrelated requests receive reviewed educational redirection: unrelated programming topics permit at most two brief conceptual sentences without code or implementation steps, followed by assignment relevance and a return to assignment questions; unrelated nonprogramming topics receive only a polite scope explanation. Relevance claims must follow public assignment context, without inventing intended solutions. General programming fundamentals remain allowed. Injection and abuse remain blocked. Output review enforces the same topic distinction. Conceptual mode permits general concepts only, not assignment-solving strategy; guiding permits limited contextual hints without code/pseudocode or a complete algorithm; snippets mode permits isolated bounded fragments, never a complete or cumulatively reconstructed solution. These limits apply equally to explanations, snippets, and follow-up questions. Review must reject scope violations even when answers are accurate and snippets are empty. Semantic enforcement remains model-based, so deterministic fake-model tests validate prompt delivery and rejection handling rather than real-provider compliance.
+- `AssistantService` orchestrates student-only POST/availability through `AssistantController`, using immutable refreshed policy snapshots to avoid same-request JPA cache/version races. Model calls occur outside ledger transactions; finalization locks group/conversation and rechecks policy and eligibility. Any reserved policy-version change (including quota-only edits) cancels uncharged before the next call or during the single delivery attempt; there is no policy revalidation. Historical `POLICY_REVALIDATION` stage records remain readable. Provider failure stops uncharged; archive clears text and prevents late answer release. Global `ASSISTANT_ENABLED` defaults false. Outcome logs use IDs/status/attempts/duration/safe code only; model logs use model ID/token totals/duration only. Provider rate-limit responses map to `MODEL_RATE_LIMITED` without raw provider details.
 
 ## AdminUserService
 Responsibilities:
@@ -160,3 +173,12 @@ Configuration-driven fields:
 - Avoid direct HTTP concerns in services.
 - Keep queue and storage payload-building deterministic.
 - Prefer explicit logging at workflow boundaries for observability.
+
+## Assistant usage instrumentation
+
+`AssistantModelCallRecorder` persists technical calls in independent short transactions.
+Context carries interaction ID, stage, attempt, and prompt version through executor explicitly.
+Provider text never enters telemetry. Start failures prevent transmission; terminal writes are
+idempotent. Caller timeout stays separate from late provider results. Scheduled recovery marks
+old STARTED rows UNKNOWN without calling provider. Legacy interaction token columns are unused.
+See [implementation status](../../../docs/ai-assistant/AI_USAGE_IMPLEMENTATION.md).

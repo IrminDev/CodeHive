@@ -10,6 +10,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.github.codehive.model.enums.ComparatorType;
 import com.github.codehive.model.enums.Language;
 import com.github.codehive.model.enums.AssignmentValidationStatus;
+import com.github.codehive.model.enums.AiAssistanceLevel;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class AssignmentDTO {
@@ -37,7 +38,19 @@ public class AssignmentDTO {
     private BigDecimal maxPoints;
     private UUID activeTestSuiteRevisionId;
     private UUID activeReferenceSolutionRevisionId;
-    private boolean pendingUpdate;
+    private boolean aiAssistanceEnabled;
+    private int maxAiRequests;
+    private AiAssistanceLevel aiAssistanceLevel;
+    private long aiPolicyVersion;
+
+    public boolean isAiAssistanceEnabled() { return aiAssistanceEnabled; }
+    public void setAiAssistanceEnabled(boolean enabled) { this.aiAssistanceEnabled = enabled; }
+    public int getMaxAiRequests() { return maxAiRequests; }
+    public void setMaxAiRequests(int maxAiRequests) { this.maxAiRequests = maxAiRequests; }
+    public AiAssistanceLevel getAiAssistanceLevel() { return aiAssistanceLevel; }
+    public void setAiAssistanceLevel(AiAssistanceLevel level) { this.aiAssistanceLevel = level; }
+    public long getAiPolicyVersion() { return aiPolicyVersion; }
+    public void setAiPolicyVersion(long version) { this.aiPolicyVersion = version; }
 
     public UUID getGroupId() { return groupId; }
     public void setGroupId(UUID groupId) { this.groupId = groupId; }
@@ -49,8 +62,6 @@ public class AssignmentDTO {
     public void setCloseDate(Instant closeDate) { this.closeDate = closeDate; }
     public AssignmentValidationStatus getValidationStatus() { return validationStatus; }
     public void setValidationStatus(AssignmentValidationStatus validationStatus) { this.validationStatus = validationStatus; }
-    public boolean isPendingUpdate() { return pendingUpdate; }
-    public void setPendingUpdate(boolean pendingUpdate) { this.pendingUpdate = pendingUpdate; }
     public List<AssignmentExampleDTO> getExamples() { return examples; }
     public void setExamples(List<AssignmentExampleDTO> examples) { this.examples = examples; }
 

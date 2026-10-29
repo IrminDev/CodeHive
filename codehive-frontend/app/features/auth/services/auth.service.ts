@@ -8,7 +8,7 @@ import type {
 import type { CsvTaskResponse } from "~/features/admin/types/admin.types";
 
 import * as authApi from "../api/auth.api";
-import { getAuthToken } from "~/core/storage/token.storage";
+import { getAuthToken, setAuthToken } from "~/core/storage/token.storage";
 
 export const AuthService = {
   login(credentials: LoginRequest) {
@@ -32,8 +32,10 @@ export const AuthService = {
     return authApi.getMe(getAuthToken());
   },
 
-  updatePassword(currentPassword: string, newPassword: string) {
-    return authApi.updatePassword(currentPassword, newPassword, getAuthToken());
+  async updatePassword(currentPassword: string, newPassword: string) {
+    const response = await authApi.updatePassword(currentPassword, newPassword, getAuthToken());
+    setAuthToken(response.data.token);
+    return response;
   },
 
   forgotPassword(request: ForgotPasswordRequest) {

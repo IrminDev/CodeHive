@@ -33,23 +33,16 @@ withdrawn submission history is not treated as a delivery.
 
 `StudentHeader` and `StudentSidebar` keep dashboard and group pages visually and
 functionally aligned. Group navigation points to `/groups`; `/groups/join` is used
-only for explicit join actions. Students holding `CREATE_GROUP` also get **Manage groups**,
-which opens the shared group-management workspace at `/teacher/groups`.
+only for explicit join actions.
+
+Student profile lives in the header as an accessible avatar button, matching the teacher
+layout. It opens the shared Profile settings modal; Security updates the password through
+the existing authenticated password API. Closing the student modal clears its form state.
+The sidebar contains navigation only.
 
 Students can leave a group from its detail page after confirmation. The page posts to
 `POST /api/groups/{id}/leave`, returns to My groups on success, and explains that a
 future join with the code restores historical enrollment.
-
-## Owned and Enrolled Groups
-
-`GET /api/groups` returns a student's enrolled groups and, when the student holds
-`CREATE_GROUP`, the groups they own. `splitGroupsByOwnership` separates both sets by `ownerId`:
-
-- My groups, the dashboard group panel, and the join page list only enrolled groups.
-- My groups adds **Groups you manage** for students with `CREATE_GROUP`, linking each owned group
-  to `/teacher/groups/{id}` and `/teacher/analytics?groupId={id}`, plus group creation.
-- Opening `/groups/{id}` for an owned group redirects to its management page, so student-only
-  actions such as Progress and Leave class never target a group the student owns.
 
 ## Group Metrics
 
@@ -81,19 +74,36 @@ The workspace header links to `/assignment/{id}/submissions` for complete defini
 history; this avoids a duplicate partial history panel beside problem content.
 
 The workspace also links to the assignment's row in `/grades`, shows returned points when present,
-and uses functional Problem/Editor/Tests panes below `lg`. AI help remains visibly disabled as
-**Coming soon** until a real backend contract exists.
+and uses functional Problem/Editor/Tests panes below `lg`. AI help opens a responsive assistant
+panel. It loads quota/availability and paginated own history, including content-erased metadata
+after group archive. New questions use separate, initially-off editor-code and latest-finished-
+execution opt-ins; editor text is sent only when explicitly selected. Answers appear only after
+the backend commits validated output. Pending work is polled; interrupted requests refresh history
+and can retry with the same in-memory idempotency key. No generated code enters the editor.
+The composer discloses before submission that Gemini receives the question, public assignment
+details, and relevant earlier assistant messages. It also explains that editor code and the latest
+finished execution result are shared only when their separate checkboxes are selected.
+Students must open and accept the compact disclosure before asking. Acceptance is stored in
+browser storage per user and disclosure version; accepted users no longer see the disclosure
+button in that browser. Structured answers render explanation, syntax-highlighted code
+snippets, and follow-up question separately; fenced code in legacy answers is also
+highlighted when its language is supported. Code remains inert text.
+Panel and full history render right-aligned student bubbles and left-aligned assistant bubbles,
+without internal result labels or failure codes. New questions appear immediately with an animated
+thinking indicator. Only backend-approved replies receive a local progressive reveal; existing
+history appears immediately. Students can skip the reveal, and reduced-motion preferences disable
+it. Follow-up questions use violet text with separate light/dark colors. The panel follows new
+content while at the bottom, preserves position when loading older questions, and lets students
+scroll back while an answer appears.
+The panel blocks new questions when policy, quota, assignment lifecycle, or enrollment disallows
+them, while retained history remains readable.
+`/assignment/:id/assistant-history` loads directly by conversation ownership, without the normal
+assignment workspace endpoint. It preserves history access after enrollment/assignment eligibility
+ends and renders metadata-only entries after archive/deletion.
 
 When a current definitive submission exists, the workspace disables a new submit and shows a
 confirmed **Withdraw to update** action. Withdrawal retains history and results, then enables the
 student to submit editor code as the next version before the assignment closes.
-
-Editor code survives reloads and language switches. The workspace keeps one draft per student and
-assignment in `localStorage` (`codehive:draft:{userId}:{assignmentId}`, holding `user`, `assignment`,
-`language`, `code`, `updatedAt`). On entry it restores the draft first, then the current submission's
-code from `GET /api/submissions/mine/{submissionId}/source`, then the first allowed language's
-template. Switching language keeps the typed code and only swaps an untouched template; an
-untouched template is never stored as a draft.
 
 Submission history uses persisted backend summaries and never substitutes development mocks.
 Execution-report pages poll pending work, render OLE and other verdicts, and explain the 90-day
@@ -104,3 +114,24 @@ bounded worker diagnostics and exit codes in expandable panels, while definitive
 still hide private inputs and expected outputs. Memory displays use MiB and render an
 unavailable marker when telemetry is null or legacy data contains zero; UI never claims
 that a real execution consumed `0 MB`.
+
+## AI usage statistics
+
+Shared module: `app/features/assistant-usage`. Student class progress
+`/groups/:groupId/metrics#ai-usage` embeds `PersonalUsageBrief`: questions, answers used,
+unanswered questions and pending questions for the last 30 days. Loading, retry, empty state,
+manual refresh and local answer-completion refresh are independent of academic enrollment
+metrics, preserving access to own historical counts. No technical details or group-wide quota.
+Legacy `/ai-usage?groupId=...` redirects to class progress; without a group it redirects to
+`/groups`. Assistant panel links directly to its class; no separate sidebar entry. Teacher route
+`/teacher/analytics` embeds a group summary plus per-assignment counts in the assignment drawer's AI Usage tab. Group and assignment counts share the last-30-days window; a paginated
+group request loads assignment usage without per-assignment requests. AI failures and retries
+are independent of academic metrics. Archived/deleted owned groups remain selectable. Legacy
+`section=ai` URLs open the integrated page and discard that parameter.
+Admin route `/admin/ai-usage` requires CHECK_ANALYTICS; user rows/details require VIEW_USERS too.
+Admin user detail includes an AI usage tab. Role clients reuse existing authenticated helpers.
+Filters, search, sort and pagination stay in URL; requests abort/ignore stale results on scope
+changes and session identity remounts state. No statistics polling. Technical coverage remains
+explicit; nullable tokens are not zero. Lifetime quota is per assignment and independent of dates.
+Recharts has a UTC daily table alternative. See
+[implementation contract](../../../docs/ai-assistant/AI_USAGE_IMPLEMENTATION.md).

@@ -28,6 +28,7 @@ import com.github.codehive.model.response.auth.AuthResponse;
 import com.github.codehive.ratelimit.RateLimit;
 import com.github.codehive.service.AuthService;
 import com.github.codehive.service.CsvRegistrationService;
+import com.github.codehive.websocket.WebSocketTicketService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirements;
@@ -44,10 +45,13 @@ import jakarta.validation.Valid;
 public class AuthController {
     private final AuthService authService;
     private final CsvRegistrationService csvRegistrationService;
+    private final WebSocketTicketService webSocketTicketService;
 
-        public AuthController(AuthService authService, CsvRegistrationService csvRegistrationService) {
+    public AuthController(AuthService authService, CsvRegistrationService csvRegistrationService,
+                          WebSocketTicketService webSocketTicketService) {
         this.authService = authService;
         this.csvRegistrationService = csvRegistrationService;
+        this.webSocketTicketService = webSocketTicketService;
     }
 
     @Operation(summary = "Get current user", description = "Returns the authenticated user's information based on the JWT token")
@@ -128,14 +132,34 @@ public class AuthController {
             throw new ValidationException("CSV file is empty");
         }
         byte[] csvData = file.getBytes();
-        String taskId = csvRegistrationService.submitCsvJob(csvData);
-        authService.auditCsvSubmission(authentication.getName(), taskId, csvData.length);
+        String taskId = csvRegistrationService.submitCsvJob(csvData, authentication.getName());
         Map<String, String> taskInfo = Map.of("taskId", taskId);
         SuccessResponse<Map<String, String>> response = new SuccessResponse<>("CSV processing started", taskInfo);
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
     }
 
-    @Operation(summary = "Update password", description = "Update the authenticated user's password")
+    @Operation(summary = "Issue a one-time WebSocket ticket",
+            description = "Returns a 60-second, single-use ticket for the CSV progress WebSocket handshake.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "WebSocket ticket issued",
+                    content = @Content(schema = @Schema(implementation = SuccessResponse.class))),
+            @ApiResponse(responseCode = "401", description = "Invalid or missing token",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "429", description = "Too many requests",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    @RateLimit(key = "auth.websocket-ticket", limit = 10, duration = 60,
+            message = "Too many WebSocket ticket requests")
+    @PostMapping("/websocket-ticket")
+    public ResponseEntity<SuccessResponse<Map<String, Object>>> websocketTicket(Authentication authentication) {
+        UserDTO user = authService.getUserByEmail(authentication.getName());
+        Map<String, Object> ticket = Map.of(
+                "ticket", webSocketTicketService.issue(user.getId()),
+                "expiresInSeconds", WebSocketTicketService.TTL_SECONDS);
+        return ResponseEntity.ok(new SuccessResponse<>("WebSocket ticket issued", ticket));
+    }
+
+    @Operation(summary = "Update password", description = "Update the authenticated user's password, revoke existing JWTs, and return a replacement session")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Password updated successfully"),
             @ApiResponse(responseCode = "400", description = "Validation error"),
@@ -144,11 +168,11 @@ public class AuthController {
     })
     @RateLimit(limit = 5, duration = 300, message = "Too many password change attempts. Please try again in 5 minutes.")
     @PutMapping("/me/password")
-    public ResponseEntity<SuccessResponse<Void>> updatePassword(
+    public ResponseEntity<SuccessResponse<AuthResponse>> updatePassword(
             Authentication authentication,
             @Valid @RequestBody UpdatePasswordRequest request) {
         UserDTO userDTO = authService.getUserByEmail(authentication.getName());
-        authService.updatePassword(userDTO.getId(), request);
-        return ResponseEntity.ok(new SuccessResponse<>("Password updated successfully", null));
+        AuthResponse session = authService.updatePassword(userDTO.getId(), request);
+        return ResponseEntity.ok(new SuccessResponse<>("Password updated successfully", session));
     }
 }

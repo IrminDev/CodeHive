@@ -8,8 +8,8 @@ import com.github.codehive.model.enums.ExecutionStatus;
 import com.github.codehive.model.enums.StudentWorkStatus;
 
 /**
- * One published assignment seen from the authenticated student's own perspective:
- * their current submission, verdict, attempts, and returned grade (drafts excluded).
+ * One assignment's student work, verdict, attempts, and grade. Student self views
+ * include published assignments and returned grades; owner views also include drafts.
  */
 public record StudentAssignmentMetricsDTO(
         UUID assignmentId,

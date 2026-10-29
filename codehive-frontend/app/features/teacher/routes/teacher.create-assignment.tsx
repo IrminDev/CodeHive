@@ -1,6 +1,7 @@
 import type { Route } from "./+types/teacher.create-assignment";
-import { GroupManagementRoute } from "../components/GroupManagementRoute";
+import { ProtectedRoute } from "~/core/components/ProtectedRoute";
 import { CreateAssignmentPage } from "../pages/CreateAssignmentPage";
+import { Role } from "~/shared/types/model/User";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -11,8 +12,8 @@ export function meta({}: Route.MetaArgs) {
 
 export default function TeacherCreateAssignment() {
   return (
-    <GroupManagementRoute>
+    <ProtectedRoute roles={[Role.TEACHER]}>
       <CreateAssignmentPage />
-    </GroupManagementRoute>
+    </ProtectedRoute>
   );
 }

@@ -25,7 +25,7 @@ These are composed by landing page modules rather than tightly coupled to route 
 Student navigation is shared by:
 
 - `app/features/student/components/StudentHeader.tsx` — breadcrumb, search shell,
-  notification placeholder, theme toggle, and logout.
+  notification settings, theme toggle, profile/password settings, and logout.
 - `app/features/student/components/StudentSidebar.tsx` — dashboard, groups, join,
   and assignments navigation with active state.
 

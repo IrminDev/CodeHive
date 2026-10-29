@@ -1,16 +1,10 @@
-import { DoorOpenIcon, ClipboardList, GraduationCap, Home, Presentation, Users } from "lucide-react";
+import { DoorOpenIcon, ClipboardList, GraduationCap, Home, Users } from "lucide-react";
 import { Link } from "react-router";
 import type { ReactNode } from "react";
-
-import { useAuth } from "~/core/providers/AuthProvider";
-import { canManageGroups } from "~/shared/lib/group-management";
 
 export type StudentNavigation = "dashboard" | "groups" | "join" | "assignments" | "grades" | "notifications";
 
 export function StudentSidebar({ active }: { active: StudentNavigation }) {
-  const { user } = useAuth();
-  const firstName = user?.name?.split(" ")[0] ?? "ST";
-
   return (
     <aside className="w-14 flex-shrink-0 flex flex-col items-center py-4 gap-1 bg-gray-50 dark:bg-dark-surface border-r border-gray-200 dark:border-gray-800/60">
       <Link to="/dashboard" className="mb-4 flex-shrink-0" aria-label="Dashboard">
@@ -24,11 +18,7 @@ export function StudentSidebar({ active }: { active: StudentNavigation }) {
         <SidebarLink icon={<DoorOpenIcon size={20} />} label="Join group" to="/groups/join" active={active === "join"} />
         <SidebarLink icon={<ClipboardList size={20} />} label="Assignments" to="/assignments" active={active === "assignments"} />
         <SidebarLink icon={<GraduationCap size={20} />} label="Grades" to="/grades" active={active === "grades"} />
-        {canManageGroups(user) && <SidebarLink icon={<Presentation size={20} />} label="Manage groups" to="/teacher/groups" />}
       </nav>
-      <div title={user?.name} className="w-9 h-9 rounded-full bg-azure flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
-        {firstName.slice(0, 2).toUpperCase()}
-      </div>
     </aside>
   );
 }

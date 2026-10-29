@@ -3,7 +3,7 @@
 ## Routes
 
 - `/teacher` — action dashboard with validation failures, grading queue, deadlines, and recent submissions.
-- `/teacher/assignments` — paginated assignment management across active and archived groups.
+- `/teacher/assignments` — paginated assignment management across active, archived, and deleted groups.
 - `/teacher/create-assignment` — assignment form.
 - `/teacher/assignments/:assignmentId/clone` — editable clone form.
 - `/teacher/assignments/:assignmentId/edit` — metadata, schedule, and public-example update form.
@@ -15,18 +15,7 @@
 - `/teacher/analytics` — group overview, assignment details, and student metrics.
 - `/teacher/notifications` — authenticated email notification preferences.
 
-Management routes use `GroupManagementRoute`, which admits teachers and students holding
-`CREATE_GROUP` (`canManageGroups` in `app/shared/lib/group-management.ts`), mirroring the
-backend rule that group owners manage their groups regardless of role. `/teacher/notifications`
-stays `Role.TEACHER` only, because notification catalogs are role-specific.
-
-## Student Group Owners
-
-A student with `CREATE_GROUP` reaches this workspace from **Manage groups** in the student
-sidebar. `GET /api/groups` returns that student's owned and enrolled groups together, so teacher
-group lists (`listTeacherGroups`, `getActiveTeacherGroups`) keep only groups whose `ownerId`
-matches the signed-in user. For student users, `TeacherShell` links its notification bell to
-`/notifications` and adds a **Student area** link back to `/dashboard`.
+All routes use `ProtectedRoute` with `Role.TEACHER`.
 
 ## Application Shell
 
@@ -38,43 +27,31 @@ confirmation, field, and panel patterns live in `components/TeacherUI.tsx`.
 
 ## Management Workflows
 
-- Assignment list filters by group, validation status, and title; each assignment exposes preview, edit,
-  revalidate, clone, grade, and management status.
-- Row and hero menus use `ActionMenu` (`components/TeacherActionMenu.tsx`), which renders the menu in a
-  portal with fixed positioning anchored to its trigger. Teacher panels use `overflow-hidden`, which
-  clipped the previous absolute menus and hid actions such as **Delete assignment**, **Delete group**,
-  and **Remove student**. The menu closes on selection, outside click, `Escape`, scroll, and resize.
+- Create and clone assignment forms include AI enable, lifetime quota (1–10 when enabled, 0 when disabled), and three assistance levels. Edit page saves AI policy immediately through a separate owner-authorized endpoint. Main save also persists pending AI changes before assignment content, stops on policy failure, and skips unchanged policy writes.
+
+- Assignment list shows non-deleted assignments, filtered by group, validation status, and title.
+  It has no deleted-assignment filter or restore action. Legacy `lifecycle=deleted` URLs reset
+  pagination and close the status drawer before showing the normal list. Each assignment exposes
+  preview, edit, revalidate, clone, grade, and management status.
 - Management status combines latest validation failure, update history, and latest reevaluation batch.
-- A published (READY) assignment with a staged revision still validating shows an intermediate
-  **Updating** pill (`AssignmentDTO.pendingUpdate`); the list keeps polling until the update settles,
-  so the row never sits silently on READY while work is in progress.
-- The status side panel is the primary way to follow an assignment: clicking anywhere on the row card
-  opens it (an overlay `<button className="absolute inset-0">` under `pointer-events-none` content, with
-  the action controls re-enabled via `pointer-events-auto`), mirroring how selecting an assignment opens
-  its drawer in Analytics. After saving an edit, `EditAssignmentPage` returns to
-  `/teacher/assignments?groupId=…&statusId=…` so the teacher lands on the just-modified assignment's
-  status view instead of the general list.
-- Assignment and analytics drawers focus their heading with `focus({ preventScroll: true })`. `autoFocus`
-  (or a plain `focus()`) scrolls the custom `<main>` scroller to reveal the focused node even though the
-  drawer is a `fixed` overlay, which reset the background list to the first assignment; `preventScroll`
-  keeps the list where it was so closing the panel returns the teacher to the same spot.
-- The assignment list persists its navigation context (selected group, validation-status filter, search
-  query, page) in `sessionStorage` under `teacher.assignments.context`. On return with no explicit
-  `groupId`, the page restores that context when the saved group still exists; an explicit `groupId` in
-  the URL (e.g. the post-update `statusId` deep link) takes precedence over the saved context.
 - Grade review drawer exposes every attempt, retained source, execution evidence, and grade audit history.
-- The gradebook offers archived groups next to active ones, active first (`gradableGroups`), because an
-  owner keeps grading, grade return, and feedback on archived groups. Deleted groups stay out.
-- Archived state uses the same orange lifecycle accent as the groups list and group detail: an orange rail
-  above the gradebook toolbar, an orange selector outline, an `archived` pill on the group option, and an
-  orange notice explaining that students see the group as read-only while grading stays open.
-- Deletion is terminal in the teacher UI: deleting a group or an assignment is permanent from the
-  teacher's side. Deleted groups and assignments are never listed, browsable, or restorable through the
-  frontend, and confirmation copy does not promise recovery. The backend keeps the records and its
-  restore endpoints, but no teacher-facing screen calls them (`INCREMENTOIII.pdf`, CH3-9 and the group
-  lifecycle rules describe deletion without a teacher restore path).
+- Gradebook student workspace includes an AI Usage tab scoped to selected student and assignment.
+  Loads full-history question/answer counts, unanswered questions, regenerations, lifetime quota,
+  and last activity only while tab is open, including students without submissions.
+  Uses owner student-assignment usage API with assignmentId and lifetime=true; supports refresh,
+  retry, and cancellation on student/assignment/session changes. Missing records remain unavailable.
 - Teacher dashboard aggregates owned active groups, students, assignments, grading queue, validation
   problems, upcoming lifecycle dates, and recent submissions server-side.
+- Group detail separates Assignments (default) and Students into keyboard-accessible tabs. Assignment rows include a three-dot menu for edit, clone, and confirmed deletion; successful deletion reloads group content. Archived groups allow cloning but hide edit/delete. Assignment and roster cards allow menus to extend beyond their bounds.
+  Group hero's More menu links to Analytics scoped to that group, including archived groups;
+  there is no standalone AI usage link on the detail page.
+- Group hero actions use matching compact heights. Share opens a centered native modal with
+  join code and copy action; the code is not displayed inline. The active-group join notice
+  is omitted, while archived/deleted lifecycle notes remain.
+- Detail hero shows creation date only. Join-code rotation lives in Share for writable groups
+  and closes Share before the existing confirmation. My groups exposes an Archived groups
+  button beside Create group; archived view offers Active groups to return and retains search
+  only when it matches the next lifecycle view.
 
 ## Clone Flow
 
@@ -101,6 +78,16 @@ so students can access the assignment as soon as asynchronous test generation ma
 launch date and keeps the assignment hidden until then.
 
 ## Assignment Editing
+
+Edit and validation pages use `TeacherShell`, shared page headings/panels, compact actions,
+and themed form controls. There is no assignment AI usage shortcut here. `AiPolicyFields`
+uses the shared Dropdown and can render an optional footer. Edit uses one Save changes/
+Validate and save action for assignment content and pending policy changes; there is
+no separate AI save button. The AI card shows whether policy edits are unsaved.
+AI policy applies on submission, regardless of subsequent assignment validation. Saved policy becomes the new baseline,
+so retrying failed assignment content does not write the same policy again. Controls
+lock while saving; unchanged policy does not trigger a version
+change that could cancel pending assistant work.
 
 `PATCH /api/assignments/{id}` always carries multipart `metadata`. Metadata, public examples,
 and schedule changes apply immediately. Empty schedule fields preserve their current value;
@@ -140,3 +127,35 @@ Other teacher API modules:
 - `client.ts` — shared bearer-token and `SuccessResponse<T>` parsing.
 
 Typed contracts live under `app/features/teacher/types/` and mirror backend DTOs/enums.
+
+## AI usage statistics
+
+Shared module: `app/features/assistant-usage`. Student class progress embeds own historical usage independently of academic enrollment metrics. Teacher route
+`/teacher/analytics` embeds a group summary plus per-assignment counts in the assignment drawer's AI Usage tab. Group and assignment counts share the last-30-days window; a paginated
+group request loads assignment usage without per-assignment requests. AI failures and retries
+are independent of academic metrics. Archived/deleted owned groups remain selectable. Legacy
+`section=ai` URLs open the integrated page and discard that parameter.
+Admin route `/admin/ai-usage` requires CHECK_ANALYTICS; user rows/details require VIEW_USERS too.
+Admin user detail includes an AI usage tab. Role clients reuse existing authenticated helpers.
+Filters, search, sort and pagination stay in URL; requests abort/ignore stale results on scope
+changes and session identity remounts state. No statistics polling. Technical coverage remains
+explicit; nullable tokens are not zero. Lifetime quota is per assignment and independent of dates.
+Recharts has a UTC daily table alternative. See
+[implementation contract](../../../docs/ai-assistant/AI_USAGE_IMPLEMENTATION.md).
+
+## Student analytics drawer
+
+Student rows in Analytics > Students use one full-row View details button, matching assignment
+rows; missing-work messages and grade shortcuts live in the drawer. Student names in an
+assignment's student breakdown also open the drawer.
+URL `studentId` identifies it; switching groups clears it. Overview shows academic summary and
+missing assignments. Grades shows drafts/returned grades and **lifetime** AI answers used for
+that student on each assignment, using assignment breakdown cards with verdicts, attempts,
+status pills, and Review work links. Drawer tabs reuse assignment drawer metric cards and
+section titles. AI Usage shows the student's questions, delivered answers,
+unanswered questions and pending questions for the last 30 days in this group.
+
+`TeacherStudentAnalyticsDrawer` loads grades plus owner-scoped AI summary and paginated assignment
+usage independently, cancels stale student/group/session requests, and supports retries/Escape.
+Missing usage is unavailable, never zero. Lifetime counts come from `quota.usedLifetime`, not
+period responses. Data is loaded only while the student drawer is open.

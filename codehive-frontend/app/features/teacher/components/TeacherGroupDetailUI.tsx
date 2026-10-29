@@ -1,7 +1,8 @@
 import type { FormEvent, ReactNode } from "react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Archive,
+  BarChart3,
   BookOpen,
   CalendarDays,
   CheckCircle2,
@@ -15,6 +16,7 @@ import {
   RefreshCw,
   RotateCcw,
   Search,
+  Share2,
   Trash2,
   UserMinus,
   Users,
@@ -31,7 +33,6 @@ import {
   panelClass,
   StatusPill,
 } from "./TeacherUI";
-import { ActionMenu } from "./TeacherActionMenu";
 
 type Lifecycle = "active" | "archived" | "deleted";
 
@@ -41,14 +42,13 @@ const lifecycleStyle: Record<
     accent: string;
     icon: string;
     tone: "success" | "warning" | "error";
-    note: string;
+    note?: string;
   }
 > = {
   active: {
     accent: "bg-azure dark:bg-yellow",
     icon: "bg-azure/10 text-azure dark:bg-yellow/10 dark:text-yellow",
     tone: "success",
-    note: "Students can join this group and access published assignments.",
   },
   archived: {
     accent: "bg-orange-500",
@@ -60,9 +60,11 @@ const lifecycleStyle: Record<
     accent: "bg-red-500",
     icon: "bg-red-500/10 text-red-500",
     tone: "error",
-    note: "This group has been deleted and is no longer available.",
+    note: "This deleted group is visible as historical data and can be restored.",
   },
 };
+
+const heroPrimaryActionClass = "inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-transparent bg-azure px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-french focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-azure focus-visible:ring-offset-2 disabled:opacity-50 dark:focus-visible:ring-yellow dark:focus-visible:ring-offset-dark-surface";
 
 function lifecycle(group: TeacherGroup): Lifecycle {
   if (!group.isActive) return "deleted";
@@ -96,6 +98,7 @@ export function GroupHero({
   onRotateCode,
   onArchiveToggle,
   onDelete,
+  onRestore,
 }: {
   group: TeacherGroup;
   busy: boolean;
@@ -104,13 +107,15 @@ export function GroupHero({
   onRotateCode: () => void;
   onArchiveToggle: () => void;
   onDelete: () => void;
+  onRestore: () => void;
 }) {
   const status = lifecycle(group);
   const style = lifecycleStyle[status];
+  const [sharing, setSharing] = useState(false);
 
   return (
-    <section className={`${panelClass} relative overflow-hidden`}>
-      <span className={`absolute inset-x-0 top-0 h-1 ${style.accent}`} />
+    <section className={`${panelClass} relative`}>
+      <span className={`absolute inset-x-0 top-0 h-1 rounded-t-2xl ${style.accent}`} />
       <div className="p-5 sm:p-6 lg:p-7">
         <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
           <div className="flex items-start gap-4 min-w-0">
@@ -133,7 +138,6 @@ export function GroupHero({
                 <span className="inline-flex items-center gap-1">
                   <CalendarDays size={11} /> Created {formatDate(group.createdAt)}
                 </span>
-                <span>Updated {formatDate(group.updatedAt)}</span>
               </div>
             </div>
           </div>
@@ -142,7 +146,7 @@ export function GroupHero({
             {status === "active" ? (
               <Link
                 to={`/teacher/create-assignment?groupId=${group.id}`}
-                className="btn-primary inline-flex items-center gap-1.5"
+                className={heroPrimaryActionClass}
               >
                 <Plus size={14} /> Create assignment
               </Link>
@@ -150,74 +154,110 @@ export function GroupHero({
               <button
                 disabled={busy}
                 onClick={onArchiveToggle}
-                className="btn-primary inline-flex items-center gap-1.5"
+                className={heroPrimaryActionClass}
               >
                 <RefreshCw size={14} /> Unarchive group
               </button>
-            ) : null}
+            ) : (
+              <button
+                disabled={busy}
+                onClick={onRestore}
+                className={heroPrimaryActionClass}
+              >
+                <RotateCcw size={14} /> Restore group
+              </button>
+            )}
+
+            {status !== "deleted" && <button type="button" disabled={busy || !group.joinCode} onClick={() => setSharing(true)} className={`${compactButtonClass} h-9`}>
+              <Share2 size={14} aria-hidden="true" /> Share
+            </button>}
 
             {status !== "deleted" && (
-              <ActionMenu
-                label="More group actions"
-                width="w-52"
-                trigger={<><MoreHorizontal size={15} /> More</>}
-              >
-                {(close) => (
-                  <>
-                    {status === "active" && (
-                      <>
-                        <MenuAction icon={<Edit3 size={14} />} label="Edit details" onClick={() => { close(); onEdit(); }} />
-                        <MenuAction icon={<RotateCcw size={14} />} label="Rotate join code" onClick={() => { close(); onRotateCode(); }} />
-                        <MenuAction icon={<Archive size={14} />} label="Archive group" onClick={() => { close(); onArchiveToggle(); }} />
-                      </>
-                    )}
-                    <MenuAction
-                      icon={<Trash2 size={14} />}
-                      label="Delete group"
-                      onClick={() => { close(); onDelete(); }}
-                      danger
-                    />
-                  </>
-                )}
-              </ActionMenu>
+              <details className="relative">
+                <summary
+                  className={`${compactButtonClass} h-9 list-none cursor-pointer`}
+                  aria-label="More group actions"
+                >
+                  <MoreHorizontal size={15} /> More
+                </summary>
+                <div className="absolute right-0 z-20 mt-1 w-52 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-dark-card shadow-xl p-1">
+                  <Link
+                    to={`/teacher/analytics?groupId=${encodeURIComponent(group.id)}`}
+                    onClick={(event) => event.currentTarget.closest("details")?.removeAttribute("open")}
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs text-gray-600 transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-azure dark:text-gray-300 dark:hover:bg-dark-surface dark:focus-visible:ring-yellow"
+                  >
+                    <BarChart3 size={14} aria-hidden="true" /> Analytics
+                  </Link>
+                  {status === "active" && (
+                    <>
+                      <MenuAction icon={<Edit3 size={14} />} label="Edit details" onClick={onEdit} />
+                      <MenuAction icon={<Archive size={14} />} label="Archive group" onClick={onArchiveToggle} />
+                    </>
+                  )}
+                  <MenuAction
+                    icon={<Trash2 size={14} />}
+                    label="Delete group"
+                    onClick={onDelete}
+                    danger
+                  />
+                </div>
+              </details>
             )}
           </div>
         </div>
 
-        <div className="mt-6 grid gap-3 lg:grid-cols-[minmax(0,1fr)_320px]">
+        {style.note && <div className="mt-5">
           <div className={`rounded-xl border px-4 py-3 text-xs ${
-            status === "active"
-              ? "border-azure/20 bg-azure/5 text-azure dark:border-yellow/20 dark:bg-yellow/5 dark:text-yellow"
-              : status === "archived"
+            status === "archived"
                 ? "border-orange-500/20 bg-orange-500/5 text-orange-600 dark:text-orange-400"
                 : "border-red-500/20 bg-red-500/5 text-red-600 dark:text-red-400"
           }`}>
             {style.note}
           </div>
-          <div className="rounded-xl border border-gray-200 dark:border-gray-700/60 bg-gray-50 dark:bg-dark-card px-4 py-3 flex items-center gap-3">
-            <div className="min-w-0 flex-1">
-              <p className="text-[10px] uppercase tracking-wide font-semibold text-gray-400 dark:text-gray-500">
-                Join code
-              </p>
-              <strong className="block mt-0.5 truncate font-mono text-lg tracking-widest text-azure dark:text-yellow">
-                {group.joinCode || "Unavailable"}
-              </strong>
-            </div>
-            {group.joinCode && (
-              <button
-                onClick={onCopyCode}
-                className="w-9 h-9 grid place-items-center rounded-lg text-gray-400 hover:text-azure dark:hover:text-yellow hover:bg-white dark:hover:bg-dark-surface transition-colors"
-                aria-label="Copy join code"
-                title="Copy join code"
-              >
-                <Copy size={16} />
-              </button>
-            )}
-          </div>
-        </div>
+        </div>}
       </div>
+      {sharing && <ShareGroupDialog group={group} busy={busy} onCopyCode={onCopyCode} onRotateCode={onRotateCode} onClose={() => setSharing(false)} />}
     </section>
   );
+}
+
+function ShareGroupDialog({ group, busy, onCopyCode, onRotateCode, onClose }: {
+  group: TeacherGroup; busy: boolean; onCopyCode: () => void; onRotateCode: () => void; onClose: () => void;
+}) {
+  const dialog = useRef<HTMLDialogElement>(null);
+
+  useEffect(() => {
+    const element = dialog.current;
+    element?.showModal();
+    return () => { if (element?.open) element.close(); };
+  }, []);
+
+  return <dialog ref={dialog} aria-labelledby="share-group-title" aria-describedby="share-group-description"
+    onCancel={(event) => { event.preventDefault(); onClose(); }} onClose={() => { if (!dialog.current?.open) onClose(); }}
+    onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}
+    className="fixed inset-0 m-auto w-[calc(100%_-_2rem)] max-w-md rounded-2xl border border-gray-200 bg-white p-6 text-gray-900 shadow-2xl backdrop:bg-dark-bg/50 backdrop:backdrop-blur-sm dark:border-gray-700/60 dark:bg-dark-card dark:text-gray-100">
+    <div className="flex items-start justify-between gap-4">
+      <div>
+        <span className="mb-3 grid h-10 w-10 place-items-center rounded-xl bg-azure/10 text-azure dark:bg-yellow/10 dark:text-yellow"><Share2 size={18} aria-hidden="true" /></span>
+        <h2 id="share-group-title" className="text-lg font-semibold">Share group</h2>
+        <p id="share-group-description" className="mt-1 break-words text-sm text-gray-500 dark:text-gray-400">{group.name}</p>
+      </div>
+      <button type="button" onClick={onClose} aria-label="Close share dialog" className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-azure dark:text-gray-400 dark:hover:bg-dark-surface dark:focus-visible:ring-yellow"><X size={18} aria-hidden="true" /></button>
+    </div>
+    <div className="mt-5 rounded-xl border border-gray-200 bg-gray-50 p-5 text-center dark:border-gray-700 dark:bg-dark-surface">
+      <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Join code</p>
+      <p className="mt-2 break-all font-mono text-3xl font-bold tracking-widest text-azure dark:text-yellow">{group.joinCode}</p>
+    </div>
+    <button type="button" autoFocus onClick={onCopyCode} className={`${heroPrimaryActionClass} mt-5 w-full`}><Copy size={14} aria-hidden="true" /> Copy join code</button>
+    {group.isActive && !group.archived && <div className="mt-4 border-t border-gray-100 pt-4 dark:border-gray-700/60">
+      <button type="button" disabled={busy} onClick={() => {
+        // Close the native modal before opening the page's confirmation dialog.
+        dialog.current?.close();
+        onClose();
+        onRotateCode();
+      }} className={`${compactButtonClass} h-9 w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-azure dark:focus-visible:ring-yellow`}><RotateCcw size={14} aria-hidden="true" /> Rotate join code</button>
+    </div>}
+  </dialog>;
 }
 
 export function GroupMetrics({
@@ -299,7 +339,7 @@ export function RosterPanel({
   const writable = group.isActive && !group.archived;
 
   return (
-    <section className={`${panelClass} overflow-hidden`}>
+    <section className={panelClass}>
       <header className="px-5 py-4 border-b border-gray-100 dark:border-gray-800/60">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -346,24 +386,26 @@ export function RosterPanel({
                 </p>
               </div>
               {writable && (
-                <ActionMenu
-                  label={`Actions for ${enrollment.student.fullName}`}
-                  width="w-44"
-                  triggerClassName="w-9 h-9 grid place-items-center rounded-lg flex-shrink-0 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-dark-card"
-                  trigger={<MoreHorizontal size={15} />}
-                >
-                  {(close) => (
+                <details className="relative flex-shrink-0">
+                  <summary
+                    className="w-9 h-9 grid place-items-center rounded-lg list-none cursor-pointer text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-dark-card"
+                    aria-label={`Actions for ${enrollment.student.fullName}`}
+                  >
+                    <MoreHorizontal size={15} />
+                  </summary>
+                  <div className="absolute right-0 z-10 mt-1 w-44 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-dark-card shadow-xl p-1">
                     <button
-                      type="button"
-                      role="menuitem"
                       disabled={busy}
-                      onClick={() => { close(); onRemove(enrollment); }}
+                      onClick={(event) => {
+                        event.currentTarget.closest("details")?.removeAttribute("open");
+                        onRemove(enrollment);
+                      }}
                       className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-red-500 hover:bg-red-500/10 disabled:opacity-50"
                     >
                       <UserMinus size={14} /> Remove student
                     </button>
-                  )}
-                </ActionMenu>
+                  </div>
+                </details>
               )}
             </div>
           ))}
@@ -376,13 +418,17 @@ export function RosterPanel({
 export function AssignmentsPanel({
   group,
   assignments,
+  busy,
+  onDelete,
 }: {
   group: TeacherGroup;
   assignments: TeacherAssignment[];
+  busy: boolean;
+  onDelete: (assignment: TeacherAssignment) => void;
 }) {
   const writable = group.isActive && !group.archived;
   return (
-    <section className={`${panelClass} overflow-hidden`}>
+    <section className={panelClass}>
       <header className="px-5 py-4 border-b border-gray-100 dark:border-gray-800/60 flex items-start justify-between gap-3">
         <div>
           <h2 className="font-semibold text-gray-900 dark:text-white">Assignments</h2>
@@ -437,6 +483,39 @@ export function AssignmentsPanel({
                     <span>{assignment.dueDate ? `Due ${formatDate(assignment.dueDate)}` : "No due date"}</span>
                   </div>
                 </div>
+                {assignment.isActive && (
+                  <details className="relative shrink-0" onKeyDown={(event) => {
+                    if (event.key === "Escape") {
+                      event.currentTarget.removeAttribute("open");
+                      event.currentTarget.querySelector("summary")?.focus();
+                    }
+                  }}>
+                    <summary aria-label={`More actions for ${assignment.title}`}
+                      className="grid h-9 w-9 cursor-pointer list-none place-items-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-azure dark:hover:bg-dark-card dark:hover:text-gray-200 dark:focus-visible:ring-yellow">
+                      <MoreHorizontal size={15} aria-hidden="true" />
+                    </summary>
+                    <div className="absolute right-0 z-20 mt-1 w-48 rounded-xl border border-gray-200 bg-white p-1 shadow-xl dark:border-gray-700 dark:bg-dark-card">
+                      {writable && <Link to={`/teacher/assignments/${assignment.id}/edit`}
+                        onClick={(event) => event.currentTarget.closest("details")?.removeAttribute("open")}
+                        className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-surface">
+                        <Edit3 size={14} aria-hidden="true" /> Edit assignment
+                      </Link>}
+                      <Link to={`/teacher/assignments/${assignment.id}/clone`}
+                        onClick={(event) => event.currentTarget.closest("details")?.removeAttribute("open")}
+                        className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-surface">
+                        <Copy size={14} aria-hidden="true" /> Clone assignment
+                      </Link>
+                      {writable && <button type="button" disabled={busy}
+                        onClick={(event) => {
+                          event.currentTarget.closest("details")?.removeAttribute("open");
+                          onDelete(assignment);
+                        }}
+                        className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs text-red-500 hover:bg-red-500/10 disabled:opacity-50">
+                        <Trash2 size={14} aria-hidden="true" /> Delete assignment
+                      </button>}
+                    </div>
+                  </details>
+                )}
               </div>
               <div className="mt-3 flex flex-wrap gap-2">
                 <Link
@@ -456,7 +535,7 @@ export function AssignmentsPanel({
           ))}
         </div>
       )}
-      <footer className="px-5 py-3 border-t border-gray-100 dark:border-gray-800/60 bg-gray-50 dark:bg-dark-card">
+      <footer className="rounded-b-2xl px-5 py-3 border-t border-gray-100 dark:border-gray-800/60 bg-gray-50 dark:bg-dark-card">
         <Link
           to="/teacher/assignments"
           className="text-xs font-medium text-gray-500 hover:text-azure dark:hover:text-yellow transition-colors"

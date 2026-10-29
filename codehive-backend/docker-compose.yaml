@@ -19,8 +19,9 @@ services:
       - "15672:15672"
 
   minio:
-    image: "minio/minio:RELEASE.2025-09-07T16-13-09Z-cpuv1"
+    image: "cgr.dev/chainguard/minio:latest"
     container_name: "minio"
+    user: root
     command: 'server /data --console-address ":9001"'
     ports:
       - "9000:9000"
@@ -37,7 +38,7 @@ services:
       retries: 5
 
   minio-init:
-    image: "minio/mc:latest"
+    image: "cgr.dev/chainguard/minio-client:latest-dev"
     container_name: "minio-init"
     depends_on:
       minio:

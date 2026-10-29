@@ -27,7 +27,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.github.codehive.model.dto.UserDTO;
 import com.github.codehive.model.entity.User;
-import com.github.codehive.model.enums.AdminAuditAction;
 import com.github.codehive.model.enums.Role;
 import com.github.codehive.model.enums.Scope;
 import com.github.codehive.model.exception.auth.AlreadyRegisteredEmailException;
@@ -50,7 +49,6 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final MailSenderService mailSenderService;
-    private final AdminAuditService auditService;
 
     // Regex pattern for email validation
     private static final Pattern EMAIL_PATTERN = Pattern.compile(
@@ -61,12 +59,11 @@ public class AuthService {
     private static final String DUMMY_HASH = new BCryptPasswordEncoder().encode("account-timing-equalizer");
 
     public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtUtil jwtUtil,
-                        MailSenderService mailSenderService, AdminAuditService auditService) {
+                        MailSenderService mailSenderService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
         this.mailSenderService = mailSenderService;
-        this.auditService = auditService;
     }
 
     /**
@@ -149,20 +146,7 @@ public class AuthService {
         if (requester.getRole() != Role.ADMIN || !authorized) {
             throw new AccessDeniedException("Missing scope: " + required.name());
         }
-        UserDTO created = register(request);
-        User target = userRepository.findById(created.getId()).orElse(null);
-        auditService.success(requester, target, AdminAuditAction.USER_CREATED, null,
-                "role=" + request.getRole());
-        return created;
-    }
-
-    /** Records who uploaded a bulk-registration CSV; rows are processed asynchronously afterwards. */
-    @Transactional
-    public void auditCsvSubmission(String requesterEmail, String taskId, long sizeBytes) {
-        User requester = userRepository.findByEmail(requesterEmail)
-                .orElseThrow(() -> new IncorrectCredentialsException("User not found"));
-        auditService.success(requester, null, AdminAuditAction.CSV_REGISTRATION_SUBMITTED, null,
-                "taskId=" + taskId + ", bytes=" + sizeBytes);
+        return register(request);
     }
 
     @Transactional
@@ -299,7 +283,7 @@ public class AuthService {
     }
 
     @Transactional
-    public void updatePassword(UUID userId, com.github.codehive.model.request.auth.UpdatePasswordRequest request) {
+    public AuthResponse updatePassword(UUID userId, com.github.codehive.model.request.auth.UpdatePasswordRequest request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IncorrectCredentialsException("User not found"));
 
@@ -311,5 +295,6 @@ public class AuthService {
         user.setTemporaryPassword(false);
         user.setTokenVersion(user.getTokenVersion() + 1);
         userRepository.save(user);
+        return new AuthResponse(generateToken(user), UserMapper.toDTO(user));
     }
 }

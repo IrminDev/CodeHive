@@ -31,12 +31,27 @@ import com.github.codehive.model.exception.recovery.InvalidRecoveryTokenExceptio
 import com.github.codehive.model.exception.recovery.TokenAlreadyUsedException;
 import com.github.codehive.model.exception.recovery.TokenNotFoundException;
 import com.github.codehive.model.response.ErrorResponse;
-import org.springframework.web.servlet.resource.NoResourceFoundException;
+import com.github.codehive.service.assistant.AssistantStateException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    @ExceptionHandler(AssistantStateException.class)
+    public ResponseEntity<ErrorResponse> handleAssistantState(AssistantStateException ex) {
+        HttpStatus status = switch (ex.getCode()) {
+            case "INVALID_REQUEST", "INVALID_MODEL_INPUT", "CONTEXT_TOO_LARGE" -> HttpStatus.BAD_REQUEST;
+            case "ASSISTANCE_UNAVAILABLE", "ASSISTANT_DISABLED" -> HttpStatus.FORBIDDEN;
+            case "IDEMPOTENCY_CONFLICT", "REQUEST_PENDING", "REQUEST_CANCELLED", "POLICY_CHANGED" -> HttpStatus.CONFLICT;
+            case "QUOTA_EXHAUSTED" -> HttpStatus.TOO_MANY_REQUESTS;
+            case "OUTPUT_REJECTED", "INPUT_REVIEW_INVALID", "REVIEW_INVALID", "REVIEW_BUDGET_EXCEEDED" -> HttpStatus.BAD_GATEWAY;
+            case "MODEL_TIMEOUT", "MODEL_INTERRUPTED" -> HttpStatus.GATEWAY_TIMEOUT;
+            case "MODEL_CALL_BUDGET_EXCEEDED" -> HttpStatus.SERVICE_UNAVAILABLE;
+            default -> HttpStatus.SERVICE_UNAVAILABLE;
+        };
+        return ResponseEntity.status(status).body(new ErrorResponse("Assistant request unavailable", ex.getCode()));
+    }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidationExceptions(MethodArgumentNotValidException ex) {
@@ -99,12 +114,6 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(EntityNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleEntityNotFound(EntityNotFoundException ex) {
         ErrorResponse errorResponse = new ErrorResponse(ex.getMessage(), "Resource not found");
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
-    }
-
-    @ExceptionHandler(NoResourceFoundException.class)
-    public ResponseEntity<ErrorResponse> handleNoResourceFound(NoResourceFoundException ex) {
-        ErrorResponse errorResponse = new ErrorResponse("No endpoint matches this path", "Resource not found");
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
     }
 

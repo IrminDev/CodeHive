@@ -93,6 +93,12 @@
   --color-dark-bg: #060c18;
   --color-dark-surface: #0d1525;
   --color-dark-card: #162033;
+
+  /* AI assistant accent: the brand azure and yellow, bridged by violet and pink */
+  --color-ai-azure: #2f7df6;
+  --color-ai-violet: #8b5cf6;
+  --color-ai-pink: #ec4899;
+  --color-ai-amber: #fdc500;
 }
 
 html {
@@ -265,6 +271,65 @@ body {
 /* Glass effect */
 .glass {
   @apply bg-white/70 dark:bg-dark-card/70 backdrop-blur-md border border-gray-200/50 dark:border-gray-700/50;
+}
+
+/* AI assistant trigger: a multicolor ring that flows while the assistant is idle,
+   quickens while it answers, and settles into a tinted fill once its panel is open. */
+.ai-trigger {
+  --ai-ring: linear-gradient(90deg, var(--color-ai-azure), var(--color-ai-violet), var(--color-ai-pink), var(--color-ai-amber), var(--color-ai-azure));
+  --ai-surface: var(--color-white);
+  --ai-veil: 100%;
+  border: 1.5px solid transparent;
+  background:
+    linear-gradient(color-mix(in srgb, var(--ai-surface) var(--ai-veil), transparent), color-mix(in srgb, var(--ai-surface) var(--ai-veil), transparent)) padding-box,
+    var(--ai-ring) border-box;
+  background-size: 100% 100%, 200% 100%;
+  animation: ai-ring-flow 7s linear infinite;
+  transition: box-shadow 0.25s ease, color 0.2s ease;
+}
+
+.dark .ai-trigger {
+  --ai-surface: var(--color-dark-surface);
+}
+
+.ai-trigger:hover,
+.ai-trigger:focus-visible {
+  --ai-veil: 92%;
+  box-shadow:
+    -6px 0 14px -6px color-mix(in srgb, var(--color-ai-azure) 70%, transparent),
+    0 0 12px -4px color-mix(in srgb, var(--color-ai-violet) 70%, transparent),
+    6px 0 14px -6px color-mix(in srgb, var(--color-ai-pink) 70%, transparent);
+}
+
+.ai-trigger:focus-visible {
+  outline: 2px solid var(--color-azure);
+  outline-offset: 2px;
+}
+
+.dark .ai-trigger:focus-visible {
+  outline-color: var(--color-yellow);
+}
+
+.ai-trigger[aria-pressed="true"] {
+  --ai-veil: 86%;
+  animation-play-state: paused;
+}
+
+.ai-trigger[data-busy="true"] {
+  animation-duration: 1.6s;
+  animation-play-state: running;
+}
+
+@keyframes ai-ring-flow {
+  to {
+    background-position: 0 0, 200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-trigger {
+    animation: none;
+  }
 }
 
 /* Button base styles */
