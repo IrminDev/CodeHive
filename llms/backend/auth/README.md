@@ -71,7 +71,10 @@ Do NOT re-parse the `Authorization` header in controller methods — the `Authen
 ## Update Password (/me/password)
 1. Same `Authentication` injection as `/me` to identify the caller.
 2. `UpdatePasswordRequest` carries `currentPassword` and `newPassword`.
-3. `AuthService.updatePassword(userId, request)` verifies current password, encodes and persists new password, and sets `temporaryPassword = false`.
+3. `AuthService.updatePassword(userId, request)` verifies current password, encodes and persists new password, sets `temporaryPassword = false`, and increments `tokenVersion` to revoke all previously issued JWTs.
+4. Returns `SuccessResponse<AuthResponse>` containing a replacement JWT with the new token version and updated `UserDTO`. Token issuance happens within the password-change transaction; the controller receives the result after successful commit.
+5. Frontend replaces the stored token before updating authenticated user state. The current browser remains signed in with the replacement token; old tokens remain invalid. Wrong-current-password failures neither rotate tokens nor change the password.
+6. Auth HTTP integration coverage verifies all three roles can access `/api/auth/me` using the returned token, while the previous token is rejected. Response never includes a password field.
 
 ## Data and Contracts
 Request classes:
@@ -95,7 +98,7 @@ User storage model:
 - `login(LoginRequest)` — authenticate by email or enrollment number, return JWT + UserDTO
 - `register(SignUpRequest)` — admin-only registration; generates temporary password and sends welcome email
 - `getUserByEmail(String email)` — load UserDTO from email; used by controllers receiving `Authentication`
-- `updatePassword(UUID userId, UpdatePasswordRequest)` — verify current password and persist new one
+- `updatePassword(UUID userId, UpdatePasswordRequest)` — verify current password, persist new one, revoke old JWTs, and return replacement JWT/UserDTO
 - `generateToken(User)` — build JWT with `userId` and `role` claims, `email` as subject
 
 ## Notes for Future Changes

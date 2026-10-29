@@ -35,6 +35,8 @@ Behavior details:
 - uploadCsv uses multipart/form-data.
 - getMe validates token by calling /me.
 - token storage is localStorage key authToken.
+- Password update returns `{ token, user }` inside the success envelope. `AuthService.updatePassword` stores the replacement token before returning; `AuthProvider.updatePassword` then replaces user state directly from that response. Shared and legacy profile modals use this provider action. No follow-up `/me` request with the revoked token is needed.
+- Authentication regression tests exercise the real profile modal, provider, service, and API client with mocked HTTP responses for student/teacher/admin; each checks that the next protected request uses the replacement JWT. Failed password changes preserve existing token and user state.
 - websocket URL rewrites http(s) base to ws(s) and appends /ws/csv-progress.
 
 ## RecoveryPasswordService
@@ -44,6 +46,7 @@ Base path:
 Implemented methods:
 - forgotPassword(request)
 - resetPassword(request)
+- updatePassword(currentPassword, newPassword)
 
 Behavior details:
 - Both methods post JSON payloads.

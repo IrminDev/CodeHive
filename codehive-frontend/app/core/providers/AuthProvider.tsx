@@ -22,6 +22,7 @@ interface AuthContextType {
 	hasAnyScope: (...scopes: Scope[]) => boolean;
 	logout: () => void;
 	refreshUser: () => Promise<void>;
+	updatePassword: (currentPassword: string, newPassword: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -54,6 +55,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	useEffect(() => {
 		fetchUser();
 	}, [fetchUser]);
+
+	const updatePassword = useCallback(async (currentPassword: string, newPassword: string) => {
+		const response = await AuthService.updatePassword(currentPassword, newPassword);
+		setUser(response.data.user);
+	}, []);
 
 	const hasRole = useCallback((role: Role) => user?.role === role, [user]);
 
@@ -90,6 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 				hasAnyScope,
 				logout,
 				refreshUser: fetchUser,
+				updatePassword,
 			}}
 		>
 			{children}

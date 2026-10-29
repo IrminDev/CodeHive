@@ -3,7 +3,6 @@ import { X, Lock, User, Loader2, LogOut } from "lucide-react";
 import { sileo } from "sileo";
 
 import { useAuth } from "~/core/providers/AuthProvider";
-import { AuthService } from "~/features/auth/services/auth.service";
 
 interface ProfileSettingsModalProps {
   isOpen: boolean;
@@ -11,7 +10,7 @@ interface ProfileSettingsModalProps {
 }
 
 export function ProfileSettingsModal({ isOpen, onClose }: ProfileSettingsModalProps) {
-  const { user, logout } = useAuth();
+  const { user, logout, updatePassword } = useAuth();
   const [activeTab, setActiveTab] = useState<"profile" | "security">("profile");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -31,7 +30,7 @@ export function ProfileSettingsModal({ isOpen, onClose }: ProfileSettingsModalPr
 
     setIsUpdatingPassword(true);
     try {
-      await AuthService.updatePassword(currentPassword, newPassword);
+      await updatePassword(currentPassword, newPassword);
       sileo.success({ title: "Password updated successfully" });
       setCurrentPassword("");
       setNewPassword("");

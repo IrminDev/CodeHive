@@ -105,6 +105,29 @@ Each submission container has one memory tracker for its full session. It record
 - cgroup OOM evidence, combined with exit code and language-specific managed-runtime
   markers, for MLE classification.
 
+## Test-case cap regression coverage
+
+`TestExecutionServiceTest` verifies requested counts 49, 50, and 51 in each mode:
+
+- `definitiveExecutionRunsAtMostFiftyTestCases`: report contains exactly the first
+  `min(requested, 50)` case IDs, executor runs that many times, and case 51's input
+  and expected output are never downloaded.
+- `practiceExecutionCapsBothStudentAndReferenceAtFiftyTestCases`: report numbers and
+  captured inputs preserve the first `min(requested, 50)` cases; both student and
+  reference executors run that many times and sessions are cleaned up.
+
+These are deterministic service unit tests with mocked storage/executors, not
+Docker tests. The 50-case expectation is independent of the production constant,
+so raising/removing the cap without updating requirements fails the tests.
+
+```bash
+cd codehive-worker
+./gradlew test --tests '*TestExecutionServiceTest'
+```
+
+Validation: 9 executions passed (six new boundary cases and three existing cases).
+Report: `codehive-worker/build/reports/tests/test/index.html`.
+
 ## Failure Handling
 - Unhandled failures produce an error report/result that is still published to backend queue.
 - Silent job loss is avoided by always sending a result, even on unexpected errors.

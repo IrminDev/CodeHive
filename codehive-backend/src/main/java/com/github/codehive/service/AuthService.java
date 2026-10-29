@@ -283,7 +283,7 @@ public class AuthService {
     }
 
     @Transactional
-    public void updatePassword(UUID userId, com.github.codehive.model.request.auth.UpdatePasswordRequest request) {
+    public AuthResponse updatePassword(UUID userId, com.github.codehive.model.request.auth.UpdatePasswordRequest request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IncorrectCredentialsException("User not found"));
 
@@ -295,5 +295,6 @@ public class AuthService {
         user.setTemporaryPassword(false);
         user.setTokenVersion(user.getTokenVersion() + 1);
         userRepository.save(user);
+        return new AuthResponse(generateToken(user), UserMapper.toDTO(user));
     }
 }

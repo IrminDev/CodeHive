@@ -125,16 +125,51 @@ class AssistantControllerIntegrationTest {
                 .thenReturn(new AssistantGuardrailService.Decision(AssistantInteractionStatus.COMPLETED,
                         "{\"explanation\":\"safe\",\"snippets\":[],\"followUpQuestion\":\"Why?\"}", 1, "v1"));
         String path = path();
+        String payload = request("Explain this loop");
         mvc.perform(get(path).header("Authorization", "Bearer " + studentToken))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.data.available").value(true));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.available").value(true))
+                .andExpect(jsonPath("$.data.used").value(0))
+                .andExpect(jsonPath("$.data.remaining").value(1));
         mvc.perform(post(path + "/interactions").header("Authorization", "Bearer " + studentToken)
-                .contentType(MediaType.APPLICATION_JSON).content(request("Explain this loop")))
+                .contentType(MediaType.APPLICATION_JSON).content(payload))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.interaction.status").value("COMPLETED"))
-                .andExpect(jsonPath("$.data.availability.used").value(1));
+                .andExpect(jsonPath("$.data.interaction.quotaCharged").value(true))
+                .andExpect(jsonPath("$.data.availability.used").value(1))
+                .andExpect(jsonPath("$.data.availability.remaining").value(0));
+        UUID originalInteractionId = interactions.findAll().getFirst().getId();
+
+        // Model a client that lost the successful response and resends the same HTTP payload.
+        // Ignore the first response at the client boundary; backend must replay its saved result.
+        for (int retry = 0; retry < 3; retry++) {
+            mvc.perform(post(path + "/interactions").header("Authorization", "Bearer " + studentToken)
+                    .contentType(MediaType.APPLICATION_JSON).content(payload))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.interaction.id").value(originalInteractionId.toString()))
+                    .andExpect(jsonPath("$.data.interaction.status").value("COMPLETED"))
+                    .andExpect(jsonPath("$.data.interaction.quotaCharged").value(true))
+                    .andExpect(jsonPath("$.data.availability.used").value(1))
+                    .andExpect(jsonPath("$.data.availability.reserved").value(0))
+                    .andExpect(jsonPath("$.data.availability.remaining").value(0));
+            assertThat(interactions.findAll()).singleElement().satisfies(row -> {
+                assertThat(row.getId()).isEqualTo(originalInteractionId);
+                assertThat(row.getClientRequestId()).isEqualTo(REQUEST_ID);
+                assertThat(row.isQuotaCharged()).isTrue();
+            });
+        }
+        mvc.perform(get(path).header("Authorization", "Bearer " + studentToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.reason").value("QUOTA_EXHAUSTED"))
+                .andExpect(jsonPath("$.data.used").value(1))
+                .andExpect(jsonPath("$.data.remaining").value(0));
+
+        // A different ID is a new attempt, so the exhausted quota must reject it.
         mvc.perform(post(path + "/interactions").header("Authorization", "Bearer " + studentToken)
-                .contentType(MediaType.APPLICATION_JSON).content(request("Explain this loop")))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.data.interaction.status").value("COMPLETED"));
+                .contentType(MediaType.APPLICATION_JSON).content(payload.replace(REQUEST_ID.toString(),
+                        "00000000-0000-0000-0000-000000000002")))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.error").value("QUOTA_EXHAUSTED"));
         assertThat(interactions.count()).isEqualTo(1);
         org.mockito.Mockito.verify(guardrails, org.mockito.Mockito.times(1))
                 .generate(any(), eq("Explain this loop"), any(), any(Runnable.class), any(java.util.UUID.class));
@@ -211,16 +246,55 @@ class AssistantControllerIntegrationTest {
     @Test
     void timeoutStoresUnchargedFailureAndReturnsSafeCode() throws Exception {
         when(guardrails.generate(any(), any(), any(), any(Runnable.class), any(java.util.UUID.class)))
-                .thenThrow(new AssistantStateException("MODEL_TIMEOUT"));
+                .thenThrow(new AssistantStateException("MODEL_TIMEOUT"))
+                .thenReturn(new AssistantGuardrailService.Decision(AssistantInteractionStatus.COMPLETED,
+                        "{\"explanation\":\"safe\",\"snippets\":[],\"followUpQuestion\":\"Why?\"}", 1, "v1"));
+        String payload = request("Explain this loop");
         mvc.perform(post(path() + "/interactions").header("Authorization", "Bearer " + studentToken)
-                .contentType(MediaType.APPLICATION_JSON).content(request("Explain this loop")))
+                .contentType(MediaType.APPLICATION_JSON).content(payload))
                 .andExpect(status().isGatewayTimeout())
                 .andExpect(jsonPath("$.error").value("MODEL_TIMEOUT"));
-        assertThat(interactions.findAll()).singleElement().satisfies(item -> {
-            assertThat(item.getStatus()).isEqualTo(AssistantInteractionStatus.FAILED);
-            assertThat(item.isQuotaCharged()).isFalse();
-            assertThat(item.getAssistantResponse()).isNull();
-        });
+        UUID failedInteractionId = interactions.findAll().getFirst().getId();
+        mvc.perform(get(path()).header("Authorization", "Bearer " + studentToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.used").value(0))
+                .andExpect(jsonPath("$.data.reserved").value(0))
+                .andExpect(jsonPath("$.data.remaining").value(1));
+
+        for (int retry = 0; retry < 3; retry++) {
+            mvc.perform(post(path() + "/interactions").header("Authorization", "Bearer " + studentToken)
+                    .contentType(MediaType.APPLICATION_JSON).content(payload))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.interaction.id").value(failedInteractionId.toString()))
+                    .andExpect(jsonPath("$.data.interaction.status").value("FAILED"))
+                    .andExpect(jsonPath("$.data.interaction.failureCode").value("MODEL_TIMEOUT"))
+                    .andExpect(jsonPath("$.data.interaction.quotaCharged").value(false))
+                    .andExpect(jsonPath("$.data.availability.used").value(0))
+                    .andExpect(jsonPath("$.data.availability.reserved").value(0))
+                    .andExpect(jsonPath("$.data.availability.remaining").value(1));
+            assertThat(interactions.findAll()).singleElement().satisfies(item -> {
+                assertThat(item.getId()).isEqualTo(failedInteractionId);
+                assertThat(item.getClientRequestId()).isEqualTo(REQUEST_ID);
+                assertThat(item.getStatus()).isEqualTo(AssistantInteractionStatus.FAILED);
+                assertThat(item.isQuotaCharged()).isFalse();
+                assertThat(item.getAssistantResponse()).isNull();
+            });
+        }
+        org.mockito.Mockito.verify(guardrails, org.mockito.Mockito.times(1))
+                .generate(any(), any(), any(), any(Runnable.class), any(java.util.UUID.class));
+
+        // Control: a fresh ID may generate a new answer and consume the still-available quota.
+        mvc.perform(post(path() + "/interactions").header("Authorization", "Bearer " + studentToken)
+                .contentType(MediaType.APPLICATION_JSON).content(payload.replace(REQUEST_ID.toString(),
+                        "00000000-0000-0000-0000-000000000002")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.interaction.status").value("COMPLETED"))
+                .andExpect(jsonPath("$.data.availability.used").value(1))
+                .andExpect(jsonPath("$.data.availability.remaining").value(0));
+        assertThat(interactions.count()).isEqualTo(2);
+        assertThat(interactions.findAll().stream().filter(row -> row.isQuotaCharged()).count()).isEqualTo(1);
+        org.mockito.Mockito.verify(guardrails, org.mockito.Mockito.times(2))
+                .generate(any(), any(), any(), any(Runnable.class), any(java.util.UUID.class));
     }
 
     @ParameterizedTest

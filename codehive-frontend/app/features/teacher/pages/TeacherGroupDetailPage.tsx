@@ -5,7 +5,7 @@ import { Link, useNavigate, useParams } from "react-router";
 import { sileo } from "sileo";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/shared/components/ui/Tabs";
 
-import { getTeacherAssignments } from "../api/assignment.api";
+import { deleteAssignment, getTeacherAssignments } from "../api/assignment.api";
 import {
   archiveGroup,
   deleteGroup,
@@ -317,7 +317,15 @@ export function TeacherGroupDetailPage() {
             </TabsTrigger>
           </TabsList>
           <TabsContent value="assignments" className="mt-4">
-            <AssignmentsPanel group={group} assignments={assignments} />
+            <AssignmentsPanel group={group} assignments={assignments} busy={busy}
+              onDelete={(assignment) => requestConfirmation({
+                title: `Delete ${assignment.title}?`,
+                description: "Students lose access, but submissions and grading history remain stored.",
+                confirmLabel: "Delete assignment",
+                successMessage: "Assignment deleted.",
+                action: () => deleteAssignment(assignment.id),
+                danger: true,
+              })} />
           </TabsContent>
           <TabsContent value="students" className="mt-4">
             <RosterPanel

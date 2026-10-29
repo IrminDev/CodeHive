@@ -42,7 +42,7 @@ confirmation, field, and panel patterns live in `components/TeacherUI.tsx`.
   retry, and cancellation on student/assignment/session changes. Missing records remain unavailable.
 - Teacher dashboard aggregates owned active groups, students, assignments, grading queue, validation
   problems, upcoming lifecycle dates, and recent submissions server-side.
-- Group detail separates Assignments (default) and Students into keyboard-accessible tabs.
+- Group detail separates Assignments (default) and Students into keyboard-accessible tabs. Assignment rows include a three-dot menu for edit, clone, and confirmed deletion; successful deletion reloads group content. Archived groups allow cloning but hide edit/delete. Assignment and roster cards allow menus to extend beyond their bounds.
   Group hero's More menu links to Analytics scoped to that group, including archived groups;
   there is no standalone AI usage link on the detail page.
 - Group hero actions use matching compact heights. Share opens a centered native modal with

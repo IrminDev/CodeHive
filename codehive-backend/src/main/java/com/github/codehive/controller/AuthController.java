@@ -159,7 +159,7 @@ public class AuthController {
         return ResponseEntity.ok(new SuccessResponse<>("WebSocket ticket issued", ticket));
     }
 
-    @Operation(summary = "Update password", description = "Update the authenticated user's password")
+    @Operation(summary = "Update password", description = "Update the authenticated user's password, revoke existing JWTs, and return a replacement session")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Password updated successfully"),
             @ApiResponse(responseCode = "400", description = "Validation error"),
@@ -168,11 +168,11 @@ public class AuthController {
     })
     @RateLimit(limit = 5, duration = 300, message = "Too many password change attempts. Please try again in 5 minutes.")
     @PutMapping("/me/password")
-    public ResponseEntity<SuccessResponse<Void>> updatePassword(
+    public ResponseEntity<SuccessResponse<AuthResponse>> updatePassword(
             Authentication authentication,
             @Valid @RequestBody UpdatePasswordRequest request) {
         UserDTO userDTO = authService.getUserByEmail(authentication.getName());
-        authService.updatePassword(userDTO.getId(), request);
-        return ResponseEntity.ok(new SuccessResponse<>("Password updated successfully", null));
+        AuthResponse session = authService.updatePassword(userDTO.getId(), request);
+        return ResponseEntity.ok(new SuccessResponse<>("Password updated successfully", session));
     }
 }

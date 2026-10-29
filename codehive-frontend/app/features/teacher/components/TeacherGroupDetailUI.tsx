@@ -339,7 +339,7 @@ export function RosterPanel({
   const writable = group.isActive && !group.archived;
 
   return (
-    <section className={`${panelClass} overflow-hidden`}>
+    <section className={panelClass}>
       <header className="px-5 py-4 border-b border-gray-100 dark:border-gray-800/60">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -418,13 +418,17 @@ export function RosterPanel({
 export function AssignmentsPanel({
   group,
   assignments,
+  busy,
+  onDelete,
 }: {
   group: TeacherGroup;
   assignments: TeacherAssignment[];
+  busy: boolean;
+  onDelete: (assignment: TeacherAssignment) => void;
 }) {
   const writable = group.isActive && !group.archived;
   return (
-    <section className={`${panelClass} overflow-hidden`}>
+    <section className={panelClass}>
       <header className="px-5 py-4 border-b border-gray-100 dark:border-gray-800/60 flex items-start justify-between gap-3">
         <div>
           <h2 className="font-semibold text-gray-900 dark:text-white">Assignments</h2>
@@ -479,6 +483,39 @@ export function AssignmentsPanel({
                     <span>{assignment.dueDate ? `Due ${formatDate(assignment.dueDate)}` : "No due date"}</span>
                   </div>
                 </div>
+                {assignment.isActive && (
+                  <details className="relative shrink-0" onKeyDown={(event) => {
+                    if (event.key === "Escape") {
+                      event.currentTarget.removeAttribute("open");
+                      event.currentTarget.querySelector("summary")?.focus();
+                    }
+                  }}>
+                    <summary aria-label={`More actions for ${assignment.title}`}
+                      className="grid h-9 w-9 cursor-pointer list-none place-items-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-azure dark:hover:bg-dark-card dark:hover:text-gray-200 dark:focus-visible:ring-yellow">
+                      <MoreHorizontal size={15} aria-hidden="true" />
+                    </summary>
+                    <div className="absolute right-0 z-20 mt-1 w-48 rounded-xl border border-gray-200 bg-white p-1 shadow-xl dark:border-gray-700 dark:bg-dark-card">
+                      {writable && <Link to={`/teacher/assignments/${assignment.id}/edit`}
+                        onClick={(event) => event.currentTarget.closest("details")?.removeAttribute("open")}
+                        className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-surface">
+                        <Edit3 size={14} aria-hidden="true" /> Edit assignment
+                      </Link>}
+                      <Link to={`/teacher/assignments/${assignment.id}/clone`}
+                        onClick={(event) => event.currentTarget.closest("details")?.removeAttribute("open")}
+                        className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-surface">
+                        <Copy size={14} aria-hidden="true" /> Clone assignment
+                      </Link>
+                      {writable && <button type="button" disabled={busy}
+                        onClick={(event) => {
+                          event.currentTarget.closest("details")?.removeAttribute("open");
+                          onDelete(assignment);
+                        }}
+                        className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs text-red-500 hover:bg-red-500/10 disabled:opacity-50">
+                        <Trash2 size={14} aria-hidden="true" /> Delete assignment
+                      </button>}
+                    </div>
+                  </details>
+                )}
               </div>
               <div className="mt-3 flex flex-wrap gap-2">
                 <Link
@@ -498,7 +535,7 @@ export function AssignmentsPanel({
           ))}
         </div>
       )}
-      <footer className="px-5 py-3 border-t border-gray-100 dark:border-gray-800/60 bg-gray-50 dark:bg-dark-card">
+      <footer className="rounded-b-2xl px-5 py-3 border-t border-gray-100 dark:border-gray-800/60 bg-gray-50 dark:bg-dark-card">
         <Link
           to="/teacher/assignments"
           className="text-xs font-medium text-gray-500 hover:text-azure dark:hover:text-yellow transition-colors"

@@ -110,9 +110,14 @@ class AuthServiceTest {
             when(passwordEncoder.encode("new-strong-password")).thenReturn("encoded-new");
             int before = testUser.getTokenVersion();
 
-            authService.updatePassword(testUser.getId(), request);
+            when(jwtUtil.generateToken(any(Map.class), anyString())).thenReturn("replacement-token");
+            var session = authService.updatePassword(testUser.getId(), request);
 
             assertThat(testUser.getTokenVersion()).isEqualTo(before + 1);
+            assertThat(session.getToken()).isEqualTo("replacement-token");
+            assertThat(session.getUser().getId()).isEqualTo(testUser.getId());
+            verify(jwtUtil).generateToken(org.mockito.ArgumentMatchers.argThat(claims ->
+                    Integer.valueOf(before + 1).equals(claims.get("tokenVersion"))), eq(testUser.getEmail()));
         }
     }
 
