@@ -1,6 +1,6 @@
 import { studentRequest } from "./client";
 import type { GroupSubmission } from "../types/group-submission.types";
-import type { RecentSubmission } from "../types/submission.types";
+import type { RecentSubmission, SubmissionSource } from "../types/submission.types";
 import type { StudentSubmissionHistory } from "../types/execution.types";
 
 export function listRecentSubmissions(limit = 5): Promise<RecentSubmission[]> {
@@ -13,6 +13,10 @@ export function listGroupSubmissions(groupId: string): Promise<GroupSubmission[]
 
 export function listAssignmentSubmissions(assignmentId: string): Promise<StudentSubmissionHistory[]> {
   return studentRequest<StudentSubmissionHistory[]>(`/api/submissions/mine/assignment/${assignmentId}`);
+}
+
+export function getMySubmissionSource(submissionId: string): Promise<SubmissionSource> {
+  return studentRequest<SubmissionSource>(`/api/submissions/mine/${submissionId}/source`);
 }
 
 export function withdrawSubmission(submissionId: string): Promise<void> {

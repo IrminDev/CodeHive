@@ -1,9 +1,9 @@
 package com.github.codehive.model.request.assignment;
 
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotBlank;
 
 public class CloneTestCaseRequest {
-    @NotNull(message = "Test case input is required")
+    @NotBlank(message = "Test case input is required")
     private String input;
     private Boolean sample = false;
 

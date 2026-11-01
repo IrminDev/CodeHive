@@ -42,6 +42,7 @@ public class AssignmentDTO {
     private int maxAiRequests;
     private AiAssistanceLevel aiAssistanceLevel;
     private long aiPolicyVersion;
+    private boolean pendingUpdate;
 
     public boolean isAiAssistanceEnabled() { return aiAssistanceEnabled; }
     public void setAiAssistanceEnabled(boolean enabled) { this.aiAssistanceEnabled = enabled; }
@@ -62,6 +63,8 @@ public class AssignmentDTO {
     public void setCloseDate(Instant closeDate) { this.closeDate = closeDate; }
     public AssignmentValidationStatus getValidationStatus() { return validationStatus; }
     public void setValidationStatus(AssignmentValidationStatus validationStatus) { this.validationStatus = validationStatus; }
+    public boolean isPendingUpdate() { return pendingUpdate; }
+    public void setPendingUpdate(boolean pendingUpdate) { this.pendingUpdate = pendingUpdate; }
     public List<AssignmentExampleDTO> getExamples() { return examples; }
     public void setExamples(List<AssignmentExampleDTO> examples) { this.examples = examples; }
 

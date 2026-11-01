@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Archive, CircleAlert, Plus, Users } from "lucide-react";
 import { Link } from "react-router";
+import { useAuth } from "~/core/providers/AuthProvider";
 
 import { listTeacherGroups } from "../api/group.api";
 import { getGroupMetricsOverview } from "../api/metrics.api";
@@ -20,6 +21,7 @@ import { compactButtonClass, TeacherError, TeacherPageHeader } from "../componen
 const TABS: GroupTab[] = ["active", "archived"];
 
 export function TeacherGroupsPage() {
+  const ownerId = useAuth().user?.id ?? "";
   const [groups, setGroups] = useState<GroupCardData[]>([]);
   const [tab, setTab] = useState<GroupTab>("active");
   const [query, setQuery] = useState("");
@@ -31,7 +33,7 @@ export function TeacherGroupsPage() {
     setLoading(true);
     setError(null);
     try {
-      const items = (await listTeacherGroups()).filter((group) => group.isActive);
+      const items = (await listTeacherGroups(ownerId)).filter((group) => group.isActive);
       const metricResults = await Promise.allSettled(
         items.map((group) => getGroupMetricsOverview(group.id)),
       );
@@ -55,7 +57,7 @@ export function TeacherGroupsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [ownerId]);
 
   useEffect(() => {
     void load();

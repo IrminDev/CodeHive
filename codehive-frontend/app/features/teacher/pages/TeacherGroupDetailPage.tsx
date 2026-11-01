@@ -12,7 +12,6 @@ import {
   getTeacherGroup,
   listGroupStudents,
   removeGroupStudent,
-  restoreGroup,
   rotateGroupJoinCode,
   unarchiveGroup,
   updateGroup,
@@ -269,22 +268,12 @@ export function TeacherGroupDetailPage() {
             requestConfirmation({
               title: "Delete group?",
               description:
-                "Students lose access. Group history remains stored and can be restored later.",
+                "Students lose access and the group can no longer be managed. Its history is retained for your records, but the group cannot be restored.",
               confirmLabel: "Delete group",
               successMessage: "Group deleted.",
               action: () => deleteGroup(group.id),
               redirect: true,
               danger: true,
-            })
-          }
-          onRestore={() =>
-            requestConfirmation({
-              title: "Restore group?",
-              description:
-                "Group returns in archived state. Unarchive it when students should regain access.",
-              confirmLabel: "Restore group",
-              successMessage: "Group restored in archived state.",
-              action: () => restoreGroup(group.id),
             })
           }
         />

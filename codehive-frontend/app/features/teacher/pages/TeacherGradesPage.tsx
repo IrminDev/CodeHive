@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router";
+import { useAuth } from "~/core/providers/AuthProvider";
 import {
   ArrowLeft,
   CalendarClock,
@@ -45,6 +46,7 @@ import {
   TeacherPageHeader,
 } from "../components/TeacherUI";
 import type { TeacherGroup } from "../types/group.types";
+import { gradableGroups } from "../utils/gradebook-groups";
 import type {
   AssignmentMetrics,
   AssignmentMetricsDetail,
@@ -59,6 +61,7 @@ type StudentFilter = "all" | "to-grade" | "draft" | "returned" | "missing";
 import type { ReviewTab } from "../components/TeacherGradebook";
 
 export function TeacherGradesPage() {
+  const ownerId = useAuth().user?.id ?? "";
   const [params, setParams] = useSearchParams();
   const [groups, setGroups] = useState<TeacherGroup[]>([]);
   const [assignments, setAssignments] = useState<AssignmentMetrics[]>([]);
@@ -128,13 +131,13 @@ export function TeacherGradesPage() {
 
   useEffect(() => {
     let cancelled = false;
-    void listTeacherGroups(false)
+    void listTeacherGroups(ownerId, false)
       .then((items) => {
-        const active = items.filter((item) => item.isActive && !item.archived);
+        const visible = gradableGroups(items);
         if (!cancelled) {
-          setGroups(active);
-          if (!active.some((item) => item.id === groupId))
-            navigate(active[0]?.id);
+          setGroups(visible);
+          if (!visible.some((item) => item.id === groupId))
+            navigate(visible[0]?.id);
         }
       })
       .catch((cause) =>
@@ -148,7 +151,7 @@ export function TeacherGradesPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [ownerId]);
   const loadAssignments = useCallback(async () => {
     if (!groupId) return setAssignments([]);
     setLoading(true);

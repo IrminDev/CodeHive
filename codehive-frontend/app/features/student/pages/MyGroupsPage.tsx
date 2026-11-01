@@ -1,11 +1,15 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
 import { CalendarDays, ChevronRight, CircleAlert, Plus, RefreshCw, UserRound, Users } from "lucide-react";
 
+import { useAuth } from "~/core/providers/AuthProvider";
+import { canManageGroups } from "~/shared/lib/group-management";
 import { listMyGroups } from "../api/group.api";
+import { ManagedGroupsSection } from "../components/ManagedGroupsSection";
 import { StudentHeader } from "../components/StudentHeader";
 import { StudentSidebar } from "../components/StudentSidebar";
 import type { ClassGroup } from "../types/group.types";
+import { splitGroupsByOwnership } from "../utils/group-membership";
 
 const GROUP_COLORS = ["bg-azure", "bg-french", "bg-imperial", "bg-yellow text-dark-bg"];
 
@@ -14,6 +18,7 @@ function formatDate(value?: string): string {
 }
 
 export function MyGroupsPage() {
+  const { user } = useAuth();
   const [groups, setGroups] = useState<ClassGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -32,6 +37,8 @@ export function MyGroupsPage() {
   }, []);
 
   useEffect(() => { void load(); }, [load]);
+
+  const { owned, enrolled } = useMemo(() => splitGroupsByOwnership(groups, user?.id), [groups, user?.id]);
 
   return (
     <div className="h-screen flex overflow-hidden bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100 font-sans">
@@ -56,13 +63,15 @@ export function MyGroupsPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">{[0, 1, 2].map((item) => <div key={item} className="h-52 rounded-2xl bg-gray-100 dark:bg-dark-surface animate-pulse" />)}</div>
             ) : error ? (
               <div className="rounded-2xl border border-red-500/20 bg-red-500/5 p-8 text-center"><CircleAlert className="mx-auto text-red-500 mb-3" size={28} /><h2 className="font-semibold">Could not load groups</h2><p className="mt-2 text-sm text-gray-500 dark:text-gray-400">{error}</p><button onClick={() => void load()} className="btn-primary mt-5">Try again</button></div>
-            ) : groups.length === 0 ? (
+            ) : enrolled.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-gray-300 dark:border-gray-700 p-12 text-center"><Users className="mx-auto text-gray-400 dark:text-gray-600 mb-3" size={30} /><h2 className="font-semibold text-gray-800 dark:text-gray-100">No groups yet</h2><p className="mt-2 text-sm text-gray-500 dark:text-gray-400">Ask your teacher for a join code to get started.</p><Link to="/groups/join" className="btn-primary inline-flex mt-5">Join a group</Link></div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                {groups.map((group, index) => <GroupCard key={group.id} group={group} color={GROUP_COLORS[index % GROUP_COLORS.length]} />)}
+                {enrolled.map((group, index) => <GroupCard key={group.id} group={group} color={GROUP_COLORS[index % GROUP_COLORS.length]} />)}
               </div>
             )}
+
+            {!loading && !error && canManageGroups(user) && <ManagedGroupsSection groups={owned} />}
           </div>
         </main>
       </div>

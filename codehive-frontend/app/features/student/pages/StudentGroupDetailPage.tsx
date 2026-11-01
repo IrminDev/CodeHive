@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router";
+import { useAuth } from "~/core/providers/AuthProvider";
 import {
   ArrowLeft, CalendarDays, ChevronRight, CircleCheck, CircleAlert, Clock3,
   BarChart3, HardDrive, LogOut, RefreshCw, UserRound, Users,
@@ -82,6 +83,7 @@ function deliveryState(assignment: Assignment, submission?: GroupSubmission): De
 
 export function StudentGroupDetailPage() {
   const navigate = useNavigate();
+  const userId = useAuth().user?.id;
   const { groupId = "" } = useParams<{ groupId: string }>();
   const [group, setGroup] = useState<ClassGroup | null>(null);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
@@ -106,6 +108,10 @@ export function StudentGroupDetailPage() {
         listAssignments(groupId),
         listGroupSubmissions(groupId),
       ]);
+      if (userId && groupResult.ownerId === userId) {
+        navigate(`/teacher/groups/${encodeURIComponent(groupResult.id)}`, { replace: true });
+        return;
+      }
       setGroup(groupResult);
       setAssignments(assignmentPage.content);
       setSubmissions(submissionResult);
@@ -117,7 +123,7 @@ export function StudentGroupDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [groupId]);
+  }, [groupId, navigate, userId]);
 
   useEffect(() => { void load(); }, [load]);
 

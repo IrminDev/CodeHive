@@ -1,10 +1,13 @@
 package com.github.codehive.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.io.ByteArrayInputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -21,6 +24,7 @@ import com.github.codehive.model.entity.User;
 import com.github.codehive.model.enums.ExecutionStatus;
 import com.github.codehive.model.enums.Language;
 import com.github.codehive.model.enums.SubmissionStatus;
+import com.github.codehive.model.exception.EntityNotFoundException;
 import com.github.codehive.service.GroupService;
 import com.github.codehive.repository.AssignmentRepository;
 import com.github.codehive.repository.ExecutionRepository;
@@ -43,7 +47,7 @@ class StudentSubmissionQueryServiceTest {
         GroupService groupService = mock(GroupService.class);
         StudentSubmissionQueryService service = new StudentSubmissionQueryService(
                 submissionRepository, executionRepository, assignmentRepository,
-                userRepository, groupService);
+                userRepository, groupService, mock(ObjectStorageService.class));
 
         User student = new User();
         student.setId(STUDENT_ID);
@@ -83,7 +87,7 @@ class StudentSubmissionQueryServiceTest {
         GroupService groupService = mock(GroupService.class);
         StudentSubmissionQueryService service = new StudentSubmissionQueryService(
                 submissionRepository, executionRepository, assignmentRepository,
-                userRepository, groupService);
+                userRepository, groupService, mock(ObjectStorageService.class));
 
         User student = new User();
         student.setId(STUDENT_ID);
@@ -124,7 +128,7 @@ class StudentSubmissionQueryServiceTest {
         GroupService groupService = mock(GroupService.class);
         StudentSubmissionQueryService service = new StudentSubmissionQueryService(
                 submissionRepository, executionRepository, assignmentRepository,
-                userRepository, groupService);
+                userRepository, groupService, mock(ObjectStorageService.class));
 
         User student = new User();
         student.setId(STUDENT_ID);
@@ -180,7 +184,7 @@ class StudentSubmissionQueryServiceTest {
         GroupService groupService = mock(GroupService.class);
         StudentSubmissionQueryService service = new StudentSubmissionQueryService(
                 submissionRepository, executionRepository, assignmentRepository,
-                userRepository, groupService);
+                userRepository, groupService, mock(ObjectStorageService.class));
 
         User student = new User();
         student.setId(STUDENT_ID);
@@ -216,5 +220,67 @@ class StudentSubmissionQueryServiceTest {
             assertThat(item.executionStatus()).isEqualTo(ExecutionStatus.AC);
             assertThat(item.reportAvailable()).isFalse();
         });
+    }
+
+    @Test
+    void returnsTheSourceOfTheStudentsOwnSubmission() throws Exception {
+        SubmissionRepository submissionRepository = mock(SubmissionRepository.class);
+        UserRepository userRepository = mock(UserRepository.class);
+        ObjectStorageService objectStorageService = mock(ObjectStorageService.class);
+        StudentSubmissionQueryService service = new StudentSubmissionQueryService(
+                submissionRepository, mock(ExecutionRepository.class), mock(AssignmentRepository.class),
+                userRepository, mock(GroupService.class), objectStorageService);
+
+        User student = new User();
+        student.setId(STUDENT_ID);
+        student.setEmail("student@example.com");
+        Submission submission = ownSubmission(student);
+
+        when(userRepository.findByEmail(student.getEmail())).thenReturn(Optional.of(student));
+        when(submissionRepository.findById(SUBMISSION_ID)).thenReturn(Optional.of(submission));
+        when(objectStorageService.download("submissions/key/Main.py")).thenReturn(
+                new ByteArrayInputStream("print(42)\n".getBytes(StandardCharsets.UTF_8)));
+
+        var result = service.getMySource(SUBMISSION_ID, student.getEmail());
+
+        assertThat(result.submissionId()).isEqualTo(SUBMISSION_ID);
+        assertThat(result.assignmentId()).isEqualTo(ASSIGNMENT_ID);
+        assertThat(result.language()).isEqualTo(Language.PYTHON);
+        assertThat(result.sourceCode()).isEqualTo("print(42)\n");
+    }
+
+    @Test
+    void hidesAnotherStudentsSubmissionSource() {
+        SubmissionRepository submissionRepository = mock(SubmissionRepository.class);
+        UserRepository userRepository = mock(UserRepository.class);
+        ObjectStorageService objectStorageService = mock(ObjectStorageService.class);
+        StudentSubmissionQueryService service = new StudentSubmissionQueryService(
+                submissionRepository, mock(ExecutionRepository.class), mock(AssignmentRepository.class),
+                userRepository, mock(GroupService.class), objectStorageService);
+
+        User owner = new User();
+        owner.setId(STUDENT_ID);
+        User intruder = new User();
+        intruder.setId(UUID.fromString("00000000-0000-0000-0000-000000000006"));
+        intruder.setEmail("intruder@example.com");
+
+        when(userRepository.findByEmail(intruder.getEmail())).thenReturn(Optional.of(intruder));
+        when(submissionRepository.findById(SUBMISSION_ID)).thenReturn(Optional.of(ownSubmission(owner)));
+
+        assertThatThrownBy(() -> service.getMySource(SUBMISSION_ID, intruder.getEmail()))
+                .isInstanceOf(EntityNotFoundException.class);
+        org.mockito.Mockito.verifyNoInteractions(objectStorageService);
+    }
+
+    private static Submission ownSubmission(User student) {
+        Assignment assignment = new Assignment();
+        assignment.setId(ASSIGNMENT_ID);
+        Submission submission = new Submission();
+        submission.setId(SUBMISSION_ID);
+        submission.setAssignment(assignment);
+        submission.setStudent(student);
+        submission.setLanguage(Language.PYTHON);
+        submission.setSourceCodeKey("submissions/key/Main.py");
+        return submission;
     }
 }

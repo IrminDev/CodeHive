@@ -47,6 +47,7 @@ export interface TeacherAssignment extends AiPolicyResponse {
   allowedLanguages: Language[];
   isActive: boolean;
   validationStatus: AssignmentValidationStatus;
+  pendingUpdate?: boolean;
   examples?: AssignmentExample[];
   sampleTestCases?: SampleTestCase[];
   maxPoints: number;

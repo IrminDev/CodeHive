@@ -47,6 +47,24 @@ The API returns 202 Accepted immediately — output generation is asynchronous.
 - Worker results carry update and revision IDs. Stale or mismatched results
   cannot activate a revision.
 
+### Status model during an update
+
+- `Assignment.validationStatus` (PROCESSING / READY / FAILED) describes the **active** revision and
+  governs student visibility. A published assignment stays READY while a new revision is validated,
+  so students keep using the live version and the assignment is never hidden mid-update.
+- The in-flight staged change is a separate `AssignmentUpdate` (VALIDATING → APPLIED / REJECTED). It is
+  surfaced to the owner as `AssignmentDTO.pendingUpdate` (true while an update is VALIDATING), which the
+  teacher UI renders as an intermediate "Updating" indicator without touching `validationStatus`.
+- Promotion always reaches a terminal `AssignmentUpdate` state: `reject(...)` covers stale results,
+  worker failures and date validation, and the happy path sets APPLIED. Applying an update replaces the
+  assignment's public examples **in place** (see `Assignment.setExamples`): existing rows are updated by
+  position and only the surplus tail is removed, so Hibernate never inserts a duplicate
+  `(assignment_id, order_index)` before deleting the old row — the former cause of the
+  `uk_assignment_example_order` violation and its infinite listener requeue.
+- `codehive_test_generation_result_queue` (and the other backend listeners) use bounded retries with
+  `default-requeue-rejected=false`, so a genuinely failing message is retried a few times and then
+  dropped instead of requeued forever.
+
 ## Request-to-Queue Flow (Student Execution)
 1. Client sends ExecutionRequest to `POST /api/execution/check`.
 2. Controller validates and delegates to ExecutionRequestService.

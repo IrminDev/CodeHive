@@ -6,9 +6,11 @@ import static org.mockito.Mockito.mock;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpInputMessage;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import com.github.codehive.model.response.ErrorResponse;
 
@@ -43,5 +45,16 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(response.getBody().getError()).isEqualTo("Malformed request body");
         assertThat(response.getBody().getError()).doesNotContain("com.github.codehive");
+    }
+
+    @Test
+    @DisplayName("unknown API path answers 404 instead of a generic 500")
+    void handleNoResourceFound_returnsNotFound() {
+        NoResourceFoundException ex = new NoResourceFoundException(HttpMethod.GET, "api/no-existe");
+
+        ResponseEntity<ErrorResponse> response = handler.handleNoResourceFound(ex);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(response.getBody().getError()).isEqualTo("Resource not found");
     }
 }

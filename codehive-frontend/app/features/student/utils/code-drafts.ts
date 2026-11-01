@@ -40,3 +40,23 @@ export function writeCodeDraft(userId: string, assignmentId: string, draft: Omit
     return false;
   }
 }
+
+export function hasUsableDraft(draft: CodeDraft | null, allowedLanguages: readonly Language[]): boolean {
+  return draft !== null && allowedLanguages.some((language) => draft.code[language] !== undefined);
+}
+
+/** Editor content on entry: the local draft wins, then the delivered code, then the starter template. */
+export function resolveInitialCode(
+  allowedLanguages: readonly Language[],
+  draft: CodeDraft | null,
+  submitted: { language: Language; sourceCode: string } | null,
+): { language: Language | undefined; code: Partial<Record<Language, string>> } {
+  const delivered = submitted && !hasUsableDraft(draft, allowedLanguages) && allowedLanguages.includes(submitted.language)
+    ? submitted
+    : null;
+  const preferred = delivered?.language ?? draft?.language;
+  return {
+    language: preferred && allowedLanguages.includes(preferred) ? preferred : allowedLanguages[0],
+    code: delivered ? { ...draft?.code, [delivered.language]: delivered.sourceCode } : draft?.code ?? {},
+  };
+}

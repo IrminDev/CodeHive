@@ -18,10 +18,10 @@ import { SubmissionDialog } from "../components/SubmissionDialog";
 import { SubmissionStatusButton } from "../components/SubmissionStatusButton";
 import { useAssignmentAssistant } from "../hooks/useAssignmentAssistant";
 import { useCodeDraft, type DraftStatus } from "../hooks/useCodeDraft";
-import { readCodeDraft } from "../utils/code-drafts";
+import { hasUsableDraft, readCodeDraft, resolveInitialCode } from "../utils/code-drafts";
 import { describeSubmission, type SubmissionAttempt, type SubmissionOperation, type Verdict } from "../utils/submission-state";
 import { getAssignment, listMyAssignmentOverviews } from "../api/assignment.api";
-import { listAssignmentSubmissions, withdrawSubmission } from "../api/submission.api";
+import { getMySubmissionSource, listAssignmentSubmissions, withdrawSubmission } from "../api/submission.api";
 import type { Assignment, AssignmentGrade, Language } from "../types/assignment.types";
 import type { GroupSubmission } from "../types/group-submission.types";
 import {
@@ -201,17 +201,21 @@ export function AssignmentPage() {
         const [overviews, attempts] = await Promise.allSettled([listMyAssignmentOverviews(), listAssignmentSubmissions(a.id)]);
         const overview = overviews.status === "fulfilled" ? overviews.value.find((item) => item.assignment.id === a.id) : undefined;
         const loaded = attempts.status === "fulfilled" ? attempts.value : [];
+        const delivered = overview ? overview.currentSubmission ?? null : currentFromHistory(loaded);
         setHistory(loaded);
-        setCurrentSubmission(overview ? overview.currentSubmission ?? null : currentFromHistory(loaded));
+        setCurrentSubmission(delivered);
         setReturnedGrade(overview?.grade ?? null);
         setTestCases(practiceInputs(a));
         setSelectedCase(0);
         const allowed = a.allowedLanguages ?? [];
         const stored = userId ? readCodeDraft(userId, a.id) : null;
+        const submitted = delivered && !hasUsableDraft(stored, allowed)
+          ? await getMySubmissionSource(delivered.submissionId).catch(() => null)
+          : null;
+        const initial = resolveInitialCode(allowed, stored, submitted);
         setHasStoredDraft(stored !== null);
-        setCodes(stored?.code ?? {});
-        if (stored && allowed.includes(stored.language)) setSelectedLanguage(stored.language);
-        else if (allowed.length > 0) setSelectedLanguage(allowed[0]);
+        setCodes(initial.code);
+        if (initial.language) setSelectedLanguage(initial.language);
       })
       .catch(() => {
         if (import.meta.env.DEV) {

@@ -15,6 +15,7 @@ import com.github.codehive.model.response.SuccessResponse;
 import com.github.codehive.model.dto.RecentSubmissionDTO;
 import com.github.codehive.model.dto.StudentGroupSubmissionDTO;
 import com.github.codehive.model.dto.StudentSubmissionHistoryDTO;
+import com.github.codehive.model.dto.StudentSubmissionSourceDTO;
 import com.github.codehive.service.SubmissionLifecycleService;
 import com.github.codehive.service.StudentSubmissionQueryService;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -65,6 +66,16 @@ public class SubmissionController {
         return ResponseEntity.ok(new SuccessResponse<>("Assignment submission history retrieved.",
                 studentSubmissionQueryService.listAssignmentHistory(
                         assignmentId, authentication.getName())));
+    }
+
+    @GetMapping("/mine/{submissionId}/source")
+    @PreAuthorize("hasAuthority('STUDENT')")
+    @Operation(summary = "Get the source code of one of the authenticated student's submissions")
+    @ApiResponse(responseCode = "200", description = "Submission source retrieved")
+    public ResponseEntity<SuccessResponse<StudentSubmissionSourceDTO>> getMySource(
+            @PathVariable UUID submissionId, Authentication authentication) {
+        return ResponseEntity.ok(new SuccessResponse<>("Submission source retrieved.",
+                studentSubmissionQueryService.getMySource(submissionId, authentication.getName())));
     }
 
     @PostMapping("/{submissionId}/withdraw")

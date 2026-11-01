@@ -1,5 +1,7 @@
 package com.github.codehive.service;
 
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -15,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.github.codehive.model.dto.RecentSubmissionDTO;
 import com.github.codehive.model.dto.StudentGroupSubmissionDTO;
 import com.github.codehive.model.dto.StudentSubmissionHistoryDTO;
+import com.github.codehive.model.dto.StudentSubmissionSourceDTO;
 import com.github.codehive.model.entity.Assignment;
 import com.github.codehive.model.entity.Execution;
 import com.github.codehive.model.entity.Submission;
@@ -34,17 +37,41 @@ public class StudentSubmissionQueryService {
     private final AssignmentRepository assignmentRepository;
     private final UserRepository userRepository;
     private final GroupService groupService;
+    private final ObjectStorageService objectStorageService;
 
     public StudentSubmissionQueryService(SubmissionRepository submissionRepository,
                                          ExecutionRepository executionRepository,
                                          AssignmentRepository assignmentRepository,
                                          UserRepository userRepository,
-                                         GroupService groupService) {
+                                         GroupService groupService,
+                                         ObjectStorageService objectStorageService) {
         this.submissionRepository = submissionRepository;
         this.executionRepository = executionRepository;
         this.assignmentRepository = assignmentRepository;
         this.userRepository = userRepository;
         this.groupService = groupService;
+        this.objectStorageService = objectStorageService;
+    }
+
+    /** Returns the stored source of one of the authenticated student's own submissions. */
+    @Transactional(readOnly = true)
+    public StudentSubmissionSourceDTO getMySource(UUID submissionId, String email) {
+        User student = userRepository.findByEmail(email)
+                .orElseThrow(() -> new EntityNotFoundException("Authenticated user not found"));
+        Submission submission = submissionRepository.findById(submissionId)
+                .filter(item -> item.getStudent() != null
+                        && item.getStudent().getId().equals(student.getId()))
+                .orElseThrow(() -> new EntityNotFoundException("Submission not found: " + submissionId));
+        if (submission.getSourceCodeKey() == null) {
+            throw new EntityNotFoundException("Submission source not available: " + submissionId);
+        }
+        try (InputStream stream = objectStorageService.download(submission.getSourceCodeKey())) {
+            return new StudentSubmissionSourceDTO(
+                    submission.getId(), submission.getAssignment().getId(), submission.getLanguage(),
+                    new String(stream.readAllBytes(), StandardCharsets.UTF_8));
+        } catch (Exception exception) {
+            throw new EntityNotFoundException("Submission source not available: " + submissionId);
+        }
     }
 
     @Transactional(readOnly = true)

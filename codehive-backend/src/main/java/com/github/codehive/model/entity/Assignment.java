@@ -30,6 +30,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OneToOne;
+import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 
@@ -125,6 +126,7 @@ public class Assignment {
     private AssignmentAiPolicy aiPolicy;
 
     @OneToMany(mappedBy = "assignment", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("order ASC")
     private List<AssignmentExample> examples = new ArrayList<>();
 
     public Assignment() {
@@ -178,6 +180,7 @@ public class Assignment {
     }
     public void addExample(AssignmentExample example) {
         example.setAssignment(this);
+        example.setOrder(this.examples.size() + 1);
         this.examples.add(example);
     }
 

@@ -556,7 +556,12 @@ export function EditAssignmentPage({
             ? "Update queued for validation."
             : "Assignment updated.",
       });
-      navigate("/teacher/assignments");
+      // Land on the assignments list with this assignment's status panel open so the teacher can
+      // follow the update instead of hunting for it again.
+      const target = new URLSearchParams();
+      if (assignment?.groupId) target.set("groupId", assignment.groupId);
+      target.set("statusId", assignmentId);
+      navigate(`/teacher/assignments?${target.toString()}`);
     } catch (error) {
       sileo.error({
         title:
@@ -1102,7 +1107,15 @@ export function EditAssignmentPage({
         } />
 
         <div className={`${panelClass} flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:px-5`}>
-          <p className="text-xs text-gray-500 dark:text-gray-400">{validationMode ? "Your updated suite becomes active after successful validation." : "Save assignment details, examples, schedule, and AI settings."}</p>
+          <div className="space-y-1">
+            <p className="text-xs text-gray-500 dark:text-gray-400">{validationMode ? "Your updated suite becomes active after successful validation." : "Save assignment details, examples, schedule, and AI settings."}</p>
+            {(validationMode || hasRevisionChanges) && (
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                If the expected outputs change, published grades are cleared and
+                current submissions are re-evaluated. Identical tests keep grades.
+              </p>
+            )}
+          </div>
           <div className="flex items-center justify-end gap-2">
             <button
               type="button"

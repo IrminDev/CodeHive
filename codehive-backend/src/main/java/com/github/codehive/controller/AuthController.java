@@ -133,6 +133,7 @@ public class AuthController {
         }
         byte[] csvData = file.getBytes();
         String taskId = csvRegistrationService.submitCsvJob(csvData, authentication.getName());
+        authService.auditCsvSubmission(authentication.getName(), taskId, csvData.length);
         Map<String, String> taskInfo = Map.of("taskId", taskId);
         SuccessResponse<Map<String, String>> response = new SuccessResponse<>("CSV processing started", taskInfo);
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);

@@ -3,7 +3,7 @@
 ## Routes
 
 - `/teacher` — action dashboard with validation failures, grading queue, deadlines, and recent submissions.
-- `/teacher/assignments` — paginated assignment management across active, archived, and deleted groups.
+- `/teacher/assignments` — paginated assignment management across active and archived groups.
 - `/teacher/create-assignment` — assignment form.
 - `/teacher/assignments/:assignmentId/clone` — editable clone form.
 - `/teacher/assignments/:assignmentId/edit` — metadata, schedule, and public-example update form.
@@ -15,7 +15,18 @@
 - `/teacher/analytics` — group overview, assignment details, and student metrics.
 - `/teacher/notifications` — authenticated email notification preferences.
 
-All routes use `ProtectedRoute` with `Role.TEACHER`.
+Management routes use `GroupManagementRoute`, which admits teachers and students holding
+`CREATE_GROUP` (`canManageGroups` in `app/shared/lib/group-management.ts`), mirroring the
+backend rule that group owners manage their groups regardless of role. `/teacher/notifications`
+stays `Role.TEACHER` only, because notification catalogs are role-specific.
+
+## Student Group Owners
+
+A student with `CREATE_GROUP` reaches this workspace from **Manage groups** in the student
+sidebar. `GET /api/groups` returns that student's owned and enrolled groups together, so teacher
+group lists (`listTeacherGroups`, `getActiveTeacherGroups`) keep only groups whose `ownerId`
+matches the signed-in user. For student users, `TeacherShell` links its notification bell to
+`/notifications` and adds a **Student area** link back to `/dashboard`.
 
 ## Application Shell
 
@@ -33,13 +44,44 @@ confirmation, field, and panel patterns live in `components/TeacherUI.tsx`.
   It has no deleted-assignment filter or restore action. Legacy `lifecycle=deleted` URLs reset
   pagination and close the status drawer before showing the normal list. Each assignment exposes
   preview, edit, revalidate, clone, grade, and management status.
+- Row and hero menus use `ActionMenu` (`components/TeacherActionMenu.tsx`), which renders the menu in a
+  portal with fixed positioning anchored to its trigger. Teacher panels use `overflow-hidden`, which
+  clipped the previous absolute menus and hid actions such as **Delete assignment**, **Delete group**,
+  and **Remove student**. The menu closes on selection, outside click, `Escape`, scroll, and resize.
 - Management status combines latest validation failure, update history, and latest reevaluation batch.
+- A published (READY) assignment with a staged revision still validating shows an intermediate
+  **Updating** pill (`AssignmentDTO.pendingUpdate`); the list keeps polling until the update settles,
+  so the row never sits silently on READY while work is in progress.
+- The status side panel is the primary way to follow an assignment: clicking anywhere on the row card
+  opens it (an overlay `<button className="absolute inset-0">` under `pointer-events-none` content, with
+  the action controls re-enabled via `pointer-events-auto`), mirroring how selecting an assignment opens
+  its drawer in Analytics. After saving an edit, `EditAssignmentPage` returns to
+  `/teacher/assignments?groupId=…&statusId=…` so the teacher lands on the just-modified assignment's
+  status view instead of the general list.
+- Assignment and analytics drawers focus their heading with `focus({ preventScroll: true })`. `autoFocus`
+  (or a plain `focus()`) scrolls the custom `<main>` scroller to reveal the focused node even though the
+  drawer is a `fixed` overlay, which reset the background list to the first assignment; `preventScroll`
+  keeps the list where it was so closing the panel returns the teacher to the same spot.
+- The assignment list persists its navigation context (selected group, validation-status filter, search
+  query, page) in `sessionStorage` under `teacher.assignments.context`. On return with no explicit
+  `groupId`, the page restores that context when the saved group still exists; an explicit `groupId` in
+  the URL (e.g. the post-update `statusId` deep link) takes precedence over the saved context.
 - Grade review drawer exposes every attempt, retained source, execution evidence, and grade audit history.
 - Gradebook student workspace includes an AI Usage tab scoped to selected student and assignment.
   Loads full-history question/answer counts, unanswered questions, regenerations, lifetime quota,
   and last activity only while tab is open, including students without submissions.
   Uses owner student-assignment usage API with assignmentId and lifetime=true; supports refresh,
   retry, and cancellation on student/assignment/session changes. Missing records remain unavailable.
+- The gradebook offers archived groups next to active ones, active first (`gradableGroups`), because an
+  owner keeps grading, grade return, and feedback on archived groups. Deleted groups stay out.
+- Archived state uses the same orange lifecycle accent as the groups list and group detail: an orange rail
+  above the gradebook toolbar, an orange selector outline, an `archived` pill on the group option, and an
+  orange notice explaining that students see the group as read-only while grading stays open.
+- Deletion is terminal in the teacher UI: deleting a group or an assignment is permanent from the
+  teacher's side. Deleted groups and assignments are never listed, browsable, or restorable through the
+  frontend, and confirmation copy does not promise recovery. The backend keeps the records and its
+  restore endpoints, but no teacher-facing screen calls them (`INCREMENTOIII.pdf`, CH3-9 and the group
+  lifecycle rules describe deletion without a teacher restore path).
 - Teacher dashboard aggregates owned active groups, students, assignments, grading queue, validation
   problems, upcoming lifecycle dates, and recent submissions server-side.
 - Group detail separates Assignments (default) and Students into keyboard-accessible tabs. Assignment rows include a three-dot menu for edit, clone, and confirmed deletion; successful deletion reloads group content. Archived groups allow cloning but hide edit/delete. Assignment and roster cards allow menus to extend beyond their bounds.

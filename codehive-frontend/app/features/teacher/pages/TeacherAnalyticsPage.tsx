@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useSearchParams } from "react-router";
+import { useAuth } from "~/core/providers/AuthProvider";
 
 import { listTeacherGroups } from "../api/group.api";
 import {
@@ -54,6 +55,7 @@ import type {
 } from "../types/metrics.types";
 
 export function TeacherAnalyticsPage() {
+  const ownerId = useAuth().user?.id ?? "";
   const [params, setParams] = useSearchParams();
   const [groups, setGroups] = useState<TeacherGroup[]>([]);
   const [overview, setOverview] = useState<GroupMetricsOverview | null>(null);
@@ -115,7 +117,7 @@ export function TeacherAnalyticsPage() {
     let cancelled = false;
     setGroupsLoading(true);
     setGroupsError(undefined);
-    void listTeacherGroups(true)
+    void listTeacherGroups(ownerId, true)
       .then((items) => {
         if (cancelled) return;
         setGroups(items);
@@ -138,7 +140,7 @@ export function TeacherAnalyticsPage() {
         if (!cancelled) setGroupsLoading(false);
       });
     return () => { cancelled = true; };
-  }, [groupsRefreshVersion, setParams]);
+  }, [groupsRefreshVersion, ownerId, setParams]);
 
   useEffect(() => {
     if (!groupId) {
