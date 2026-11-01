@@ -1,0 +1,18 @@
+substitutions:
+  _REGION: us-central1
+  _REPOSITORY: codehive
+options:
+  machineType: E2_HIGHCPU_8
+  logging: CLOUD_LOGGING_ONLY
+timeout: 3600s
+steps:
+  - id: images
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args: [deploy/gcp/build-images.sh]
+    env:
+      - REGISTRY=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}
+  - id: vm-scripts
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: gcloud
+    args: [storage, cp, 'deploy/gcp/vm/*', 'gs://${PROJECT_ID}-codehive-deploy/vm/']
