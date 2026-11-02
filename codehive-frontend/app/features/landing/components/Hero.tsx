@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { HexGridBackground } from "~/shared/components/HexGridBackground";
 
 export function Hero() {
   const [isVisible, setIsVisible] = useState(false);
@@ -16,8 +17,8 @@ export function Hero() {
         <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-yellow/20 dark:bg-yellow/10 rounded-full blur-3xl animate-float" style={{ animationDelay: "2s" }} />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-french/10 dark:bg-french/5 rounded-full blur-3xl" />
         
-        {/* Grid pattern */}
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(0,80,157,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(0,80,157,0.03)_1px,transparent_1px)] dark:bg-[linear-gradient(rgba(253,197,0,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(253,197,0,0.03)_1px,transparent_1px)] bg-[size:60px_60px]" />
+        {/* Hexagon grid pattern */}
+        <HexGridBackground />
       </div>
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-24">
@@ -95,6 +96,8 @@ export function Hero() {
                       <span className="text-gray-300">(arr), </span>
                       <span className="text-blue-300">0</span>
                       <span className="text-gray-300">)</span>
+                      {/* Blinking editor cursor */}
+                      <span aria-hidden="true" className="ml-0.5 inline-block h-[1.1em] w-[0.3em] translate-y-[0.15em] bg-yellow animate-blink motion-reduce:animate-none" />
                     </div>
                     <div className="mt-4 flex items-center gap-2">
                       <span className="text-green-400">✓</span>
