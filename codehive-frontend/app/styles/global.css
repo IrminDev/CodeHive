@@ -1,6 +1,8 @@
 @import "tailwindcss";
 
 @custom-variant dark (&:where(.dark, .dark *));
+/* Short viewports (e.g. laptops with browser chrome): compact tall marketing panels. */
+@custom-variant short (@media (max-height: 820px));
 
 /* shadcn/ui CSS variable system for the practice workspace */
 :root {
