@@ -1032,7 +1032,7 @@ export function EditAssignmentPage({
 
         <section className={sectionClass}>
           <EditSectionHeading icon={<CalendarDays size={16} />} title="Reschedule" description="Leave empty to keep the current date. Clearing the due date marks existing late submissions on time." />
-          <div className="grid md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
             {[
               [
                 "Launch",

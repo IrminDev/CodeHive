@@ -49,7 +49,7 @@ export function TeacherDashboardPage() {
       {loading ? <TeacherLoading rows={5} /> : error || !data ? <TeacherError message={error ?? "Dashboard unavailable."} onRetry={() => void load()} /> : (
         <div className="space-y-6">
           <DashboardSummary summary={data.summary} />
-          <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,.65fr)]">
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,.65fr)]">
             <div className="space-y-6">
               <ValidationQueue items={data.validationItems} />
               <GradingQueue items={data.gradingItems} />

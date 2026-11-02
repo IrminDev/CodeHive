@@ -4,26 +4,35 @@ import type { ReactNode } from "react";
 
 import { useAuth } from "~/core/providers/AuthProvider";
 import { canManageGroups } from "~/shared/lib/group-management";
+import type { MobileNavItem } from "~/shared/components/MobileNavMenu";
 
 export type StudentNavigation = "dashboard" | "groups" | "join" | "assignments" | "grades" | "notifications";
 
-export function StudentSidebar({ active }: { active: StudentNavigation }) {
+/** Student navigation, shared by the icon rail and the phone menu in StudentHeader. */
+export function useStudentNavItems(): MobileNavItem[] {
   const { user } = useAuth();
+  return [
+    { key: "dashboard", icon: <Home size={20} />, label: "Dashboard", to: "/dashboard" },
+    { key: "groups", icon: <Users size={20} />, label: "My groups", to: "/groups" },
+    { key: "join", icon: <DoorOpenIcon size={20} />, label: "Join group", to: "/groups/join" },
+    { key: "assignments", icon: <ClipboardList size={20} />, label: "Assignments", to: "/assignments" },
+    { key: "grades", icon: <GraduationCap size={20} />, label: "Grades", to: "/grades" },
+    ...(canManageGroups(user) ? [{ key: "manage", icon: <Presentation size={20} />, label: "Manage groups", to: "/teacher/groups" }] : []),
+  ];
+}
+
+export function StudentSidebar({ active }: { active: StudentNavigation }) {
+  const items = useStudentNavItems();
 
   return (
-    <aside className="w-14 flex-shrink-0 flex flex-col items-center py-4 gap-1 bg-gray-50 dark:bg-dark-surface border-r border-gray-200 dark:border-gray-800/60">
+    <aside className="hidden sm:flex w-14 flex-shrink-0 flex-col items-center py-4 gap-1 bg-gray-50 dark:bg-dark-surface border-r border-gray-200 dark:border-gray-800/60">
       <Link to="/dashboard" className="mb-4 flex-shrink-0" aria-label="Dashboard">
         <div style={{ clipPath: "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)" }} className="w-9 h-9 bg-yellow flex items-center justify-center">
           <span className="text-dark-bg font-bold text-sm leading-none">&lt;/&gt;</span>
         </div>
       </Link>
       <nav className="flex flex-col items-center gap-1 flex-1 w-full px-2" aria-label="Student navigation">
-        <SidebarLink icon={<Home size={20} />} label="Dashboard" to="/dashboard" active={active === "dashboard"} />
-        <SidebarLink icon={<Users size={20} />} label="My groups" to="/groups" active={active === "groups"} />
-        <SidebarLink icon={<DoorOpenIcon size={20} />} label="Join group" to="/groups/join" active={active === "join"} />
-        <SidebarLink icon={<ClipboardList size={20} />} label="Assignments" to="/assignments" active={active === "assignments"} />
-        <SidebarLink icon={<GraduationCap size={20} />} label="Grades" to="/grades" active={active === "grades"} />
-        {canManageGroups(user) && <SidebarLink icon={<Presentation size={20} />} label="Manage groups" to="/teacher/groups" />}
+        {items.map((item) => <SidebarLink key={item.key} icon={item.icon} label={item.label} to={item.to} active={active === item.key} />)}
       </nav>
     </aside>
   );

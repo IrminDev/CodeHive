@@ -473,7 +473,7 @@ export function AssignmentPage() {
         <div className="w-px h-4 bg-gray-300 dark:bg-gray-700 flex-shrink-0" />
 
         {/* Title + tags */}
-        <div className="hidden sm:flex items-center gap-2 min-w-0 flex-shrink-0 max-w-[240px]">
+        <div className="hidden sm:flex items-center gap-2 min-w-0 max-w-[240px]">
           <svg width="9" height="9" viewBox="0 0 10 10" fill="currentColor" className="flex-shrink-0 text-azure">
               <polygon points="5,0 9.33,2.5 9.33,7.5 5,10 0.67,7.5 0.67,2.5" />
             </svg>
@@ -486,7 +486,7 @@ export function AssignmentPage() {
         </div>
 
         {/* Center: metrics */}
-        <div className="hidden md:flex lg:hidden xl:flex flex-1 items-center justify-center gap-4">
+        <div className="hidden xl:flex flex-1 items-center justify-center gap-4">
           <MetricChip icon={<Clock className="w-3 h-3" />} label={`${assignment.timeLimitMs}ms`} />
           <MetricChip icon={<Cpu className="w-3 h-3" />} label={`${assignment.memoryLimitMb}MB`} />
           <MetricChip icon={<Scale className="w-3 h-3" />} label={comparatorLabel} />
@@ -518,7 +518,8 @@ export function AssignmentPage() {
           <button
             onClick={() => runExecution(ExecutionType.PRACTICE)}
             disabled={isRunning || isSubmitting || !canRun}
-            title={!canRun ? (submitBlockReason ?? undefined) : undefined}
+            aria-label="Run sample"
+            title={!canRun ? (submitBlockReason ?? "Run sample") : "Run sample"}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-azure hover:text-azure dark:hover:border-gray-400 dark:hover:text-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
           >
             {isRunning ? (
@@ -531,7 +532,7 @@ export function AssignmentPage() {
                 <path d="M8 5v14l11-7z" />
               </svg>
             )}
-            <span className="hidden sm:inline">Run sample</span>
+            <span className="hidden lg:inline">Run sample</span>
           </button>
 
           <button

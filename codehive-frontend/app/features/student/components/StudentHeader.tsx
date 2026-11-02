@@ -4,7 +4,9 @@ import { Link } from "react-router";
 
 import { useAuth } from "~/core/providers/AuthProvider";
 import { useTheme } from "~/core/providers/ThemeProvider";
+import { MobileNavMenu } from "~/shared/components/MobileNavMenu";
 import { ProfileSettingsModal } from "~/shared/components/ProfileSettingsModal";
+import { useStudentNavItems } from "./StudentSidebar";
 
 export interface StudentBreadcrumb {
   label: string;
@@ -16,14 +18,16 @@ export function StudentHeader({ breadcrumbs }: { breadcrumbs: StudentBreadcrumb[
   const { theme, toggleTheme } = useTheme();
   const [profileOpen, setProfileOpen] = useState(false);
   const initials = (user?.name?.split(" ")[0] ?? "ST").slice(0, 2).toUpperCase();
+  const navItems = useStudentNavItems();
 
   return (
     <>
       <header className="h-12 flex-shrink-0 flex items-center gap-3 px-3 sm:px-5 bg-gray-50 dark:bg-dark-surface border-b border-gray-200 dark:border-gray-800/60">
+        <MobileNavMenu items={navItems} homeTo="/dashboard" title="Student" />
         <nav aria-label="Breadcrumb" className="flex flex-1 items-center gap-1.5 text-sm min-w-0">
           {breadcrumbs.map((item, index) => (
-            <span key={`${item.label}-${index}`} className="flex items-center gap-1.5 min-w-0">
-              {index > 0 && <ChevronRight size={14} className="text-gray-300 dark:text-gray-600 flex-shrink-0" />}
+            <span key={`${item.label}-${index}`} className={`${index === breadcrumbs.length - 1 ? "flex" : "hidden sm:flex"} items-center gap-1.5 min-w-0`}>
+              {index > 0 && <ChevronRight size={14} className="hidden sm:block text-gray-300 dark:text-gray-600 flex-shrink-0" />}
               {item.to ? (
                 <Link to={item.to} className="truncate text-gray-400 dark:text-gray-500 hover:text-azure dark:hover:text-yellow transition-colors">{item.label}</Link>
               ) : (

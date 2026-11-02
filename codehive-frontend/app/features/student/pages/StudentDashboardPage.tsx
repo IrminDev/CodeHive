@@ -133,15 +133,15 @@ export function StudentDashboardPage() {
         <StudentHeader breadcrumbs={[{ label: "Student" }, { label: "Dashboard" }]} />
 
         {/* ── Content ── */}
-        <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1 overflow-y-auto scrollbar-hide lg:flex lg:overflow-hidden">
 
           {/* ── Main column ── */}
-          <main className="flex-1 overflow-y-auto scrollbar-hide p-6 space-y-5 min-w-0">
+          <main className="lg:flex-1 lg:overflow-y-auto scrollbar-hide p-4 sm:p-6 space-y-5 min-w-0">
 
             {/* Greeting */}
-            <div className="flex items-start justify-between gap-4">
+            <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-1.5">
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-1.5">
                   {getGreeting()},{" "}
                   <span className="text-azure dark:text-azure">{firstName}</span>.
                 </h1>
@@ -168,7 +168,7 @@ export function StudentDashboardPage() {
             {/* Assignments panel */}
             <div id="assignments" className="bg-white dark:bg-dark-surface border border-gray-200 dark:border-gray-800/60 rounded-2xl overflow-hidden">
               {/* Panel header */}
-              <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100 dark:border-gray-800/60">
+              <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 sm:px-5 py-3.5 border-b border-gray-100 dark:border-gray-800/60">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-semibold text-gray-900 dark:text-white">Available assignments</span>
                   <span className="px-2 py-0.5 rounded-md bg-gray-100 dark:bg-dark-card text-xs font-mono text-gray-500 dark:text-gray-400">
@@ -235,7 +235,7 @@ export function StudentDashboardPage() {
           </main>
 
           {/* ── Right sidebar ── */}
-          <aside className="w-72 flex-shrink-0 border-l border-gray-200 dark:border-gray-800/60 overflow-y-auto scrollbar-hide p-5 space-y-6 bg-white dark:bg-dark-bg">
+          <aside className="border-t lg:border-t-0 lg:border-l border-gray-200 dark:border-gray-800/60 lg:w-72 lg:flex-shrink-0 lg:overflow-y-auto scrollbar-hide p-4 sm:p-6 lg:p-5 space-y-6 sm:grid sm:grid-cols-2 sm:gap-6 sm:space-y-0 lg:block lg:space-y-6 bg-white dark:bg-dark-bg">
 
             {/* My groups */}
             <div id="groups">
@@ -304,7 +304,7 @@ function AssignmentRow({ assignment, submission, index }: { assignment: Assignme
   return (
     <Link
       to={`/assignment/${assignment.id}`}
-      className="flex items-center gap-4 px-5 py-3.5 border-b border-gray-100 dark:border-gray-800/40 hover:bg-gray-50 dark:hover:bg-dark-card/50 transition-colors group last:border-b-0"
+      className="flex items-center gap-3 sm:gap-4 px-4 sm:px-5 py-3.5 border-b border-gray-100 dark:border-gray-800/40 hover:bg-gray-50 dark:hover:bg-dark-card/50 transition-colors group last:border-b-0"
     >
       {/* Hexagon number */}
       <div className="relative w-9 h-9 flex-shrink-0 flex items-center justify-center">
@@ -339,7 +339,7 @@ function AssignmentRow({ assignment, submission, index }: { assignment: Assignme
       </div>
 
       {/* Language tags */}
-      <div className="flex items-center gap-1 flex-shrink-0">
+      <div className="hidden sm:flex items-center gap-1 flex-shrink-0">
         {assignment.allowedLanguages.slice(0, 3).map((lang) => (
           <span
             key={lang}
