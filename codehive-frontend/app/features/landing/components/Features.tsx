@@ -8,7 +8,7 @@ const features = [
       </svg>
     ),
     title: "Code Assignment Creation",
-    description: "Create coding assignments with multiple test cases, time limits, and difficulty levels that push students to learn.",
+    description: "Create coding assignments with public examples, private test cases, language choices, execution limits, and deadlines.",
     color: "from-azure to-french",
   },
   {
@@ -17,8 +17,8 @@ const features = [
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
       </svg>
     ),
-    title: "Auto-Grading",
-    description: "Save hours with automatic code evaluation. Our platform tests submissions against your test cases instantly.",
+    title: "Automated Code Evaluation",
+    description: "Check submissions against teacher-defined test cases and review verdicts, runtime, and memory usage.",
     color: "from-yellow to-gold",
   },
   {
@@ -28,7 +28,7 @@ const features = [
       </svg>
     ),
     title: "Classroom Management",
-    description: "Organize students into classrooms, track progress, and manage assignments all from one dashboard.",
+    description: "Create groups, invite students with join codes, and manage rosters and assignments. Track progress with group and student analytics.",
     color: "from-french to-imperial",
   },
   {
@@ -37,8 +37,8 @@ const features = [
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
     ),
-    title: "Real-time Feedback",
-    description: "Students receive instant feedback on their code. Buy you can also provide custom feedback to guide their learning journey.",
+    title: "Grades & Feedback",
+    description: "Review student submissions, save draft grades, return scores, and share written feedback to guide learning.",
     color: "from-gold to-yellow",
   },
   {
@@ -47,9 +47,19 @@ const features = [
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
       </svg>
     ),
-    title: "Secure Environment",
-    description: "Run code safely in isolated containers. Support for multiple programming languages without security risks.",
+    title: "Isolated Code Execution",
+    description: "Run Java, Python, C, and C++ in isolated containers with time, memory, and output limits.",
     color: "from-imperial to-french",
+  },
+  {
+    icon: (
+      <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3Zm7-1v4m-2-2h4" />
+      </svg>
+    ),
+    title: "AI Learning Assistant",
+    description: "Get hints and explanations when enabled, with teacher-set help levels and answer quotas. Students choose whether to share their code or execution results.",
+    color: "from-azure to-imperial",
   },
 ];
 
@@ -86,17 +96,12 @@ export function Features() {
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center max-w-3xl mx-auto mb-16 lg:mb-24">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-azure/10 dark:bg-yellow/10 border border-azure/20 dark:border-yellow/20 mb-6">
-            <span className="text-sm font-medium text-azure dark:text-yellow">
-              Powerful Features
-            </span>
-          </div>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white mb-6">
-            Everything you need to{" "}
-            <span className="gradient-text">grade assignments</span>
+            Tools to teach, practice, and{" "}
+            <span className="gradient-text">review code</span>
           </h2>
           <p className="text-lg text-gray-600 dark:text-gray-400">
-            From creating coding assignments to tracking student progress, CodeHive has all the tools you need to succeed in the classroom.
+            Create coding assignments, evaluate submissions, review student progress, and support learning in one platform.
           </p>
         </div>
 
@@ -132,14 +137,6 @@ export function Features() {
                 {feature.description}
               </p>
 
-              {/* Hover arrow */}
-              <div className="mt-6 flex items-center text-azure dark:text-yellow font-medium 
-                            opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                Learn more
-                <svg className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </div>
             </div>
           ))}
         </div>

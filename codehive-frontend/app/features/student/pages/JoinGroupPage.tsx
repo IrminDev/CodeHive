@@ -105,7 +105,7 @@ export function JoinGroupPage() {
         <StudentHeader breadcrumbs={[{ label: "Student" }, { label: "Groups", to: "/groups" }, { label: "Join" }]} />
 
         {/* ── Content ── */}
-        <main className="flex-1 overflow-y-auto scrollbar-hide px-8 py-10">
+        <main className="flex-1 overflow-y-auto scrollbar-hide px-4 sm:px-8 py-8 sm:py-10">
           <div className="max-w-lg mx-auto">
 
             {/* Hero */}
@@ -134,7 +134,7 @@ export function JoinGroupPage() {
               </p>
 
               {/* 8 boxes */}
-              <div className="flex gap-2 justify-center mb-5" onPaste={handlePaste}>
+              <div className="flex gap-1.5 sm:gap-2 justify-center mb-5" onPaste={handlePaste}>
                 {chars.map((ch, i) => (
                   <input
                     key={i}
@@ -146,7 +146,7 @@ export function JoinGroupPage() {
                     onChange={e => handleChange(i, e.target.value)}
                     onKeyDown={e => handleKeyDown(i, e)}
                     onFocus={e => e.target.select()}
-                    className={`w-11 h-12 rounded-xl border-2 text-center text-lg font-bold font-mono transition-all focus:outline-none
+                    className={`flex-1 min-w-0 max-w-11 h-11 sm:h-12 rounded-xl border-2 text-center text-lg font-bold font-mono transition-all focus:outline-none
                       ${ch
                         ? "border-yellow/60 bg-yellow/5 text-yellow dark:text-yellow"
                         : "border-gray-200 dark:border-gray-700/60 bg-white dark:bg-dark-card text-gray-300 dark:text-gray-600"

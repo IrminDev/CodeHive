@@ -1,0 +1,7 @@
+gcc:13-bookworm
+gcc:12
+eclipse-temurin:21-jdk-ubi10-minimal
+irmindev/c-exec:latest
+irmindev/cpp-exec:latest
+irmindev/java-exec:latest
+irmindev/python-exec:latest

@@ -1,6 +1,7 @@
 import { route, type RouteConfig } from "@react-router/dev/routes";
 
 export const adminRoutes = [
+  route("admin/ai-usage", "features/admin/routes/admin.ai-usage.tsx"),
   route("admin", "features/admin/routes/admin.tsx"),
   route("admin/users", "features/admin/routes/admin.users.tsx"),
   route("admin/users/:userId", "features/admin/routes/admin.users.$userId.tsx"),

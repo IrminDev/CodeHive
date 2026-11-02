@@ -8,6 +8,8 @@ import logo from "~/assets/logo.png";
 import { AuthService } from "../services/auth.service";
 import { setAuthToken } from "~/core/storage/token.storage";
 import { getDashboardRoute } from "~/shared/lib/role-routing";
+import { Cpu, Layers, Zap } from "lucide-react";
+import { AuthEyebrow, AuthFeature, AuthSidePanel } from "../components/AuthSidePanel";
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -17,7 +19,6 @@ export function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -47,110 +48,48 @@ export function LoginPage() {
     }
   };
 
-  const features = [
-    "Access all your classrooms",
-    "Continue coding challenges",
-    "Track your progress",
-  ];
-
   return (
     <div className="h-screen flex overflow-hidden">
       {/* ── Left panel ── */}
-      <div
-        className={`hidden lg:flex lg:w-1/2 relative overflow-hidden flex-col px-16 xl:px-24 py-10
-          bg-gradient-to-br from-[#1565C0] via-[#003F88] to-[#001840]
-          ${mounted ? "animate-slide-in-left" : "opacity-0"}`}
+      <AuthSidePanel
+        mounted={mounted}
+        footer={
+          <div className="grid grid-cols-3 gap-6">
+            <AuthFeature icon={<Zap size={18} />} title="Instant verdicts" stacked detail="AC · WA · TLE · CE" />
+            <AuthFeature icon={<Cpu size={18} />} title="Sandboxed exec" stacked detail="CPU · MEM · TIME" />
+            <AuthFeature icon={<Layers size={18} />} title="4 languages" stacked detail="JAVA · PY · C · C++" />
+          </div>
+        }
       >
-        {/* Subtle blobs */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-0 right-0 w-80 h-80 bg-[#0566d9]/20 rounded-full blur-[100px] -translate-y-1/3 translate-x-1/3" />
-          <div className="absolute bottom-0 left-0 w-64 h-64 bg-[#001840]/40 rounded-full blur-[80px] translate-y-1/3 -translate-x-1/3" />
-          {/* Grid */}
-          <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:60px_60px]" />
-        </div>
-
-        {/* Logo – top of panel */}
-        <a href="/" className="relative z-10 flex items-center gap-3 group mb-auto">
-          <img src={logo} alt="CodeHive" className="h-12 w-12 transition-transform group-hover:scale-110" />
-          <span className="text-2xl font-bold text-white">CodeHive</span>
-        </a>
-
-        {/* Content – vertically centered */}
-        <div className="relative z-10 space-y-12 my-auto">
-          {/* Heading */}
+        <div className="space-y-8 short:space-y-5">
+          <AuthEyebrow>The hive</AuthEyebrow>
           <div className="space-y-5">
-            <h1 className="text-5xl font-bold text-white leading-tight">
-              Welcome back to <br />
-              <span className="text-yellow">CodeHive</span>
+            <h1 className="text-5xl xl:text-6xl short:text-4xl short:xl:text-5xl font-bold text-white leading-[1.05] tracking-tight">
+              One reference solution. <br />
+              <span className="text-yellow">Thousands</span> graded.
             </h1>
-            <p className="text-white/60 text-base leading-relaxed">
-              The ultimate engineering environment for academic excellence and
-              technical mastery.
+            <p className="max-w-lg text-lg short:text-base text-white/60 leading-relaxed">
+              Sign in to publish assignments, review submissions, or pick up where you left off.
             </p>
           </div>
 
-          {/* Feature list */}
-          <ul className="space-y-6">
-            {features.map((feature) => (
-              <li key={feature} className="flex items-center gap-5">
-                <div className="flex-shrink-0 w-10 h-10 rounded-full border border-white/30 bg-white/10 flex items-center justify-center">
-                  <svg
-                    className="w-5 h-5 text-white"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <circle cx="12" cy="12" r="10" />
-                    <path d="M8 12l2.5 2.5L16 9" />
-                  </svg>
-                </div>
-                <span className="text-white font-semibold text-lg">
-                  {feature}
-                </span>
-              </li>
-            ))}
-          </ul>
-
-          {/* Code block */}
-          <div className="bg-[#0d1117]/80 backdrop-blur-sm rounded-xl p-6 max-w-sm border border-white/10 shadow-2xl animate-float">
-            <div className="flex items-center gap-2 mb-5">
-              <div className="w-3 h-3 rounded-full bg-red-500" />
-              <div className="w-3 h-3 rounded-full bg-yellow" />
-              <div className="w-3 h-3 rounded-full bg-green-500" />
+          {/* Code card */}
+          <div className="max-w-md rounded-xl border border-white/10 bg-[#0d1117]/80 p-6 short:p-4 font-mono text-sm short:text-xs shadow-2xl backdrop-blur-sm">
+            <div className="mb-4 flex items-center gap-2">
+              <span className="h-2.5 w-2.5 rounded-full bg-red-500/80" />
+              <span className="h-2.5 w-2.5 rounded-full bg-green-500/80" />
+              <span className="ml-auto text-xs text-white/40">welcome.ts</span>
             </div>
-            <div className="font-mono text-base space-y-1 text-white/80 leading-relaxed">
-              <div>
-                <span className="text-purple-400">const</span>
-                <span className="text-white"> student </span>
-                <span className="text-white">= {"{"}</span>
-              </div>
-              <div className="pl-4">
-                <span className="text-[#79c0ff]">name</span>
-                <span className="text-white">: </span>
-                <span className="text-[#a5d6ff]">"You"</span>
-                <span className="text-white">,</span>
-              </div>
-              <div className="pl-4">
-                <span className="text-[#79c0ff]">status</span>
-                <span className="text-white">: </span>
-                <span className="text-[#a5d6ff]">"Ready to learn"</span>
-              </div>
-              <div>
-                <span className="text-white">{"}"}</span>
-                <span className="text-white">;</span>
-              </div>
+            <div className="space-y-1 leading-relaxed text-white/80">
+              <div><span className="text-purple-400">const</span> <span className="text-[#79c0ff]">session</span> = <span className="text-purple-400">await</span> auth.login({"{"}</div>
+              <div className="pl-4"><span className="text-[#79c0ff]">role</span>: <span className="text-[#a5d6ff]">"educator"</span>,</div>
+              <div className="pl-4"><span className="text-[#79c0ff]">campus</span>: <span className="text-[#a5d6ff]">"ipn.mx"</span>,</div>
+              <div>{"});"}</div>
+              <div className="pt-3 text-green-400/80">{"// → redirecting to your dashboard"}</div>
             </div>
           </div>
         </div>
-
-        {/* Copyright */}
-        <div className="relative z-10 mt-auto text-white/30 text-xs">
-          © 2026 CodeHive.
-        </div>
-      </div>
+      </AuthSidePanel>
 
       {/* ── Right panel ── */}
       <div
@@ -159,17 +98,20 @@ export function LoginPage() {
           ${mounted ? "animate-slide-in-right" : "opacity-0"}`}
       >
         {/* Top bar – theme toggle */}
-        <div className="flex items-center justify-between p-6 lg:p-8">
+        <div className="flex items-center justify-between gap-4 p-6 lg:p-8">
           {/* Mobile logo (left panel hidden on mobile) */}
           <a href="/" className="flex items-center gap-3 group lg:hidden">
             <img src={logo} alt="CodeHive" className="h-10 w-10 transition-transform group-hover:scale-110" />
             <span className="text-xl font-bold gradient-text">CodeHive</span>
           </a>
-          <div className="ml-auto lg:ml-0">
+          <div className="ml-auto flex items-center gap-4">
+            <p className="hidden sm:block text-sm text-gray-500 dark:text-gray-400">
+              Don't have an account? <span className="font-medium text-gray-800 dark:text-gray-200">Ask your administrator.</span>
+            </p>
             <button
               onClick={toggleTheme}
-              className="p-2 rounded-full bg-gray-100 dark:bg-white/10 hover:bg-gray-200
-                       dark:hover:bg-white/20 transition-all duration-200 group"
+              className="w-10 h-10 grid place-items-center rounded-lg border border-gray-200 dark:border-white/10
+                       hover:bg-gray-100 dark:hover:bg-white/10 transition-all duration-200 group"
               aria-label="Toggle theme"
             >
               {theme === "light" ? (
@@ -209,19 +151,15 @@ export function LoginPage() {
         <div className="flex-1 flex items-center px-8 md:px-16 xl:px-20">
           <div className="w-full max-w-lg space-y-8">
             {/* Heading */}
-            <header className="space-y-2">
-              <h2 className="text-5xl font-bold text-gray-900 dark:text-white">
+            <header className="space-y-4">
+              <span className="inline-flex rounded-full border border-azure/20 bg-azure/5 px-3 py-1 text-xs font-bold uppercase tracking-widest text-azure dark:border-yellow/25 dark:bg-yellow/10 dark:text-yellow">
                 Sign in
+              </span>
+              <h2 className="text-4xl xl:text-5xl font-bold tracking-tight text-gray-900 dark:text-white">
+                Welcome to <span className="text-azure dark:text-[#4d8fe8]">CodeHive</span>
               </h2>
               <p className="text-base text-gray-500 dark:text-gray-400">
-                New here?{" "}
-                <a
-                  href="#"
-                  className="text-azure dark:text-[#6ba3f5] hover:underline font-medium"
-                >
-                  Create one
-                </a>{" "}
-                account.
+                Sign in with your university email or enrollment number to continue.
               </p>
             </header>
 
@@ -231,9 +169,9 @@ export function LoginPage() {
               <div className="space-y-1.5">
                 <label
                   htmlFor="identifier"
-                  className="block text-xs font-bold tracking-widest uppercase text-gray-500 dark:text-gray-500"
+                  className="block font-mono text-xs tracking-[0.2em] uppercase text-gray-500 dark:text-gray-400"
                 >
-                  Email or Enrollment Number
+                  Email or Enrollment #
                 </label>
                 <div className="relative group">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -247,7 +185,7 @@ export function LoginPage() {
                         strokeLinecap="round"
                         strokeLinejoin="round"
                         strokeWidth={1.5}
-                        d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207"
+                        d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
                       />
                     </svg>
                   </div>
@@ -274,15 +212,16 @@ export function LoginPage() {
                 <div className="flex justify-between items-center">
                   <label
                     htmlFor="password"
-                    className="block text-xs font-bold tracking-widest uppercase text-gray-500 dark:text-gray-500"
+                    className="block font-mono text-xs tracking-[0.2em] uppercase text-gray-500 dark:text-gray-400"
                   >
                     Password
                   </label>
                   <a
                     href="/forgot-password"
-                    className="text-xs text-gray-400 dark:text-gray-400 hover:text-azure dark:hover:text-white transition-colors"
+                    aria-label="Forgot password?"
+                    className="text-sm font-medium text-azure dark:text-yellow hover:underline underline-offset-4 transition-colors"
                   >
-                    Forgot password?
+                    Forgot?
                   </a>
                 </div>
                 <div className="relative group">
@@ -297,7 +236,7 @@ export function LoginPage() {
                         strokeLinecap="round"
                         strokeLinejoin="round"
                         strokeWidth={1.5}
-                        d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                        d="M5 17l5-5-5-5M12 19h7"
                       />
                     </svg>
                   </div>
@@ -336,31 +275,13 @@ export function LoginPage() {
                 </div>
               </div>
 
-              {/* Remember me */}
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="remember"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  className="w-4 h-4 rounded border-gray-300 dark:border-white/20
-                           text-azure focus:ring-azure bg-white dark:bg-white/5"
-                />
-                <label
-                  htmlFor="remember"
-                  className="text-base text-gray-600 dark:text-gray-400 cursor-pointer"
-                >
-                  Remember me for 30 days
-                </label>
-              </div>
-
               {/* Submit */}
               <button
                 type="submit"
                 disabled={isLoading}
                 className="w-full py-4 rounded-lg font-semibold text-base text-white
-                         bg-[#1557e0] hover:bg-[#1248c4] active:scale-[0.98]
-                         transition-all duration-200 shadow-lg shadow-blue-500/20
+                         bg-gradient-to-b from-[#1565C0] to-[#0b4ea2] hover:from-[#1a6fd3] hover:to-[#0d58b5] active:scale-[0.98]
+                         transition-all duration-200 shadow-lg shadow-blue-600/30
                          disabled:opacity-70 disabled:cursor-not-allowed"
               >
                 {isLoading ? (
@@ -377,16 +298,29 @@ export function LoginPage() {
                     Signing in...
                   </div>
                 ) : (
-                  "Sign in"
+                  <span className="inline-flex items-center justify-center gap-2">
+                    Continue
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14m-6-6l6 6-6 6" />
+                    </svg>
+                  </span>
                 )}
               </button>
             </form>
+
+            {/* Legal note */}
+            <p className="text-sm leading-relaxed text-gray-500 dark:text-gray-400">
+              By signing in you agree to the{" "}
+              <a href="/terms" className="underline underline-offset-4 hover:text-gray-800 dark:hover:text-gray-200">Terms</a> and{" "}
+              <a href="/privacy" className="underline underline-offset-4 hover:text-gray-800 dark:hover:text-gray-200">Privacy</a>.
+            </p>
           </div>
         </div>
 
         {/* Footer – pinned to bottom */}
         <div className="px-8 md:px-16 xl:px-20 pb-8">
-          <footer className="pt-6 border-t border-gray-100 dark:border-white/5">
+          <footer className="pt-6 border-t border-gray-100 dark:border-white/5 flex flex-wrap items-center justify-between gap-4">
+            <span className="font-mono text-xs text-gray-400 dark:text-gray-500">© 2026 CodeHive</span>
             <div className="flex flex-wrap gap-x-6 gap-y-2">
               <a
                 href="/privacy"
@@ -399,12 +333,6 @@ export function LoginPage() {
                 className="text-sm text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
               >
                 Terms of Service
-              </a>
-              <a
-                href="#"
-                className="text-sm text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-              >
-                Cookie Settings
               </a>
             </div>
           </footer>

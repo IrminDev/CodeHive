@@ -7,6 +7,7 @@ import java.util.UUID;
 
 import com.github.codehive.model.enums.ComparatorType;
 import com.github.codehive.model.enums.Language;
+import com.github.codehive.model.enums.AiAssistanceLevel;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
@@ -70,6 +71,19 @@ public class CloneAssignmentRequest {
 
     @DecimalMin(value = "0.01", message = "Max points must be greater than zero")
     private BigDecimal maxPoints = new BigDecimal("100.00");
+
+    private Boolean aiAssistanceEnabled = false;
+    @Min(0)
+    @Max(10)
+    private Integer maxAiRequests = 0;
+    private AiAssistanceLevel aiAssistanceLevel = AiAssistanceLevel.CONCEPTUAL_ONLY;
+
+    public Boolean getAiAssistanceEnabled() { return aiAssistanceEnabled; }
+    public void setAiAssistanceEnabled(Boolean enabled) { this.aiAssistanceEnabled = enabled; }
+    public Integer getMaxAiRequests() { return maxAiRequests; }
+    public void setMaxAiRequests(Integer maxAiRequests) { this.maxAiRequests = maxAiRequests; }
+    public AiAssistanceLevel getAiAssistanceLevel() { return aiAssistanceLevel; }
+    public void setAiAssistanceLevel(AiAssistanceLevel level) { this.aiAssistanceLevel = level; }
 
     @FutureOrPresent(message = "Launch date cannot be before the current time")
     private Instant launchDate;

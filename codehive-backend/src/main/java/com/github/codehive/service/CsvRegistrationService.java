@@ -23,6 +23,7 @@ import org.springframework.stereotype.Service;
 
 import com.github.codehive.model.entity.User;
 import com.github.codehive.model.enums.Role;
+import com.github.codehive.model.exception.EntityNotFoundException;
 import com.github.codehive.model.response.auth.CsvProgressMessage;
 import com.github.codehive.model.response.auth.CsvProgressMessage.Status;
 import com.github.codehive.repository.UserRepository;
@@ -54,10 +55,14 @@ public class CsvRegistrationService {
         this.selfProvider = selfProvider;
     }
 
-    public String submitCsvJob(byte[] csvData) {
+    public String submitCsvJob(byte[] csvData, String requesterEmail) {
+        User requester = userRepository.findByEmail(requesterEmail)
+                .filter(User::canParticipate)
+                .orElseThrow(() -> new EntityNotFoundException("Authenticated user not found"));
         String taskId = UUID.randomUUID().toString();
-        // Run the import now on the async executor; the websocket is only a progress channel.
-        selfProvider.getObject().processAsync(csvData, taskId);
+        // Queue the import; it runs when the authenticated owner subscribes to the progress socket.
+        webSocketHandler.queueTask(taskId, requester.getId(),
+                () -> selfProvider.getObject().processAsync(csvData, taskId));
         return taskId;
     }
 

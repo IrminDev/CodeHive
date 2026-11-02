@@ -1,48 +1,37 @@
-import type { ReactNode } from "react";
-import {
-  ArrowRight,
-  CalendarClock,
-  CheckCircle2,
-  CircleAlert,
-  Clock3,
-  GraduationCap,
-  Search,
-  Users,
-} from "lucide-react";
-import { Link } from "react-router";
+import { useEffect, useState, type ReactNode } from "react";
+import { ArrowDown, ArrowUp, ChevronRight, ChevronsUpDown, CircleAlert, Search } from "lucide-react";
 import { Dropdown } from "~/shared/components/ui/Dropdown";
 
-import type {
-  AssignmentMetrics,
-  ExecutionStatus,
-  StudentMetrics,
-} from "../types/metrics.types";
+import type { AssignmentMetrics, StudentMetrics } from "../types/metrics.types";
 import {
   compactButtonClass,
   inputClass,
   panelClass,
   StatusPill,
-  TeacherEmpty,
 } from "./TeacherUI";
-import { formatPercentage } from "./TeacherAnalyticsOverview";
+import { formatPercentage, Meter, plural, VERDICT_ORDER } from "./TeacherAnalyticsOverview";
 
-export type AnalyticsTab = "assignments" | "students";
+export type AnalyticsTab = "assignments" | "students" | "ai";
 export type AssignmentAnalyticsFilter = "all" | "attention" | "overdue" | "grading";
-export type AssignmentAnalyticsSort = "attention" | "title" | "completion" | "missing";
+export type AssignmentSortKey = "priority" | "title" | "submitted" | "onTime" | "score" | "accepted" | "toGrade" | "missing";
 export type StudentAnalyticsFilter = "all" | "missing" | "late" | "ungraded" | "complete";
-export type StudentAnalyticsSort = "risk" | "name" | "completion" | "score";
+export type StudentSortKey = "priority" | "name" | "completion" | "score" | "late" | "missing" | "attempts";
+export interface SortState<Key extends string> { key: Key; descending: boolean }
 
-const VERDICT_ORDER: ExecutionStatus[] = ["AC", "WA", "TLE", "MLE", "RTE", "CE", "OLE", "PENDING"];
-const VERDICT_COLOR: Record<ExecutionStatus, string> = {
-  AC: "bg-green-500",
-  WA: "bg-red-500",
-  TLE: "bg-orange-500",
-  MLE: "bg-purple-500",
-  RTE: "bg-red-700",
-  CE: "bg-yellow",
-  OLE: "bg-pink-500",
-  PENDING: "bg-azure dark:bg-yellow",
-};
+export const PRIORITY_SORT = { key: "priority", descending: true } as const;
+const PAGE_SIZE = 25;
+
+/** Long tables open with one page of rows; the count resets whenever the view changes. */
+function useRowLimit(resetKey: string) {
+  const [limit, setLimit] = useState(PAGE_SIZE);
+  useEffect(() => { setLimit(PAGE_SIZE); }, [resetKey]);
+  return [limit, setLimit] as const;
+}
+
+const headClass = "px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400";
+const cellClass = "px-4 py-3 align-middle";
+const rowClass = "group cursor-pointer border-t border-gray-100 transition-colors hover:bg-gray-50 dark:border-gray-800/60 dark:hover:bg-dark-card/40";
+const rowButtonClass = "max-w-full truncate rounded text-left text-sm font-medium text-gray-900 group-hover:text-azure focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-azure dark:text-gray-100 dark:group-hover:text-yellow dark:focus-visible:ring-yellow";
 
 export function AnalyticsTabs({
   value,
@@ -56,15 +45,17 @@ export function AnalyticsTabs({
   onChange: (value: AnalyticsTab) => void;
 }) {
   return (
-    <div className={`${panelClass} mb-4 flex gap-1 p-1`} role="tablist" aria-label="Analytics sections">
-      <TabButton active={value === "assignments"} onClick={() => onChange("assignments")} icon={<CalendarClock size={14} />} label="Assignments" count={assignments} />
-      <TabButton active={value === "students"} onClick={() => onChange("students")} icon={<Users size={14} />} label="Students" count={students} />
+    <div role="tablist" aria-label="Analytics detail" className="flex gap-1 overflow-x-auto border-b border-gray-200 dark:border-gray-800/60">
+      <TabButton active={value === "assignments"} onClick={() => onChange("assignments")} label="Assignments" count={assignments} />
+      <TabButton active={value === "students"} onClick={() => onChange("students")} label="Students" count={students} />
+      <TabButton active={value === "ai"} onClick={() => onChange("ai")} label="AI usage" />
     </div>
   );
 }
 
 export function AssignmentExplorer({
   assignments,
+  total,
   query,
   filter,
   sort,
@@ -76,66 +67,79 @@ export function AssignmentExplorer({
   onRetry,
 }: {
   assignments: AssignmentMetrics[];
+  total: number;
   query: string;
   filter: AssignmentAnalyticsFilter;
-  sort: AssignmentAnalyticsSort;
+  sort: SortState<AssignmentSortKey>;
   error?: string;
   onQuery: (value: string) => void;
   onFilter: (value: AssignmentAnalyticsFilter) => void;
-  onSort: (value: AssignmentAnalyticsSort) => void;
+  onSort: (value: SortState<AssignmentSortKey>) => void;
   onOpen: (assignmentId: string) => void;
   onRetry: () => void;
 }) {
+  const filtered = Boolean(query) || filter !== "all";
+  const [limit, setLimit] = useRowLimit(`${query}|${filter}|${sort.key}|${sort.descending}`);
   return (
-    <section className={`${panelClass} overflow-hidden`}>
-      <ExplorerHeader
-        title="Assignment performance"
-        description="Completion, punctuality, grading, and verdict health by assignment."
+    <section className={`${panelClass} overflow-hidden`} aria-label="Assignment performance">
+      <ExplorerToolbar
         query={query}
         queryPlaceholder="Search assignments…"
         filter={filter}
-        sort={sort}
-        onQuery={onQuery}
-        onFilter={(value) => onFilter(value as AssignmentAnalyticsFilter)}
-        onSort={(value) => onSort(value as AssignmentAnalyticsSort)}
         filters={[
           ["all", "All assignments"],
           ["attention", "Needs attention"],
           ["overdue", "Overdue"],
           ["grading", "Pending grading"],
         ]}
-        sorts={[
-          ["attention", "Attention first"],
-          ["title", "Title A–Z"],
-          ["completion", "Highest completion"],
-          ["missing", "Most missing"],
-        ]}
+        summary={`${assignments.length}${filtered ? ` of ${total}` : ""} ${plural(filtered ? total : assignments.length, "assignment")}`}
+        priorityLabel="Attention first"
+        prioritized={sort.key === "priority"}
+        onPrioritize={() => onSort(PRIORITY_SORT)}
+        onQuery={onQuery}
+        onFilter={(value) => onFilter(value as AssignmentAnalyticsFilter)}
       />
       {error ? (
         <SectionError message={error} onRetry={onRetry} />
       ) : assignments.length === 0 ? (
-        <TeacherEmpty
-          title={query || filter !== "all" ? "No matching assignments" : "No assignment metrics"}
-          description={query || filter !== "all" ? "Change search or filter criteria." : "Published assignment performance appears here."}
+        <EmptyRows
+          title={filtered ? "No matching assignments" : "No assignment metrics"}
+          description={filtered ? "Change the search or filter." : "Published assignment performance appears here."}
         />
       ) : (
-        <div className="divide-y divide-gray-100 dark:divide-gray-800/60">
-          {assignments.map((item) => (
-            <AssignmentAnalyticsRow key={item.assignmentId} item={item} onOpen={() => onOpen(item.assignmentId)} />
-          ))}
+        <div className="relative overflow-x-auto">
+          <table className="w-full min-w-[34rem] text-sm">
+            <caption className="sr-only">Assignment performance. Select an assignment to open its details.</caption>
+            <thead>
+              <tr>
+                <SortHeader label="Assignment" column="title" sort={sort} onSort={onSort} />
+                <SortHeader label="Submitted" column="submitted" sort={sort} onSort={onSort} numeric />
+                <SortHeader label="On time" column="onTime" sort={sort} onSort={onSort} numeric className="hidden lg:table-cell" />
+                <SortHeader label="Avg. score" column="score" sort={sort} onSort={onSort} numeric className="hidden md:table-cell" />
+                <SortHeader label="Accepted" column="accepted" sort={sort} onSort={onSort} numeric className="hidden xl:table-cell" />
+                <SortHeader label="To grade" column="toGrade" sort={sort} onSort={onSort} numeric />
+                <SortHeader label="Missing" column="missing" sort={sort} onSort={onSort} numeric />
+                <th scope="col" className="w-8"><span className="sr-only">Open</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              {assignments.slice(0, limit).map((item) => <AssignmentRow key={item.assignmentId} item={item} onOpen={() => onOpen(item.assignmentId)} />)}
+            </tbody>
+          </table>
         </div>
       )}
+      {!error && <MoreRows shown={Math.min(limit, assignments.length)} total={assignments.length} noun="assignment" onShow={setLimit} />}
     </section>
   );
 }
 
 export function StudentExplorer({
   students,
+  total,
+  onOpen,
   query,
   filter,
   sort,
-  groupId,
-  assignmentTitles,
   error,
   onQuery,
   onFilter,
@@ -143,29 +147,25 @@ export function StudentExplorer({
   onRetry,
 }: {
   students: StudentMetrics[];
+  total: number;
+  onOpen: (studentId: string) => void;
   query: string;
   filter: StudentAnalyticsFilter;
-  sort: StudentAnalyticsSort;
-  groupId: string;
-  assignmentTitles: Map<string, string>;
+  sort: SortState<StudentSortKey>;
   error?: string;
   onQuery: (value: string) => void;
   onFilter: (value: StudentAnalyticsFilter) => void;
-  onSort: (value: StudentAnalyticsSort) => void;
+  onSort: (value: SortState<StudentSortKey>) => void;
   onRetry: () => void;
 }) {
+  const filtered = Boolean(query) || filter !== "all";
+  const [limit, setLimit] = useRowLimit(`${query}|${filter}|${sort.key}|${sort.descending}`);
   return (
-    <section className={`${panelClass} overflow-hidden`}>
-      <ExplorerHeader
-        title="Student performance"
-        description="Completion, score, punctuality, attempts, and missing work by student."
+    <section className={`${panelClass} overflow-hidden`} aria-label="Student performance">
+      <ExplorerToolbar
         query={query}
         queryPlaceholder="Name or enrollment…"
         filter={filter}
-        sort={sort}
-        onQuery={onQuery}
-        onFilter={(value) => onFilter(value as StudentAnalyticsFilter)}
-        onSort={(value) => onSort(value as StudentAnalyticsSort)}
         filters={[
           ["all", "All students"],
           ["missing", "Missing work"],
@@ -173,206 +173,265 @@ export function StudentExplorer({
           ["ungraded", "Ungraded work"],
           ["complete", "Complete"],
         ]}
-        sorts={[
-          ["risk", "Risk first"],
-          ["name", "Name A–Z"],
-          ["completion", "Highest completion"],
-          ["score", "Highest score"],
-        ]}
+        summary={`${students.length}${filtered ? ` of ${total}` : ""} ${plural(filtered ? total : students.length, "student")}`}
+        priorityLabel="At risk first"
+        prioritized={sort.key === "priority"}
+        onPrioritize={() => onSort(PRIORITY_SORT)}
+        onQuery={onQuery}
+        onFilter={(value) => onFilter(value as StudentAnalyticsFilter)}
       />
       {error ? (
         <SectionError message={error} onRetry={onRetry} />
       ) : students.length === 0 ? (
-        <TeacherEmpty
-          title={query || filter !== "all" ? "No matching students" : "No active students"}
-          description={query || filter !== "all" ? "Change search or filter criteria." : "Active student performance appears here."}
+        <EmptyRows
+          title={filtered ? "No matching students" : "No active students"}
+          description={filtered ? "Change the search or filter." : "Active student performance appears here."}
         />
       ) : (
-        <div className="divide-y divide-gray-100 dark:divide-gray-800/60">
-          {students.map((student) => (
-            <StudentAnalyticsRow
-              key={student.studentId}
-              student={student}
-              groupId={groupId}
-              assignmentTitles={assignmentTitles}
-            />
-          ))}
+        <div className="relative overflow-x-auto">
+          <table className="w-full min-w-[32rem] text-sm">
+            <caption className="sr-only">Student performance. Select a student to open their details.</caption>
+            <thead>
+              <tr>
+                <SortHeader label="Student" column="name" sort={sort} onSort={onSort} />
+                <SortHeader label="Completion" column="completion" sort={sort} onSort={onSort} numeric />
+                <SortHeader label="Avg. score" column="score" sort={sort} onSort={onSort} numeric className="hidden md:table-cell" />
+                <SortHeader label="Missing" column="missing" sort={sort} onSort={onSort} numeric />
+                <SortHeader label="Late" column="late" sort={sort} onSort={onSort} numeric />
+                <SortHeader label="Attempts" column="attempts" sort={sort} onSort={onSort} numeric className="hidden lg:table-cell" />
+                <th scope="col" className="w-8"><span className="sr-only">Open</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              {students.slice(0, limit).map((student) => <StudentRow key={student.studentId} student={student} onOpen={() => onOpen(student.studentId)} />)}
+            </tbody>
+          </table>
         </div>
       )}
+      {!error && <MoreRows shown={Math.min(limit, students.length)} total={students.length} noun="student" onShow={setLimit} />}
     </section>
   );
 }
 
 export function assignmentNeedsAttention(item: AssignmentMetrics): boolean {
-  const ungraded = Math.max(0, item.submittedCount - item.draftGrades - item.returnedGrades);
   return item.validationStatus !== "READY"
     || (item.overdue && item.missingCount > 0)
     || (item.verdictDistribution.PENDING ?? 0) > 0
-    || ungraded > 0;
+    || ungradedCount(item) > 0;
 }
 
-function AssignmentAnalyticsRow({ item, onOpen }: { item: AssignmentMetrics; onOpen: () => void }) {
-  const ungraded = Math.max(0, item.submittedCount - item.draftGrades - item.returnedGrades);
-  const tone = item.validationStatus === "READY" ? "success" : item.validationStatus === "FAILED" ? "error" : "warning";
+export function ungradedCount(item: AssignmentMetrics): number {
+  return Math.max(0, item.submittedCount - item.draftGrades - item.returnedGrades);
+}
+
+function verdictTotal(item: AssignmentMetrics): number {
+  return VERDICT_ORDER.reduce((sum, status) => sum + (item.verdictDistribution[status] ?? 0), 0);
+}
+
+function acceptedRate(item: AssignmentMetrics): number | null {
+  const total = verdictTotal(item);
+  return total === 0 ? null : (item.verdictDistribution.AC ?? 0) / total * 100;
+}
+
+function studentRisk(student: StudentMetrics): number {
+  return student.missingAssignmentIds.length * 3 + student.lateCount + Math.max(0, student.submittedCount - student.gradedAssignments);
+}
+
+export function sortAssignments(items: AssignmentMetrics[], sort: SortState<AssignmentSortKey>): AssignmentMetrics[] {
+  const byTitle = (left: AssignmentMetrics, right: AssignmentMetrics) => left.title.localeCompare(right.title);
+  if (sort.key === "priority") {
+    return [...items].sort((left, right) => Number(assignmentNeedsAttention(right)) - Number(assignmentNeedsAttention(left))
+      || Number(right.overdue) - Number(left.overdue)
+      || right.missingCount - left.missingCount
+      || byTitle(left, right));
+  }
+  if (sort.key === "title") return [...items].sort((left, right) => sort.descending ? byTitle(right, left) : byTitle(left, right));
+  const value: Record<Exclude<AssignmentSortKey, "priority" | "title">, (item: AssignmentMetrics) => number | null> = {
+    submitted: (item) => item.submissionRate,
+    onTime: (item) => item.onTimeRate,
+    score: (item) => item.averageScore,
+    accepted: acceptedRate,
+    toGrade: ungradedCount,
+    missing: (item) => item.missingCount,
+  };
+  return [...items].sort((left, right) => compareNullable(value[sort.key as keyof typeof value](left), value[sort.key as keyof typeof value](right), sort.descending) || byTitle(left, right));
+}
+
+export function sortStudents(items: StudentMetrics[], sort: SortState<StudentSortKey>): StudentMetrics[] {
+  const byName = (left: StudentMetrics, right: StudentMetrics) => left.fullName.localeCompare(right.fullName);
+  if (sort.key === "priority") return [...items].sort((left, right) => studentRisk(right) - studentRisk(left) || byName(left, right));
+  if (sort.key === "name") return [...items].sort((left, right) => sort.descending ? byName(right, left) : byName(left, right));
+  const value: Record<Exclude<StudentSortKey, "priority" | "name">, (student: StudentMetrics) => number | null> = {
+    completion: (student) => student.completionRate,
+    score: (student) => student.averageScore,
+    late: (student) => student.lateCount,
+    missing: (student) => student.missingAssignmentIds.length,
+    attempts: (student) => student.totalAttempts,
+  };
+  return [...items].sort((left, right) => compareNullable(value[sort.key as keyof typeof value](left), value[sort.key as keyof typeof value](right), sort.descending) || byName(left, right));
+}
+
+/** Rows without data always sort last, whichever direction is chosen. */
+function compareNullable(left: number | null, right: number | null, descending: boolean): number {
+  if (left == null && right == null) return 0;
+  if (left == null) return 1;
+  if (right == null) return -1;
+  return descending ? right - left : left - right;
+}
+
+function AssignmentRow({ item, onOpen }: { item: AssignmentMetrics; onOpen: () => void }) {
+  const ungraded = ungradedCount(item);
+  const accepted = acceptedRate(item);
+  const overdue = item.overdue && item.missingCount > 0;
   return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className="group w-full p-4 text-left transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-azure dark:hover:bg-dark-card/40 dark:focus:ring-yellow sm:p-5"
-    >
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-center">
-        <div className="min-w-0 xl:w-[28%]">
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="truncate text-sm font-semibold group-hover:text-azure dark:group-hover:text-yellow">{item.title}</h3>
-            <StatusPill label={item.validationStatus} tone={tone} />
-            {item.overdue && item.missingCount > 0 && <StatusPill label="overdue" tone="error" />}
-          </div>
-          <p className="mt-1 text-[10px] font-mono text-gray-500">
-            {item.dueDate ? `Due ${formatDate(item.dueDate)}` : "No due date"} · {item.maxPoints} pts
-          </p>
+    <tr onClick={onOpen} className={rowClass}>
+      <th scope="row" className={`${cellClass} max-w-0 text-left font-normal sm:max-w-none sm:w-[30%]`}>
+        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+          <button type="button" className={rowButtonClass}>{item.title}</button>
+          {item.validationStatus !== "READY" && <StatusPill label={item.validationStatus === "FAILED" ? "validation failed" : "validating"} tone={item.validationStatus === "FAILED" ? "error" : "warning"} />}
+          {overdue && <StatusPill label="overdue" tone="error" />}
         </div>
-
-        <div className="grid flex-1 grid-cols-2 gap-3 sm:grid-cols-4">
-          <MetricProgress label="Submitted" value={item.submissionRate} detail={`${item.submittedCount}/${item.activeStudents}`} />
-          <MetricProgress label="On time" value={item.onTimeRate} detail={`${item.lateCount} late`} tone="orange" />
-          <MetricProgress label="Average" value={item.averageScore} detail={item.averagePoints == null ? "No grades" : `${item.averagePoints.toFixed(1)} pts`} tone="purple" />
-          <div className="rounded-xl bg-gray-50 p-3 dark:bg-dark-card">
-            <p className="text-[10px] text-gray-500">Work queue</p>
-            <p className="mt-1 text-sm font-semibold font-mono">{item.missingCount} missing</p>
-            <p className="text-[10px] text-gray-400">{ungraded} ungraded · {item.draftGrades} drafts</p>
-          </div>
-        </div>
-
-        <div className="xl:w-48">
-          <VerdictBar distribution={item.verdictDistribution} />
-          <span className="mt-2 flex items-center justify-end gap-1 text-[10px] font-medium text-gray-400 group-hover:text-azure dark:group-hover:text-yellow">
-            View details <ArrowRight size={12} />
-          </span>
-        </div>
-      </div>
-    </button>
+        <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{item.dueDate ? `Due ${formatDate(item.dueDate)}` : "No due date"} · {item.maxPoints} pts</p>
+      </th>
+      <td className={cellClass}><RateCell value={item.submissionRate} label={`Submitted, ${item.title}`} detail={`${item.submittedCount}/${item.activeStudents}`} /></td>
+      <td className={`${cellClass} hidden text-right lg:table-cell`}><Figure value={item.onTimeRate == null ? "—" : formatPercentage(item.onTimeRate)} detail={item.lateCount > 0 ? `${item.lateCount} late` : undefined} /></td>
+      <td className={`${cellClass} hidden text-right md:table-cell`}><Figure value={item.averageScore == null ? "—" : formatPercentage(item.averageScore)} detail={item.averagePoints == null ? undefined : `${Number(item.averagePoints.toFixed(1))} pts`} /></td>
+      <td className={`${cellClass} hidden xl:table-cell`}><RateCell value={accepted} label={`Accepted, ${item.title}`} detail={`${item.verdictDistribution.AC ?? 0}/${verdictTotal(item)}`} /></td>
+      <td className={`${cellClass} text-right`}><Figure value={String(ungraded)} emphasis={ungraded > 0} detail={item.draftGrades > 0 ? `${item.draftGrades} ${plural(item.draftGrades, "draft")}` : undefined} /></td>
+      <td className={`${cellClass} text-right`}><Figure value={String(item.missingCount)} emphasis={overdue} /></td>
+      <td className="pr-3 text-gray-300 group-hover:text-gray-500 dark:text-gray-600 dark:group-hover:text-gray-400"><ChevronRight size={16} aria-hidden="true" /></td>
+    </tr>
   );
 }
 
-function StudentAnalyticsRow({ student, groupId, assignmentTitles }: { student: StudentMetrics; groupId: string; assignmentTitles: Map<string, string> }) {
-  const missing = student.missingAssignmentIds.map((id) => ({ id, title: assignmentTitles.get(id) ?? "Assignment" }));
-  const firstMissing = missing[0];
-  const gradeLink = firstMissing
-    ? `/teacher/grades?groupId=${encodeURIComponent(groupId)}&assignmentId=${encodeURIComponent(firstMissing.id)}&studentId=${encodeURIComponent(student.studentId)}`
-    : `/teacher/grades?groupId=${encodeURIComponent(groupId)}`;
-  const risk = missing.length > 0 || student.lateCount > 0;
+function StudentRow({ student, onOpen }: { student: StudentMetrics; onOpen: () => void }) {
+  const missing = student.missingAssignmentIds.length;
   return (
-    <article className="p-4 sm:p-5">
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-center">
-        <div className="min-w-0 xl:w-[28%]">
-          <div className="flex items-center gap-2">
-            <span className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-xl bg-azure/10 text-xs font-bold text-azure dark:bg-yellow/10 dark:text-yellow">
-              {initials(student.fullName)}
-            </span>
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <h3 className="truncate text-sm font-semibold">{student.fullName}</h3>
-                <StatusPill label={risk ? "attention" : "on track"} tone={risk ? "warning" : "success"} />
-              </div>
-              <p className="text-[10px] font-mono text-gray-500">{student.enrollmentNumber}</p>
-            </div>
-          </div>
-        </div>
-        <div className="grid flex-1 grid-cols-2 gap-3 sm:grid-cols-4">
-          <MetricProgress label="Completion" value={student.completionRate} detail={`${student.submittedCount}/${student.publishedAssignments}`} />
-          <MetricProgress label="Average" value={student.averageScore} detail={`${student.gradedAssignments} graded`} tone="purple" />
-          <SmallMetric icon={<Clock3 size={12} />} label="Late" value={String(student.lateCount)} />
-          <SmallMetric icon={<CheckCircle2 size={12} />} label="Attempts" value={String(student.totalAttempts)} />
-        </div>
-        <div className="xl:w-64">
-          {missing.length ? (
-            <div className="rounded-xl border border-orange-500/20 bg-orange-500/5 px-3 py-2">
-              <p className="text-[10px] font-semibold text-orange-500">{missing.length} missing</p>
-              <p className="mt-0.5 truncate text-[10px] text-gray-500" title={missing.map((item) => item.title).join(", ")}>{missing.slice(0, 2).map((item) => item.title).join(" · ")}{missing.length > 2 ? ` +${missing.length - 2}` : ""}</p>
-            </div>
-          ) : (
-            <p className="text-xs text-green-600 dark:text-green-400">No missing assignments</p>
-          )}
-          <Link to={gradeLink} className="mt-2 inline-flex items-center gap-1 text-[10px] font-medium text-azure hover:text-french dark:text-yellow">
-            <GraduationCap size={12} /> Review grades
-          </Link>
-        </div>
-      </div>
-    </article>
+    <tr onClick={onOpen} className={rowClass}>
+      <th scope="row" className={`${cellClass} max-w-0 text-left font-normal sm:max-w-none sm:w-[30%]`}>
+        <button type="button" aria-label={`View details for ${student.fullName}`} className={rowButtonClass}>{student.fullName}</button>
+        <p className="mt-0.5 font-mono text-xs text-gray-500 dark:text-gray-400">{student.enrollmentNumber}</p>
+      </th>
+      <td className={cellClass}><RateCell value={student.completionRate} label={`Completion, ${student.fullName}`} detail={`${student.submittedCount}/${student.publishedAssignments}`} /></td>
+      <td className={`${cellClass} hidden text-right md:table-cell`}><Figure value={student.averageScore == null ? "—" : formatPercentage(student.averageScore)} detail={`${student.gradedAssignments} graded`} /></td>
+      <td className={`${cellClass} text-right`}><Figure value={String(missing)} emphasis={missing > 0} /></td>
+      <td className={`${cellClass} text-right`}><Figure value={String(student.lateCount)} emphasis={student.lateCount > 0} /></td>
+      <td className={`${cellClass} hidden text-right lg:table-cell`}><Figure value={String(student.totalAttempts)} /></td>
+      <td className="pr-3 text-gray-300 group-hover:text-gray-500 dark:text-gray-600 dark:group-hover:text-gray-400"><ChevronRight size={16} aria-hidden="true" /></td>
+    </tr>
   );
 }
 
-function ExplorerHeader({ title, description, query, queryPlaceholder, filter, sort, filters, sorts, onQuery, onFilter, onSort }: {
-  title: string;
-  description: string;
+function RateCell({ value, label, detail }: { value: number | null; label: string; detail: string }) {
+  return (
+    <div className="ml-auto flex min-w-28 max-w-44 items-center gap-2.5">
+      <Meter value={value} label={label} className="flex-1" />
+      <span className="w-20 shrink-0 text-right tabular-nums">
+        <span className="text-sm text-gray-900 dark:text-gray-100">{value == null ? "—" : formatPercentage(value)}</span>
+        <span className="block text-xs text-gray-500 dark:text-gray-400">{detail}</span>
+      </span>
+    </div>
+  );
+}
+
+function Figure({ value, detail, emphasis = false }: { value: string; detail?: string; emphasis?: boolean }) {
+  return (
+    <span className="tabular-nums">
+      <span className={`text-sm ${emphasis ? "font-semibold text-gray-900 dark:text-white" : "text-gray-700 dark:text-gray-300"}`}>{value}</span>
+      {detail && <span className="block text-xs text-gray-500 dark:text-gray-400">{detail}</span>}
+    </span>
+  );
+}
+
+function SortHeader<Key extends string>({ label, column, sort, onSort, numeric = false, className = "" }: {
+  label: string;
+  column: Key;
+  sort: SortState<Key>;
+  onSort: (value: SortState<Key>) => void;
+  numeric?: boolean;
+  className?: string;
+}) {
+  const active = sort.key === column;
+  return (
+    <th scope="col" aria-sort={active ? (sort.descending ? "descending" : "ascending") : "none"} className={`${headClass} ${numeric ? "text-right" : "text-left"} ${className}`}>
+      <button
+        type="button"
+        onClick={() => onSort({ key: column, descending: active ? !sort.descending : numeric })}
+        className={`inline-flex items-center gap-1 rounded uppercase tracking-wide transition-colors hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-azure dark:hover:text-gray-100 dark:focus-visible:ring-yellow ${active ? "text-gray-900 dark:text-gray-100" : ""}`}
+      >
+        {label}
+        {active
+          ? (sort.descending ? <ArrowDown size={12} aria-hidden="true" /> : <ArrowUp size={12} aria-hidden="true" />)
+          : <ChevronsUpDown size={12} aria-hidden="true" className="opacity-40" />}
+      </button>
+    </th>
+  );
+}
+
+function ExplorerToolbar({ query, queryPlaceholder, filter, filters, summary, priorityLabel, prioritized, onPrioritize, onQuery, onFilter }: {
   query: string;
   queryPlaceholder: string;
   filter: string;
-  sort: string;
   filters: Array<[string, string]>;
-  sorts: Array<[string, string]>;
+  summary: string;
+  priorityLabel: string;
+  prioritized: boolean;
+  onPrioritize: () => void;
   onQuery: (value: string) => void;
   onFilter: (value: string) => void;
-  onSort: (value: string) => void;
 }) {
   return (
-    <header className="border-b border-gray-100 p-4 dark:border-gray-800/60 sm:p-5">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div><h2 className="text-sm font-semibold">{title}</h2><p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{description}</p></div>
-        <div className="grid gap-2 sm:grid-cols-[minmax(190px,1fr)_160px_170px]">
-          <span className="relative"><Search size={13} className="absolute left-3 top-3 text-gray-400" /><input value={query} onChange={(event) => onQuery(event.target.value)} placeholder={queryPlaceholder} className={`${inputClass} py-2 pl-8 text-xs`} /></span>
-          <Dropdown value={filter} onChange={onFilter} ariaLabel="Filter analytics" size="compact" options={filters.map(([value, label]) => ({ value, label }))} />
-          <Dropdown value={sort} onChange={onSort} ariaLabel="Sort analytics" size="compact" options={sorts.map(([value, label]) => ({ value, label }))} />
-        </div>
+    <header className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
+      <label className="relative sm:w-64">
+        <span className="sr-only">{queryPlaceholder}</span>
+        <Search size={14} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+        <input value={query} onChange={(event) => onQuery(event.target.value)} placeholder={queryPlaceholder} className={`${inputClass} rounded-lg py-2 pl-9 text-sm`} />
+      </label>
+      <Dropdown value={filter} onChange={onFilter} ariaLabel="Filter rows" size="compact" className="sm:w-48" options={filters.map(([value, label]) => ({ value, label }))} />
+      <div className="flex items-center gap-3 sm:ml-auto">
+        <p role="status" className="text-xs text-gray-500 dark:text-gray-400">{summary}</p>
+        <button type="button" onClick={onPrioritize} aria-pressed={prioritized} title={prioritized ? "Rows that need attention are listed first" : "Restore the default order"}
+          className={`${compactButtonClass} ${prioritized ? "border-azure/40 bg-azure/10 text-azure hover:text-azure dark:border-yellow/40 dark:bg-yellow/10 dark:text-yellow dark:hover:text-yellow" : ""}`}>
+          {priorityLabel}
+        </button>
       </div>
     </header>
   );
 }
 
-function MetricProgress({ label, value, detail, tone = "blue" }: { label: string; value: number | null; detail: string; tone?: "blue" | "orange" | "purple" }) {
-  const color = tone === "orange" ? "bg-orange-500" : tone === "purple" ? "bg-purple-500" : "bg-azure dark:bg-yellow";
+function TabButton({ active, label, count, onClick }: { active: boolean; label: string; count?: number; onClick: () => void }) {
   return (
-    <div className="rounded-xl bg-gray-50 p-3 dark:bg-dark-card">
-      <div className="flex justify-between gap-2"><p className="text-[10px] text-gray-500">{label}</p><strong className="text-[10px] font-mono">{formatPercentage(value)}</strong></div>
-      <div className="mt-2 h-1 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700"><div className={`h-full rounded-full ${color}`} style={{ width: `${clamp(value ?? 0)}%` }} /></div>
-      <p className="mt-1.5 text-[10px] text-gray-400">{detail}</p>
-    </div>
+    <button type="button" role="tab" aria-selected={active} onClick={onClick}
+      className={`inline-flex shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-3 py-2.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-azure dark:focus-visible:ring-yellow ${active
+        ? "border-azure text-azure dark:border-yellow dark:text-yellow"
+        : "border-transparent text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"}`}>
+      {label}
+      {count != null && <span className="rounded-md bg-gray-100 px-1.5 py-0.5 text-xs tabular-nums text-gray-600 dark:bg-dark-card dark:text-gray-300">{count}</span>}
+    </button>
   );
 }
 
-function SmallMetric({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
-  return <div className="rounded-xl bg-gray-50 p-3 dark:bg-dark-card"><p className="flex items-center gap-1 text-[10px] text-gray-500">{icon}{label}</p><p className="mt-1 text-sm font-semibold font-mono">{value}</p></div>;
-}
-
-export function VerdictBar({ distribution }: { distribution: Partial<Record<ExecutionStatus, number>> }) {
-  const total = VERDICT_ORDER.reduce((sum, status) => sum + (distribution[status] ?? 0), 0);
-  if (!total) return <p className="text-[10px] text-gray-400">No verdicts yet</p>;
+function MoreRows({ shown, total, noun, onShow }: { shown: number; total: number; noun: string; onShow: (limit: number) => void }) {
+  if (total <= shown) return null;
   return (
-    <div>
-      <div className="flex h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-dark-card" title={VERDICT_ORDER.filter((status) => distribution[status]).map((status) => `${status}: ${distribution[status]}`).join(" · ")}>
-        {VERDICT_ORDER.map((status) => distribution[status] ? <span key={status} className={VERDICT_COLOR[status]} style={{ width: `${((distribution[status] ?? 0) / total) * 100}%` }} /> : null)}
+    <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 px-4 py-3 dark:border-gray-800/60">
+      <p className="text-xs text-gray-500 dark:text-gray-400">Showing {shown} of {total} {plural(total, noun)}</p>
+      <div className="flex gap-2">
+        <button type="button" onClick={() => onShow(shown + PAGE_SIZE)} className={compactButtonClass}>Show {Math.min(PAGE_SIZE, total - shown)} more</button>
+        <button type="button" onClick={() => onShow(total)} className={compactButtonClass}>Show all</button>
       </div>
-      <div className="mt-1.5 flex flex-wrap gap-x-2 gap-y-1">{VERDICT_ORDER.filter((status) => distribution[status]).slice(0, 4).map((status) => <span key={status} className="inline-flex items-center gap-1 text-[9px] font-mono text-gray-400"><span className={`h-1.5 w-1.5 rounded-full ${VERDICT_COLOR[status]}`} />{status} {distribution[status]}</span>)}</div>
-    </div>
+    </footer>
   );
 }
 
-function TabButton({ active, icon, label, count, onClick }: { active: boolean; icon: ReactNode; label: string; count: number; onClick: () => void }) {
-  return <button type="button" role="tab" aria-selected={active} onClick={onClick} className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-medium transition-colors sm:flex-none ${active ? "bg-azure text-white dark:bg-yellow dark:text-imperial" : "text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-dark-card"}`}>{icon}{label}<span className={`rounded-md px-1.5 py-0.5 font-mono text-[9px] ${active ? "bg-white/15" : "bg-gray-100 dark:bg-dark-card"}`}>{count}</span></button>;
+function EmptyRows({ title, description }: { title: string; description: string }): ReactNode {
+  return <div className="border-t border-gray-100 px-4 py-12 text-center dark:border-gray-800/60"><p className="text-sm font-medium text-gray-900 dark:text-white">{title}</p><p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{description}</p></div>;
 }
 
 function SectionError({ message, onRetry }: { message: string; onRetry: () => void }) {
-  return <div className="p-8 text-center"><CircleAlert size={24} className="mx-auto text-red-500" /><p className="mt-2 text-sm font-medium">Could not load this section</p><p className="mt-1 text-xs text-gray-500">{message}</p><button onClick={onRetry} className={compactButtonClass + " mt-4"}>Try again</button></div>;
+  return <div role="alert" className="border-t border-gray-100 p-8 text-center dark:border-gray-800/60"><CircleAlert size={24} aria-hidden="true" className="mx-auto text-red-500" /><p className="mt-2 text-sm font-medium">Could not load this section</p><p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{message}</p><button type="button" onClick={onRetry} className={compactButtonClass + " mt-4"}>Try again</button></div>;
 }
 
 function formatDate(value: string): string {
   return new Date(value).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-}
-
-function initials(value: string): string {
-  return value.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
-}
-
-function clamp(value: number): number {
-  return Math.max(0, Math.min(100, value));
 }

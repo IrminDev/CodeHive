@@ -13,6 +13,7 @@ import com.github.codehive.model.dto.metrics.AssignmentMetricsDTO;
 import com.github.codehive.model.dto.metrics.AssignmentMetricsDetailDTO;
 import com.github.codehive.model.dto.metrics.GroupMetricsOverviewDTO;
 import com.github.codehive.model.dto.metrics.StudentMetricsDTO;
+import com.github.codehive.model.dto.metrics.StudentAssignmentMetricsDTO;
 import com.github.codehive.model.response.ErrorResponse;
 import com.github.codehive.model.response.SuccessResponse;
 import com.github.codehive.service.GroupMetricsService;
@@ -98,4 +99,12 @@ public class GroupMetricsController {
         return ResponseEntity.ok(new SuccessResponse<>("Assignment metrics retrieved successfully",
                 metricsService.assignmentDetail(assignmentId, authentication.getName())));
     }
+    @Operation(summary = "Get one student's assignment grades and work in an owned group")
+    @GetMapping("/api/groups/{groupId}/metrics/students/{studentId}/assignments")
+    public ResponseEntity<SuccessResponse<List<StudentAssignmentMetricsDTO>>> studentAssignments(
+            @PathVariable UUID groupId, @PathVariable UUID studentId, Authentication authentication) {
+        return ResponseEntity.ok(new SuccessResponse<>("Student assignment metrics retrieved successfully",
+                metricsService.studentAssignmentMetrics(groupId, studentId, authentication.getName())));
+    }
+
 }

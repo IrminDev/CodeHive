@@ -5,7 +5,8 @@ type SuccessResponse<T> = { data: T; message?: string };
 type ErrorResponse = { message?: string; error?: string; errors?: string[] };
 
 export class ApiError extends Error {
-  constructor(message: string, public readonly status: number, public readonly details?: string[]) {
+  constructor(message: string, public readonly status: number, public readonly details?: string[],
+    public readonly code?: string, public readonly retryAfter?: string) {
     super(message);
     this.name = "ApiError";
   }
@@ -27,7 +28,8 @@ export async function studentRequest<T>(path: string, init: RequestInit = {}): P
   const body = await response.json().catch(() => ({}));
   if (!response.ok) {
     const err = body as ErrorResponse;
-    throw new ApiError(err.message ?? err.error ?? `HTTP ${response.status}`, response.status, err.errors);
+    throw new ApiError(err.message ?? err.error ?? `HTTP ${response.status}`, response.status,
+      err.errors, err.error, response.headers.get("Retry-After") ?? undefined);
   }
   return (body as SuccessResponse<T>).data;
 }

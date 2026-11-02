@@ -7,6 +7,7 @@ This document explains the authentication and user registration behavior impleme
 - POST /api/auth/login
 - POST /api/auth/signup
 - POST /api/auth/signup/csv
+- POST /api/auth/websocket-ticket
 - GET /api/auth/me
 - PUT /api/auth/me/password
 
@@ -33,10 +34,16 @@ Service implementation: codehive-backend/src/main/java/com/github/codehive/servi
 
 ## Bulk Registration Flow (CSV)
 1. Admin uploads CSV to /api/auth/signup/csv.
-2. Controller validates file and creates taskId.
-3. CsvRegistrationService.processAsync parses and validates rows.
-4. Progress is streamed through WebSocket channel /ws/csv-progress.
-5. Each valid row creates a user and queues its welcome email without waiting for SMTP.
+2. Controller validates the file; CsvRegistrationService resolves the requester and queues the
+   import under a new taskId, bound to that owner (it does not run yet).
+3. Admin requests a one-time ticket from POST /api/auth/websocket-ticket (60s, single-use, bound to
+   the issuing user) and opens /ws/csv-progress?ticket=... . The handshake interceptor consumes the
+   ticket and stores the authenticated user id on the session.
+4. The client sends the taskId on the open socket. The handler verifies the subscriber owns that
+   queued task, then starts CsvRegistrationService.processAsync; mismatched or unqueued task ids are
+   closed with POLICY_VIOLATION. Queued tasks that are never claimed expire after 5 minutes.
+5. Progress is streamed back over the same socket; each valid row creates a user and queues its
+   welcome email without waiting for SMTP.
 
 Welcome-email failures are logged with the recipient address and do not roll back
 account creation. A user who did not receive the temporary credentials can use the
@@ -64,7 +71,10 @@ Do NOT re-parse the `Authorization` header in controller methods — the `Authen
 ## Update Password (/me/password)
 1. Same `Authentication` injection as `/me` to identify the caller.
 2. `UpdatePasswordRequest` carries `currentPassword` and `newPassword`.
-3. `AuthService.updatePassword(userId, request)` verifies current password, encodes and persists new password, and sets `temporaryPassword = false`.
+3. `AuthService.updatePassword(userId, request)` verifies current password, encodes and persists new password, sets `temporaryPassword = false`, and increments `tokenVersion` to revoke all previously issued JWTs.
+4. Returns `SuccessResponse<AuthResponse>` containing a replacement JWT with the new token version and updated `UserDTO`. Token issuance happens within the password-change transaction; the controller receives the result after successful commit.
+5. Frontend replaces the stored token before updating authenticated user state. The current browser remains signed in with the replacement token; old tokens remain invalid. Wrong-current-password failures neither rotate tokens nor change the password.
+6. Auth HTTP integration coverage verifies all three roles can access `/api/auth/me` using the returned token, while the previous token is rejected. Response never includes a password field.
 
 ## Data and Contracts
 Request classes:
@@ -88,7 +98,7 @@ User storage model:
 - `login(LoginRequest)` — authenticate by email or enrollment number, return JWT + UserDTO
 - `register(SignUpRequest)` — admin-only registration; generates temporary password and sends welcome email
 - `getUserByEmail(String email)` — load UserDTO from email; used by controllers receiving `Authentication`
-- `updatePassword(UUID userId, UpdatePasswordRequest)` — verify current password and persist new one
+- `updatePassword(UUID userId, UpdatePasswordRequest)` — verify current password, persist new one, revoke old JWTs, and return replacement JWT/UserDTO
 - `generateToken(User)` — build JWT with `userId` and `role` claims, `email` as subject
 
 ## Notes for Future Changes

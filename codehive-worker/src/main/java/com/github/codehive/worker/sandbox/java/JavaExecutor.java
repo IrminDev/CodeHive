@@ -46,7 +46,10 @@ public class JavaExecutor extends AbstractLanguageExecutor {
 
     @Override
     protected String runCommand() {
-        return "java Main";
+        // Let timeout's SIGTERM terminate the JVM directly. The JVM's normal
+        // signal handler needs a new thread, which can fail at the PID limit
+        // and force timeout to escalate to SIGKILL (137, classified as MLE).
+        return "java -Xrs Main";
     }
 
     @Override

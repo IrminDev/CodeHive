@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useTheme } from "~/core/providers/ThemeProvider";
 import logo from "~/assets/logo.png";
 import { AuthService } from "../services/auth.service";
+import { HexGridBackground } from "~/shared/components/HexGridBackground";
 
 export function ResetPasswordPage() {
   const { theme, toggleTheme } = useTheme();
@@ -84,7 +85,7 @@ export function ResetPasswordPage() {
               style={{ animationDelay: "2s" }}
             />
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-azure/20 rounded-full blur-3xl" />
-            <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:60px_60px]" />
+            <HexGridBackground stroke="rgba(255,255,255,0.04)" />
           </div>
 
           <div className="relative z-10 flex flex-col justify-center px-12 xl:px-24">
@@ -225,7 +226,7 @@ export function ResetPasswordPage() {
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-azure/20 rounded-full blur-3xl" />
 
           {/* Grid pattern */}
-          <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:60px_60px]" />
+          <HexGridBackground stroke="rgba(255,255,255,0.04)" />
         </div>
 
         {/* Content */}
