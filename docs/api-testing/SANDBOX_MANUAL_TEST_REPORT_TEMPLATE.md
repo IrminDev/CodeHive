@@ -75,7 +75,7 @@ differ from enforced settings; record discrepancies rather than silently using t
 | Per-test time | Worker clamps requested time to 100–10,000 ms. Record original and effective values. | `<requested; effective; timeout evidence>` |
 | Runtime memory | Worker clamps requested memory to 16–1,000 units of 1,048,576 bytes. | `<requested; bytes; MiB>` |
 | Runtime CPU | `CpuQuota=50000`; record actual `CpuPeriod` and/or cgroup `cpu.max`. Do not infer “one core” from a comment. | `<quota; period; observed throttling>` |
-| Process/thread ceiling | Current executors: Java/Python 16 PIDs; C/C++ 8 PIDs. Include runtime/helper threads in interpretation. | `<PidsLimit; peak/current PIDs; rejection evidence>` |
+| Process/thread ceiling | Current executors: Java/Python 16 PIDs; C/C++ 32 PIDs. Include runtime/helper threads in interpretation. | `<PidsLimit; peak/current PIDs; rejection evidence>` |
 | Output capture | Combined stdout + stderr cap: 8,388,608 bytes. Displayed output may include a truncation notice. | `<captured bytes; truncation; verdict>` |
 | Root and workspace | Root filesystem read-only; runtime `/workspace` bind read-only. Compilation workspace is writable. | `<ReadonlyRootfs; relevant bind modes>` |
 | Temporary storage | Runtime `/tmp`: 32 MiB; `/run`: 8 MiB; both `noexec,nosuid`. | `<mount options; capacity; failure evidence>` |

@@ -36,7 +36,7 @@ Safety and reliability concerns:
 - Results (including failures) are always published — no silent job loss.
 
 Container security hardening (all executors):
-- PID limit prevents fork bombs (64 for JVM/Python, 32 for C/C++).
+- PID limit prevents fork bombs (16 for JVM/Python, 32 for C/C++).
 - `Capability.ALL` dropped — containers have no Linux capabilities.
 - Read-only root filesystem with tmpfs at `/tmp` and `/run`.
 - `nobody` user — containers never run as root.

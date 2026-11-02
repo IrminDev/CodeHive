@@ -41,7 +41,7 @@ All containers (both compile and execute phases) apply these restrictions:
 | Network | `networkMode("none")` — no outbound access |
 | Memory | Hard limit + swap disabled (`memorySwap = memory`) |
 | CPU | 1 vCPU (`cpuQuota = 100000`) |
-| PIDs | 16 for Java/Python, 8 for C/C++ — prevents fork bombs |
+| PIDs | 16 for Java/Python, 32 for C/C++ — prevents fork bombs |
 | Capabilities | `withCapDrop(Capability.ALL)` — no Linux capabilities |
 | Root filesystem | `withReadonlyRootfs(true)` — no writes outside /workspace and /tmp |
 | tmpfs /tmp | 64 MB (compile), 32 MB (execute) — satisfies runtime scratch needs |
@@ -147,5 +147,5 @@ To add a new language:
 1. Implement LanguageExecutor with the same security HostConfig pattern.
 2. Register Spring component with enum-name bean key.
 3. Extend Language enum and backend mapping.
-4. Choose appropriate PIDS_LIMIT (64 for JVM/interpreter, 32 for native).
+4. Choose appropriate PIDS_LIMIT (16 for JVM/interpreter, 32 for native). Leave room for `runc`, which each `docker exec` starts inside the container.
 5. Verify ExecutionJob contract supports new language.

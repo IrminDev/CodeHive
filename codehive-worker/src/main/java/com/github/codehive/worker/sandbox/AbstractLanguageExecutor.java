@@ -44,7 +44,11 @@ public abstract class AbstractLanguageExecutor implements LanguageExecutor {
      */
     protected abstract String execImage();
 
-    /** PID limit for containers (64 for JVM/interpreted, 32 for native). */
+    /**
+     * PID limit for containers (16 for JVM/interpreted, 32 for native).
+     * Every docker exec also starts runc inside this cgroup; a limit of 8 made
+     * exec fail intermittently with exit code 128, reported as a false RTE.
+     */
     protected abstract long pidsLimit();
 
     /** Source file name written into /workspace (e.g. "Main.java", "main.py"). */
