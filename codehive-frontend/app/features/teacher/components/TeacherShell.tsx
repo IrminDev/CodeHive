@@ -16,6 +16,7 @@ import { Link } from "react-router";
 
 import { useAuth } from "~/core/providers/AuthProvider";
 import { useTheme } from "~/core/providers/ThemeProvider";
+import { MobileNavMenu, type MobileNavItem } from "~/shared/components/MobileNavMenu";
 import { ProfileSettingsModal } from "~/shared/components/ProfileSettingsModal";
 import { Role } from "~/shared/types/model/User";
 
@@ -47,7 +48,7 @@ export function TeacherShell({
     <div className="h-screen flex overflow-hidden bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100 font-sans">
       <TeacherSidebar active={active} />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <TeacherHeader breadcrumbs={breadcrumbs} />
+        <TeacherHeader active={active} breadcrumbs={breadcrumbs} />
         <main className="flex-1 overflow-y-auto scrollbar-hide p-4 sm:p-6 lg:p-8">
           <div className={`${contentClassName} mx-auto pb-8`}>{children}</div>
         </main>
@@ -56,20 +57,22 @@ export function TeacherShell({
   );
 }
 
-function TeacherHeader({ breadcrumbs }: { breadcrumbs: TeacherBreadcrumb[] }) {
+function TeacherHeader({ active, breadcrumbs }: { active: TeacherNavigation; breadcrumbs: TeacherBreadcrumb[] }) {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [profileOpen, setProfileOpen] = useState(false);
   const initials = `${user?.name?.charAt(0) ?? "T"}${user?.lastName?.charAt(0) ?? ""}`.toUpperCase();
   const notificationsPath = user?.role === Role.STUDENT ? "/notifications" : "/teacher/notifications";
+  const navItems = useTeacherNavItems();
 
   return (
     <>
       <header className="h-12 flex-shrink-0 flex items-center gap-3 px-3 sm:px-5 bg-gray-50 dark:bg-dark-surface border-b border-gray-200 dark:border-gray-800/60">
+        <MobileNavMenu items={navItems} homeTo="/teacher" title="Teacher" active={active} />
         <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-sm min-w-0">
           {breadcrumbs.map((item, index) => (
-            <span key={`${item.label}-${index}`} className="flex items-center gap-1.5 min-w-0">
-              {index > 0 && <ChevronRight size={14} className="text-gray-300 dark:text-gray-600 flex-shrink-0" />}
+            <span key={`${item.label}-${index}`} className={`${index === breadcrumbs.length - 1 ? "flex" : "hidden sm:flex"} items-center gap-1.5 min-w-0`}>
+              {index > 0 && <ChevronRight size={14} className="hidden sm:block text-gray-300 dark:text-gray-600 flex-shrink-0" />}
               {item.to ? (
                 <Link to={item.to} className="truncate text-gray-400 dark:text-gray-500 hover:text-azure dark:hover:text-yellow transition-colors">
                   {item.label}
@@ -101,26 +104,34 @@ function TeacherHeader({ breadcrumbs }: { breadcrumbs: TeacherBreadcrumb[] }) {
   );
 }
 
-function TeacherSidebar({ active }: { active: TeacherNavigation }) {
+/** Teacher navigation, shared by the icon rail and the phone menu in the header. */
+function useTeacherNavItems(): MobileNavItem[] {
   const { user } = useAuth();
+  return [
+    { key: "dashboard", icon: <Home size={20} />, label: "Dashboard", to: "/teacher" },
+    { key: "assignments", icon: <BookOpen size={20} />, label: "Assignments", to: "/teacher/assignments" },
+    { key: "groups", icon: <Users size={20} />, label: "Groups", to: "/teacher/groups" },
+    { key: "grades", icon: <GraduationCap size={20} />, label: "Grades", to: "/teacher/grades" },
+    { key: "analytics", icon: <BarChart3 size={20} />, label: "Analytics", to: "/teacher/analytics" },
+    ...(user?.role === Role.STUDENT ? [{ key: "student-area", icon: <Backpack size={20} />, label: "Student area", to: "/dashboard" }] : []),
+  ];
+}
+
+function TeacherSidebar({ active }: { active: TeacherNavigation }) {
+  const items = useTeacherNavItems();
+  const studentArea = items.find((item) => item.key === "student-area");
 
   return (
-    <aside className="w-14 flex-shrink-0 flex flex-col items-center py-4 gap-1 bg-gray-50 dark:bg-dark-surface border-r border-gray-200 dark:border-gray-800/60">
+    <aside className="hidden sm:flex w-14 flex-shrink-0 flex-col items-center py-4 gap-1 bg-gray-50 dark:bg-dark-surface border-r border-gray-200 dark:border-gray-800/60">
       <Link to="/teacher" className="mb-4 flex-shrink-0" aria-label="Teacher dashboard">
         <div style={{ clipPath: "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)" }} className="w-9 h-9 bg-yellow grid place-items-center">
           <span className="text-dark-bg font-bold text-sm leading-none">&lt;/&gt;</span>
         </div>
       </Link>
       <nav className="flex flex-col items-center gap-1 flex-1 w-full px-2" aria-label="Teacher navigation">
-        <SidebarLink icon={<Home size={20} />} label="Dashboard" to="/teacher" active={active === "dashboard"} />
-        <SidebarLink icon={<BookOpen size={20} />} label="Assignments" to="/teacher/assignments" active={active === "assignments"} />
-        <SidebarLink icon={<Users size={20} />} label="Groups" to="/teacher/groups" active={active === "groups"} />
-        <SidebarLink icon={<GraduationCap size={20} />} label="Grades" to="/teacher/grades" active={active === "grades"} />
-        <SidebarLink icon={<BarChart3 size={20} />} label="Analytics" to="/teacher/analytics" active={active === "analytics"} />
+        {items.filter((item) => item !== studentArea).map((item) => <SidebarLink key={item.key} icon={item.icon} label={item.label} to={item.to} active={active === item.key} />)}
       </nav>
-      {user?.role === Role.STUDENT && (
-        <SidebarLink icon={<Backpack size={20} />} label="Student area" to="/dashboard" active={false} />
-      )}
+      {studentArea && <SidebarLink icon={studentArea.icon} label={studentArea.label} to={studentArea.to} active={false} />}
     </aside>
   );
 }

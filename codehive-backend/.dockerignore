@@ -1,0 +1,8 @@
+*
+!gradlew
+!settings.gradle.kts
+!build.gradle.kts
+!gradle/
+!src/
+src/test/
+**/.DS_Store

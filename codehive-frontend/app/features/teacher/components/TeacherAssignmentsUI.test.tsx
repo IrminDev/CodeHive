@@ -12,6 +12,7 @@ const assignment: TeacherAssignment = {
   constraints: [], hints: [], tags: [], timeLimitMs: 2000, memoryLimitMb: 256,
   comparatorType: "EXACT_MATCH", createdAt: "2026-09-01T10:00:00Z", updatedAt: "2026-09-01T10:00:00Z",
   allowedLanguages: ["PYTHON"], isActive: true, validationStatus: "READY", maxPoints: 100,
+  aiAssistanceEnabled: false, maxAiRequests: 0, aiAssistanceLevel: "CONCEPTUAL_ONLY", aiPolicyVersion: 0,
 };
 
 function renderList(overrides: Partial<Parameters<typeof AssignmentList>[0]> = {}) {

@@ -2,16 +2,23 @@ package com.github.codehive.worker.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.IntStream;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import com.github.codehive.worker.model.dto.ExecutionReport;
 import com.github.codehive.worker.model.dto.ExecutionResult;
@@ -156,6 +163,104 @@ class TestExecutionServiceTest {
         assertThat(result.getStderr()).hasSize(8 * 1024)
                 .doesNotContain("\u001B", "\u0000")
                 .endsWith("[Output truncated for artifact retention]");
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {49, 50, 51})
+    void definitiveExecutionRunsAtMostFiftyTestCases(int requestedCases) throws Exception {
+        LanguageExecutorFactory factory = mock(LanguageExecutorFactory.class);
+        ObjectStorageService storage = mock(ObjectStorageService.class);
+        LanguageExecutor executor = mock(LanguageExecutor.class);
+        ContainerSession session = new ContainerSession("student", null, 1000, 128);
+        when(factory.getExecutor(Language.JAVA)).thenReturn(executor);
+        when(storage.download(anyString())).thenAnswer(invocation -> {
+            String path = invocation.getArgument(0);
+            if (path.equals("student-source")) return stream("class Main {}");
+            if (path.startsWith("expected/")) return stream("ok\n");
+            return stream(path);
+        });
+        when(executor.prepare(any(), any(), any())).thenReturn(session);
+        when(executor.runTestCase(any(), any())).thenReturn(ExecutionResult.success("ok\n", 1L, 1L));
+        List<ExecutionTestCaseInfo> cases = numberedCases(requestedCases);
+        ExecutionJob job = new ExecutionJob(EXECUTION_ID, "student-source", null, Language.JAVA,
+                ExecutionType.DEFINITIVE, cases, 1000L, 128L, ComparatorType.EXACT_MATCH,
+                null, null, null, "INITIAL_SUBMISSION");
+
+        ExecutionReport report = new TestExecutionService(factory, storage, new OutputComparatorService()).executeJob(job);
+
+        int expectedExecuted = Math.min(requestedCases, 50);
+        assertThat(report.getOverallStatus()).isEqualTo(ExecutionStatus.AC);
+        assertThat(report.getTestCaseResults()).hasSize(expectedExecuted)
+                .extracting(TestCaseResult::getTestCaseId)
+                .containsExactlyElementsOf(cases.subList(0, expectedExecuted).stream()
+                        .map(ExecutionTestCaseInfo::getTestCaseId).toList());
+        verify(executor, times(expectedExecuted)).runTestCase(any(), any());
+        verify(storage).download("input/" + expectedExecuted);
+        verify(storage).download("expected/" + expectedExecuted);
+        verify(storage, never()).download("input/51");
+        verify(storage, never()).download("expected/51");
+        verify(executor).cleanup(session);
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {49, 50, 51})
+    void practiceExecutionCapsBothStudentAndReferenceAtFiftyTestCases(int requestedCases) throws Exception {
+        LanguageExecutorFactory factory = mock(LanguageExecutorFactory.class);
+        ObjectStorageService storage = mock(ObjectStorageService.class);
+        LanguageExecutor studentExecutor = mock(LanguageExecutor.class);
+        LanguageExecutor referenceExecutor = mock(LanguageExecutor.class);
+        ContainerSession studentSession = new ContainerSession("student", null, 1000, 128);
+        ContainerSession referenceSession = new ContainerSession("reference", null, 1000, 128);
+        when(factory.getExecutor(Language.JAVA)).thenReturn(studentExecutor);
+        when(factory.getExecutor(Language.PYTHON)).thenReturn(referenceExecutor);
+        when(storage.download("student-source")).thenReturn(stream("class Main {}"));
+        when(storage.download("reference-source")).thenReturn(stream("print('ok')"));
+        when(studentExecutor.prepare(any(), any(), any())).thenReturn(studentSession);
+        when(referenceExecutor.prepare(any(), any(), any())).thenReturn(referenceSession);
+        List<String> studentInputs = new ArrayList<>();
+        List<String> referenceInputs = new ArrayList<>();
+        when(studentExecutor.runTestCase(any(), any())).thenAnswer(invocation -> {
+            studentInputs.add(new String(((java.io.InputStream) invocation.getArgument(1)).readAllBytes(),
+                    StandardCharsets.UTF_8));
+            return ExecutionResult.success("ok\n", 1L, 1L);
+        });
+        when(referenceExecutor.runTestCase(any(), any())).thenAnswer(invocation -> {
+            referenceInputs.add(new String(((java.io.InputStream) invocation.getArgument(1)).readAllBytes(),
+                    StandardCharsets.UTF_8));
+            return ExecutionResult.success("ok\n", 1L, 1L);
+        });
+        List<ExecutionTestCaseInfo> cases = numberedCases(requestedCases);
+        ExecutionJob job = new ExecutionJob(EXECUTION_ID, "student-source", "reference-source", Language.JAVA,
+                ExecutionType.PRACTICE, cases, 1000L, 128L, ComparatorType.EXACT_MATCH,
+                null, Language.PYTHON, null, "PRACTICE");
+
+        ExecutionReport report = new TestExecutionService(factory, storage, new OutputComparatorService()).executeJob(job);
+
+        int expectedExecuted = Math.min(requestedCases, 50);
+        List<String> expectedInputs = cases.subList(0, expectedExecuted).stream()
+                .map(ExecutionTestCaseInfo::getInlineInput).toList();
+        assertThat(report.getOverallStatus()).isEqualTo(ExecutionStatus.AC);
+        assertThat(report.getTestCaseResults()).hasSize(expectedExecuted)
+                .extracting(TestCaseResult::getTestCaseNumber)
+                .containsExactlyElementsOf(IntStream.rangeClosed(1, expectedExecuted).boxed().toList());
+        assertThat(studentInputs).containsExactlyElementsOf(expectedInputs);
+        assertThat(referenceInputs).containsExactlyElementsOf(expectedInputs);
+        verify(studentExecutor, times(expectedExecuted)).runTestCase(any(), any());
+        verify(referenceExecutor, times(expectedExecuted)).runTestCase(any(), any());
+        verify(studentExecutor).cleanup(studentSession);
+        verify(referenceExecutor).cleanup(referenceSession);
+    }
+
+    private List<ExecutionTestCaseInfo> numberedCases(int count) {
+        return IntStream.rangeClosed(1, count).mapToObj(number -> {
+            ExecutionTestCaseInfo testCase = new ExecutionTestCaseInfo();
+            testCase.setTestCaseId(UUID.fromString(String.format("00000000-0000-0000-0000-%012d", number + 100)));
+            testCase.setOrder(number);
+            testCase.setInputPath("input/" + number);
+            testCase.setExpectedOutputPath("expected/" + number);
+            testCase.setInlineInput("case " + number);
+            return testCase;
+        }).toList();
     }
 
     private ByteArrayInputStream stream(String value) {

@@ -43,6 +43,12 @@ File: model/entity/Assignment.java
 - launchDate, dueDate, closeDate use absolute timestamps and satisfy launch <= due <= close when present
 - validationStatus: PROCESSING, READY, or FAILED
 - examples: ordered `AssignmentExample` entities with TEXT input, output, and explanation
+- Separate `AssignmentAiPolicy` row stores enabled state, lifetime maximum `0..10`, assistance level, and independent optimistic version; policy updates do not bump `Assignment.version`.
+
+### Assistant conversation and interaction
+- One `AssistantConversation` per assignment/student. Interaction sequence and client request ID are unique within it.
+- `AssistantInteraction` stores original student prompt, validated response, status, charge fact, lease, policy versions/level, and safe metadata. Editor attachments, execution reports, assembled prompts, and rejected outputs are never stored.
+- Archive/logical deletion nulls prompt and answer text but keeps charged ledger metadata permanently. Input-blocked prompts retain only original student text until that purge.
 
 ### ClassGroup and GroupEnrollment
 - `ClassGroup` has exactly one teacher owner, a unique case-insensitive join code, `archived`, and `isActive` flags.

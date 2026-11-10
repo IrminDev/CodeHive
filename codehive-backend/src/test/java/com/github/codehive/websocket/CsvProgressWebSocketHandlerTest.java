@@ -2,12 +2,16 @@ package com.github.codehive.websocket;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -21,6 +25,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 @DisplayName("CsvProgressWebSocketHandler subscription state")
 class CsvProgressWebSocketHandlerTest {
 
+    private static final UUID OWNER = UUID.fromString("00000000-0000-0000-0000-000000000001");
+    private static final UUID OTHER = UUID.fromString("00000000-0000-0000-0000-000000000002");
+
     private CsvProgressWebSocketHandler handler;
 
     @BeforeEach
@@ -28,58 +35,71 @@ class CsvProgressWebSocketHandlerTest {
         handler = new CsvProgressWebSocketHandler(new ObjectMapper());
     }
 
+    @AfterEach
+    void tearDown() {
+        handler.shutdownScheduler();
+    }
+
     @SuppressWarnings("unchecked")
     private Map<String, WebSocketSession> taskSessions() {
         return (Map<String, WebSocketSession>) ReflectionTestUtils.getField(handler, "taskSessions");
     }
 
-    private WebSocketSession sessionWithAttributes() {
+    private WebSocketSession sessionOwnedBy(UUID userId) {
         WebSocketSession session = mock(WebSocketSession.class);
-        when(session.getAttributes()).thenReturn(new HashMap<>());
+        Map<String, Object> attributes = new HashMap<>();
+        attributes.put(WebSocketTicketHandshakeInterceptor.USER_ID_ATTRIBUTE, userId);
+        when(session.getAttributes()).thenReturn(attributes);
         return session;
     }
 
     @Test
-    @DisplayName("ignores a payload that is not a valid task id")
-    void malformedPayload_isNotRegistered() {
-        WebSocketSession session = sessionWithAttributes();
+    @DisplayName("rejects a task id that was never queued")
+    void unqueuedTaskId_isRejected() throws Exception {
+        WebSocketSession session = sessionOwnedBy(OWNER);
 
-        handler.handleTextMessage(session, new TextMessage("not-a-uuid"));
+        handler.handleTextMessage(session, new TextMessage(UUID.randomUUID().toString()));
 
         assertThat(taskSessions()).isEmpty();
-        assertThat(session.getAttributes()).doesNotContainKey("taskId");
+        verify(session).close(CloseStatus.POLICY_VIOLATION);
     }
 
     @Test
-    @DisplayName("registers a session for a valid task id")
-    void validPayload_isRegistered() {
-        WebSocketSession session = sessionWithAttributes();
+    @DisplayName("rejects a subscriber that does not own the task")
+    void ownerMismatch_isRejected() throws Exception {
         String taskId = UUID.randomUUID().toString();
+        AtomicBoolean ran = new AtomicBoolean(false);
+        handler.queueTask(taskId, OWNER, () -> ran.set(true));
+        WebSocketSession intruder = sessionOwnedBy(OTHER);
+
+        handler.handleTextMessage(intruder, new TextMessage(taskId));
+
+        assertThat(taskSessions()).isEmpty();
+        assertThat(ran).isFalse();
+        verify(intruder).close(CloseStatus.POLICY_VIOLATION);
+    }
+
+    @Test
+    @DisplayName("registers the owner and runs the queued task")
+    void owner_subscribesAndStartsTask() throws Exception {
+        String taskId = UUID.randomUUID().toString();
+        AtomicBoolean ran = new AtomicBoolean(false);
+        handler.queueTask(taskId, OWNER, () -> ran.set(true));
+        WebSocketSession session = sessionOwnedBy(OWNER);
 
         handler.handleTextMessage(session, new TextMessage(taskId));
 
         assertThat(taskSessions()).containsEntry(taskId, session);
-    }
-
-    @Test
-    @DisplayName("keeps at most one subscription per session")
-    void secondSubscription_replacesTheFirst() {
-        WebSocketSession session = sessionWithAttributes();
-        String first = UUID.randomUUID().toString();
-        String second = UUID.randomUUID().toString();
-
-        handler.handleTextMessage(session, new TextMessage(first));
-        handler.handleTextMessage(session, new TextMessage(second));
-
-        assertThat(taskSessions()).hasSize(1);
-        assertThat(taskSessions()).containsOnlyKeys(second);
+        assertThat(ran).isTrue();
+        verify(session, never()).close(CloseStatus.POLICY_VIOLATION);
     }
 
     @Test
     @DisplayName("removes the subscription when the connection closes")
-    void closingConnection_removesSubscription() {
-        WebSocketSession session = sessionWithAttributes();
+    void closingConnection_removesSubscription() throws Exception {
         String taskId = UUID.randomUUID().toString();
+        handler.queueTask(taskId, OWNER, () -> { });
+        WebSocketSession session = sessionOwnedBy(OWNER);
         handler.handleTextMessage(session, new TextMessage(taskId));
 
         handler.afterConnectionClosed(session, CloseStatus.NORMAL);

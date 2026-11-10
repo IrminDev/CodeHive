@@ -42,14 +42,17 @@ public class GroupService {
     private final GroupEnrollmentRepository enrollmentRepository;
     private final UserRepository userRepository;
     private final NotificationDomainEventPublisher notificationPublisher;
+    private final AssistantTextPurgeService assistantTextPurgeService;
 
     public GroupService(ClassGroupRepository groupRepository, GroupEnrollmentRepository enrollmentRepository,
                         UserRepository userRepository,
-                        NotificationDomainEventPublisher notificationPublisher) {
+                        NotificationDomainEventPublisher notificationPublisher,
+                        AssistantTextPurgeService assistantTextPurgeService) {
         this.groupRepository = groupRepository;
         this.enrollmentRepository = enrollmentRepository;
         this.userRepository = userRepository;
         this.notificationPublisher = notificationPublisher;
+        this.assistantTextPurgeService = assistantTextPurgeService;
     }
 
     @Transactional
@@ -172,11 +175,12 @@ public class GroupService {
 
     @Transactional
     public GroupDTO setArchived(UUID id, boolean archived, String email) {
-        ClassGroup group = requireOwnedGroup(id, email);
+        ClassGroup group = requireOwnedGroupForUpdate(id, email);
         if (!Boolean.TRUE.equals(group.getIsActive())) throw new ValidationException("Deleted groups cannot be changed");
         group.setArchived(archived);
         touch(group);
         if (archived) {
+            assistantTextPurgeService.eraseGroup(id);
             notificationPublisher.publish(NotificationDomainEvent.of(
                     NotificationType.GROUP_ARCHIVED, group.getOwner().getId(), null,
                     group.getId(), null, null));
@@ -186,12 +190,13 @@ public class GroupService {
 
     @Transactional
     public void softDelete(UUID id, String email) {
-        ClassGroup group = requireOwnedGroup(id, email);
+        ClassGroup group = requireOwnedGroupForUpdate(id, email);
         group.setIsActive(false);
         group.setArchived(true);
         group.setDeletionReason(GroupDeletionReason.OWNER_REQUEST);
         if (group.getDeletedAt() == null) group.setDeletedAt(java.time.Instant.now());
         touch(group);
+        assistantTextPurgeService.eraseGroup(id);
         notificationPublisher.publish(NotificationDomainEvent.of(
                 NotificationType.GROUP_ARCHIVED, group.getOwner().getId(), null,
                 group.getId(), null, null));
@@ -237,6 +242,16 @@ public class GroupService {
         return group;
     }
 
+    public ClassGroup requireOwnedWritableGroupForUpdate(UUID id, User owner) {
+        ClassGroup group = groupRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new EntityNotFoundException("Group not found: " + id));
+        if (!group.getOwner().getId().equals(owner.getId())) {
+            throw new AccessDeniedException("Only the group owner can perform this action");
+        }
+        requireWritable(group);
+        return group;
+    }
+
     public ClassGroup getGroupForAssignmentAccess(UUID id, User user) {
         ClassGroup group = requireGroup(id);
         if (group.getOwner().getId().equals(user.getId())) return group;
@@ -252,6 +267,16 @@ public class GroupService {
     private ClassGroup requireOwnedGroup(UUID id, String email) {
         User owner = requireUser(email);
         ClassGroup group = requireGroup(id);
+        if (!group.getOwner().getId().equals(owner.getId())) {
+            throw new AccessDeniedException("Only the group owner can perform this action");
+        }
+        return group;
+    }
+
+    private ClassGroup requireOwnedGroupForUpdate(UUID id, String email) {
+        User owner = requireUser(email);
+        ClassGroup group = groupRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new EntityNotFoundException("Group not found: " + id));
         if (!group.getOwner().getId().equals(owner.getId())) {
             throw new AccessDeniedException("Only the group owner can perform this action");
         }

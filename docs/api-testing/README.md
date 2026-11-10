@@ -15,6 +15,10 @@ are available.
 
 Follow the guides in order when testing against an empty development database.
 
+For sandbox edge-case evidence and a copyable technical report, use the
+[sandbox manual test report template](SANDBOX_MANUAL_TEST_REPORT_TEMPLATE.md), mapped
+to the fixtures in `codehive-testing-files/programs/`.
+
 ## 1. Required services
 
 The complete execution flow needs all of the following:

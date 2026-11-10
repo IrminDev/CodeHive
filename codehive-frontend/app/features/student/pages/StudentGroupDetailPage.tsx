@@ -153,7 +153,7 @@ export function StudentGroupDetailPage() {
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <StudentHeader breadcrumbs={[{ label: "Student" }, { label: "Groups", to: "/groups" }, { label: group?.name ?? "Group" }]} />
 
-        <main className="flex-1 overflow-y-auto scrollbar-hide p-6 lg:p-8">
+        <main className="flex-1 overflow-y-auto scrollbar-hide p-4 sm:p-6 lg:p-8">
           {loading ? (
             <div className="max-w-5xl mx-auto space-y-5 animate-pulse">
               <div className="h-36 rounded-2xl bg-gray-100 dark:bg-dark-surface" />
@@ -170,17 +170,17 @@ export function StudentGroupDetailPage() {
             <div className="max-w-5xl mx-auto space-y-6">
               <Link to="/groups" className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-azure dark:hover:text-yellow transition-colors"><ArrowLeft size={14} /> All groups</Link>
 
-              <section className="rounded-2xl border border-gray-200 dark:border-gray-800/60 bg-gray-50 dark:bg-dark-surface p-6 lg:p-7">
+              <section className="rounded-2xl border border-gray-200 dark:border-gray-800/60 bg-gray-50 dark:bg-dark-surface p-4 sm:p-6 lg:p-7">
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-5">
                   <div className="min-w-0">
                     <div className="flex items-center gap-3 mb-2">
                       <div className="w-11 h-11 rounded-xl bg-yellow/10 text-yellow grid place-items-center"><Users size={21} /></div>
                       <span className={`px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wide border ${group.archived ? "bg-gray-500/10 text-gray-500 border-gray-500/20" : "bg-green-500/10 text-green-500 border-green-500/20"}`}>{group.archived ? "Read-only" : "Active"}</span>
                     </div>
-                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{group.name}</h1>
+                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">{group.name}</h1>
                     <p className="max-w-2xl mt-2 text-sm leading-relaxed text-gray-500 dark:text-gray-400">{group.description || "No group description provided."}</p>
                   </div>
-                  <div className="flex self-start items-center gap-2">
+                  <div className="flex flex-wrap self-start items-center gap-2 [&>*]:whitespace-nowrap">
                     <Link to={`/groups/${group.id}/metrics`} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:text-azure dark:hover:text-yellow transition-colors"><BarChart3 size={13} /> Progress</Link>
                     <button onClick={() => void load()} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-100 transition-colors"><RefreshCw size={13} /> Refresh</button>
                     <button onClick={() => { setLeaveError(null); setShowLeaveConfirm(true); }} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border border-red-500/30 text-red-500 hover:bg-red-500/10 transition-colors"><LogOut size={13} /> Leave class</button>

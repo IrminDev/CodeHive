@@ -43,8 +43,6 @@ import {
   TeacherLoading,
 } from "./TeacherUI";
 
-export type AssignmentLifecycle = "active" | "deleted";
-
 export function assignmentGroupLifecycle(group: TeacherGroup): "active" | "archived" | "deleted" {
   if (!group.isActive) return "deleted";
   return group.archived ? "archived" : "active";
@@ -173,9 +171,9 @@ export function AssignmentList({
   const last = Math.min((page + 1) * pageSize, totalElements);
 
   return (
-    <section className={`${panelClass} relative overflow-hidden`} aria-busy={loading}>
+    <section className={`${panelClass} relative`} aria-busy={loading}>
       {loading && (
-        <div className="absolute inset-x-0 top-0 z-10 h-0.5 overflow-hidden bg-azure/10 dark:bg-yellow/10">
+        <div className="absolute inset-x-0 top-0 z-10 h-0.5 overflow-hidden rounded-t-2xl bg-azure/10 dark:bg-yellow/10">
           <div className="h-full w-1/3 animate-pulse bg-azure dark:bg-yellow" />
         </div>
       )}
@@ -198,7 +196,7 @@ export function AssignmentList({
         ))}
       </div>
 
-      <footer className="flex flex-col gap-3 border-t border-gray-100 bg-gray-50 px-5 py-3 dark:border-gray-800/60 dark:bg-dark-card sm:flex-row sm:items-center sm:justify-between">
+      <footer className="flex flex-col gap-3 rounded-b-2xl border-t border-gray-100 bg-gray-50 px-5 py-3 dark:border-gray-800/60 dark:bg-dark-card sm:flex-row sm:items-center sm:justify-between">
         <p className="text-xs text-gray-500">Showing <span className="font-mono font-medium text-gray-700 dark:text-gray-300">{first}–{last}</span> of <span className="font-mono font-medium text-gray-700 dark:text-gray-300">{totalElements}</span></p>
         <div className="flex items-center gap-2">
           <button type="button" className={compactButtonClass} disabled={page === 0 || loading} onClick={() => onPage(page - 1)} aria-label="Previous page"><ChevronLeft size={14} /><span className="hidden sm:inline">Previous</span></button>
@@ -384,10 +382,6 @@ function assignmentSchedule(assignment: TeacherAssignment): { label: string; det
   if (assignment.dueDate && Date.parse(assignment.dueDate) < now) return { label: "Overdue", detail: `Due ${formatDateTime(assignment.dueDate)}`, tone: "error" };
   if (assignment.dueDate) return { label: "Open", detail: `Due ${formatDateTime(assignment.dueDate)}`, tone: "success" };
   return { label: "Open", detail: "No due date", tone: "success" };
-}
-
-function formatDate(value: string): string {
-  return new Date(value).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" });
 }
 
 function formatDateTime(value: string): string {

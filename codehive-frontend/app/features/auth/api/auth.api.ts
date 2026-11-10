@@ -64,7 +64,7 @@ export async function getMe(token: string | null) {
 export function updatePassword(currentPassword: string, newPassword: string, token: string | null) {
   if (!token) throw new Error("Your session is invalid or has expired. Please log in again.");
 
-  return requestJson<SuccessResponse<MessageResponse>>(`${AUTH_BASE_URL}/me/password`, {
+  return requestJson<SuccessResponse<AuthResponse>>(`${AUTH_BASE_URL}/me/password`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",

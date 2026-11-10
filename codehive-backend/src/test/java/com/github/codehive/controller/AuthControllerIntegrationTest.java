@@ -1,5 +1,7 @@
 package com.github.codehive.controller;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -13,6 +15,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -739,25 +743,46 @@ class AuthControllerIntegrationTest {
     @DisplayName("PUT /api/auth/me/password")
     class UpdatePasswordEndpointTests {
 
-        @Test
-        @DisplayName("Returns 200 and updates password with valid request")
-        void updatePassword_WithValidRequest_ReturnsOk() throws Exception {
-            // Given
+        @ParameterizedTest
+        @EnumSource(Role.class)
+        @DisplayName("Password change returns valid replacement JWT and revokes old JWT for every role")
+        void updatePassword_WithValidRequest_ReturnsOk(Role role) throws Exception {
+            User actor = role == Role.ADMIN ? adminUser : testUser;
+            actor.setRole(role);
+            actor.setTemporaryPassword(true);
+            userRepository.saveAndFlush(actor);
+            int oldVersion = actor.getTokenVersion();
+            String oldToken = jwtUtil.generateToken(java.util.Map.of(
+                    "userId", actor.getId(), "role", role.name(), "tokenVersion", oldVersion), actor.getEmail());
             UpdatePasswordRequest request = new UpdatePasswordRequest();
-            request.setCurrentPassword("admin123");
-            request.setNewPassword("newAdminPass456");
+            request.setCurrentPassword(role == Role.ADMIN ? "admin123" : "password123");
+            request.setNewPassword("newStrongPass456");
 
-            // When/Then
-            mockMvc.perform(put("/api/auth/me/password")
-                    .header("Authorization", "Bearer " + adminToken)
+            var result = mockMvc.perform(put("/api/auth/me/password")
+                    .header("Authorization", "Bearer " + oldToken)
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.message").value("Password updated successfully"));
+                    .andExpect(jsonPath("$.message").value("Password updated successfully"))
+                    .andExpect(jsonPath("$.data.token").isNotEmpty())
+                    .andExpect(jsonPath("$.data.user.email").value(actor.getEmail()))
+                    .andExpect(jsonPath("$.data.user.role").value(role.name()))
+                    .andExpect(jsonPath("$.data.user.temporaryPassword").value(false))
+                    .andExpect(jsonPath("$.data.user.password").doesNotExist())
+                    .andReturn();
+            String newToken = objectMapper.readTree(result.getResponse().getContentAsString())
+                    .path("data").path("token").asText();
+            assertThat(newToken).isNotEqualTo(oldToken);
+            assertThat(jwtUtil.extractTokenVersion(newToken)).isEqualTo(oldVersion + 1);
+            User updated = userRepository.findById(actor.getId()).orElseThrow();
+            assertThat(passwordEncoder.matches("newStrongPass456", updated.getPassword())).isTrue();
 
-            // Verify password actually changed
-            User updatedAdmin = userRepository.findByEmail("admin@example.com").orElseThrow();
-            assert passwordEncoder.matches("newAdminPass456", updatedAdmin.getPassword());
+            mockMvc.perform(get("/api/auth/me").header("Authorization", "Bearer " + newToken))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.email").value(actor.getEmail()))
+                    .andExpect(jsonPath("$.data.temporaryPassword").value(false));
+            mockMvc.perform(get("/api/auth/me").header("Authorization", "Bearer " + oldToken))
+                    .andExpect(status().isForbidden());
         }
 
         @Test
@@ -775,6 +800,9 @@ class AuthControllerIntegrationTest {
                     .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isUnauthorized())
                     .andExpect(jsonPath("$.error").value("Incorrect current password"));
+            mockMvc.perform(get("/api/auth/me").header("Authorization", "Bearer " + adminToken))
+                    .andExpect(status().isOk());
+            assertThat(userRepository.findById(adminUser.getId()).orElseThrow().getTokenVersion()).isZero();
         }
 
         @Test

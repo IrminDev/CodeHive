@@ -4,6 +4,7 @@ import type {
   AssignmentMetricsDetail,
   GroupMetricsOverview,
   StudentMetrics,
+  StudentAssignmentAnalytics,
 } from "../types/metrics.types";
 
 export function getGroupMetricsOverview(groupId: string): Promise<GroupMetricsOverview> {
@@ -27,5 +28,12 @@ export function listStudentMetrics(groupId: string): Promise<StudentMetrics[]> {
 export function getAssignmentMetrics(assignmentId: string): Promise<AssignmentMetricsDetail> {
   return teacherRequest<AssignmentMetricsDetail>(
     `/api/assignments/${encodeURIComponent(assignmentId)}/metrics`,
+  );
+}
+
+export function listStudentAssignmentMetrics(groupId: string, studentId: string, signal?: AbortSignal) {
+  return teacherRequest<StudentAssignmentAnalytics[]>(
+    `/api/groups/${encodeURIComponent(groupId)}/metrics/students/${encodeURIComponent(studentId)}/assignments`,
+    { signal },
   );
 }

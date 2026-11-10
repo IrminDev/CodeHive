@@ -1,13 +1,14 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   Group,
   Panel,
   Separator,
   useDefaultLayout,
+  usePanelRef,
   type LayoutStorage,
 } from "react-resizable-panels";
 
-export type AssignmentWorkspacePane = "assignment" | "editor" | "tests";
+export type AssignmentWorkspacePane = "assignment" | "editor" | "tests" | "side";
 
 interface AssignmentWorkspaceProps {
   assignmentPane: ReactNode;
@@ -17,7 +18,17 @@ interface AssignmentWorkspaceProps {
   onMobilePaneChange: (pane: AssignmentWorkspacePane) => void;
   persistenceKey: string;
   editorLabel?: string;
+  /**
+   * Optional panel docked on the right. It stays mounted while collapsed, so collapsing
+   * never resets its content. Leave undefined for workspaces without one.
+   */
+  sidePane?: ReactNode;
+  sideLabel?: string;
+  sideOpen?: boolean;
+  onSideOpenChange?: (open: boolean) => void;
 }
+
+const SIDE_DEFAULT_SIZE = "30%";
 
 const browserStorage: LayoutStorage = {
   getItem(key) {
@@ -36,8 +47,13 @@ export function AssignmentWorkspace({
   onMobilePaneChange,
   persistenceKey,
   editorLabel = "Code",
+  sidePane,
+  sideLabel = "Side panel",
+  sideOpen = false,
+  onSideOpenChange,
 }: AssignmentWorkspaceProps) {
   const desktop = useDesktopWorkspace();
+  const hasSide = sidePane !== undefined;
   const columns = useDefaultLayout({
     id: `${persistenceKey}-columns-v1`,
     panelIds: ["assignment", "workspace"],
@@ -50,43 +66,50 @@ export function AssignmentWorkspace({
   });
 
   if (!desktop) {
-    const labels: Record<AssignmentWorkspacePane, string> = {
-      assignment: "Assignment",
-      editor: editorLabel,
-      tests: "Tests",
-    };
+    const labels: Array<[AssignmentWorkspacePane, string]> = [
+      ["assignment", "Assignment"],
+      ["editor", editorLabel],
+      ["tests", "Tests"],
+      ...(hasSide ? [["side", sideLabel] as [AssignmentWorkspacePane, string]] : []),
+    ];
+    const active = mobilePane === "side" && !hasSide ? "editor" : mobilePane;
     return (
       <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
-        <div className="flex flex-shrink-0 border-b border-gray-200 dark:border-gray-800/60 bg-white dark:bg-dark-surface">
-          {(Object.keys(labels) as AssignmentWorkspacePane[]).map((pane) => (
+        <div role="tablist" aria-label="Workspace panes" className="flex flex-shrink-0 border-b border-gray-200 dark:border-gray-800/60 bg-white dark:bg-dark-surface">
+          {labels.map(([pane, label]) => (
             <button
               key={pane}
+              type="button"
+              role="tab"
+              aria-selected={active === pane}
               onClick={() => onMobilePaneChange(pane)}
-              className={`flex-1 py-2.5 text-xs font-medium border-b-2 transition-colors ${
-                mobilePane === pane
+              className={`flex-1 py-2.5 text-xs font-medium border-b-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-azure dark:focus-visible:ring-yellow ${
+                active === pane
                   ? "border-azure text-azure dark:border-yellow dark:text-yellow"
-                  : "border-transparent text-gray-400 dark:text-gray-500"
+                  : "border-transparent text-gray-500 dark:text-gray-400"
               }`}
             >
-              {labels[pane]}
+              {label}
             </button>
           ))}
         </div>
         <div className="flex-1 min-h-0 overflow-hidden">
-          {mobilePane === "assignment"
+          {active === "assignment"
             ? assignmentPane
-            : mobilePane === "editor"
+            : active === "editor"
               ? editorPane
-              : testsPane}
+              : active === "tests"
+                ? testsPane
+                : sidePane}
         </div>
       </div>
     );
   }
 
-  return (
+  const main = (
     <Group
       orientation="horizontal"
-      className="flex-1 min-h-0 overflow-hidden"
+      className={hasSide ? "h-full min-h-0 overflow-hidden" : "flex-1 min-h-0 overflow-hidden"}
       defaultLayout={columns.defaultLayout}
       onLayoutChanged={columns.onLayoutChanged}
       resizeTargetMinimumSize={{ fine: 10, coarse: 28 }}
@@ -100,7 +123,7 @@ export function AssignmentWorkspace({
       >
         {assignmentPane}
       </Panel>
-      <WorkspaceSeparator orientation="vertical" />
+      <WorkspaceSeparator orientation="vertical" label="Resize assignment and code panes" />
       <Panel
         id="workspace"
         defaultSize="74%"
@@ -122,7 +145,7 @@ export function AssignmentWorkspace({
           >
             {editorPane}
           </Panel>
-          <WorkspaceSeparator orientation="horizontal" />
+          <WorkspaceSeparator orientation="horizontal" label="Resize code and tests panes" />
           <Panel
             id="tests"
             defaultSize="32%"
@@ -136,14 +159,102 @@ export function AssignmentWorkspace({
       </Panel>
     </Group>
   );
+
+  if (!hasSide) return main;
+
+  return (
+    <DockedSide
+      main={main}
+      side={sidePane}
+      label={sideLabel}
+      open={sideOpen}
+      onOpenChange={onSideOpenChange}
+      persistenceKey={persistenceKey}
+    />
+  );
 }
 
-function WorkspaceSeparator({ orientation }: { orientation: "horizontal" | "vertical" }) {
+/** Wraps the workspace in an outer split whose right panel collapses to nothing without unmounting. */
+function DockedSide({ main, side, label, open, onOpenChange, persistenceKey }: {
+  main: ReactNode;
+  side: ReactNode;
+  label: string;
+  open: boolean;
+  onOpenChange?: (open: boolean) => void;
+  persistenceKey: string;
+}) {
+  const sizeKey = `${persistenceKey}-side-size-v1`;
+  const panel = usePanelRef();
+  const lastSize = useRef<string>(readSize(sizeKey));
+  const [initialSize] = useState(() => open ? lastSize.current : "0%");
+
+  useEffect(() => {
+    const handle = panel.current;
+    if (!handle) return;
+    if (open && handle.isCollapsed()) handle.resize(lastSize.current);
+    else if (!open && !handle.isCollapsed()) handle.collapse();
+  }, [open, panel]);
+
+  return (
+    <Group
+      orientation="horizontal"
+      className="flex-1 min-h-0 overflow-hidden"
+      resizeTargetMinimumSize={{ fine: 10, coarse: 28 }}
+    >
+      <Panel id="main" minSize="680px" className="min-w-0 overflow-hidden">
+        {main}
+      </Panel>
+      <WorkspaceSeparator orientation="vertical" label={`Resize ${label.toLowerCase()} pane`} hidden={!open} />
+      <Panel
+        id="side"
+        panelRef={panel}
+        collapsible
+        collapsedSize="0%"
+        defaultSize={initialSize}
+        minSize="320px"
+        maxSize="45%"
+        className="min-w-0 overflow-hidden"
+        onResize={(size) => {
+          const expanded = size.inPixels > 1;
+          if (expanded) {
+            lastSize.current = `${size.asPercentage.toFixed(2)}%`;
+            writeSize(sizeKey, lastSize.current);
+          }
+          if (expanded !== open) onOpenChange?.(expanded);
+        }}
+      >
+        <div inert={!open} className="h-full min-h-0">
+          {side}
+        </div>
+      </Panel>
+    </Group>
+  );
+}
+
+function readSize(key: string): string {
+  try {
+    const value = window.localStorage.getItem(key);
+    return value && /^\d+(\.\d+)?%$/.test(value) ? value : SIDE_DEFAULT_SIZE;
+  } catch {
+    return SIDE_DEFAULT_SIZE;
+  }
+}
+
+function writeSize(key: string, value: string) {
+  try { window.localStorage.setItem(key, value); } catch { /* Width simply is not remembered. */ }
+}
+
+function WorkspaceSeparator({ orientation, label, hidden = false }: {
+  orientation: "horizontal" | "vertical";
+  label: string;
+  hidden?: boolean;
+}) {
   const vertical = orientation === "vertical";
   return (
     <Separator
-      className={`group relative z-10 flex flex-shrink-0 items-center justify-center bg-gray-200 dark:bg-gray-800 transition-colors hover:bg-azure/40 focus:bg-azure/40 dark:hover:bg-yellow/40 dark:focus:bg-yellow/40 focus:outline-none ${vertical ? "w-1.5 cursor-col-resize" : "h-1.5 cursor-row-resize"}`}
-      aria-label={vertical ? "Resize assignment and code panes" : "Resize code and tests panes"}
+      disabled={hidden}
+      className={`group relative z-10 flex-shrink-0 items-center justify-center bg-gray-200 dark:bg-gray-800 transition-colors hover:bg-azure/40 focus:bg-azure/40 dark:hover:bg-yellow/40 dark:focus:bg-yellow/40 focus:outline-none ${hidden ? "hidden" : "flex"} ${vertical ? "w-1.5 cursor-col-resize" : "h-1.5 cursor-row-resize"}`}
+      aria-label={label}
     >
       <span
         className={`${vertical ? "h-10 w-0.5" : "h-0.5 w-10"} rounded-full bg-gray-400 dark:bg-gray-600 group-hover:bg-azure dark:group-hover:bg-yellow group-focus:bg-azure dark:group-focus:bg-yellow`}

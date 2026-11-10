@@ -68,8 +68,20 @@ Both services perform a compile check before the main execution loop.
 - Python uses a static `compile(...)` preflight in the runtime image. Syntax and
   indentation errors are therefore CE; exceptions raised while running valid code
   remain RTE.
-- Assignment-validation failures include a sanitized, bounded compiler/runtime
-  diagnostic so the backend can persist it and include it in teacher email.
+- Assignment-validation failures identify the 1-based test position in queue order
+  and total test count, explain the verdict in plain language, and include exit code,
+  execution time, and observed memory when available. Time/memory failures report
+  effective session limits; output failures report the sandbox output cap. Queue
+  order follows the uploaded/proposed suite order, including preserved tests before
+  appended tests. UUIDs stay in worker logs.
+- Compiler/runtime diagnostics are stripped of terminal control characters and
+  bounded to 8,192 characters, preserving multiline traces and source line numbers.
+  Missing diagnostics are stated explicitly rather than inventing an exact cause.
+  Compilation, preparation, and per-test processing errors also use bounded diagnostics.
+  The existing errorMessage queue field carries these messages unchanged through
+  backend persistence to the teacher status drawer and validation email; no queue
+  schema changes are required. Existing failures retain their original saved message
+  until validation runs again.
 
 ## Verdict Model
 Per-test verdicts represented by ExecutionStatus:
@@ -92,6 +104,29 @@ Each submission container has one memory tracker for its full session. It record
   changes. This is diagnostic and may be absent when no reliable sample exists.
 - cgroup OOM evidence, combined with exit code and language-specific managed-runtime
   markers, for MLE classification.
+
+## Test-case cap regression coverage
+
+`TestExecutionServiceTest` verifies requested counts 49, 50, and 51 in each mode:
+
+- `definitiveExecutionRunsAtMostFiftyTestCases`: report contains exactly the first
+  `min(requested, 50)` case IDs, executor runs that many times, and case 51's input
+  and expected output are never downloaded.
+- `practiceExecutionCapsBothStudentAndReferenceAtFiftyTestCases`: report numbers and
+  captured inputs preserve the first `min(requested, 50)` cases; both student and
+  reference executors run that many times and sessions are cleaned up.
+
+These are deterministic service unit tests with mocked storage/executors, not
+Docker tests. The 50-case expectation is independent of the production constant,
+so raising/removing the cap without updating requirements fails the tests.
+
+```bash
+cd codehive-worker
+./gradlew test --tests '*TestExecutionServiceTest'
+```
+
+Validation: 9 executions passed (six new boundary cases and three existing cases).
+Report: `codehive-worker/build/reports/tests/test/index.html`.
 
 ## Failure Handling
 - Unhandled failures produce an error report/result that is still published to backend queue.
