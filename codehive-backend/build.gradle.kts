@@ -27,7 +27,7 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-validation")
 	implementation("org.springframework.ai:spring-ai-starter-model-google-genai:1.1.8")
 	// Public custom HTTP transport support is needed to prevent hidden POST retries.
-	implementation("com.google.genai:google-genai:1.76.0")
+	implementation("com.google.genai:google-genai:2.3.0")
 	developmentOnly("org.springframework.boot:spring-boot-devtools")
 	developmentOnly("org.springframework.boot:spring-boot-docker-compose")
 
