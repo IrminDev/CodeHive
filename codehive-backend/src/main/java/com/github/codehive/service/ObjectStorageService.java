@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
 import io.minio.MinioClient;
 import io.minio.ListObjectsArgs;
 import io.minio.RemoveObjectsArgs;
-import io.minio.messages.DeleteObject;
+import io.minio.messages.DeleteRequest;
 import io.minio.PutObjectArgs;
 
 @Service
@@ -31,7 +31,7 @@ public class ObjectStorageService {
             io.minio.PutObjectArgs.builder()
                 .bucket(bucketName)
                 .object(objectKey)
-                .stream(data, size, -1)
+                .stream(data, size, -1L)
                 .contentType(contentType)
                 .build()
         );
@@ -45,7 +45,7 @@ public class ObjectStorageService {
             PutObjectArgs.builder()
                 .bucket(bucketName)
                 .object(objectKey)
-                .stream(stream, contentBytes.length, -1)
+                .stream(stream, (long) contentBytes.length, -1L)
                 .contentType("text/plain")
                 .build()
         );
@@ -62,10 +62,10 @@ public class ObjectStorageService {
     }
 
     public void deletePrefix(String prefix) throws Exception {
-        List<DeleteObject> objects = new ArrayList<>();
+        List<DeleteRequest.Object> objects = new ArrayList<>();
         for (var result : minioClient.listObjects(ListObjectsArgs.builder()
                 .bucket(bucketName).prefix(prefix).recursive(true).build())) {
-            objects.add(new DeleteObject(result.get().objectName()));
+            objects.add(new DeleteRequest.Object(result.get().objectName()));
         }
         if (objects.isEmpty()) return;
 
